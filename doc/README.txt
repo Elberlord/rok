@@ -1,30 +1,4 @@
-ROK LITE v223 / v5.5.137
-- Convierte el lobby Firebase en un duelo PVP online funcional en beta.
-- El anfitrión obtiene el botón Iniciar duelo cuando el Jugador 2 está conectado.
-- J1 controla Hattori y J2 controla Tokugawa; la IA queda completamente desactivada durante el modo online.
-- Sincroniza mediante Firebase Realtime Database el estado lógico de turnos, fases, recursos, casteos, unidades, posiciones, vida, Guardianes, condiciones, restauración, Kaster y final del match.
-- Cada actualización usa una revisión transaccional para evitar sobrescrituras directas y permite reconstruir la partida desde el último snapshot recibido.
-- El jugador que no tiene el turno queda bloqueado para acciones de arena, pero conserva acceso a información y menú.
-- Esta primera beta completa sincroniza resultados lógicos; las animaciones del rival se reconstruyen desde el estado final y las ventanas de reacción fuera de turno todavía requieren una segunda capa de comandos dedicada.
-
-ROK LITE v222 / v5.5.136
-- Conecta el lobby Versus Online con Firebase Realtime Database usando la configuración del proyecto rok-rise-of-caster.
-- Autentica a cada navegador como jugador anónimo.
-- Crear sala genera un código real y registra al Jugador 1 en /rooms/{codigo}.
-- Unirse con código reclama de forma transaccional el puesto del Jugador 2 para evitar que dos invitados entren a la vez.
-- Ambos navegadores escuchan la sala en tiempo real y muestran presencia, desconexión y «Jugador 2 conectado».
-- Al salir del lobby se marca la presencia como desconectada; el anfitrión cierra la sala.
-- Esta etapa valida la conexión de dos dispositivos. Todavía no sincroniza el estado completo de la batalla.
-- Incluye firebase-rtdb-rules.json como copia de referencia de las reglas requeridas.
-
-ROK LITE v221 / v5.5.135
-- Activa el botón Versus Online del menú principal.
-- Añade un lobby PVP con dos flujos preparados: Crear sala y Unirse con código.
-- El Jugador 1 puede generar y copiar un código de seis caracteres; el Jugador 2 puede introducir y validar ese código.
-- Expone window.ROK_ONLINE_LOBBY como punto de integración para la futura conexión con Firebase.
-- Esta versión prepara la interfaz y el estado local; todavía no conecta dos dispositivos hasta añadir Firebase.
-
-ROK LITE v220 / v5.5.134
+ROK LITE v219 / v5.5.133
 - Movimiento asistido estricto: cada paso y destino deben estar libres; dos fichas ya no pueden terminar en la misma casilla.
 - El HUD VS muestra cada Guardián una sola vez y apila debajo todas las invocaciones que tiene canalizadas o que lo están atacando. La unidad que ataca o recibe el rayo pasa al frente.
 - Jinchi Tenkan mantiene costo 3, traslada el nexo y hace reaparecer a la invocación inmediatamente, sin estasis ni tiempo de restauración. Primero gana +2 de vida máxima y después recupera 2 de vida.
@@ -169,8 +143,3 @@ ROK Lite v199 / v5.5.113
 
 
 ROK v5.5.120 / v206: compacta y alinea a la izquierda los cuatro bloques del Guardián, ajusta el texto del poder, reduce 25% el círculo persistente del Kaster y conserva su fase de giro entre renders.
-
-
-v220 / v5.5.134
-- Los nexos/respawn dejan de bloquear el movimiento; las piezas físicas siguen impidiendo superposición.
-- Las unidades a distancia ancladas contra Guardianes conservan Ataque extra en cada Resolución posterior.

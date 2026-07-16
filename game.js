@@ -1,5 +1,5 @@
 
-const ROK_DEV_FORCE_LIBRARY_START = true; // TEMP: abrir Biblioteca al refrescar mientras se crean/ajustan cartas.
+const ROK_DEV_FORCE_LIBRARY_START = false; // PvP: iniciar en el menú principal.
 /* Rock HTML Base Prototype
    Base modular: data -> state -> render -> input -> phase flow.
 */
@@ -41,11 +41,8 @@ const PURE_ELEMENT_CASTING_INTERVAL = 3;
 const KAGUYA_CHARGED_SHOT_CHANNEL_PHASES = 5;
 const CASTER_SPECIAL_COUNTER_DAMAGE_THRESHOLD = 5;
 const CASTER_DEFENSE_VALUE = 2;
-const GAME_VERSION = 'v5.5.137';
+const GAME_VERSION = 'v5.5.133';
 const PATCH_NOTES = [
-  'Activa el duelo PVP online completo en beta: el anfitrión inicia la batalla, J1/J2 se asignan por rol, la IA queda desactivada y Firebase replica el estado lógico entero de turnos, fases, recursos, casteos, unidades, Guardianes, daño, condiciones, restauración, Kaster y final de partida mediante revisiones transaccionales.',
-  'Conecta el lobby Versus Online con Firebase Realtime Database: autenticación anónima, creación de salas reales con código único, unión transaccional del segundo jugador, presencia en tiempo real y detección de rival conectado, sin iniciar todavía la batalla PVP.',
-  'Permite atravesar y terminar movimiento sobre nexos/respawn sin permitir superposición de piezas, y conserva Ataque extra en cada Resolución posterior de las unidades a distancia ancladas contra un Guardián.',
   'Impide superposiciones en movimiento asistido, agrupa en el HUD VS cada Guardián con sus objetivos apilados, corrige Jinchi Tenkan como rescate inmediato sin estasis con +2 vida máxima/+2 curación, añade rescate táctico de IA, fin de partida con revancha y victorias del match, y libera la prioridad de Takeda cuando Tokugawa ya puede pagarlo.',
   'Reformula la estrategia de Tokugawa: apertura fija con Kaguyas en D5/F5, reserva de recursos para Takeda y El viejo amigo, avance condicionado, secuencia Takeda/Musashi/Nobunaga/Oda no Kage/Hideyoshi/Taicho y respuesta situacional con Akari. Akari pasa a ataque a distancia y Colegas de guerra queda completamente funcional solo con Nobunaga aliado.',
   'Corrige Defender del Kaster con Defensa 2 real y efecto visual; las auras de Guardianes solo suprimen efectos rivales, los contadores de humo abren información propia, la Bomba de humo finaliza su reacción de forma idempotente y el Counter usa el color del dominio.',
@@ -2859,6 +2856,8 @@ const CARD_LIBRARY = {
 };
 
 let LOCAL_PLAYER_ID = 1;
+let ROK_ONLINE_MATCH_ACTIVE = false;
+function isOnlineMatchActive() { return Boolean(ROK_ONLINE_MATCH_ACTIVE); }
 const MAX_INVOCATIONS_PER_PLAYER = 6;
 
 
@@ -4312,301 +4311,6 @@ const INITIAL_BATTLE_STATE = JSON.parse(JSON.stringify(state));
 const els = {};
 
 let mainMenuBattleStarted = false;
-const onlineLobbyState = {
-  mode: 'idle',
-  roomCode: '',
-  role: '',
-  uid: '',
-  firebaseReady: false,
-  firebaseConnected: false,
-  authenticated: false,
-  busy: false,
-  roomStatus: 'idle',
-  opponentConnected: false,
-  matchStatus: 'idle',
-  battleRevision: 0,
-  authError: '',
-};
-let onlineLobbyAdapter = null;
-
-const ONLINE_SYNC_SCHEMA = 1;
-const ONLINE_BATTLE_LOGICAL_KEYS = [
-  'activePlayer',
-  'phaseIndex',
-  'turnSerial',
-  'gameOver',
-  'matchWins',
-  'phaseUndo',
-  'resolutionActionTaken',
-  'turnActionByPlayer',
-  'resolutionSerial',
-  'arenaEntrySerial',
-  'smokeZones',
-  'pendingGuardianStrikes',
-  'kaguyaChargedShots',
-  'pendingTimedAbilityResolutions',
-  'extractedThisPhase',
-  'players',
-];
-const onlineBattleState = {
-  enabled: false,
-  roomCode: '',
-  role: '',
-  uid: '',
-  playerId: 1,
-  revision: 0,
-  applyingRemote: false,
-  publishing: false,
-  lastPublishedHash: '',
-  lastAppliedHash: '',
-  lastPhaseKey: '',
-  connectionText: '',
-};
-let onlineBattlePublishTimer = null;
-let onlineBattleWatchInterval = null;
-let onlineBattlePublishChain = Promise.resolve();
-
-function isOnlineBattleActive() {
-  return Boolean(onlineBattleState.enabled && onlineBattleState.roomCode);
-}
-
-function getOnlineBattlePhaseKey(snapshot = state) {
-  return `${Number(snapshot?.activePlayer || 1)}:${Number(snapshot?.phaseIndex || 0)}:${Number(snapshot?.turnSerial || 1)}:${Number(snapshot?.resolutionSerial || 0)}`;
-}
-
-function cloneOnlineValue(value) {
-  return JSON.parse(JSON.stringify(value));
-}
-
-function exportOnlineBattleState(reason = 'state-change') {
-  const payload = { schema: ONLINE_SYNC_SCHEMA };
-  ONLINE_BATTLE_LOGICAL_KEYS.forEach(key => {
-    if (typeof state[key] !== 'undefined') payload[key] = cloneOnlineValue(state[key]);
-  });
-  payload.aiEnabled = false;
-  return payload;
-}
-
-function getOnlineBattleHash(snapshot) {
-  try { return JSON.stringify(snapshot); }
-  catch (_) { return ''; }
-}
-
-function updateOnlineBattleStatus(text = '') {
-  onlineBattleState.connectionText = text || (isOnlineBattleActive() ? `PVP · J${LOCAL_PLAYER_ID} · Sala ${onlineBattleState.roomCode}` : '');
-  if (els.onlineBattleStatus) {
-    els.onlineBattleStatus.textContent = onlineBattleState.connectionText;
-    els.onlineBattleStatus.classList.toggle('visible', Boolean(isOnlineBattleActive()));
-    els.onlineBattleStatus.dataset.connected = onlineLobbyState.firebaseConnected ? 'true' : 'false';
-  }
-}
-
-function resetOnlineTransientState() {
-  state.activeTab = 0;
-  state.selectedCardSlot = null;
-  state.pendingCard = null;
-  state.pendingPlacement = null;
-  state.randomCostPayment = null;
-  state.infoCard = null;
-  state.cardMetaInfoHistory = [];
-  state.cardMetaInfoCurrent = null;
-  state.selectedMover = null;
-  state.selectedTarget = null;
-  state.pendingCasterDefense = null;
-  state.pendingPowerAction = null;
-  state.tokugawaAbilitySelectionActive = false;
-  state.pendingTokugawaReposition = null;
-  state.hattoriAbilitySelectionActive = false;
-  state.hattoriAbilitySelectionResolver = null;
-  state.hattoriReactionPromptActive = false;
-  state.extractionAnimating = false;
-  state.opponentActionResolving = false;
-  state.opponentActionLockReason = '';
-  state.opponentActionNoticeAwaiting = false;
-  state.opponentActionNoticeResolve = null;
-  state.opponentActionNoticeWaiters = [];
-  state.opponentActionLockDepth = 0;
-  state.pendingCastTravelCount = 0;
-  state.pendingCastTravelPromises = [];
-  state.castTravelResolving = false;
-  state.actionExecutionLock = Boolean(state.gameOver);
-  state.actionExecutionLockReason = state.gameOver ? 'match-finished' : '';
-  state.aiThinking = false;
-  state.enemyResolutionRunning = false;
-  state.aiEnabled = false;
-  state.quickReactionWindow = { active: false, locked: false, candidates: [], resolver: null, phaseKey: '' };
-  state.offTurnCasterReposition = { active: false, playerId: null, phaseKey: '', moving: false, resolver: null };
-  state.semiAutoMovementAnimating = false;
-}
-
-function showOnlineBattleScreen() {
-  document.body.classList.remove('rok-menu-mode', 'rok-library-mode', 'rok-online-mode');
-  document.body.classList.add('rok-battle-mode', 'rok-online-battle-mode');
-  if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
-  if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
-  if (els.onlineLobbyScreen) els.onlineLobbyScreen.setAttribute('aria-hidden', 'true');
-  mainMenuBattleStarted = true;
-  updateHudModeUi();
-  updateOnlineBattleStatus();
-}
-
-function applyOnlineBattleSnapshot(packet = {}) {
-  const remoteState = packet?.state;
-  const revision = Math.max(0, Number(packet?.revision || 0));
-  if (!remoteState || Number(remoteState.schema || 0) !== ONLINE_SYNC_SCHEMA) return false;
-  if (revision && revision < Number(onlineBattleState.revision || 0)) return false;
-
-  const hash = String(packet?.stateHash || getOnlineBattleHash(remoteState));
-  onlineBattleState.revision = Math.max(Number(onlineBattleState.revision || 0), revision);
-  onlineLobbyState.battleRevision = onlineBattleState.revision;
-  // Nunca reaplicar en el mismo navegador el snapshot que acaba de publicar.
-  // El listener de Firebase puede dispararse antes de que termine la promesa
-  // local; updatedBy evita que una confirmación propia limpie selecciones o
-  // interrumpa una animación todavía en curso.
-  if (packet?.updatedBy && packet.updatedBy === onlineBattleState.uid) {
-    if (hash) onlineBattleState.lastPublishedHash = hash;
-    updateOnlineBattleStatus(`PVP conectado · J${LOCAL_PLAYER_ID} · rev ${onlineBattleState.revision}`);
-    return false;
-  }
-  if (hash && hash === onlineBattleState.lastAppliedHash) return false;
-
-  const previousPhaseKey = getOnlineBattlePhaseKey();
-  onlineBattleState.applyingRemote = true;
-  try {
-    clearTimeout(schedulePhaseStartActions.timer);
-    clearTimeout(scheduleSustainedCombatResolution.timer);
-    clearTimeout(scheduleSustainedStructureAttacks.timer);
-    ONLINE_BATTLE_LOGICAL_KEYS.forEach(key => {
-      if (typeof remoteState[key] !== 'undefined') state[key] = cloneOnlineValue(remoteState[key]);
-    });
-    resetOnlineTransientState();
-    state.aiEnabled = false;
-    onlineBattleState.lastAppliedHash = hash;
-    showOnlineBattleScreen();
-    renderAll();
-  } finally {
-    onlineBattleState.applyingRemote = false;
-  }
-
-  const nextPhaseKey = getOnlineBattlePhaseKey();
-  onlineBattleState.lastPhaseKey = nextPhaseKey;
-  updateOnlineBattleStatus(`PVP conectado · J${LOCAL_PLAYER_ID} · rev ${onlineBattleState.revision}`);
-  if (!state.gameOver && previousPhaseKey !== nextPhaseKey && Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) {
-    schedulePhaseStartActions(420);
-  }
-  if (state.gameOver) window.setTimeout(() => {
-    const winner = Number(state.players?.[1]?.caster?.life || 0) <= 0 ? 2 : 1;
-    const defeated = winner === 1 ? 2 : 1;
-    if (!document.getElementById('matchResultOverlay')) showMatchResultOverlay(winner, defeated);
-  }, 350);
-  return true;
-}
-
-function scheduleOnlineBattlePublish(reason = 'state-change', delay = 110) {
-  if (!isOnlineBattleActive() || onlineBattleState.applyingRemote || !onlineLobbyAdapter?.publishBattleState) return;
-  if (Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID) && !state.gameOver) return;
-  clearTimeout(onlineBattlePublishTimer);
-  onlineBattlePublishTimer = window.setTimeout(() => {
-    const snapshot = exportOnlineBattleState(reason);
-    const hash = getOnlineBattleHash(snapshot);
-    if (!hash || hash === onlineBattleState.lastPublishedHash || hash === onlineBattleState.lastAppliedHash) return;
-    onlineBattlePublishChain = onlineBattlePublishChain
-      .then(async () => {
-        onlineBattleState.publishing = true;
-        const result = await onlineLobbyAdapter.publishBattleState({
-          state: snapshot,
-          stateHash: hash,
-          reason,
-          baseRevision: onlineBattleState.revision,
-        });
-        if (result?.revision) onlineBattleState.revision = Math.max(onlineBattleState.revision, Number(result.revision));
-        onlineBattleState.lastPublishedHash = hash;
-        updateOnlineBattleStatus(`PVP conectado · J${LOCAL_PLAYER_ID} · rev ${onlineBattleState.revision}`);
-      })
-      .catch(error => reportGameException(error, 'Sincronizar duelo PVP'))
-      .finally(() => { onlineBattleState.publishing = false; });
-  }, Math.max(20, Number(delay) || 110));
-}
-
-function configureOnlineBattleIdentity(role, roomCode, uid) {
-  const playerId = role === 'guest' ? 2 : 1;
-  LOCAL_PLAYER_ID = playerId;
-  onlineBattleState.enabled = true;
-  onlineBattleState.roomCode = normalizeOnlineRoomCode(roomCode);
-  onlineBattleState.role = role;
-  onlineBattleState.uid = uid || onlineLobbyState.uid || '';
-  onlineBattleState.playerId = playerId;
-  state.aiEnabled = false;
-  document.body.dataset.onlinePlayer = String(playerId);
-  updateOnlineBattleStatus();
-  if (!onlineBattleWatchInterval) {
-    onlineBattleWatchInterval = window.setInterval(() => {
-      if (isOnlineBattleActive()) scheduleOnlineBattlePublish('state-watchdog', 30);
-    }, 320);
-  }
-  return playerId;
-}
-
-async function handleStartOnlineBattle() {
-  if (onlineLobbyState.role !== 'host' || !onlineLobbyState.roomCode) return;
-  if (!onlineLobbyState.opponentConnected) {
-    setOnlineLobbyNotice('Espera a que el Jugador 2 esté conectado.', 'warning');
-    return;
-  }
-  if (!onlineLobbyAdapter?.startBattle) {
-    setOnlineLobbyNotice('La conexión todavía no puede iniciar el duelo.', 'error');
-    return;
-  }
-  setOnlineLobbyState({ busy: true, matchStatus: 'starting' });
-  setOnlineLobbyNotice('Preparando el estado inicial del duelo…');
-  try {
-    configureOnlineBattleIdentity('host', onlineLobbyState.roomCode, onlineLobbyState.uid);
-    onlineBattleState.applyingRemote = true;
-    const hudMode = state.hudMode;
-    const semiAutoMovement = state.semiAutoMovement;
-    const fresh = cloneOnlineValue(INITIAL_BATTLE_STATE);
-    Object.keys(state).forEach(key => delete state[key]);
-    Object.assign(state, fresh);
-    state.hudMode = hudMode;
-    state.semiAutoMovement = semiAutoMovement;
-    state.aiEnabled = false;
-    initializeElementDecks();
-    enterPhase(true, true);
-    resetOnlineTransientState();
-    const snapshot = exportOnlineBattleState('match-start');
-    const result = await onlineLobbyAdapter.startBattle(snapshot);
-    onlineBattleState.revision = Number(result?.revision || 1);
-    onlineBattleState.lastPublishedHash = getOnlineBattleHash(snapshot);
-    onlineLobbyState.battleRevision = onlineBattleState.revision;
-    onlineLobbyState.matchStatus = 'playing';
-    onlineBattleState.applyingRemote = false;
-    showOnlineBattleScreen();
-    renderAll();
-    const introTransitions = [
-      { text: 'DUELO ONLINE', playerId: 1, duration: 1050 },
-      { text: 'JUGADOR 1', playerId: 1, duration: 820 },
-      { text: 'EXTRACCIÓN', playerId: 1, duration: 880 },
-    ];
-    queueTransitions(introTransitions);
-    schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
-  } catch (error) {
-    onlineBattleState.applyingRemote = false;
-    reportGameException(error, 'Iniciar duelo PVP');
-    setOnlineLobbyState({ busy: false, matchStatus: 'ready' });
-    setOnlineLobbyNotice(getOnlineLobbyErrorMessage(error, 'No se pudo iniciar el duelo.'), 'error');
-  }
-}
-
-function receiveOnlineBattlePacket(packet = {}) {
-  const lobby = onlineLobbyState;
-  const role = lobby.role || packet.role || '';
-  if (!role || !lobby.roomCode) return;
-  configureOnlineBattleIdentity(role, lobby.roomCode, lobby.uid);
-  onlineLobbyState.matchStatus = packet?.status || 'playing';
-  applyOnlineBattleSnapshot(packet);
-}
-const ONLINE_ROOM_CODE_LENGTH = 6;
-const ONLINE_ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const libraryBuilderState = {
   selectedLibraryCardId: null,
   selectedSpellbookIndex: null,
@@ -4635,11 +4339,10 @@ function init() {
 
 function showMainMenu() {
   document.body.classList.add('rok-menu-mode');
-  document.body.classList.remove('rok-battle-mode', 'rok-library-mode', 'rok-online-mode');
+  document.body.classList.remove('rok-battle-mode', 'rok-library-mode');
   clearBattleHudForInactiveScreen();
   if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'false');
   if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
-  if (els.onlineLobbyScreen) els.onlineLobbyScreen.setAttribute('aria-hidden', 'true');
   if (els.mainMenuNotice) els.mainMenuNotice.textContent = '';
 }
 
@@ -4666,6 +4369,10 @@ function safeRenderStep(label, fn) {
 
 function startBotBattleFromMainMenu() {
   try {
+    window.ROK_ONLINE_PVP?.leaveRoom?.({ silent: true, keepMenu: true });
+    ROK_ONLINE_MATCH_ACTIVE = false;
+    LOCAL_PLAYER_ID = 1;
+    state.aiEnabled = true;
     document.body.classList.remove('rok-menu-mode', 'rok-library-mode');
     document.body.classList.add('rok-battle-mode');
     if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
@@ -4696,249 +4403,6 @@ function showMainMenuComingSoon(label) {
   void els.mainMenuNotice.offsetWidth;
   els.mainMenuNotice.classList.add('pulse');
 }
-
-function normalizeOnlineRoomCode(value) {
-  return String(value || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, ONLINE_ROOM_CODE_LENGTH);
-}
-
-function createOnlineRoomCode() {
-  const values = new Uint32Array(ONLINE_ROOM_CODE_LENGTH);
-  if (window.crypto?.getRandomValues) window.crypto.getRandomValues(values);
-  else for (let i = 0; i < values.length; i += 1) values[i] = Math.floor(Math.random() * 0xffffffff);
-  return Array.from(values, value => ONLINE_ROOM_CODE_CHARS[value % ONLINE_ROOM_CODE_CHARS.length]).join('');
-}
-
-function setOnlineLobbyNotice(message, kind = 'info') {
-  if (!els.onlineLobbyNotice) return;
-  els.onlineLobbyNotice.textContent = message;
-  els.onlineLobbyNotice.dataset.kind = kind;
-}
-
-function setOnlineLobbyState(patch = {}) {
-  Object.assign(onlineLobbyState, patch || {});
-  renderOnlineLobbyState();
-}
-
-function getOnlineFirebaseStatusText() {
-  if (onlineLobbyState.authError) return 'Error de acceso';
-  if (!onlineLobbyState.firebaseReady) return 'Preparando Firebase…';
-  if (!onlineLobbyState.firebaseConnected) return 'Sin conexión';
-  if (!onlineLobbyState.authenticated) return 'Identificando jugador…';
-  return 'Firebase conectado';
-}
-
-function renderOnlineLobbyState() {
-  const isHost = onlineLobbyState.mode === 'host';
-  const isGuest = onlineLobbyState.mode === 'guest';
-  const roomActive = isHost || isGuest;
-  const canUseFirebase = onlineLobbyState.firebaseReady
-    && onlineLobbyState.firebaseConnected
-    && onlineLobbyState.authenticated
-    && !onlineLobbyState.authError;
-
-  if (els.onlineHostCode) els.onlineHostCode.textContent = isHost && onlineLobbyState.roomCode ? onlineLobbyState.roomCode : '------';
-  if (els.onlineHostCodeBox) {
-    const visible = Boolean(isHost && onlineLobbyState.roomCode);
-    els.onlineHostCodeBox.setAttribute('aria-hidden', visible ? 'false' : 'true');
-    els.onlineHostCodeBox.classList.toggle('visible', visible);
-  }
-  if (els.onlineFirebaseStatus) {
-    els.onlineFirebaseStatus.textContent = getOnlineFirebaseStatusText();
-    els.onlineFirebaseStatus.dataset.state = onlineLobbyState.authError
-      ? 'error'
-      : (canUseFirebase ? 'connected' : (onlineLobbyState.firebaseConnected ? 'connecting' : 'offline'));
-  }
-  if (els.onlineHostOpponentStatus) {
-    const connected = Boolean(onlineLobbyState.opponentConnected);
-    els.onlineHostOpponentStatus.textContent = connected ? 'Jugador 2 conectado' : 'Esperando al Jugador 2…';
-    els.onlineHostOpponentStatus.dataset.connected = connected ? 'true' : 'false';
-  }
-
-  if (els.onlineCreateRoomBtn) {
-    els.onlineCreateRoomBtn.disabled = onlineLobbyState.busy || !canUseFirebase || roomActive;
-    els.onlineCreateRoomBtn.textContent = onlineLobbyState.busy && !roomActive ? 'Creando sala…' : 'Crear código';
-  }
-  if (els.onlineJoinRoomBtn) {
-    els.onlineJoinRoomBtn.disabled = onlineLobbyState.busy || !canUseFirebase || roomActive;
-    els.onlineJoinRoomBtn.textContent = onlineLobbyState.busy && !roomActive ? 'Conectando…' : 'Unirse con código';
-  }
-  if (els.onlineCopyCodeBtn) els.onlineCopyCodeBtn.disabled = !isHost || !onlineLobbyState.roomCode;
-  if (els.onlineStartBattleBtn) {
-    const canStart = isHost && roomActive && onlineLobbyState.opponentConnected && ['ready', 'waiting'].includes(onlineLobbyState.roomStatus) && onlineLobbyState.matchStatus !== 'playing';
-    els.onlineStartBattleBtn.hidden = !isHost || !onlineLobbyState.roomCode;
-    els.onlineStartBattleBtn.disabled = onlineLobbyState.busy || !canStart;
-    els.onlineStartBattleBtn.textContent = onlineLobbyState.busy && onlineLobbyState.matchStatus === 'starting' ? 'Iniciando duelo…' : 'Iniciar duelo';
-  }
-  if (els.onlineJoinCodeInput) els.onlineJoinCodeInput.disabled = onlineLobbyState.busy || roomActive;
-}
-
-function openOnlineLobbyScreen() {
-  document.body.classList.remove('rok-menu-mode', 'rok-battle-mode', 'rok-library-mode');
-  document.body.classList.add('rok-online-mode');
-  clearBattleHudForInactiveScreen();
-  if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
-  if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
-  if (els.onlineLobbyScreen) els.onlineLobbyScreen.setAttribute('aria-hidden', 'false');
-  renderOnlineLobbyState();
-
-  if (onlineLobbyState.authError) {
-    setOnlineLobbyNotice(onlineLobbyState.authError, 'error');
-  } else if (!onlineLobbyState.firebaseReady || !onlineLobbyState.authenticated) {
-    setOnlineLobbyNotice('Conectando con Firebase e identificando al jugador…');
-  } else if (!onlineLobbyState.firebaseConnected) {
-    setOnlineLobbyNotice('No hay conexión con Firebase. Revisa tu conexión a internet.', 'warning');
-  } else {
-    setOnlineLobbyNotice('Conexión lista. Puedes crear una sala o unirte mediante un código.', 'success');
-  }
-  window.setTimeout(() => els.onlineCreateRoomBtn?.focus(), 50);
-}
-
-function closeOnlineLobbyScreen() {
-  const leavingAdapter = onlineLobbyAdapter;
-  const previousMode = onlineLobbyState.mode;
-  const previousCode = onlineLobbyState.roomCode;
-  setOnlineLobbyState({
-    mode: 'idle',
-    roomCode: '',
-    role: '',
-    busy: false,
-    roomStatus: 'idle',
-    opponentConnected: false,
-    matchStatus: 'idle',
-    battleRevision: 0,
-  });
-  showMainMenu();
-  if (leavingAdapter?.leaveRoom && (previousMode === 'host' || previousMode === 'guest')) {
-    Promise.resolve(leavingAdapter.leaveRoom({ mode: previousMode, roomCode: previousCode }))
-      .catch(error => reportGameException(error, 'Salir de sala PVP'));
-  }
-}
-
-function getOnlineLobbyErrorMessage(error, fallback) {
-  if (error?.userMessage) return error.userMessage;
-  const code = String(error?.code || '');
-  if (code.includes('auth/operation-not-allowed')) return 'La autenticación anónima todavía no está activada en Firebase.';
-  if (code.includes('auth/unauthorized-domain')) return 'Este dominio no está autorizado en Firebase Authentication.';
-  if (code.includes('permission-denied') || code.includes('PERMISSION_DENIED')) return 'Firebase rechazó la operación. Revisa las reglas de Realtime Database.';
-  if (code.includes('network-request-failed')) return 'No se pudo conectar con Firebase. Revisa tu conexión a internet.';
-  return fallback;
-}
-
-async function handleCreateOnlineRoom() {
-  if (!onlineLobbyAdapter?.createRoom) {
-    setOnlineLobbyNotice('Firebase todavía no está disponible.', 'error');
-    return;
-  }
-  if (onlineLobbyState.busy) return;
-  setOnlineLobbyState({ busy: true, opponentConnected: false });
-  setOnlineLobbyNotice('Creando una sala segura en Firebase…');
-  try {
-    const result = await onlineLobbyAdapter.createRoom();
-    setOnlineLobbyState({
-      mode: 'host',
-      role: 'host',
-      roomCode: normalizeOnlineRoomCode(result?.roomCode),
-      uid: result?.uid || onlineLobbyState.uid,
-      busy: false,
-      roomStatus: result?.status || 'waiting',
-      opponentConnected: false,
-      matchStatus: 'waiting',
-    });
-    setOnlineLobbyNotice(`Sala ${onlineLobbyState.roomCode} creada. Comparte el código y espera al Jugador 2.`, 'success');
-  } catch (error) {
-    reportGameException(error, 'Crear sala PVP');
-    setOnlineLobbyState({ busy: false, mode: 'idle', roomCode: '', role: '', roomStatus: 'idle' });
-    setOnlineLobbyNotice(getOnlineLobbyErrorMessage(error, 'No se pudo crear la sala.'), 'error');
-  }
-}
-
-async function handleCopyOnlineRoomCode() {
-  const code = onlineLobbyState.roomCode;
-  if (!code) {
-    setOnlineLobbyNotice('Primero crea un código de sala.', 'warning');
-    return;
-  }
-  try {
-    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(code);
-    else {
-      const temp = document.createElement('textarea');
-      temp.value = code;
-      temp.style.position = 'fixed';
-      temp.style.opacity = '0';
-      document.body.appendChild(temp);
-      temp.select();
-      document.execCommand('copy');
-      temp.remove();
-    }
-    setOnlineLobbyNotice(`Código ${code} copiado.`, 'success');
-  } catch (error) {
-    reportGameException(error, 'Copiar código PVP');
-    setOnlineLobbyNotice(`Código: ${code}. Cópialo manualmente.`, 'warning');
-  }
-}
-
-function handleOnlineJoinInput() {
-  if (!els.onlineJoinCodeInput) return;
-  const normalized = normalizeOnlineRoomCode(els.onlineJoinCodeInput.value);
-  if (els.onlineJoinCodeInput.value !== normalized) els.onlineJoinCodeInput.value = normalized;
-}
-
-async function handleJoinOnlineRoom() {
-  const code = normalizeOnlineRoomCode(els.onlineJoinCodeInput?.value);
-  if (els.onlineJoinCodeInput) els.onlineJoinCodeInput.value = code;
-  if (code.length !== ONLINE_ROOM_CODE_LENGTH) {
-    setOnlineLobbyNotice('El código debe tener exactamente seis caracteres.', 'error');
-    els.onlineJoinCodeInput?.focus();
-    return;
-  }
-  if (!onlineLobbyAdapter?.joinRoom) {
-    setOnlineLobbyNotice('Firebase todavía no está disponible.', 'error');
-    return;
-  }
-  if (onlineLobbyState.busy) return;
-  setOnlineLobbyState({ busy: true, opponentConnected: false });
-  setOnlineLobbyNotice(`Buscando la sala ${code}…`);
-  try {
-    const result = await onlineLobbyAdapter.joinRoom(code);
-    setOnlineLobbyState({
-      mode: 'guest',
-      role: 'guest',
-      roomCode: code,
-      uid: result?.uid || onlineLobbyState.uid,
-      busy: false,
-      roomStatus: result?.status || 'ready',
-      opponentConnected: true,
-      matchStatus: 'ready',
-    });
-    setOnlineLobbyNotice(`Conectado a la sala ${code}. El Jugador 1 ya puede verte.`, 'success');
-  } catch (error) {
-    reportGameException(error, 'Unirse a sala PVP');
-    setOnlineLobbyState({ busy: false, mode: 'idle', roomCode: '', role: '', roomStatus: 'idle' });
-    setOnlineLobbyNotice(getOnlineLobbyErrorMessage(error, 'No se encontró una sala disponible con ese código.'), 'error');
-  }
-}
-
-window.ROK_ONLINE_LOBBY = {
-  getState: () => ({ ...onlineLobbyState }),
-  normalizeCode: normalizeOnlineRoomCode,
-  createCode: createOnlineRoomCode,
-  open: openOnlineLobbyScreen,
-  close: closeOnlineLobbyScreen,
-  setState: setOnlineLobbyState,
-  setNotice: setOnlineLobbyNotice,
-  reportError: (error, label = 'Firebase Online') => reportGameException(error, label),
-  isOpen: () => document.body.classList.contains('rok-online-mode'),
-  receiveBattleSnapshot: receiveOnlineBattlePacket,
-  getBattleSnapshot: exportOnlineBattleState,
-  isBattleActive: isOnlineBattleActive,
-  registerAdapter(adapter) {
-    onlineLobbyAdapter = adapter || null;
-    setOnlineLobbyState({ firebaseReady: Boolean(adapter) });
-  },
-};
 
 
 function openLibraryBuilderScreen() {
@@ -5408,19 +4872,6 @@ function cacheEls() {
   els.mainMenuSpellbooksBtn = document.getElementById('mainMenuSpellbooksBtn');
   els.mainMenuCardCreatorBtn = document.getElementById('mainMenuCardCreatorBtn');
   els.mainMenuNotice = document.getElementById('mainMenuNotice');
-  els.onlineLobbyScreen = document.getElementById('onlineLobbyScreen');
-  els.onlineLobbyBackBtn = document.getElementById('onlineLobbyBackBtn');
-  els.onlineCreateRoomBtn = document.getElementById('onlineCreateRoomBtn');
-  els.onlineHostCodeBox = document.getElementById('onlineHostCodeBox');
-  els.onlineHostCode = document.getElementById('onlineHostCode');
-  els.onlineCopyCodeBtn = document.getElementById('onlineCopyCodeBtn');
-  els.onlineStartBattleBtn = document.getElementById('onlineStartBattleBtn');
-  els.onlineBattleStatus = document.getElementById('onlineBattleStatus');
-  els.onlineJoinCodeInput = document.getElementById('onlineJoinCodeInput');
-  els.onlineJoinRoomBtn = document.getElementById('onlineJoinRoomBtn');
-  els.onlineLobbyNotice = document.getElementById('onlineLobbyNotice');
-  els.onlineFirebaseStatus = document.getElementById('onlineFirebaseStatus');
-  els.onlineHostOpponentStatus = document.getElementById('onlineHostOpponentStatus');
   els.libraryBuilderScreen = document.getElementById('libraryBuilderScreen');
   els.libraryBuilderLibraryGrid = document.getElementById('libraryBuilderLibraryGrid');
   els.libraryBuilderSpellbookGrid = document.getElementById('libraryBuilderSpellbookGrid');
@@ -5558,23 +5009,7 @@ function bindEvents() {
   if (els.casterEnemyZoneWarning) els.casterEnemyZoneWarning.addEventListener('click', openCasterEnemyZoneInfo);
   if (els.mainMenuBotBtn) els.mainMenuBotBtn.addEventListener('click', startBotBattleFromMainMenu);
   if (els.mainMenuStoryBtn) els.mainMenuStoryBtn.addEventListener('click', () => showMainMenuComingSoon('Modo Historia'));
-  if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', openOnlineLobbyScreen);
-  if (els.onlineLobbyBackBtn) els.onlineLobbyBackBtn.addEventListener('click', closeOnlineLobbyScreen);
-  if (els.onlineCreateRoomBtn) els.onlineCreateRoomBtn.addEventListener('click', handleCreateOnlineRoom);
-  if (els.onlineCopyCodeBtn) els.onlineCopyCodeBtn.addEventListener('click', handleCopyOnlineRoomCode);
-  if (els.onlineStartBattleBtn) els.onlineStartBattleBtn.addEventListener('click', handleStartOnlineBattle);
-  if (els.onlineJoinCodeInput) {
-    els.onlineJoinCodeInput.addEventListener('input', handleOnlineJoinInput);
-    els.onlineJoinCodeInput.addEventListener('keydown', event => {
-      event.stopPropagation();
-      if (event.key === 'Enter') handleJoinOnlineRoom();
-      if (event.key === 'Escape') closeOnlineLobbyScreen();
-    });
-  }
-  if (els.onlineJoinRoomBtn) els.onlineJoinRoomBtn.addEventListener('click', handleJoinOnlineRoom);
-  if (els.onlineLobbyScreen) els.onlineLobbyScreen.addEventListener('click', event => {
-    if (event.target === els.onlineLobbyScreen) closeOnlineLobbyScreen();
-  });
+  if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', () => window.ROK_ONLINE_PVP?.openLobby?.());
   if (els.mainMenuLibraryBtn) els.mainMenuLibraryBtn.addEventListener('click', openLibraryBuilderScreen);
   if (els.mainMenuSpellbooksBtn) els.mainMenuSpellbooksBtn.addEventListener('click', () => showMainMenuComingSoon('Spellbooks'));
   if (els.mainMenuCardCreatorBtn) els.mainMenuCardCreatorBtn.addEventListener('click', () => showMainMenuComingSoon('Creador de Cartas'));
@@ -11365,12 +10800,21 @@ async function handleIncomingCasterAttack(source, target, amount, options = {}) 
     applyDamageToCaster(defenderId, amount, 'Kaster kasteando: no puede defender ni contraatacar', { sourcePlayerId: source?.playerId });
     return;
   }
-  const choice = await showCasterDefenseMenu(defenderId, source, amount, {
-    ...options,
-    profile: attackProfile,
-    isDistanceAttack,
-    allowCounter,
-  });
+  const choice = isOnlineMatchActive()
+    && Number(defenderId) !== Number(LOCAL_PLAYER_ID)
+    && window.ROK_ONLINE_PVP?.requestRemoteCasterDefense
+    ? await window.ROK_ONLINE_PVP.requestRemoteCasterDefense(defenderId, source, amount, {
+        ...options,
+        profile: attackProfile,
+        isDistanceAttack,
+        allowCounter,
+      })
+    : await showCasterDefenseMenu(defenderId, source, amount, {
+        ...options,
+        profile: attackProfile,
+        isDistanceAttack,
+        allowCounter,
+      });
   if (choice === 'special-counter' && Number(caster.specialCounters || 0) > 0) {
     caster.specialCounters = Math.max(0, Number(caster.specialCounters || 0) - 1);
     await showCasterSpecialCounterFx(defenderId);
@@ -11611,7 +11055,7 @@ async function resolveStructureAnchorsForPlayer(playerId) {
     const target = unit.structureAttackTarget;
     if (!target || target.type !== 'guardian') { clearStructureAttackAnchor(unit); continue; }
 
-    let guardian = state.players[target.playerId]?.guardians.find(g => g.id === target.guardianId);
+    const guardian = state.players[target.playerId]?.guardians.find(g => g.id === target.guardianId);
     if (!guardian || guardian.active === false || guardian.resistance <= 0) {
       clearStructureAttackAnchor(unit);
       continue;
@@ -11623,63 +11067,32 @@ async function resolveStructureAnchorsForPlayer(playerId) {
     const profile = getAttackProfile(card);
     const dmg = profile.damage;
     const guardianTarget = { ...target, row: guardian.row, col: guardian.col };
-    const attackSource = { playerId, unit, card };
-
+    let outcome;
     if (isDistanceAttackProfile(profile)) {
-      // El anclaje contra estructuras debe conservar todos los ataques nativos de la unidad.
-      // Antes solo se resolvía un disparo en las Resoluciones posteriores, aunque tuviera Ataque extra.
-      await performDistanceAttackStrike(attackSource, guardianTarget, dmg, profile, 'DISTANCIA');
-
-      let liveUnit = getUnitById(playerId, unit.id);
-      guardian = state.players[target.playerId]?.guardians.find(g => g.id === target.guardianId);
-      const canUseExtraAttack = Boolean(
-        liveUnit
-        && liveUnit.status !== 'restoring'
-        && guardian
-        && guardian.active !== false
-        && !guardian.destroying
-        && Number(guardian.resistance ?? 0) > 0
-        && unitHasCardAttackFactor(liveUnit, 'extraAttack', playerId)
-      );
-
-      if (canUseExtraAttack) {
-        const factor = getFactorProfile('extraAttack');
-        showFloatingTextAt(liveUnit.row, liveUnit.col, factor?.label || 'ATAQUE EXTRA');
-        log(`${CARD_LIBRARY[liveUnit.cardId]?.name || 'Invocación'} activa Ataque extra contra el Guardián.`);
-        await sleep(360);
-        await performDistanceAttackStrike(
-          { playerId, unit: liveUnit, card: CARD_LIBRARY[liveUnit.cardId] },
-          { ...target, row: guardian.row, col: guardian.col },
-          dmg,
-          profile,
-          factor?.label || 'ATAQUE EXTRA'
-        );
-      }
+      showFloatingTextAt(unit.row, unit.col, 'DISTANCIA');
+      await showDistanceAttackFx({ playerId, unit, card }, guardianTarget);
+      outcome = resolveAttackRoll({ playerId, unit, card }, guardianTarget, dmg, { ignoreEvasion: true });
     } else {
       showFloatingTextAt(unit.row, unit.col, 'ATACANDO');
       triggerUnitAttackLunge(playerId, unit, guardianTarget);
       await sleep(300);
-      await showWeaponAttackFx(attackSource, guardianTarget, getWeaponTypeForAttackUnit(unit));
+      await showWeaponAttackFx({ playerId, unit, card }, guardianTarget, getWeaponTypeForAttackUnit(unit));
       await sleep(240);
-      const outcome = resolveAttackRoll(attackSource, guardianTarget, dmg);
-      if (outcome.criticalMiss) await sleep(680);
-      if (outcome.hit) {
-        applyDamageToTarget({ ...attackSource, attackOutcome: outcome }, guardianTarget, outcome.amount);
-        applyBurnFromAttackIfNeeded(attackSource, guardianTarget, outcome);
+      outcome = resolveAttackRoll({ playerId, unit, card }, guardianTarget, dmg);
+    }
+    if (outcome.criticalMiss) await sleep(680);
+    if (outcome.hit) {
+      applyDamageToTarget({ playerId, unit, card, attackOutcome: outcome }, { ...target, row: guardian.row, col: guardian.col }, outcome.amount);
+      const liveUnit = getUnitById(playerId, unit.id);
+      if (liveUnit && (guardian.destroying || Number(guardian.resistance ?? 0) <= 0)) {
+        clearStructureAttackAnchor(liveUnit);
+        if (liveUnit.status !== 'restoring') restoreInvocation(playerId, liveUnit, 'Guardián destruido');
+        markGuardianAttackSpentThisResolution(liveUnit);
+        await sleep(680);
+        continue;
       }
     }
-
-    const liveUnit = getUnitById(playerId, unit.id);
-    guardian = state.players[target.playerId]?.guardians.find(g => g.id === target.guardianId);
-    if (liveUnit && (!guardian || guardian.active === false || guardian.destroying || Number(guardian.resistance ?? 0) <= 0)) {
-      clearStructureAttackAnchor(liveUnit);
-      if (liveUnit.status !== 'restoring') restoreInvocation(playerId, liveUnit, 'Guardián destruido');
-      markGuardianAttackSpentThisResolution(liveUnit);
-      await sleep(680);
-      continue;
-    }
-
-    if (liveUnit) markGuardianAttackSpentThisResolution(liveUnit);
+    markGuardianAttackSpentThisResolution(unit);
     await sleep(680);
   }
   renderAll();
@@ -12102,6 +11515,10 @@ function advancePhaseTransitionCounters(reason = 'phase-transition') {
 
 function nextPhase(force = false) {
   if (state.gameOver) return;
+  if (!force && isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) {
+    log('Es el turno del rival.');
+    return;
+  }
   if (typeof force !== 'boolean') force = false;
   if (state.hattoriAbilitySelectionActive || state.hattoriReactionPromptActive) return;
   if (state.opponentActionNoticeAwaiting) return;
@@ -12122,7 +11539,7 @@ function nextPhase(force = false) {
     log('Espera a que termine la extracción antes de avanzar de fase.');
     return;
   }
-  if (!force && ((state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) || (isOnlineBattleActive() && state.activePlayer !== LOCAL_PLAYER_ID))) {
+  if (!force && state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) {
     log('El rival está controlando su turno.');
     return;
   }
@@ -12936,7 +12353,6 @@ function shouldBlockLocalInputForBusyFlow() {
   if (offTurnCasterFlow?.active && Number(offTurnCasterFlow.playerId) !== Number(LOCAL_PLAYER_ID)) return true;
   if (isOpponentActionResolving()) return true;
   if (isActionExecutionLocked()) return true;
-  if (isOnlineBattleActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) return true;
   return Boolean(state.aiEnabled && state.aiThinking && state.activePlayer !== LOCAL_PLAYER_ID);
 }
 
@@ -12982,7 +12398,6 @@ function blockPlayerInputWhileOpponentAction(event) {
   }
   if (target?.closest?.('#opponentActionNotice')) return;
   if (target?.closest?.('#matchResultOverlay')) return;
-  if (target?.closest?.('#gameMenuOverlay, #gameMenuBtn, #infoChip, #patchInfoOverlay, #cardMetaInfoOverlay, #onlineBattleStatus')) return;
   if (target?.closest?.('.arena-effect-tracker')) return;
   if (els.cardMetaInfoOverlay?.dataset?.trackerInfoOpen === '1' && target?.closest?.('#cardMetaInfoOverlay')) return;
   // El menú de respuesta del Kaster es una excepción legítima al bloqueo de
@@ -14148,7 +13563,10 @@ function offerQuickReactionWindow(playerId = LOCAL_PLAYER_ID, options = {}) {
 
 async function startPhaseActions() {
   if (state.gameOver) return;
-  if (isOnlineBattleActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) return;
+  if (isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) {
+    renderAll();
+    return;
+  }
   await waitForOpponentActionNoticePause();
   // La fase no debe arrancar acciones normales mientras una invocación recién liberada
   // de la cola de kasteo todavía está entrando, abriendo ventana de acción rápida
@@ -17623,7 +17041,7 @@ function resetBattleForRematch(preserveWins = true) {
   state.matchWins = wins;
   state.hudMode = hudMode;
   state.semiAutoMovement = semiAutoMovement;
-  state.aiEnabled = isOnlineBattleActive() ? false : aiEnabled;
+  state.aiEnabled = aiEnabled;
   state.gameOver = false;
   mainMenuBattleStarted = true;
   initializeElementDecks();
@@ -17635,10 +17053,10 @@ function resetBattleForRematch(preserveWins = true) {
   ];
   queueTransitions(introTransitions);
   schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
-  if (isOnlineBattleActive()) scheduleOnlineBattlePublish('rematch', 40);
 }
 
 function exitMatchToMainMenu() {
+  if (isOnlineMatchActive()) window.ROK_ONLINE_PVP?.leaveRoom?.({ silent: true, keepMenu: true });
   clearTimeout(schedulePhaseStartActions.timer);
   clearTimeout(scheduleSustainedCombatResolution.timer);
   clearTimeout(scheduleSustainedStructureAttacks.timer);
@@ -17649,21 +17067,8 @@ function exitMatchToMainMenu() {
   state.matchWins = { 1: 0, 2: 0 };
   state.gameOver = false;
   mainMenuBattleStarted = false;
-  const leavingOnline = isOnlineBattleActive();
-  onlineBattleState.enabled = false;
-  onlineBattleState.roomCode = '';
-  onlineBattleState.role = '';
-  onlineBattleState.uid = '';
-  onlineBattleState.revision = 0;
-  clearTimeout(onlineBattlePublishTimer);
-  if (onlineBattleWatchInterval) window.clearInterval(onlineBattleWatchInterval);
-  onlineBattleWatchInterval = null;
-  document.body.classList.remove('rok-online-battle-mode');
-  document.body.removeAttribute('data-online-player');
-  LOCAL_PLAYER_ID = 1;
   renderAll();
   showMainMenu();
-  if (leavingOnline && onlineLobbyAdapter?.leaveRoom) Promise.resolve(onlineLobbyAdapter.leaveRoom()).catch(error => reportGameException(error, 'Salir del duelo PVP'));
 }
 
 function showMatchResultOverlay(winnerPlayerId, defeatedPlayerId) {
@@ -17681,13 +17086,7 @@ function showMatchResultOverlay(winnerPlayerId, defeatedPlayerId) {
     <div class="match-result-actions"><button type="button" data-match-action="rematch">Jugar otra partida</button><button type="button" data-match-action="menu">Salir al menú</button></div>
   </div>`;
   document.body.appendChild(overlay);
-  const rematchButton = overlay.querySelector('[data-match-action="rematch"]');
-  if (isOnlineBattleActive() && onlineBattleState.role === 'guest') {
-    rematchButton.disabled = true;
-    rematchButton.textContent = 'Esperando al Jugador 1';
-  } else {
-    rematchButton?.addEventListener('click', () => resetBattleForRematch(true));
-  }
+  overlay.querySelector('[data-match-action="rematch"]')?.addEventListener('click', () => resetBattleForRematch(true));
   overlay.querySelector('[data-match-action="menu"]')?.addEventListener('click', exitMatchToMainMenu);
 }
 
@@ -18942,10 +18341,6 @@ function toggleGameSettingsPanel() {
 
 function returnToMainMenuFromGameMenu() {
   closeGameMenu();
-  if (isOnlineBattleActive()) {
-    exitMatchToMainMenu();
-    return;
-  }
   showMainMenu();
 }
 
@@ -19010,8 +18405,6 @@ function renderAll() {
   safeRenderStep('renderVisualDevShowcase', renderVisualDevShowcase);
   safeRenderStep('updateCardInfoAction', updateCardInfoAction);
   safeRenderStep('refreshQuickReactionWindowVisibility', refreshQuickReactionWindowVisibility);
-  updateOnlineBattleStatus();
-  scheduleOnlineBattlePublish('render-state');
 }
 
 function updateOpponentThinkingNotice() {
@@ -19065,7 +18458,7 @@ function renderPhaseUI() {
   });
   if (els.nextPhaseBtn) {
     const extractionLocked = currentPhase().id === 'extraction';
-    els.nextPhaseBtn.disabled = extractionLocked || isOffTurnCasterRepositionBlockingInput() || state.extractionAnimating || state.aiThinking || state.opponentActionResolving || state.actionExecutionLock || ((state.aiEnabled || isOnlineBattleActive()) && state.activePlayer !== LOCAL_PLAYER_ID);
+    els.nextPhaseBtn.disabled = extractionLocked || isOffTurnCasterRepositionBlockingInput() || state.extractionAnimating || state.aiThinking || state.opponentActionResolving || state.actionExecutionLock || (state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) || (isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID));
   }
   updateOpponentThinkingNotice();
 }
@@ -20697,10 +20090,8 @@ function isMovementTransitBlockedForPlayer(row, col, playerId = null) {
 }
 
 function isMovementDestinationBlockedForPlayer(row, col, playerId = null) {
-  // Destino final: solo las piezas físicas ocupan la casilla.
-  // Los nexos/respawn son marcadores: se pueden atravesar y pisar durante el movimiento.
-  // La colocación de nuevos nexos sigue validándose por separado en isCastPlacementBlockedForPlayer().
-  return isOccupiedForPlayer(row, col, playerId);
+  // Destino final: no se puede terminar encima de otra pieza ni respawn.
+  return isOccupiedForPlayer(row, col, playerId) || hasSpawnMarkerAtForPlayer(row, col, playerId);
 }
 
 function isMovementStepBlockedForPlayer(row, col, playerId = null, remainingMovesBeforeStep = 1, isFinalStepOverride = null) {

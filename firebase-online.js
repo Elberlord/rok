@@ -1,362 +1,874 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import {
-  getDatabase,
-  get,
-  onDisconnect,
-  onValue,
-  ref,
-  runTransaction,
-  set,
-  update,
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+/* =========================================================
+   R.O.K Lite · PvP privado con Firebase Realtime Database
+   - Jugador 1 crea la sala.
+   - Jugador 2 entra con el código.
+   - El estado de batalla se sincroniza por revisiones.
+   - Cada navegador solo ejecuta las fases de su propio jugador.
+   ========================================================= */
+(function () {
+  'use strict';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCapopKSADRBnhk7wZVWKcnFG__zl3TYnw",
-  authDomain: "rok-rise-of-caster.firebaseapp.com",
-  databaseURL: "https://rok-rise-of-caster-default-rtdb.firebaseio.com/",
-  projectId: "rok-rise-of-caster",
-  storageBucket: "rok-rise-of-caster.firebasestorage.app",
-  messagingSenderId: "147189629810",
-  appId: "1:147189629810:web:3bebec7a294902545d93eb",
-};
+  const FIREBASE_CONFIG = {
+    apiKey: 'AIzaSyCapopKSADRBnhk7wZVWKcnFG__zl3TYnw',
+    authDomain: 'rok-rise-of-caster.firebaseapp.com',
+    databaseURL: 'https://rok-rise-of-caster-default-rtdb.firebaseio.com',
+    projectId: 'rok-rise-of-caster',
+    storageBucket: 'rok-rise-of-caster.firebasestorage.app',
+    messagingSenderId: '147189629810',
+    appId: '1:147189629810:web:3bebec7a294902545d93eb',
+  };
 
-const lobby = window.ROK_ONLINE_LOBBY;
+  const FIREBASE_VERSION = '12.16.0';
+  const ROOM_ROOT = 'rooms';
+  const ROOM_SCHEMA_VERSION = 2;
+  const ROOM_CODE_LENGTH = 6;
+  const SYNC_INTERVAL_MS = 220;
+  const LOCAL_ACTION_GRACE_MS = 5000;
+  const REMOTE_DEFENSE_TIMEOUT_MS = 45000;
+  const SESSION_STORAGE_KEY = 'rok_online_room_session_v2';
+  const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-if (!lobby) {
-  throw new Error('ROK_ONLINE_LOBBY no está disponible. game.js debe cargarse antes de firebase-online.js.');
-}
+  const SNAPSHOT_KEYS = [
+    'activePlayer',
+    'phaseIndex',
+    'turnSerial',
+    'gameOver',
+    'matchWins',
+    'phaseUndo',
+    'resolutionUndoReturn',
+    'resolutionActionTaken',
+    'turnActionByPlayer',
+    'resolutionSerial',
+    'arenaEntrySerial',
+    'smokeZones',
+    'pendingGuardianStrikes',
+    'kaguyaChargedShots',
+    'pendingTimedAbilityResolutions',
+    'extractedThisPhase',
+    'players',
+  ];
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const database = getDatabase(app);
+  const ui = {};
+  let firebaseApiPromise = null;
+  let auth = null;
+  let db = null;
+  let uid = '';
+  let roomCode = '';
+  let roomPath = '';
+  let playerSlot = 0;
+  let roomUnsubscribe = null;
+  let presenceDisconnect = null;
+  let syncTimer = null;
+  let publishTimer = null;
+  let roomCache = null;
+  let lastKnownRevision = 0;
+  let lastSnapshotText = '';
+  let lastObservedPhaseKey = '';
+  let localIntentUntil = 0;
+  let applyingRemoteSnapshot = false;
+  let publishingSnapshot = false;
+  let startingOnlineBattle = false;
+  let handledInteractionId = '';
+  let leavingRoom = false;
+  let localStateReady = false;
 
-let authPromise = null;
-let currentRoom = null;
-let roomUnsubscribe = null;
-let connectionUnsubscribe = null;
-let disconnectRegistration = null;
-let hostReadyUpdatePending = false;
-let lastDeliveredBattleRevision = 0;
-
-function createUserError(message, code = 'rok-online/error', cause = null) {
-  const error = new Error(message);
-  error.code = code;
-  error.userMessage = message;
-  if (cause) error.cause = cause;
-  return error;
-}
-
-function getFirebaseErrorCode(error) {
-  return String(error?.code || error?.message || '');
-}
-
-function translateFirebaseError(error, fallback) {
-  const code = getFirebaseErrorCode(error);
-  if (code.includes('auth/operation-not-allowed')) {
-    return createUserError('Activa el proveedor Anónimo en Firebase Authentication.', code, error);
+  function cacheUi() {
+    ui.overlay = document.getElementById('onlineLobbyOverlay');
+    ui.closeBtn = document.getElementById('onlineLobbyCloseBtn');
+    ui.createBtn = document.getElementById('onlineCreateRoomBtn');
+    ui.joinBtn = document.getElementById('onlineJoinRoomBtn');
+    ui.codeInput = document.getElementById('onlineRoomCodeInput');
+    ui.codeBox = document.getElementById('onlineRoomCodeBox');
+    ui.codeValue = document.getElementById('onlineRoomCodeValue');
+    ui.copyBtn = document.getElementById('onlineCopyCodeBtn');
+    ui.status = document.getElementById('onlineLobbyStatus');
+    ui.startBtn = document.getElementById('onlineStartMatchBtn');
+    ui.badge = document.getElementById('onlineMatchBadge');
+    ui.badgeText = document.getElementById('onlineMatchBadgeText');
+    ui.leaveBtn = document.getElementById('onlineLeaveRoomBtn');
   }
-  if (code.includes('auth/unauthorized-domain')) {
-    return createUserError(`Agrega ${window.location.hostname} a Authentication > Settings > Authorized domains.`, code, error);
-  }
-  if (code.includes('auth/network-request-failed') || code.includes('network')) {
-    return createUserError('No se pudo conectar con Firebase. Revisa tu conexión a internet.', code, error);
-  }
-  if (code.includes('PERMISSION_DENIED') || code.includes('permission-denied')) {
-    return createUserError('Firebase rechazó la operación. Revisa las reglas publicadas de Realtime Database.', code, error);
-  }
-  return createUserError(fallback, code || 'rok-online/error', error);
-}
 
-async function ensureAuthenticated() {
-  if (auth.currentUser) return auth.currentUser;
-  if (!authPromise) {
-    authPromise = signInAnonymously(auth)
-      .then(result => result.user)
-      .catch(error => {
-        authPromise = null;
-        throw translateFirebaseError(error, 'No fue posible identificar al jugador.');
+  function setStatus(message, kind = '') {
+    if (!ui.status) return;
+    ui.status.textContent = String(message || '');
+    ui.status.classList.remove('ok', 'error', 'working');
+    if (kind) ui.status.classList.add(kind);
+  }
+
+  function setLobbyBusy(busy) {
+    const disabled = Boolean(busy);
+    if (ui.createBtn) ui.createBtn.disabled = disabled;
+    if (ui.joinBtn) ui.joinBtn.disabled = disabled;
+    if (ui.codeInput) ui.codeInput.disabled = disabled;
+  }
+
+  function normalizeRoomCode(value) {
+    return String(value || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, ROOM_CODE_LENGTH);
+  }
+
+  function makeRoomCode() {
+    let code = '';
+    for (let i = 0; i < ROOM_CODE_LENGTH; i += 1) {
+      const index = Math.floor(Math.random() * ROOM_CODE_ALPHABET.length);
+      code += ROOM_CODE_ALPHABET[index];
+    }
+    return code;
+  }
+
+  function roomRefPath(code = roomCode) {
+    return `${ROOM_ROOT}/${normalizeRoomCode(code)}`;
+  }
+
+  function deepClone(value) {
+    if (value === undefined) return undefined;
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function phaseKeyFromSnapshot(snapshot) {
+    if (!snapshot) return '';
+    return `${Number(snapshot.turnSerial || 0)}:${Number(snapshot.activePlayer || 0)}:${Number(snapshot.phaseIndex || 0)}`;
+  }
+
+  function currentLocalPhaseKey() {
+    return `${Number(state.turnSerial || 0)}:${Number(state.activePlayer || 0)}:${Number(state.phaseIndex || 0)}`;
+  }
+
+  function makeBattleSnapshot() {
+    const snapshot = {};
+    SNAPSHOT_KEYS.forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(state, key)) snapshot[key] = deepClone(state[key]);
+    });
+    snapshot.aiEnabled = false;
+    return snapshot;
+  }
+
+  function snapshotText(snapshot) {
+    try { return JSON.stringify(snapshot); }
+    catch (error) {
+      reportOnlineError(error, 'No se pudo serializar la partida');
+      return '';
+    }
+  }
+
+  function resetTransientStateAfterRemoteApply() {
+    state.activeTab = Number.isFinite(Number(state.activeTab)) ? Number(state.activeTab) : 0;
+    state.selectedCardSlot = null;
+    state.pendingCard = null;
+    state.pendingPlacement = null;
+    state.randomCostPayment = null;
+    state.infoCard = null;
+    state.cardMetaInfoHistory = [];
+    state.cardMetaInfoCurrent = null;
+    state.selectedMover = null;
+    state.selectedTarget = null;
+    state.pendingCasterDefense = null;
+    state.pendingPowerAction = null;
+    state.tokugawaAbilitySelectionActive = false;
+    state.pendingTokugawaReposition = null;
+    state.hattoriAbilitySelectionActive = false;
+    state.hattoriAbilitySelectionResolver = null;
+    state.hattoriReactionPromptActive = false;
+    state.extractionAnimating = false;
+    state.opponentActionResolving = false;
+    state.opponentActionLockReason = '';
+    state.actionExecutionLock = false;
+    state.actionExecutionLockReason = '';
+    state.opponentActionNoticeAwaiting = false;
+    state.opponentActionNoticeResolve = null;
+    state.opponentActionNoticeWaiters = [];
+    state.opponentActionLockDepth = 0;
+    state.opponentActionPreviousAiThinking = false;
+    state.pendingCastTravelCount = 0;
+    state.pendingCastTravelPromises = [];
+    state.castTravelResolving = false;
+    state.aiThinking = false;
+    state.enemyResolutionRunning = false;
+    state.aiEnabled = false;
+    state.quickReactionWindow = {
+      active: false,
+      locked: false,
+      candidates: [],
+      resolver: null,
+      phaseKey: '',
+      playerId: LOCAL_PLAYER_ID,
+      phaseFlowId: Number(state.quickReactionWindow?.phaseFlowId || 0) + 1,
+    };
+    state.offTurnCasterReposition = {
+      active: false,
+      playerId: null,
+      phaseKey: '',
+      moving: false,
+      resolver: null,
+    };
+    state.semiAutoMovementAnimating = false;
+  }
+
+  function applyBattleSnapshot(snapshot, revision, writerUid) {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    const oldPhaseKey = currentLocalPhaseKey();
+    const localHudMode = state.hudMode;
+    const localSemiAutoMovement = state.semiAutoMovement;
+    const localActiveTab = state.activeTab;
+
+    applyingRemoteSnapshot = true;
+    try {
+      SNAPSHOT_KEYS.forEach(key => {
+        if (Object.prototype.hasOwnProperty.call(snapshot, key)) state[key] = deepClone(snapshot[key]);
       });
+      state.hudMode = localHudMode;
+      state.semiAutoMovement = localSemiAutoMovement;
+      state.activeTab = localActiveTab;
+      resetTransientStateAfterRemoteApply();
+      ROK_ONLINE_MATCH_ACTIVE = true;
+      LOCAL_PLAYER_ID = playerSlot;
+      mainMenuBattleStarted = true;
+      lastKnownRevision = Math.max(lastKnownRevision, Number(revision || 0));
+      lastSnapshotText = snapshotText(makeBattleSnapshot());
+      localStateReady = true;
+      showBattleScreen();
+      renderAll();
+    } finally {
+      applyingRemoteSnapshot = false;
+    }
+
+    const newPhaseKey = currentLocalPhaseKey();
+    if (newPhaseKey !== oldPhaseKey && newPhaseKey !== lastObservedPhaseKey) {
+      lastObservedPhaseKey = newPhaseKey;
+      deliverRemotePhaseIfLocal();
+    } else if (!lastObservedPhaseKey) {
+      lastObservedPhaseKey = newPhaseKey;
+    }
+
+    if (writerUid && writerUid !== uid) {
+      try { window.ROK_DEBUG_RIBBON?.ok?.(`PvP sincronizado · revisión ${lastKnownRevision}`); } catch (_) {}
+    }
+    return true;
   }
-  return authPromise;
-}
 
-function clearRoomListener() {
-  if (typeof roomUnsubscribe === 'function') roomUnsubscribe();
-  roomUnsubscribe = null;
-  hostReadyUpdatePending = false;
-}
+  function deliverRemotePhaseIfLocal() {
+    if (!ROK_ONLINE_MATCH_ACTIVE || Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID) || state.gameOver) return;
+    clearTimeout(schedulePhaseStartActions.timer);
+    const phase = currentPhase();
+    const items = [];
+    if (phase?.id === 'extraction') {
+      items.push({ text: `JUGADOR ${LOCAL_PLAYER_ID}`, playerId: LOCAL_PLAYER_ID, duration: 760 });
+    }
+    items.push({ text: String(phase?.label || 'FASE').toUpperCase(), playerId: LOCAL_PLAYER_ID, duration: 860 });
+    queueTransitions(items);
+    schedulePhaseStartActions(Math.max(0, sumTransitionDurations(items) - 120));
+  }
 
-async function cancelDisconnectRegistration() {
-  if (!disconnectRegistration) return;
-  try { await disconnectRegistration.cancel(); } catch (_) {}
-  disconnectRegistration = null;
-}
+  function setStartButtonVisible(visible, busy = false) {
+    if (!ui.startBtn) return;
+    ui.startBtn.classList.toggle('visible', Boolean(visible));
+    ui.startBtn.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    ui.startBtn.disabled = Boolean(busy);
+  }
 
-async function writePresence(roomCode, uid, role) {
-  const playerRef = ref(database, `rooms/${roomCode}/players/${uid}`);
-  await set(playerRef, {
-    role,
-    connected: true,
-    joinedAt: Date.now(),
-  });
+  function showBattleScreen() {
+    document.body.classList.remove('rok-menu-mode', 'rok-library-mode');
+    document.body.classList.add('rok-battle-mode');
+    if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
+    if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
+    if (ui.overlay) { ui.overlay.setAttribute('aria-hidden', 'true'); ui.overlay.classList.remove('visible'); }
+    setStartButtonVisible(false);
+    if (ui.badge) { ui.badge.setAttribute('aria-hidden', 'false'); ui.badge.classList.add('visible'); ui.badge.title = `Sala ${roomCode}`; }
+    if (ui.badgeText) ui.badgeText.textContent = `PVP conectado · J${playerSlot} · rev ${lastKnownRevision}`;
+    try { updateHudModeUi(); } catch (_) {}
+  }
 
-  const connectedRef = ref(database, `rooms/${roomCode}/players/${uid}/connected`);
-  disconnectRegistration = onDisconnect(connectedRef);
-  await disconnectRegistration.set(false);
-}
+  function showWaitingRoom(code) {
+    if (ui.codeBox) { ui.codeBox.setAttribute('aria-hidden', 'false'); ui.codeBox.classList.add('visible'); }
+    if (ui.codeValue) ui.codeValue.textContent = code;
+    if (ui.badge) { ui.badge.setAttribute('aria-hidden', 'true'); ui.badge.classList.remove('visible'); }
+  }
 
-function roomPlayerConnected(roomData, uid) {
-  if (!uid) return false;
-  return roomData?.players?.[uid]?.connected === true;
-}
+  function openLobby() {
+    cacheUi();
+    if (!ui.overlay) return;
+    ui.overlay.setAttribute('aria-hidden', 'false');
+    ui.overlay.classList.add('visible');
+    if (roomCode) showWaitingRoom(roomCode);
+    if (!roomCode) setStatus('Crea una sala o escribe el código recibido.', '');
+    setTimeout(() => ui.codeInput?.focus(), 40);
+  }
 
-function attachRoomListener(roomCode, role, uid) {
-  clearRoomListener();
-  const roomRef = ref(database, `rooms/${roomCode}`);
-  roomUnsubscribe = onValue(roomRef, snapshot => {
-    if (!snapshot.exists()) {
-      lobby.setState({ roomStatus: 'missing', opponentConnected: false });
-      if (lobby.isOpen()) lobby.setNotice('La sala dejó de estar disponible.', 'error');
+  function closeLobby() {
+    if (ui.overlay) { ui.overlay.setAttribute('aria-hidden', 'true'); ui.overlay.classList.remove('visible'); }
+  }
+
+  async function loadFirebase() {
+    if (firebaseApiPromise) return firebaseApiPromise;
+    firebaseApiPromise = (async () => {
+      const [appModule, authModule, dbModule] = await Promise.all([
+        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
+        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
+        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-database.js`),
+      ]);
+      const app = appModule.initializeApp(FIREBASE_CONFIG);
+      auth = authModule.getAuth(app);
+      try { await authModule.setPersistence(auth, authModule.browserLocalPersistence); } catch (_) {}
+      if (!auth.currentUser) await authModule.signInAnonymously(auth);
+      uid = auth.currentUser?.uid || '';
+      if (!uid) throw new Error('Firebase Authentication no entregó un usuario anónimo.');
+      db = dbModule.getDatabase(app);
+      return { ...dbModule, authModule };
+    })();
+    try {
+      return await firebaseApiPromise;
+    } catch (error) {
+      firebaseApiPromise = null;
+      throw error;
+    }
+  }
+
+  function saveSession() {
+    if (!roomCode || !playerSlot) return;
+    try {
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ roomCode, playerSlot, uid }));
+    } catch (_) {}
+  }
+
+  function clearSession() {
+    try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (_) {}
+  }
+
+  async function createRoom() {
+    setLobbyBusy(true);
+    setStatus('Conectando con Firebase…', 'working');
+    try {
+      const api = await loadFirebase();
+      let createdCode = '';
+      for (let attempt = 0; attempt < 12 && !createdCode; attempt += 1) {
+        const candidate = makeRoomCode();
+        const candidatePath = roomRefPath(candidate);
+        const hostReservationRef = api.ref(db, `${candidatePath}/hostUid`);
+        const reservation = await api.runTransaction(hostReservationRef, current => {
+          if (current !== null) return;
+          return uid;
+        }, { applyLocally: false });
+        if (!reservation.committed) continue;
+
+        const now = Date.now();
+        try {
+          await api.update(api.ref(db, candidatePath), {
+            schemaVersion: ROOM_SCHEMA_VERSION,
+            code: candidate,
+            hostUid: uid,
+            guestUid: null,
+            status: 'waiting',
+            createdAt: now,
+            updatedAt: now,
+            'players/1': { uid, connected: true, joinedAt: now, lastSeenAt: now },
+            'players/2': { uid: null, connected: false, joinedAt: null, lastSeenAt: null },
+          });
+          createdCode = candidate;
+        } catch (error) {
+          try { await api.remove(api.ref(db, candidatePath)); } catch (_) {}
+          throw error;
+        }
+      }
+      if (!createdCode) throw new Error('No se pudo reservar un código de sala.');
+      await attachToRoom(createdCode, 1);
+      showWaitingRoom(createdCode);
+      setStatus(`Sala ${createdCode} creada. Comparte el código y espera al Jugador 2.`, 'ok');
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo crear la sala');
+      setStatus(readableFirebaseError(error), 'error');
+    } finally {
+      setLobbyBusy(false);
+    }
+  }
+
+  async function joinRoom() {
+    const code = normalizeRoomCode(ui.codeInput?.value);
+    if (code.length !== ROOM_CODE_LENGTH) {
+      setStatus('Escribe un código válido de 6 caracteres.', 'error');
+      return;
+    }
+    setLobbyBusy(true);
+    setStatus(`Buscando la sala ${code}…`, 'working');
+    try {
+      const api = await loadFirebase();
+      const targetPath = roomRefPath(code);
+      const targetRef = api.ref(db, targetPath);
+      const roomSnapshot = await api.get(targetRef);
+      const room = roomSnapshot.val();
+      if (!room || Number(room.schemaVersion || 0) !== ROOM_SCHEMA_VERSION) {
+        throw new Error('La sala no existe o usa una versión incompatible.');
+      }
+
+      const now = Date.now();
+      const p1Uid = room.hostUid || room.players?.[1]?.uid || room.players?.['1']?.uid || '';
+      const savedGuestUid = room.guestUid || room.players?.[2]?.uid || room.players?.['2']?.uid || '';
+      let claimedSlot = 0;
+      if (p1Uid === uid) {
+        claimedSlot = 1;
+        await api.update(api.ref(db, `${targetPath}/players/1`), { uid, connected: true, lastSeenAt: now });
+      } else {
+        const guestRef = api.ref(db, `${targetPath}/guestUid`);
+        const guestClaim = await api.runTransaction(guestRef, current => {
+          const currentUid = current || savedGuestUid || '';
+          if (currentUid && currentUid !== uid) return;
+          return uid;
+        }, { applyLocally: false });
+        if (!guestClaim.committed) throw new Error('La sala ya tiene un Jugador 2.');
+        claimedSlot = 2;
+        await api.update(api.ref(db, `${targetPath}/players/2`), {
+          uid,
+          connected: true,
+          joinedAt: room.players?.[2]?.joinedAt || room.players?.['2']?.joinedAt || now,
+          lastSeenAt: now,
+        });
+      }
+
+      await api.update(targetRef, {
+        guestUid: claimedSlot === 2 ? uid : (room.guestUid || null),
+        status: room.game?.snapshot ? 'active' : 'ready',
+        updatedAt: now,
+      });
+      await attachToRoom(code, claimedSlot);
+      showWaitingRoom(code);
+      setStatus(claimedSlot === 2 ? 'Entraste como Jugador 2. Preparando la partida…' : 'Sala recuperada como Jugador 1.', 'ok');
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo entrar a la sala');
+      setStatus(readableFirebaseError(error), 'error');
+    } finally {
+      setLobbyBusy(false);
+    }
+  }
+
+  async function attachToRoom(code, slot) {
+    const api = await loadFirebase();
+    await detachRoomListener();
+    roomCode = normalizeRoomCode(code);
+    roomPath = roomRefPath(roomCode);
+    playerSlot = Number(slot);
+    LOCAL_PLAYER_ID = playerSlot;
+    ROK_ONLINE_MATCH_ACTIVE = true;
+    state.aiEnabled = false;
+    lastKnownRevision = 0;
+    lastSnapshotText = '';
+    lastObservedPhaseKey = '';
+    localStateReady = false;
+    handledInteractionId = '';
+    saveSession();
+
+    const presenceRef = api.ref(db, `${roomPath}/players/${playerSlot}`);
+    try {
+      presenceDisconnect = api.onDisconnect(presenceRef);
+      await presenceDisconnect.update({ connected: false, lastSeenAt: Date.now() });
+      await api.update(presenceRef, { uid, connected: true, lastSeenAt: Date.now() });
+    } catch (_) {}
+
+    roomUnsubscribe = api.onValue(api.ref(db, roomPath), snapshot => {
+      void handleRoomValue(snapshot.val());
+    }, error => {
+      reportOnlineError(error, 'Se perdió la lectura de la sala');
+      setStatus(readableFirebaseError(error), 'error');
+    });
+    startSyncLoop();
+  }
+
+  async function handleRoomValue(room) {
+    if (!room || leavingRoom) {
+      if (roomCode && !leavingRoom) {
+        setStatus('La sala fue cerrada o eliminada.', 'error');
+        await leaveRoom({ silent: true, keepMenu: false });
+      }
+      return;
+    }
+    roomCache = room;
+    const p1 = room.players?.[1] || room.players?.['1'];
+    const p2 = room.players?.[2] || room.players?.['2'] || (room.guestUid ? { uid: room.guestUid, connected: true } : null);
+    if (ui.badgeText) ui.badgeText.textContent = `PVP conectado · J${playerSlot} · rev ${lastKnownRevision}`;
+
+    if (!room.game?.snapshot) {
+      showWaitingRoom(roomCode);
+      if (playerSlot === 1) {
+        const guestReady = Boolean(p2?.uid);
+        setStartButtonVisible(guestReady, startingOnlineBattle);
+        setStatus(guestReady
+          ? 'Jugador 2 conectado. Pulsa Iniciar duelo.'
+          : `Sala ${roomCode} lista. Esperando al Jugador 2.`, guestReady ? 'ok' : 'ok');
+      } else {
+        setStartButtonVisible(false);
+        setStatus('Conectado como Jugador 2. Esperando que el anfitrión inicie el duelo…', 'working');
+      }
       return;
     }
 
-    const roomData = snapshot.val() || {};
-    const opponentUid = role === 'host' ? roomData.guestUid : roomData.hostUid;
-    const opponentConnected = roomPlayerConnected(roomData, opponentUid);
-    const gameData = roomData.game || null;
-    lobby.setState({
-      roomStatus: roomData.status || 'waiting',
-      opponentConnected,
-      matchStatus: gameData?.status || (roomData.status === 'playing' ? 'playing' : (roomData.status || 'waiting')),
-      battleRevision: Number(gameData?.revision || 0),
+    const game = room.game;
+    const revision = Number(game.revision || 0);
+    const writerUid = String(game.writerUid || '');
+    if (!localStateReady || (writerUid !== uid && revision > lastKnownRevision)) {
+      applyBattleSnapshot(game.snapshot, revision, writerUid);
+    } else {
+      lastKnownRevision = Math.max(lastKnownRevision, revision);
+    }
+
+    closeLobby();
+    showBattleScreen();
+    setStatus(`Partida activa · sala ${roomCode} · Jugador ${playerSlot}.`, 'ok');
+
+    if (room.interaction) await handleIncomingInteraction(room.interaction);
+  }
+
+  async function startFreshOnlineBattleAsHost() {
+    if (startingOnlineBattle || playerSlot !== 1) return;
+    const guest = roomCache?.guestUid || roomCache?.players?.[2]?.uid || roomCache?.players?.['2']?.uid;
+    if (!guest) { setStatus('Todavía no se ha conectado el Jugador 2.', 'error'); return; }
+    startingOnlineBattle = true;
+    setStartButtonVisible(true, true);
+    try {
+      clearTimeout(schedulePhaseStartActions.timer);
+      clearTimeout(scheduleSustainedCombatResolution.timer);
+      clearTimeout(scheduleSustainedStructureAttacks.timer);
+      try { clearTransientBattleUiForRestart(); } catch (_) {}
+
+      const localHudMode = state.hudMode;
+      const localSemiAutoMovement = state.semiAutoMovement;
+      const fresh = deepClone(INITIAL_BATTLE_STATE);
+      Object.keys(state).forEach(key => delete state[key]);
+      Object.assign(state, fresh);
+      state.hudMode = localHudMode;
+      state.semiAutoMovement = localSemiAutoMovement;
+      state.aiEnabled = false;
+      state.gameOver = false;
+      LOCAL_PLAYER_ID = 1;
+      ROK_ONLINE_MATCH_ACTIVE = true;
+      mainMenuBattleStarted = true;
+      initializeElementDecks();
+      enterPhase(true, true);
+      localStateReady = true;
+      lastObservedPhaseKey = currentLocalPhaseKey();
+      showBattleScreen();
+      renderAll();
+      await publishSnapshot({ force: true, status: 'active' });
+      closeLobby();
+      const introTransitions = [
+        { text: 'INICIA EL COMBATE', playerId: 1, duration: 1150 },
+        { text: 'EXTRACCIÓN', playerId: 1, duration: 900 },
+      ];
+      queueTransitions(introTransitions);
+      schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo iniciar la batalla online');
+      setStatus(readableFirebaseError(error), 'error');
+    } finally {
+      startingOnlineBattle = false;
+      if (!roomCache?.game?.snapshot) setStartButtonVisible(true, false);
+    }
+  }
+
+  function startSyncLoop() {
+    stopSyncLoop();
+    syncTimer = window.setInterval(() => {
+      void considerPublishingLocalState();
+    }, SYNC_INTERVAL_MS);
+  }
+
+  function stopSyncLoop() {
+    if (syncTimer) window.clearInterval(syncTimer);
+    syncTimer = null;
+    if (publishTimer) window.clearTimeout(publishTimer);
+    publishTimer = null;
+  }
+
+  function noteLocalIntent() {
+    if (!ROK_ONLINE_MATCH_ACTIVE) return;
+    localIntentUntil = Date.now() + LOCAL_ACTION_GRACE_MS;
+  }
+
+  async function considerPublishingLocalState() {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomCode || !localStateReady || applyingRemoteSnapshot || publishingSnapshot || leavingRoom) return;
+    const ownsTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
+    const hasRecentIntent = Date.now() <= localIntentUntil;
+    if (!ownsTurn && !hasRecentIntent) return;
+    const nextSnapshot = makeBattleSnapshot();
+    const nextText = snapshotText(nextSnapshot);
+    if (!nextText || nextText === lastSnapshotText) return;
+    await publishSnapshot({ snapshot: nextSnapshot, snapshotTextValue: nextText });
+  }
+
+  async function publishSnapshot(options = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot || publishingSnapshot || applyingRemoteSnapshot) return false;
+    publishingSnapshot = true;
+    try {
+      const api = await loadFirebase();
+      const nextSnapshot = options.snapshot || makeBattleSnapshot();
+      const nextText = options.snapshotTextValue || snapshotText(nextSnapshot);
+      if (!nextText) return false;
+      const gameRef = api.ref(db, `${roomPath}/game`);
+      let committedRevision = 0;
+      const result = await api.runTransaction(gameRef, current => {
+        const currentRevision = Number(current?.revision || 0);
+        const currentWriter = String(current?.writerUid || '');
+        if (!options.force && currentRevision > lastKnownRevision && currentWriter && currentWriter !== uid) return;
+        committedRevision = currentRevision + 1;
+        return {
+          revision: committedRevision,
+          writerUid: uid,
+          writerPlayer: playerSlot,
+          phaseKey: phaseKeyFromSnapshot(nextSnapshot),
+          snapshot: nextSnapshot,
+          updatedAt: Date.now(),
+        };
+      }, { applyLocally: false });
+      if (!result.committed) return false;
+      lastKnownRevision = Math.max(lastKnownRevision, committedRevision);
+      lastSnapshotText = nextText;
+      lastObservedPhaseKey = phaseKeyFromSnapshot(nextSnapshot) || lastObservedPhaseKey;
+      if (options.status) {
+        await api.update(api.ref(db, roomPath), { status: options.status, updatedAt: Date.now() });
+      }
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'Error al guardar el estado PvP');
+      return false;
+    } finally {
+      publishingSnapshot = false;
+    }
+  }
+
+  function sourceToInteractionPayload(source) {
+    return {
+      playerId: Number(source?.playerId || 0),
+      unitId: source?.unit?.id || null,
+      cardId: source?.unit?.cardId || source?.card?.id || null,
+      hattoriDirectAttack: Boolean(source?.hattoriDirectAttack),
+      ignoreArmor: Boolean(source?.ignoreArmor),
+    };
+  }
+
+  function reconstructInteractionSource(payload) {
+    const sourcePlayerId = Number(payload?.playerId || 0);
+    const unit = payload?.unitId ? getUnitById(sourcePlayerId, payload.unitId) : null;
+    const card = CARD_LIBRARY[payload?.cardId || unit?.cardId] || null;
+    return {
+      playerId: sourcePlayerId,
+      unit,
+      card,
+      hattoriDirectAttack: Boolean(payload?.hattoriDirectAttack),
+      ignoreArmor: Boolean(payload?.ignoreArmor),
+    };
+  }
+
+  async function requestRemoteCasterDefense(defenderId, source, amount, options = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || Number(defenderId) === Number(LOCAL_PLAYER_ID)) {
+      return showCasterDefenseMenu(defenderId, source, amount, options);
+    }
+    const api = await loadFirebase();
+    await publishSnapshot({ force: true });
+    const interactionId = `def_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const interaction = {
+      id: interactionId,
+      type: 'caster-defense',
+      status: 'pending',
+      requesterUid: uid,
+      requesterPlayer: playerSlot,
+      targetPlayer: Number(defenderId),
+      createdAt: Date.now(),
+      payload: {
+        source: sourceToInteractionPayload(source),
+        amount: Math.max(0, Number(amount || 0)),
+        isDistanceAttack: Boolean(options.isDistanceAttack),
+        allowCounter: options.allowCounter !== false,
+        isDirectAttack: Boolean(options.isDirectAttack),
+      },
+    };
+    const interactionRef = api.ref(db, `${roomPath}/interaction`);
+    await api.set(interactionRef, interaction);
+    try { log(`Esperando la respuesta defensiva del Jugador ${defenderId}…`); } catch (_) {}
+
+    return await new Promise(resolve => {
+      let settled = false;
+      let unsubscribe = null;
+      let timeoutId = null;
+      const finish = async choice => {
+        if (settled) return;
+        settled = true;
+        if (unsubscribe) unsubscribe();
+        if (timeoutId) window.clearTimeout(timeoutId);
+        try { await api.remove(interactionRef); } catch (_) {}
+        resolve(['defend', 'counter', 'special-counter'].includes(choice) ? choice : 'defend');
+      };
+      unsubscribe = api.onValue(interactionRef, snapshot => {
+        const value = snapshot.val();
+        if (!value) return;
+        if (value.id !== interactionId || value.status !== 'resolved') return;
+        void finish(value.response?.choice || 'defend');
+      }, () => { void finish('defend'); });
+      timeoutId = window.setTimeout(() => { void finish('defend'); }, REMOTE_DEFENSE_TIMEOUT_MS);
+    });
+  }
+
+  async function handleIncomingInteraction(interaction) {
+    if (!interaction || interaction.status !== 'pending') return;
+    if (Number(interaction.targetPlayer) !== Number(LOCAL_PLAYER_ID)) return;
+    if (interaction.id === handledInteractionId) return;
+    handledInteractionId = interaction.id;
+    try {
+      const payload = interaction.payload || {};
+      const source = reconstructInteractionSource(payload.source || {});
+      const choice = await showCasterDefenseMenu(LOCAL_PLAYER_ID, source, Number(payload.amount || 0), {
+        isDistanceAttack: Boolean(payload.isDistanceAttack),
+        allowCounter: payload.allowCounter !== false,
+        isDirectAttack: Boolean(payload.isDirectAttack),
+      });
+      const api = await loadFirebase();
+      await api.runTransaction(api.ref(db, `${roomPath}/interaction`), current => {
+        if (!current || current.id !== interaction.id || current.status !== 'pending') return;
+        return {
+          ...current,
+          status: 'resolved',
+          response: { choice: choice || 'defend', uid, player: playerSlot, resolvedAt: Date.now() },
+        };
+      }, { applyLocally: false });
+    } catch (error) {
+      reportOnlineError(error, 'Error en la defensa remota del Kaster');
+      try {
+        const api = await loadFirebase();
+        await api.update(api.ref(db, `${roomPath}/interaction`), {
+          status: 'resolved',
+          response: { choice: 'defend', uid, player: playerSlot, resolvedAt: Date.now(), fallback: true },
+        });
+      } catch (_) {}
+    }
+  }
+
+  async function copyRoomCode() {
+    if (!roomCode) return;
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setStatus(`Código ${roomCode} copiado.`, 'ok');
+    } catch (_) {
+      if (ui.codeInput) {
+        ui.codeInput.value = roomCode;
+        ui.codeInput.select();
+      }
+      setStatus(`Código de sala: ${roomCode}`, 'ok');
+    }
+  }
+
+  async function detachRoomListener() {
+    if (roomUnsubscribe) {
+      try { roomUnsubscribe(); } catch (_) {}
+      roomUnsubscribe = null;
+    }
+    if (presenceDisconnect) {
+      try { await presenceDisconnect.cancel(); } catch (_) {}
+      presenceDisconnect = null;
+    }
+    stopSyncLoop();
+  }
+
+  async function leaveRoom(options = {}) {
+    if (leavingRoom) return;
+    leavingRoom = true;
+    const oldRoomPath = roomPath;
+    const oldSlot = playerSlot;
+    try {
+      await detachRoomListener();
+      if (oldRoomPath && oldSlot && db && firebaseApiPromise) {
+        try {
+          const api = await firebaseApiPromise;
+          await api.update(api.ref(db, `${oldRoomPath}/players/${oldSlot}`), { connected: false, lastSeenAt: Date.now() });
+        } catch (_) {}
+      }
+    } finally {
+      roomCode = '';
+      roomPath = '';
+      playerSlot = 0;
+      roomCache = null;
+      lastKnownRevision = 0;
+      lastSnapshotText = '';
+      lastObservedPhaseKey = '';
+      localStateReady = false;
+      handledInteractionId = '';
+      localIntentUntil = 0;
+      clearSession();
+      ROK_ONLINE_MATCH_ACTIVE = false;
+      LOCAL_PLAYER_ID = 1;
+      state.aiEnabled = true;
+      if (ui.badge) { ui.badge.setAttribute('aria-hidden', 'true'); ui.badge.classList.remove('visible'); }
+      setStartButtonVisible(false);
+      if (ui.codeBox) { ui.codeBox.setAttribute('aria-hidden', 'true'); ui.codeBox.classList.remove('visible'); }
+      if (ui.codeValue) ui.codeValue.textContent = '------';
+      if (ui.codeInput) ui.codeInput.value = '';
+      leavingRoom = false;
+    }
+
+    if (!options.keepMenu) {
+      try { exitMatchToMainMenu(); }
+      catch (_) { try { showMainMenu(); } catch (_) {} }
+      if (!options.silent) {
+        openLobby();
+        setStatus('Saliste de la sala online.', '');
+      }
+    }
+  }
+
+  function readableFirebaseError(error) {
+    const code = String(error?.code || '');
+    if (code.includes('auth/operation-not-allowed')) return 'Activa Anonymous Authentication en Firebase Authentication.';
+    if (code.includes('permission-denied') || code.includes('PERMISSION_DENIED')) return 'Firebase bloqueó la sala. Revisa las Realtime Database Security Rules.';
+    if (code.includes('network-request-failed')) return 'No se pudo conectar con Firebase. Revisa Internet y vuelve a intentar.';
+    return error?.message || 'Ocurrió un error al conectar la partida online.';
+  }
+
+  function reportOnlineError(error, label) {
+    try { reportGameException(error, `PvP online · ${label}`); }
+    catch (_) { try { console.error(`[ROK PvP] ${label}`, error); } catch (_) {} }
+  }
+
+  function bindUi() {
+    cacheUi();
+    ui.closeBtn?.addEventListener('click', closeLobby);
+    ui.createBtn?.addEventListener('click', () => { void createRoom(); });
+    ui.joinBtn?.addEventListener('click', () => { void joinRoom(); });
+    ui.copyBtn?.addEventListener('click', () => { void copyRoomCode(); });
+    ui.startBtn?.addEventListener('click', () => { void startFreshOnlineBattleAsHost(); });
+    ui.leaveBtn?.addEventListener('click', () => { void leaveRoom({ silent: false, keepMenu: false }); });
+    ui.overlay?.addEventListener('click', event => {
+      if (event.target === ui.overlay && !roomCode) closeLobby();
+    });
+    ui.codeInput?.addEventListener('input', event => {
+      event.target.value = normalizeRoomCode(event.target.value);
+    });
+    ui.codeInput?.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void joinRoom();
+      }
     });
 
-    const battleRevision = Number(gameData?.revision || 0);
-    let battleState = gameData?.state || null;
-    if (typeof gameData?.stateJson === 'string') {
-      try { battleState = JSON.parse(gameData.stateJson); }
-      catch (error) { lobby.reportError(error, 'Decodificar estado PVP'); }
-    }
-    if (gameData?.status === 'playing' && battleState && battleRevision >= lastDeliveredBattleRevision) {
-      lastDeliveredBattleRevision = battleRevision;
-      lobby.receiveBattleSnapshot?.({
-        status: gameData.status,
-        revision: battleRevision,
-        state: battleState,
-        stateHash: gameData.stateHash || gameData.stateJson || '',
-        updatedBy: gameData.updatedBy || '',
-        reason: gameData.reason || '',
-        role,
-      });
-    }
+    ['pointerdown', 'click', 'keydown'].forEach(type => {
+      document.addEventListener(type, noteLocalIntent, true);
+    });
 
-    if (role === 'host' && roomData.guestUid && roomData.status === 'waiting' && !hostReadyUpdatePending) {
-      hostReadyUpdatePending = true;
-      update(roomRef, { status: 'ready' })
-        .catch(error => lobby.reportError(error, 'Actualizar sala PVP a ready'))
-        .finally(() => { hostReadyUpdatePending = false; });
-    }
-
-    if (!lobby.isOpen()) return;
-    if (role === 'host') {
-      if (opponentConnected) lobby.setNotice(`Jugador 2 conectado a la sala ${roomCode}. Enlace PVP confirmado.`, 'success');
-      else if (roomData.guestUid) lobby.setNotice('El Jugador 2 se desconectó de la sala.', 'warning');
-      else lobby.setNotice(`Sala ${roomCode} abierta. Esperando al Jugador 2…`);
-    } else if (role === 'guest') {
-      if (opponentConnected) lobby.setNotice(`Conectado con el Jugador 1 en la sala ${roomCode}. Enlace PVP confirmado.`, 'success');
-      else lobby.setNotice('El Jugador 1 no aparece conectado.', 'warning');
-    }
-  }, error => {
-    lobby.reportError(error, 'Escuchar sala PVP');
-    if (lobby.isOpen()) lobby.setNotice(translateFirebaseError(error, 'Se perdió la conexión con la sala.').userMessage, 'error');
-  });
-}
-
-async function leaveCurrentRoom({ finishHostRoom = false } = {}) {
-  const active = currentRoom;
-  clearRoomListener();
-  await cancelDisconnectRegistration();
-  if (!active) return;
-
-  const playerConnectedRef = ref(database, `rooms/${active.roomCode}/players/${active.uid}/connected`);
-  try { await set(playerConnectedRef, false); } catch (_) {}
-
-  if (finishHostRoom && active.role === 'host') {
-    try { await update(ref(database, `rooms/${active.roomCode}`), { status: 'finished' }); } catch (_) {}
-  }
-  currentRoom = null;
-  lastDeliveredBattleRevision = 0;
-}
-
-async function createRoom() {
-  const user = await ensureAuthenticated();
-  await leaveCurrentRoom({ finishHostRoom: true });
-
-  let lastError = null;
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const roomCode = lobby.createCode();
-    const roomRef = ref(database, `rooms/${roomCode}`);
-    try {
-      // Las reglas de Realtime Database autorizan la creación campo por campo.
-      // update() conserva una sola operación atómica, pero valida cada hijo
-      // (hostUid, status y createdAt) contra su regla específica.
-      await update(roomRef, {
-        hostUid: user.uid,
-        status: 'waiting',
-        createdAt: Date.now(),
-      });
-      await writePresence(roomCode, user.uid, 'host');
-      currentRoom = { roomCode, role: 'host', uid: user.uid };
-      attachRoomListener(roomCode, 'host', user.uid);
-      return { roomCode, role: 'host', uid: user.uid, status: 'waiting' };
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw translateFirebaseError(lastError, 'No se pudo crear una sala disponible.');
-}
-
-async function joinRoom(rawCode) {
-  const user = await ensureAuthenticated();
-  const roomCode = lobby.normalizeCode(rawCode);
-  if (roomCode.length !== 6) throw createUserError('El código debe tener seis caracteres.', 'rok-online/invalid-code');
-  await leaveCurrentRoom({ finishHostRoom: true });
-
-  const roomRef = ref(database, `rooms/${roomCode}`);
-  let roomSnapshot;
-  try {
-    roomSnapshot = await get(roomRef);
-  } catch (error) {
-    const code = getFirebaseErrorCode(error);
-    if (code.includes('PERMISSION_DENIED') || code.includes('permission-denied')) {
-      throw createUserError('La sala no existe, ya terminó o el código es incorrecto.', 'rok-online/room-unavailable', error);
-    }
-    throw translateFirebaseError(error, 'No fue posible buscar la sala.');
+    window.addEventListener('beforeunload', () => {
+      if (!roomPath || !playerSlot || !db || !firebaseApiPromise) return;
+      void firebaseApiPromise.then(api => api.update(api.ref(db, `${roomPath}/players/${playerSlot}`), {
+        connected: false,
+        lastSeenAt: Date.now(),
+      })).catch(() => {});
+    });
   }
 
-  if (!roomSnapshot.exists()) throw createUserError('No existe una sala con ese código.', 'rok-online/room-not-found');
-  const roomData = roomSnapshot.val() || {};
-  if (roomData.status !== 'waiting') throw createUserError('La sala ya no está esperando jugadores.', 'rok-online/room-not-waiting');
-  if (roomData.hostUid === user.uid) throw createUserError('Este navegador ya es el creador de la sala.', 'rok-online/same-player');
-  if (roomData.guestUid && roomData.guestUid !== user.uid) throw createUserError('La sala ya tiene dos jugadores.', 'rok-online/room-full');
-
-  const guestRef = ref(database, `rooms/${roomCode}/guestUid`);
-  let transactionResult;
-  try {
-    transactionResult = await runTransaction(guestRef, currentGuestUid => {
-      if (currentGuestUid === null || currentGuestUid === user.uid) return user.uid;
-      return undefined;
-    }, { applyLocally: false });
-  } catch (error) {
-    throw translateFirebaseError(error, 'No fue posible ocupar el espacio del Jugador 2.');
-  }
-
-  if (!transactionResult.committed || transactionResult.snapshot.val() !== user.uid) {
-    throw createUserError('La sala ya tiene dos jugadores.', 'rok-online/room-full');
-  }
-
-  try {
-    await writePresence(roomCode, user.uid, 'guest');
-  } catch (error) {
-    throw translateFirebaseError(error, 'Se reservó la sala, pero no se pudo registrar la presencia del Jugador 2.');
-  }
-
-  currentRoom = { roomCode, role: 'guest', uid: user.uid };
-  attachRoomListener(roomCode, 'guest', user.uid);
-  return { roomCode, role: 'guest', uid: user.uid, status: 'ready' };
-}
-
-async function startBattle(initialState) {
-  const active = currentRoom;
-  if (!active || active.role !== 'host') throw createUserError('Solo el Jugador 1 puede iniciar el duelo.', 'rok-online/host-only');
-  const roomRef = ref(database, `rooms/${active.roomCode}`);
-  const roomSnapshot = await get(roomRef);
-  const roomData = roomSnapshot.val() || {};
-  if (!roomData.guestUid) throw createUserError('El Jugador 2 todavía no se ha unido.', 'rok-online/guest-missing');
-  const stateJson = JSON.stringify(initialState);
-  const stateHash = stateJson;
-  const gamePayload = {
-    status: 'playing',
-    revision: 1,
-    stateJson,
-    stateHash,
-    reason: 'match-start',
-    updatedBy: active.uid,
-    updatedAt: Date.now(),
-    startedAt: Date.now(),
+  window.ROK_ONLINE_PVP = {
+    openLobby,
+    closeLobby,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    requestRemoteCasterDefense,
+    publishNow: () => publishSnapshot({ force: true }),
+    getSession: () => ({ roomCode, playerSlot, uid, revision: lastKnownRevision, active: ROK_ONLINE_MATCH_ACTIVE }),
   };
-  try {
-    await update(roomRef, { status: 'playing', game: gamePayload });
-  } catch (error) {
-    throw translateFirebaseError(error, 'Firebase no permitió iniciar el duelo.');
-  }
-  lastDeliveredBattleRevision = 1;
-  return { revision: 1, stateHash };
-}
 
-async function publishBattleState(payload = {}) {
-  const active = currentRoom;
-  if (!active) throw createUserError('No existe una sala PVP activa.', 'rok-online/no-room');
-  const gameRef = ref(database, `rooms/${active.roomCode}/game`);
-  let result;
-  try {
-    result = await runTransaction(gameRef, current => {
-      if (!current || current.status !== 'playing') return undefined;
-      if (payload.stateHash && current.stateHash === payload.stateHash) return current;
-      const revision = Math.max(0, Number(current.revision || 0)) + 1;
-      const stateJson = JSON.stringify(payload.state || {});
-      return {
-        ...current,
-        status: 'playing',
-        revision,
-        stateJson,
-        stateHash: payload.stateHash || stateJson,
-        reason: String(payload.reason || 'state-change').slice(0, 80),
-        updatedBy: active.uid,
-        updatedAt: Date.now(),
-      };
-    }, { applyLocally: false });
-  } catch (error) {
-    throw translateFirebaseError(error, 'No se pudo sincronizar el estado del duelo.');
-  }
-  if (!result.committed) throw createUserError('La partida ya no está disponible.', 'rok-online/game-unavailable');
-  const revision = Number(result.snapshot.val()?.revision || 0);
-  lastDeliveredBattleRevision = Math.max(lastDeliveredBattleRevision, revision);
-  return { revision };
-}
-
-async function leaveRoom() {
-  await leaveCurrentRoom({ finishHostRoom: true });
-}
-
-lobby.registerAdapter({ createRoom, joinRoom, startBattle, publishBattleState, leaveRoom });
-lobby.setState({ firebaseReady: true });
-
-connectionUnsubscribe = onValue(ref(database, '.info/connected'), snapshot => {
-  lobby.setState({ firebaseConnected: snapshot.val() === true });
-});
-
-ensureAuthenticated()
-  .then(user => {
-    lobby.setState({ authenticated: true, uid: user.uid, authError: '' });
-    if (lobby.isOpen()) lobby.setNotice('Conexión lista. Puedes crear una sala o unirte mediante un código.', 'success');
-  })
-  .catch(error => {
-    const translated = error?.userMessage ? error : translateFirebaseError(error, 'No fue posible iniciar Firebase Authentication.');
-    lobby.setState({ authenticated: false, authError: translated.userMessage });
-    lobby.setNotice(translated.userMessage, 'error');
-    lobby.reportError(error, 'Firebase Authentication');
-  });
-
-window.addEventListener('beforeunload', () => {
-  if (typeof connectionUnsubscribe === 'function') connectionUnsubscribe();
-});
-
-window.ROK_FIREBASE_ONLINE = {
-  getCurrentRoom: () => currentRoom ? { ...currentRoom } : null,
-  getUid: () => auth.currentUser?.uid || '',
-  getDatabaseUrl: () => firebaseConfig.databaseURL,
-  startBattle,
-  publishBattleState,
-};
+  window.addEventListener('DOMContentLoaded', bindUi);
+}());

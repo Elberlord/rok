@@ -34,7 +34,7 @@
       <button id="mainMenuBotBtn" class="main-menu-btn main-menu-btn-play" type="button" aria-label="Jugar 1 vs 1 Bot">
         <img src="assets/menu/btn-bot.png" alt="1 vs 1 Bot" />
       </button>
-      <button id="mainMenuOnlineBtn" class="main-menu-btn main-menu-btn-online" type="button" aria-label="Abrir Versus Online">
+      <button id="mainMenuOnlineBtn" class="main-menu-btn main-menu-btn-online" type="button" aria-label="Versus Online">
         <img src="assets/menu/btn-online.png" alt="Versus Online" />
       </button>
       <button id="mainMenuLibraryBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Biblioteca próximamente">
@@ -50,52 +50,38 @@
     <div id="mainMenuNotice" class="main-menu-notice" aria-live="polite"></div>
   </section>
 
-  <section id="onlineLobbyScreen" class="online-lobby-screen" aria-hidden="true" aria-label="Lobby Versus Online">
-    <div class="online-lobby-vignette" aria-hidden="true"></div>
-    <div class="online-lobby-shell" role="dialog" aria-modal="true" aria-labelledby="onlineLobbyTitle">
-      <header class="online-lobby-header">
-        <div>
-          <span class="online-lobby-kicker">R.O.K LITE · PVP</span>
-          <h2 id="onlineLobbyTitle">Versus Online</h2>
-          <p>Crea una sala y comparte el código, o ingresa el código que te envíe el otro jugador.</p>
-          <div id="onlineFirebaseStatus" class="online-firebase-status" data-state="connecting" aria-live="polite">Preparando Firebase…</div>
+
+
+
+
+  <section id="onlineLobbyOverlay" class="online-lobby-overlay" aria-hidden="true">
+    <div class="online-lobby-card" role="dialog" aria-modal="true" aria-labelledby="onlineLobbyTitle">
+      <button id="onlineLobbyCloseBtn" class="online-lobby-close" type="button" aria-label="Cerrar">×</button>
+      <span class="online-lobby-kicker">VERSUS ONLINE</span>
+      <h2 id="onlineLobbyTitle">Partida privada PvP</h2>
+      <p class="online-lobby-copy">Crea una sala y comparte el código, o escribe el código recibido para entrar como Jugador 2.</p>
+      <div class="online-lobby-actions">
+        <button id="onlineCreateRoomBtn" class="online-lobby-primary" type="button">Crear partida</button>
+        <div class="online-lobby-join-row">
+          <input id="onlineRoomCodeInput" type="text" maxlength="6" autocomplete="off" inputmode="text" placeholder="CÓDIGO" aria-label="Código de sala">
+          <button id="onlineJoinRoomBtn" type="button">Unirse</button>
         </div>
-        <button id="onlineLobbyBackBtn" class="online-lobby-close" type="button" aria-label="Volver al menú">×</button>
-      </header>
-
-      <div class="online-lobby-grid">
-        <article class="online-lobby-panel online-lobby-host-panel">
-          <span class="online-lobby-step">Jugador 1</span>
-          <h3>Crear sala</h3>
-          <p>Genera un código de seis caracteres para compartir con el Jugador 2.</p>
-          <button id="onlineCreateRoomBtn" class="online-lobby-primary" type="button">Crear código</button>
-          <div id="onlineHostCodeBox" class="online-room-code-box" aria-live="polite" aria-hidden="true">
-            <span>Código de sala</span>
-            <strong id="onlineHostCode">------</strong>
-            <button id="onlineCopyCodeBtn" class="online-lobby-secondary" type="button">Copiar código</button>
-            <div id="onlineHostOpponentStatus" class="online-host-opponent-status" data-connected="false">Esperando al Jugador 2…</div>
-            <button id="onlineStartBattleBtn" class="online-lobby-primary online-start-battle" type="button" hidden disabled>Iniciar duelo</button>
-          </div>
-        </article>
-
-        <div class="online-lobby-divider" aria-hidden="true"><span>VS</span></div>
-
-        <article class="online-lobby-panel online-lobby-join-panel">
-          <span class="online-lobby-step">Jugador 2</span>
-          <h3>Unirse a sala</h3>
-          <p>Escribe el código recibido. Se admiten seis letras o números.</p>
-          <label class="online-code-input-label" for="onlineJoinCodeInput">Código</label>
-          <input id="onlineJoinCodeInput" class="online-code-input" type="text" inputmode="text" autocomplete="off" maxlength="6" placeholder="ABC123" aria-describedby="onlineLobbyNotice" />
-          <button id="onlineJoinRoomBtn" class="online-lobby-primary online-lobby-primary-cyan" type="button">Unirse con código</button>
-        </article>
       </div>
-
-      <div id="onlineLobbyNotice" class="online-lobby-notice" aria-live="polite">
-        Firebase listo para crear salas, conectar a ambos jugadores e iniciar el duelo sincronizado.
+      <div id="onlineRoomCodeBox" class="online-room-code-box" aria-hidden="true">
+        <span>Código de sala</span>
+        <strong id="onlineRoomCodeValue">------</strong>
+        <button id="onlineCopyCodeBtn" type="button">Copiar</button>
       </div>
+      <div id="onlineLobbyStatus" class="online-lobby-status" aria-live="polite">Conecta con Firebase para comenzar.</div>
+      <button id="onlineStartMatchBtn" class="online-start-match-btn" type="button" aria-hidden="true">Iniciar duelo</button>
     </div>
   </section>
 
+  <aside id="onlineMatchBadge" class="online-match-badge" aria-hidden="true">
+    <span class="online-match-dot" aria-hidden="true"></span>
+    <div><small>ONLINE</small><strong id="onlineMatchBadgeText">Sala ------</strong></div>
+    <button id="onlineLeaveRoomBtn" type="button">Salir</button>
+  </aside>
 
 
   <section id="libraryBuilderScreen" class="library-builder-screen" aria-hidden="true" aria-label="Biblioteca y creador de Spellbook">
@@ -183,6 +169,7 @@
               <div id="opponentCasterPureMeter" class="opponent-caster-pure-meter" aria-label="Elemento puro rival"></div>
               <b id="opponentCasterLife" class="opponent-caster-compact-stat" title="Vida"><span class="caster-life-heart" aria-hidden="true"></span>15/15</b>
               <b id="opponentCasterCounter" class="opponent-caster-compact-stat" title="Counter especial"><img src="assets/caster/caster-special-counter.svg" alt="Counter especial">0/5</b>
+              <b id="opponentCasterWins" class="caster-match-wins opponent-caster-match-wins" title="Victorias en este match">WINS 0</b>
             </div>
             <div id="enemyMiniHud" class="opponent-caster-secondary-hud" aria-label="Recursos y kasteos del rival">
               <div id="enemyMiniResources" class="enemy-mini-resources"></div>
@@ -214,7 +201,6 @@
         <button id="gameMenuBtn" class="main-button game-menu-button" type="button" aria-expanded="false" title="Abrir menú">Menú</button>
       </div>
       <div id="turnBanner" class="turn-banner turn-banner-vertical" aria-hidden="true"></div>
-      <div id="onlineBattleStatus" class="online-battle-status" data-connected="false" aria-live="polite"></div>
       <div id="systemLog" class="system-log system-log-vertical" aria-hidden="true"></div>
     </section>
 
@@ -328,7 +314,7 @@
 
       <div class="caster-wide-info">
         <div class="caster-wide-title">
-          <div class="caster-wide-name-row"><img class="caster-wide-type-icon" src="assets/card-types/card-type-kaster.svg" alt="Kaster"><h2 id="casterWideName">Hattori Hanzo</h2><div id="casterPureMeter" class="caster-pure-meter" aria-label="Elemento puro"></div></div>
+          <div class="caster-wide-name-row"><img class="caster-wide-type-icon" src="assets/card-types/card-type-kaster.svg" alt="Kaster"><h2 id="casterWideName">Hattori Hanzo</h2><div id="casterPureMeter" class="caster-pure-meter" aria-label="Elemento puro"></div><b id="casterWins" class="caster-match-wins" title="Victorias en este match">WINS 0</b></div>
           <button id="casterEnemyZoneWarning" class="caster-enemy-zone-warning" type="button" hidden>Estás en el lado rival de la arena</button>
           <div id="casterWideDomain" class="caster-wide-domain" aria-label="Dominio del Kaster"></div>
         </div>
@@ -559,6 +545,6 @@
     }());
   </script>
   <script src="game.js"></script>
-  <script type="module" src="firebase-online.js"></script>
+  <script src="firebase-online.js"></script>
 </body>
 </html>
