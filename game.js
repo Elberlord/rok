@@ -41,8 +41,9 @@ const PURE_ELEMENT_CASTING_INTERVAL = 3;
 const KAGUYA_CHARGED_SHOT_CHANNEL_PHASES = 5;
 const CASTER_SPECIAL_COUNTER_DAMAGE_THRESHOLD = 5;
 const CASTER_DEFENSE_VALUE = 2;
-const GAME_VERSION = 'v5.5.134';
+const GAME_VERSION = 'v5.5.136';
 const PATCH_NOTES = [
+  'Conecta el lobby Versus Online con Firebase Realtime Database: autenticación anónima, creación de salas reales con código único, unión transaccional del segundo jugador, presencia en tiempo real y detección de rival conectado, sin iniciar todavía la batalla PVP.',
   'Permite atravesar y terminar movimiento sobre nexos/respawn sin permitir superposición de piezas, y conserva Ataque extra en cada Resolución posterior de las unidades a distancia ancladas contra un Guardián.',
   'Impide superposiciones en movimiento asistido, agrupa en el HUD VS cada Guardián con sus objetivos apilados, corrige Jinchi Tenkan como rescate inmediato sin estasis con +2 vida máxima/+2 curación, añade rescate táctico de IA, fin de partida con revancha y victorias del match, y libera la prioridad de Takeda cuando Tokugawa ya puede pagarlo.',
   'Reformula la estrategia de Tokugawa: apertura fija con Kaguyas en D5/F5, reserva de recursos para Takeda y El viejo amigo, avance condicionado, secuencia Takeda/Musashi/Nobunaga/Oda no Kage/Hideyoshi/Taicho y respuesta situacional con Akari. Akari pasa a ataque a distancia y Colegas de guerra queda completamente funcional solo con Nobunaga aliado.',
@@ -4310,6 +4311,22 @@ const INITIAL_BATTLE_STATE = JSON.parse(JSON.stringify(state));
 const els = {};
 
 let mainMenuBattleStarted = false;
+const onlineLobbyState = {
+  mode: 'idle',
+  roomCode: '',
+  role: '',
+  uid: '',
+  firebaseReady: false,
+  firebaseConnected: false,
+  authenticated: false,
+  busy: false,
+  roomStatus: 'idle',
+  opponentConnected: false,
+  authError: '',
+};
+let onlineLobbyAdapter = null;
+const ONLINE_ROOM_CODE_LENGTH = 6;
+const ONLINE_ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const libraryBuilderState = {
   selectedLibraryCardId: null,
   selectedSpellbookIndex: null,
@@ -4338,10 +4355,11 @@ function init() {
 
 function showMainMenu() {
   document.body.classList.add('rok-menu-mode');
-  document.body.classList.remove('rok-battle-mode', 'rok-library-mode');
+  document.body.classList.remove('rok-battle-mode', 'rok-library-mode', 'rok-online-mode');
   clearBattleHudForInactiveScreen();
   if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'false');
   if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
+  if (els.onlineLobbyScreen) els.onlineLobbyScreen.setAttribute('aria-hidden', 'true');
   if (els.mainMenuNotice) els.mainMenuNotice.textContent = '';
 }
 
@@ -4398,6 +4416,236 @@ function showMainMenuComingSoon(label) {
   void els.mainMenuNotice.offsetWidth;
   els.mainMenuNotice.classList.add('pulse');
 }
+
+function normalizeOnlineRoomCode(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, ONLINE_ROOM_CODE_LENGTH);
+}
+
+function createOnlineRoomCode() {
+  const values = new Uint32Array(ONLINE_ROOM_CODE_LENGTH);
+  if (window.crypto?.getRandomValues) window.crypto.getRandomValues(values);
+  else for (let i = 0; i < values.length; i += 1) values[i] = Math.floor(Math.random() * 0xffffffff);
+  return Array.from(values, value => ONLINE_ROOM_CODE_CHARS[value % ONLINE_ROOM_CODE_CHARS.length]).join('');
+}
+
+function setOnlineLobbyNotice(message, kind = 'info') {
+  if (!els.onlineLobbyNotice) return;
+  els.onlineLobbyNotice.textContent = message;
+  els.onlineLobbyNotice.dataset.kind = kind;
+}
+
+function setOnlineLobbyState(patch = {}) {
+  Object.assign(onlineLobbyState, patch || {});
+  renderOnlineLobbyState();
+}
+
+function getOnlineFirebaseStatusText() {
+  if (onlineLobbyState.authError) return 'Error de acceso';
+  if (!onlineLobbyState.firebaseReady) return 'Preparando Firebase…';
+  if (!onlineLobbyState.firebaseConnected) return 'Sin conexión';
+  if (!onlineLobbyState.authenticated) return 'Identificando jugador…';
+  return 'Firebase conectado';
+}
+
+function renderOnlineLobbyState() {
+  const isHost = onlineLobbyState.mode === 'host';
+  const isGuest = onlineLobbyState.mode === 'guest';
+  const roomActive = isHost || isGuest;
+  const canUseFirebase = onlineLobbyState.firebaseReady
+    && onlineLobbyState.firebaseConnected
+    && onlineLobbyState.authenticated
+    && !onlineLobbyState.authError;
+
+  if (els.onlineHostCode) els.onlineHostCode.textContent = isHost && onlineLobbyState.roomCode ? onlineLobbyState.roomCode : '------';
+  if (els.onlineHostCodeBox) {
+    const visible = Boolean(isHost && onlineLobbyState.roomCode);
+    els.onlineHostCodeBox.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    els.onlineHostCodeBox.classList.toggle('visible', visible);
+  }
+  if (els.onlineFirebaseStatus) {
+    els.onlineFirebaseStatus.textContent = getOnlineFirebaseStatusText();
+    els.onlineFirebaseStatus.dataset.state = onlineLobbyState.authError
+      ? 'error'
+      : (canUseFirebase ? 'connected' : (onlineLobbyState.firebaseConnected ? 'connecting' : 'offline'));
+  }
+  if (els.onlineHostOpponentStatus) {
+    const connected = Boolean(onlineLobbyState.opponentConnected);
+    els.onlineHostOpponentStatus.textContent = connected ? 'Jugador 2 conectado' : 'Esperando al Jugador 2…';
+    els.onlineHostOpponentStatus.dataset.connected = connected ? 'true' : 'false';
+  }
+
+  if (els.onlineCreateRoomBtn) {
+    els.onlineCreateRoomBtn.disabled = onlineLobbyState.busy || !canUseFirebase || roomActive;
+    els.onlineCreateRoomBtn.textContent = onlineLobbyState.busy && !roomActive ? 'Creando sala…' : 'Crear código';
+  }
+  if (els.onlineJoinRoomBtn) {
+    els.onlineJoinRoomBtn.disabled = onlineLobbyState.busy || !canUseFirebase || roomActive;
+    els.onlineJoinRoomBtn.textContent = onlineLobbyState.busy && !roomActive ? 'Conectando…' : 'Unirse con código';
+  }
+  if (els.onlineCopyCodeBtn) els.onlineCopyCodeBtn.disabled = !isHost || !onlineLobbyState.roomCode;
+  if (els.onlineJoinCodeInput) els.onlineJoinCodeInput.disabled = onlineLobbyState.busy || roomActive;
+}
+
+function openOnlineLobbyScreen() {
+  document.body.classList.remove('rok-menu-mode', 'rok-battle-mode', 'rok-library-mode');
+  document.body.classList.add('rok-online-mode');
+  clearBattleHudForInactiveScreen();
+  if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
+  if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
+  if (els.onlineLobbyScreen) els.onlineLobbyScreen.setAttribute('aria-hidden', 'false');
+  renderOnlineLobbyState();
+
+  if (onlineLobbyState.authError) {
+    setOnlineLobbyNotice(onlineLobbyState.authError, 'error');
+  } else if (!onlineLobbyState.firebaseReady || !onlineLobbyState.authenticated) {
+    setOnlineLobbyNotice('Conectando con Firebase e identificando al jugador…');
+  } else if (!onlineLobbyState.firebaseConnected) {
+    setOnlineLobbyNotice('No hay conexión con Firebase. Revisa tu conexión a internet.', 'warning');
+  } else {
+    setOnlineLobbyNotice('Conexión lista. Puedes crear una sala o unirte mediante un código.', 'success');
+  }
+  window.setTimeout(() => els.onlineCreateRoomBtn?.focus(), 50);
+}
+
+function closeOnlineLobbyScreen() {
+  const leavingAdapter = onlineLobbyAdapter;
+  const previousMode = onlineLobbyState.mode;
+  const previousCode = onlineLobbyState.roomCode;
+  setOnlineLobbyState({
+    mode: 'idle',
+    roomCode: '',
+    role: '',
+    busy: false,
+    roomStatus: 'idle',
+    opponentConnected: false,
+  });
+  showMainMenu();
+  if (leavingAdapter?.leaveRoom && (previousMode === 'host' || previousMode === 'guest')) {
+    Promise.resolve(leavingAdapter.leaveRoom({ mode: previousMode, roomCode: previousCode }))
+      .catch(error => reportGameException(error, 'Salir de sala PVP'));
+  }
+}
+
+function getOnlineLobbyErrorMessage(error, fallback) {
+  if (error?.userMessage) return error.userMessage;
+  const code = String(error?.code || '');
+  if (code.includes('auth/operation-not-allowed')) return 'La autenticación anónima todavía no está activada en Firebase.';
+  if (code.includes('auth/unauthorized-domain')) return 'Este dominio no está autorizado en Firebase Authentication.';
+  if (code.includes('permission-denied') || code.includes('PERMISSION_DENIED')) return 'Firebase rechazó la operación. Revisa las reglas de Realtime Database.';
+  if (code.includes('network-request-failed')) return 'No se pudo conectar con Firebase. Revisa tu conexión a internet.';
+  return fallback;
+}
+
+async function handleCreateOnlineRoom() {
+  if (!onlineLobbyAdapter?.createRoom) {
+    setOnlineLobbyNotice('Firebase todavía no está disponible.', 'error');
+    return;
+  }
+  if (onlineLobbyState.busy) return;
+  setOnlineLobbyState({ busy: true, opponentConnected: false });
+  setOnlineLobbyNotice('Creando una sala segura en Firebase…');
+  try {
+    const result = await onlineLobbyAdapter.createRoom();
+    setOnlineLobbyState({
+      mode: 'host',
+      role: 'host',
+      roomCode: normalizeOnlineRoomCode(result?.roomCode),
+      uid: result?.uid || onlineLobbyState.uid,
+      busy: false,
+      roomStatus: result?.status || 'waiting',
+      opponentConnected: false,
+    });
+    setOnlineLobbyNotice(`Sala ${onlineLobbyState.roomCode} creada. Comparte el código y espera al Jugador 2.`, 'success');
+  } catch (error) {
+    reportGameException(error, 'Crear sala PVP');
+    setOnlineLobbyState({ busy: false, mode: 'idle', roomCode: '', role: '', roomStatus: 'idle' });
+    setOnlineLobbyNotice(getOnlineLobbyErrorMessage(error, 'No se pudo crear la sala.'), 'error');
+  }
+}
+
+async function handleCopyOnlineRoomCode() {
+  const code = onlineLobbyState.roomCode;
+  if (!code) {
+    setOnlineLobbyNotice('Primero crea un código de sala.', 'warning');
+    return;
+  }
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(code);
+    else {
+      const temp = document.createElement('textarea');
+      temp.value = code;
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
+    }
+    setOnlineLobbyNotice(`Código ${code} copiado.`, 'success');
+  } catch (error) {
+    reportGameException(error, 'Copiar código PVP');
+    setOnlineLobbyNotice(`Código: ${code}. Cópialo manualmente.`, 'warning');
+  }
+}
+
+function handleOnlineJoinInput() {
+  if (!els.onlineJoinCodeInput) return;
+  const normalized = normalizeOnlineRoomCode(els.onlineJoinCodeInput.value);
+  if (els.onlineJoinCodeInput.value !== normalized) els.onlineJoinCodeInput.value = normalized;
+}
+
+async function handleJoinOnlineRoom() {
+  const code = normalizeOnlineRoomCode(els.onlineJoinCodeInput?.value);
+  if (els.onlineJoinCodeInput) els.onlineJoinCodeInput.value = code;
+  if (code.length !== ONLINE_ROOM_CODE_LENGTH) {
+    setOnlineLobbyNotice('El código debe tener exactamente seis caracteres.', 'error');
+    els.onlineJoinCodeInput?.focus();
+    return;
+  }
+  if (!onlineLobbyAdapter?.joinRoom) {
+    setOnlineLobbyNotice('Firebase todavía no está disponible.', 'error');
+    return;
+  }
+  if (onlineLobbyState.busy) return;
+  setOnlineLobbyState({ busy: true, opponentConnected: false });
+  setOnlineLobbyNotice(`Buscando la sala ${code}…`);
+  try {
+    const result = await onlineLobbyAdapter.joinRoom(code);
+    setOnlineLobbyState({
+      mode: 'guest',
+      role: 'guest',
+      roomCode: code,
+      uid: result?.uid || onlineLobbyState.uid,
+      busy: false,
+      roomStatus: result?.status || 'ready',
+      opponentConnected: true,
+    });
+    setOnlineLobbyNotice(`Conectado a la sala ${code}. El Jugador 1 ya puede verte.`, 'success');
+  } catch (error) {
+    reportGameException(error, 'Unirse a sala PVP');
+    setOnlineLobbyState({ busy: false, mode: 'idle', roomCode: '', role: '', roomStatus: 'idle' });
+    setOnlineLobbyNotice(getOnlineLobbyErrorMessage(error, 'No se encontró una sala disponible con ese código.'), 'error');
+  }
+}
+
+window.ROK_ONLINE_LOBBY = {
+  getState: () => ({ ...onlineLobbyState }),
+  normalizeCode: normalizeOnlineRoomCode,
+  createCode: createOnlineRoomCode,
+  open: openOnlineLobbyScreen,
+  close: closeOnlineLobbyScreen,
+  setState: setOnlineLobbyState,
+  setNotice: setOnlineLobbyNotice,
+  reportError: (error, label = 'Firebase Online') => reportGameException(error, label),
+  isOpen: () => document.body.classList.contains('rok-online-mode'),
+  registerAdapter(adapter) {
+    onlineLobbyAdapter = adapter || null;
+    setOnlineLobbyState({ firebaseReady: Boolean(adapter) });
+  },
+};
 
 
 function openLibraryBuilderScreen() {
@@ -4867,6 +5115,17 @@ function cacheEls() {
   els.mainMenuSpellbooksBtn = document.getElementById('mainMenuSpellbooksBtn');
   els.mainMenuCardCreatorBtn = document.getElementById('mainMenuCardCreatorBtn');
   els.mainMenuNotice = document.getElementById('mainMenuNotice');
+  els.onlineLobbyScreen = document.getElementById('onlineLobbyScreen');
+  els.onlineLobbyBackBtn = document.getElementById('onlineLobbyBackBtn');
+  els.onlineCreateRoomBtn = document.getElementById('onlineCreateRoomBtn');
+  els.onlineHostCodeBox = document.getElementById('onlineHostCodeBox');
+  els.onlineHostCode = document.getElementById('onlineHostCode');
+  els.onlineCopyCodeBtn = document.getElementById('onlineCopyCodeBtn');
+  els.onlineJoinCodeInput = document.getElementById('onlineJoinCodeInput');
+  els.onlineJoinRoomBtn = document.getElementById('onlineJoinRoomBtn');
+  els.onlineLobbyNotice = document.getElementById('onlineLobbyNotice');
+  els.onlineFirebaseStatus = document.getElementById('onlineFirebaseStatus');
+  els.onlineHostOpponentStatus = document.getElementById('onlineHostOpponentStatus');
   els.libraryBuilderScreen = document.getElementById('libraryBuilderScreen');
   els.libraryBuilderLibraryGrid = document.getElementById('libraryBuilderLibraryGrid');
   els.libraryBuilderSpellbookGrid = document.getElementById('libraryBuilderSpellbookGrid');
@@ -5004,7 +5263,22 @@ function bindEvents() {
   if (els.casterEnemyZoneWarning) els.casterEnemyZoneWarning.addEventListener('click', openCasterEnemyZoneInfo);
   if (els.mainMenuBotBtn) els.mainMenuBotBtn.addEventListener('click', startBotBattleFromMainMenu);
   if (els.mainMenuStoryBtn) els.mainMenuStoryBtn.addEventListener('click', () => showMainMenuComingSoon('Modo Historia'));
-  if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', () => showMainMenuComingSoon('Versus Online'));
+  if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', openOnlineLobbyScreen);
+  if (els.onlineLobbyBackBtn) els.onlineLobbyBackBtn.addEventListener('click', closeOnlineLobbyScreen);
+  if (els.onlineCreateRoomBtn) els.onlineCreateRoomBtn.addEventListener('click', handleCreateOnlineRoom);
+  if (els.onlineCopyCodeBtn) els.onlineCopyCodeBtn.addEventListener('click', handleCopyOnlineRoomCode);
+  if (els.onlineJoinCodeInput) {
+    els.onlineJoinCodeInput.addEventListener('input', handleOnlineJoinInput);
+    els.onlineJoinCodeInput.addEventListener('keydown', event => {
+      event.stopPropagation();
+      if (event.key === 'Enter') handleJoinOnlineRoom();
+      if (event.key === 'Escape') closeOnlineLobbyScreen();
+    });
+  }
+  if (els.onlineJoinRoomBtn) els.onlineJoinRoomBtn.addEventListener('click', handleJoinOnlineRoom);
+  if (els.onlineLobbyScreen) els.onlineLobbyScreen.addEventListener('click', event => {
+    if (event.target === els.onlineLobbyScreen) closeOnlineLobbyScreen();
+  });
   if (els.mainMenuLibraryBtn) els.mainMenuLibraryBtn.addEventListener('click', openLibraryBuilderScreen);
   if (els.mainMenuSpellbooksBtn) els.mainMenuSpellbooksBtn.addEventListener('click', () => showMainMenuComingSoon('Spellbooks'));
   if (els.mainMenuCardCreatorBtn) els.mainMenuCardCreatorBtn.addEventListener('click', () => showMainMenuComingSoon('Creador de Cartas'));

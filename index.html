@@ -34,7 +34,7 @@
       <button id="mainMenuBotBtn" class="main-menu-btn main-menu-btn-play" type="button" aria-label="Jugar 1 vs 1 Bot">
         <img src="assets/menu/btn-bot.png" alt="1 vs 1 Bot" />
       </button>
-      <button id="mainMenuOnlineBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Versus Online próximamente">
+      <button id="mainMenuOnlineBtn" class="main-menu-btn main-menu-btn-online" type="button" aria-label="Abrir Versus Online">
         <img src="assets/menu/btn-online.png" alt="Versus Online" />
       </button>
       <button id="mainMenuLibraryBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Biblioteca próximamente">
@@ -48,6 +48,51 @@
       </button>
     </div>
     <div id="mainMenuNotice" class="main-menu-notice" aria-live="polite"></div>
+  </section>
+
+  <section id="onlineLobbyScreen" class="online-lobby-screen" aria-hidden="true" aria-label="Lobby Versus Online">
+    <div class="online-lobby-vignette" aria-hidden="true"></div>
+    <div class="online-lobby-shell" role="dialog" aria-modal="true" aria-labelledby="onlineLobbyTitle">
+      <header class="online-lobby-header">
+        <div>
+          <span class="online-lobby-kicker">R.O.K LITE · PVP</span>
+          <h2 id="onlineLobbyTitle">Versus Online</h2>
+          <p>Crea una sala y comparte el código, o ingresa el código que te envíe el otro jugador.</p>
+          <div id="onlineFirebaseStatus" class="online-firebase-status" data-state="connecting" aria-live="polite">Preparando Firebase…</div>
+        </div>
+        <button id="onlineLobbyBackBtn" class="online-lobby-close" type="button" aria-label="Volver al menú">×</button>
+      </header>
+
+      <div class="online-lobby-grid">
+        <article class="online-lobby-panel online-lobby-host-panel">
+          <span class="online-lobby-step">Jugador 1</span>
+          <h3>Crear sala</h3>
+          <p>Genera un código de seis caracteres para compartir con el Jugador 2.</p>
+          <button id="onlineCreateRoomBtn" class="online-lobby-primary" type="button">Crear código</button>
+          <div id="onlineHostCodeBox" class="online-room-code-box" aria-live="polite" aria-hidden="true">
+            <span>Código de sala</span>
+            <strong id="onlineHostCode">------</strong>
+            <button id="onlineCopyCodeBtn" class="online-lobby-secondary" type="button">Copiar código</button>
+            <div id="onlineHostOpponentStatus" class="online-host-opponent-status" data-connected="false">Esperando al Jugador 2…</div>
+          </div>
+        </article>
+
+        <div class="online-lobby-divider" aria-hidden="true"><span>VS</span></div>
+
+        <article class="online-lobby-panel online-lobby-join-panel">
+          <span class="online-lobby-step">Jugador 2</span>
+          <h3>Unirse a sala</h3>
+          <p>Escribe el código recibido. Se admiten seis letras o números.</p>
+          <label class="online-code-input-label" for="onlineJoinCodeInput">Código</label>
+          <input id="onlineJoinCodeInput" class="online-code-input" type="text" inputmode="text" autocomplete="off" maxlength="6" placeholder="ABC123" aria-describedby="onlineLobbyNotice" />
+          <button id="onlineJoinRoomBtn" class="online-lobby-primary online-lobby-primary-cyan" type="button">Unirse con código</button>
+        </article>
+      </div>
+
+      <div id="onlineLobbyNotice" class="online-lobby-notice" aria-live="polite">
+        Interfaz preparada. La sincronización entre dispositivos se conectará con Firebase en el siguiente paso.
+      </div>
+    </div>
   </section>
 
 
@@ -512,5 +557,6 @@
     }());
   </script>
   <script src="game.js"></script>
+  <script type="module" src="firebase-online.js"></script>
 </body>
 </html>

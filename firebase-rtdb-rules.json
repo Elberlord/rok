@@ -1,0 +1,38 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomCode": {
+        ".read": "auth != null && (data.child('status').val() === 'waiting' || data.child('hostUid').val() === auth.uid || data.child('guestUid').val() === auth.uid)",
+        "hostUid": {
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid",
+          ".validate": "newData.isString()"
+        },
+        "guestUid": {
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid && newData.parent().child('hostUid').exists() && newData.parent().child('hostUid').val() !== auth.uid && newData.parent().child('status').val() === 'waiting'",
+          ".validate": "newData.isString()"
+        },
+        "status": {
+          ".write": "auth != null && ((!data.exists() && newData.val() === 'waiting' && newData.parent().child('hostUid').val() === auth.uid) || (data.parent().child('hostUid').val() === auth.uid && (newData.val() === 'waiting' || newData.val() === 'ready' || newData.val() === 'playing' || newData.val() === 'finished')))",
+          ".validate": "newData.isString()"
+        },
+        "createdAt": {
+          ".write": "auth != null && !data.exists() && newData.isNumber() && newData.parent().child('hostUid').val() === auth.uid",
+          ".validate": "newData.isNumber()"
+        },
+        "players": {
+          "$uid": {
+            ".read": "auth != null && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
+            ".write": "auth != null && auth.uid === $uid && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)"
+          }
+        },
+        "game": {
+          ".read": "auth != null && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
+          ".write": "auth != null && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

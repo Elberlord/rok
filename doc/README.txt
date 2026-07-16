@@ -1,3 +1,20 @@
+ROK LITE v222 / v5.5.136
+- Conecta el lobby Versus Online con Firebase Realtime Database usando la configuración del proyecto rok-rise-of-caster.
+- Autentica a cada navegador como jugador anónimo.
+- Crear sala genera un código real y registra al Jugador 1 en /rooms/{codigo}.
+- Unirse con código reclama de forma transaccional el puesto del Jugador 2 para evitar que dos invitados entren a la vez.
+- Ambos navegadores escuchan la sala en tiempo real y muestran presencia, desconexión y «Jugador 2 conectado».
+- Al salir del lobby se marca la presencia como desconectada; el anfitrión cierra la sala.
+- Esta etapa valida la conexión de dos dispositivos. Todavía no sincroniza el estado completo de la batalla.
+- Incluye firebase-rtdb-rules.json como copia de referencia de las reglas requeridas.
+
+ROK LITE v221 / v5.5.135
+- Activa el botón Versus Online del menú principal.
+- Añade un lobby PVP con dos flujos preparados: Crear sala y Unirse con código.
+- El Jugador 1 puede generar y copiar un código de seis caracteres; el Jugador 2 puede introducir y validar ese código.
+- Expone window.ROK_ONLINE_LOBBY como punto de integración para la futura conexión con Firebase.
+- Esta versión prepara la interfaz y el estado local; todavía no conecta dos dispositivos hasta añadir Firebase.
+
 ROK LITE v220 / v5.5.134
 - Movimiento asistido estricto: cada paso y destino deben estar libres; dos fichas ya no pueden terminar en la misma casilla.
 - El HUD VS muestra cada Guardián una sola vez y apila debajo todas las invocaciones que tiene canalizadas o que lo están atacando. La unidad que ataca o recibe el rayo pasa al frente.

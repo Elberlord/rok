@@ -22556,3 +22556,417 @@ body:not(.rok-menu-mode):not(.rok-library-mode) .quick-reaction-window.quick-rea
   cursor: pointer;
 }
 .match-result-actions button:hover { filter: brightness(1.18); transform: translateY(-1px); }
+
+
+/* =========================================================
+   ROK v222 · LOBBY PVP CONECTADO A FIREBASE
+   ========================================================= */
+.main-menu-btn-online {
+  opacity: 1;
+}
+
+.main-menu-btn-online:hover,
+.main-menu-btn-online:focus-visible {
+  filter:
+    drop-shadow(0 18px 30px rgba(0, 0, 0, .72))
+    drop-shadow(0 0 22px rgba(45, 221, 255, .48));
+}
+
+body.rok-online-mode {
+  overflow: hidden;
+  background: #05050b;
+}
+
+body.rok-online-mode .game-shell,
+body.rok-online-mode .selected-unit-command-panel,
+body.rok-online-mode .persistent-unit-command-stack,
+body.rok-online-mode #mainMenuScreen,
+body.rok-online-mode #libraryBuilderScreen {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.online-lobby-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 4200;
+  display: grid;
+  place-items: center;
+  padding: clamp(18px, 3vw, 48px);
+  background:
+    linear-gradient(rgba(3, 4, 11, .34), rgba(3, 4, 11, .66)),
+    url('assets/menu/main-menu-bg.png') center / cover no-repeat;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .24s ease, visibility .24s ease;
+}
+
+.online-lobby-screen[aria-hidden="true"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.online-lobby-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(93, 42, 138, .12), rgba(2, 3, 9, .42) 48%, rgba(0, 0, 0, .82) 100%),
+    linear-gradient(to top, rgba(0, 0, 0, .64), transparent 42%);
+  pointer-events: none;
+}
+
+.online-lobby-shell {
+  position: relative;
+  z-index: 1;
+  width: min(1040px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
+  padding: clamp(22px, 3vw, 42px);
+  border: 1px solid rgba(207, 166, 89, .58);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(8, 7, 16, .92), rgba(19, 10, 30, .86)),
+    radial-gradient(circle at 50% 0%, rgba(130, 65, 190, .18), transparent 55%);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, .72),
+    0 0 36px rgba(155, 77, 255, .18),
+    inset 0 0 0 1px rgba(255, 255, 255, .04);
+  color: #f3ecff;
+  font-family: Cinzel, Georgia, serif;
+}
+
+.online-lobby-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, .10);
+}
+
+.online-lobby-kicker,
+.online-lobby-step {
+  display: inline-block;
+  color: #dcb86a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.online-lobby-header h2 {
+  margin: 6px 0 8px;
+  font-size: clamp(34px, 5vw, 62px);
+  line-height: .98;
+  color: #f6e8c8;
+  text-shadow: 0 0 22px rgba(164, 90, 255, .28);
+}
+
+.online-lobby-header p,
+.online-lobby-panel p {
+  margin: 0;
+  max-width: 690px;
+  color: rgba(239, 233, 248, .74);
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.online-firebase-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .24);
+  color: rgba(255, 255, 255, .68);
+  font: 700 12px/1 Arial, sans-serif;
+}
+
+.online-firebase-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8b8b93;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.online-firebase-status[data-state="connected"] {
+  border-color: rgba(82, 232, 151, .34);
+  color: #a9ffd0;
+}
+
+.online-firebase-status[data-state="connected"]::before { background: #52e897; }
+.online-firebase-status[data-state="connecting"] { color: #ffe0a0; }
+.online-firebase-status[data-state="connecting"]::before { background: #e4ad49; }
+.online-firebase-status[data-state="offline"],
+.online-firebase-status[data-state="error"] { color: #ffbac6; }
+.online-firebase-status[data-state="offline"]::before,
+.online-firebase-status[data-state="error"]::before { background: #ff657d; }
+
+.online-lobby-close {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 50%;
+  background: rgba(8, 7, 14, .78);
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.online-lobby-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 74px minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+  margin-top: 28px;
+}
+
+.online-lobby-panel {
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: clamp(20px, 2.5vw, 32px);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 19px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .018));
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, .22);
+}
+
+.online-lobby-host-panel {
+  border-color: rgba(203, 151, 67, .30);
+}
+
+.online-lobby-join-panel {
+  border-color: rgba(49, 206, 238, .28);
+}
+
+.online-lobby-panel h3 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 36px);
+  color: #f2e4c2;
+}
+
+.online-lobby-divider {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.online-lobby-divider::before {
+  content: '';
+  position: absolute;
+  width: 1px;
+  height: 240px;
+  background: linear-gradient(transparent, rgba(255,255,255,.20), transparent);
+}
+
+.online-lobby-divider span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid rgba(200, 154, 76, .50);
+  border-radius: 50%;
+  background: #0c0913;
+  color: #e7c778;
+  font-size: 21px;
+  font-weight: 900;
+  box-shadow: 0 0 20px rgba(155, 77, 255, .22);
+}
+
+.online-lobby-primary,
+.online-lobby-secondary {
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-family: Cinzel, Georgia, serif;
+  font-weight: 800;
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: transform .14s ease, filter .14s ease, border-color .14s ease;
+}
+
+.online-lobby-primary {
+  margin-top: auto;
+  border: 1px solid rgba(234, 195, 114, .68);
+  background: linear-gradient(135deg, #5b2b83, #32174d);
+  color: #fff4d9;
+  box-shadow: 0 0 18px rgba(153, 75, 214, .22);
+}
+
+.online-lobby-primary-cyan {
+  border-color: rgba(68, 220, 245, .62);
+  background: linear-gradient(135deg, #075a70, #073748);
+  box-shadow: 0 0 18px rgba(50, 205, 235, .18);
+}
+
+.online-lobby-primary:hover,
+.online-lobby-secondary:hover,
+.online-lobby-close:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+
+.online-lobby-primary:disabled,
+.online-lobby-secondary:disabled,
+.online-code-input:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+  filter: grayscale(.28);
+  transform: none;
+}
+
+.online-room-code-box {
+  display: none;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 15px;
+  border: 1px solid rgba(230, 193, 111, .36);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, .26);
+}
+
+.online-room-code-box.visible {
+  display: grid;
+}
+
+.online-room-code-box > span {
+  grid-column: 1 / -1;
+  color: rgba(255, 255, 255, .58);
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.online-room-code-box strong {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: clamp(27px, 4vw, 42px);
+  letter-spacing: .14em;
+  color: #ffe39b;
+  text-shadow: 0 0 16px rgba(255, 205, 93, .30);
+}
+
+.online-host-opponent-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, .62);
+  font: 700 12px/1.35 Arial, sans-serif;
+}
+
+.online-host-opponent-status::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8b8b93;
+}
+
+.online-host-opponent-status[data-connected="true"] {
+  color: #b6ffda;
+}
+
+.online-host-opponent-status[data-connected="true"]::before {
+  background: #55e79b;
+  box-shadow: 0 0 12px rgba(85, 231, 155, .72);
+}
+
+.online-lobby-secondary {
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .06);
+  color: #f5eefc;
+}
+
+.online-code-input-label {
+  color: rgba(255, 255, 255, .62);
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.online-code-input {
+  width: 100%;
+  min-height: 68px;
+  box-sizing: border-box;
+  padding: 10px 18px;
+  border: 1px solid rgba(61, 213, 243, .38);
+  border-radius: 14px;
+  outline: none;
+  background: rgba(2, 11, 17, .70);
+  color: #dffaff;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: clamp(26px, 4vw, 40px);
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  text-align: center;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, .34);
+}
+
+.online-code-input:focus {
+  border-color: rgba(61, 222, 255, .82);
+  box-shadow: 0 0 18px rgba(49, 206, 238, .18), inset 0 0 18px rgba(0, 0, 0, .34);
+}
+
+.online-lobby-notice {
+  margin-top: 20px;
+  min-height: 24px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .20);
+  color: rgba(243, 237, 251, .76);
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.online-lobby-notice[data-kind="success"] {
+  border-color: rgba(91, 224, 153, .34);
+  color: #b9ffd7;
+}
+
+.online-lobby-notice[data-kind="warning"] {
+  border-color: rgba(255, 206, 91, .38);
+  color: #ffe4a0;
+}
+
+.online-lobby-notice[data-kind="error"] {
+  border-color: rgba(255, 92, 116, .42);
+  color: #ffc0cb;
+}
+
+@media (max-width: 760px) {
+  .online-lobby-grid {
+    grid-template-columns: 1fr;
+  }
+  .online-lobby-divider {
+    height: 54px;
+  }
+  .online-lobby-divider::before {
+    width: 70%;
+    height: 1px;
+  }
+  .online-lobby-panel {
+    min-height: 280px;
+  }
+}
