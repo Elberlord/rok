@@ -22970,3 +22970,49 @@ body.rok-online-mode #libraryBuilderScreen {
     min-height: 280px;
   }
 }
+
+
+/* ROK v223 · Duelo PVP sincronizado */
+.online-start-battle {
+  margin-top: 12px;
+  background: linear-gradient(180deg, rgba(133, 80, 192, .98), rgba(72, 31, 112, .98));
+  border-color: rgba(224, 187, 255, .72);
+  box-shadow: 0 0 24px rgba(166, 88, 255, .25);
+}
+
+.online-start-battle[hidden] {
+  display: none !important;
+}
+
+.online-battle-status {
+  display: none;
+  margin-top: 8px;
+  padding: 7px 8px;
+  border: 1px solid rgba(95, 238, 188, .45);
+  border-radius: 8px;
+  background: rgba(4, 28, 23, .76);
+  color: #bfffe7;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-align: center;
+  box-shadow: inset 0 0 14px rgba(56, 255, 187, .08);
+}
+
+.online-battle-status.visible {
+  display: block;
+}
+
+.online-battle-status[data-connected="false"] {
+  border-color: rgba(255, 111, 111, .55);
+  background: rgba(48, 8, 13, .8);
+  color: #ffd2d2;
+}
+
+body.rok-online-battle-mode .opponent-thinking-notice {
+  pointer-events: none;
+}
+
+body.rok-online-battle-mode[data-online-player="2"] .turn-banner {
+  text-shadow: 0 0 14px rgba(244, 195, 82, .32);
+}

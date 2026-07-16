@@ -41,8 +41,9 @@ const PURE_ELEMENT_CASTING_INTERVAL = 3;
 const KAGUYA_CHARGED_SHOT_CHANNEL_PHASES = 5;
 const CASTER_SPECIAL_COUNTER_DAMAGE_THRESHOLD = 5;
 const CASTER_DEFENSE_VALUE = 2;
-const GAME_VERSION = 'v5.5.136';
+const GAME_VERSION = 'v5.5.137';
 const PATCH_NOTES = [
+  'Activa el duelo PVP online completo en beta: el anfitrión inicia la batalla, J1/J2 se asignan por rol, la IA queda desactivada y Firebase replica el estado lógico entero de turnos, fases, recursos, casteos, unidades, Guardianes, daño, condiciones, restauración, Kaster y final de partida mediante revisiones transaccionales.',
   'Conecta el lobby Versus Online con Firebase Realtime Database: autenticación anónima, creación de salas reales con código único, unión transaccional del segundo jugador, presencia en tiempo real y detección de rival conectado, sin iniciar todavía la batalla PVP.',
   'Permite atravesar y terminar movimiento sobre nexos/respawn sin permitir superposición de piezas, y conserva Ataque extra en cada Resolución posterior de las unidades a distancia ancladas contra un Guardián.',
   'Impide superposiciones en movimiento asistido, agrupa en el HUD VS cada Guardián con sus objetivos apilados, corrige Jinchi Tenkan como rescate inmediato sin estasis con +2 vida máxima/+2 curación, añade rescate táctico de IA, fin de partida con revancha y victorias del match, y libera la prioridad de Takeda cuando Tokugawa ya puede pagarlo.',
@@ -2857,7 +2858,7 @@ const CARD_LIBRARY = {
 
 };
 
-const LOCAL_PLAYER_ID = 1;
+let LOCAL_PLAYER_ID = 1;
 const MAX_INVOCATIONS_PER_PLAYER = 6;
 
 
@@ -4322,9 +4323,288 @@ const onlineLobbyState = {
   busy: false,
   roomStatus: 'idle',
   opponentConnected: false,
+  matchStatus: 'idle',
+  battleRevision: 0,
   authError: '',
 };
 let onlineLobbyAdapter = null;
+
+const ONLINE_SYNC_SCHEMA = 1;
+const ONLINE_BATTLE_LOGICAL_KEYS = [
+  'activePlayer',
+  'phaseIndex',
+  'turnSerial',
+  'gameOver',
+  'matchWins',
+  'phaseUndo',
+  'resolutionActionTaken',
+  'turnActionByPlayer',
+  'resolutionSerial',
+  'arenaEntrySerial',
+  'smokeZones',
+  'pendingGuardianStrikes',
+  'kaguyaChargedShots',
+  'pendingTimedAbilityResolutions',
+  'extractedThisPhase',
+  'players',
+];
+const onlineBattleState = {
+  enabled: false,
+  roomCode: '',
+  role: '',
+  uid: '',
+  playerId: 1,
+  revision: 0,
+  applyingRemote: false,
+  publishing: false,
+  lastPublishedHash: '',
+  lastAppliedHash: '',
+  lastPhaseKey: '',
+  connectionText: '',
+};
+let onlineBattlePublishTimer = null;
+let onlineBattleWatchInterval = null;
+let onlineBattlePublishChain = Promise.resolve();
+
+function isOnlineBattleActive() {
+  return Boolean(onlineBattleState.enabled && onlineBattleState.roomCode);
+}
+
+function getOnlineBattlePhaseKey(snapshot = state) {
+  return `${Number(snapshot?.activePlayer || 1)}:${Number(snapshot?.phaseIndex || 0)}:${Number(snapshot?.turnSerial || 1)}:${Number(snapshot?.resolutionSerial || 0)}`;
+}
+
+function cloneOnlineValue(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function exportOnlineBattleState(reason = 'state-change') {
+  const payload = { schema: ONLINE_SYNC_SCHEMA };
+  ONLINE_BATTLE_LOGICAL_KEYS.forEach(key => {
+    if (typeof state[key] !== 'undefined') payload[key] = cloneOnlineValue(state[key]);
+  });
+  payload.aiEnabled = false;
+  return payload;
+}
+
+function getOnlineBattleHash(snapshot) {
+  try { return JSON.stringify(snapshot); }
+  catch (_) { return ''; }
+}
+
+function updateOnlineBattleStatus(text = '') {
+  onlineBattleState.connectionText = text || (isOnlineBattleActive() ? `PVP · J${LOCAL_PLAYER_ID} · Sala ${onlineBattleState.roomCode}` : '');
+  if (els.onlineBattleStatus) {
+    els.onlineBattleStatus.textContent = onlineBattleState.connectionText;
+    els.onlineBattleStatus.classList.toggle('visible', Boolean(isOnlineBattleActive()));
+    els.onlineBattleStatus.dataset.connected = onlineLobbyState.firebaseConnected ? 'true' : 'false';
+  }
+}
+
+function resetOnlineTransientState() {
+  state.activeTab = 0;
+  state.selectedCardSlot = null;
+  state.pendingCard = null;
+  state.pendingPlacement = null;
+  state.randomCostPayment = null;
+  state.infoCard = null;
+  state.cardMetaInfoHistory = [];
+  state.cardMetaInfoCurrent = null;
+  state.selectedMover = null;
+  state.selectedTarget = null;
+  state.pendingCasterDefense = null;
+  state.pendingPowerAction = null;
+  state.tokugawaAbilitySelectionActive = false;
+  state.pendingTokugawaReposition = null;
+  state.hattoriAbilitySelectionActive = false;
+  state.hattoriAbilitySelectionResolver = null;
+  state.hattoriReactionPromptActive = false;
+  state.extractionAnimating = false;
+  state.opponentActionResolving = false;
+  state.opponentActionLockReason = '';
+  state.opponentActionNoticeAwaiting = false;
+  state.opponentActionNoticeResolve = null;
+  state.opponentActionNoticeWaiters = [];
+  state.opponentActionLockDepth = 0;
+  state.pendingCastTravelCount = 0;
+  state.pendingCastTravelPromises = [];
+  state.castTravelResolving = false;
+  state.actionExecutionLock = Boolean(state.gameOver);
+  state.actionExecutionLockReason = state.gameOver ? 'match-finished' : '';
+  state.aiThinking = false;
+  state.enemyResolutionRunning = false;
+  state.aiEnabled = false;
+  state.quickReactionWindow = { active: false, locked: false, candidates: [], resolver: null, phaseKey: '' };
+  state.offTurnCasterReposition = { active: false, playerId: null, phaseKey: '', moving: false, resolver: null };
+  state.semiAutoMovementAnimating = false;
+}
+
+function showOnlineBattleScreen() {
+  document.body.classList.remove('rok-menu-mode', 'rok-library-mode', 'rok-online-mode');
+  document.body.classList.add('rok-battle-mode', 'rok-online-battle-mode');
+  if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
+  if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
+  if (els.onlineLobbyScreen) els.onlineLobbyScreen.setAttribute('aria-hidden', 'true');
+  mainMenuBattleStarted = true;
+  updateHudModeUi();
+  updateOnlineBattleStatus();
+}
+
+function applyOnlineBattleSnapshot(packet = {}) {
+  const remoteState = packet?.state;
+  const revision = Math.max(0, Number(packet?.revision || 0));
+  if (!remoteState || Number(remoteState.schema || 0) !== ONLINE_SYNC_SCHEMA) return false;
+  if (revision && revision < Number(onlineBattleState.revision || 0)) return false;
+
+  const hash = String(packet?.stateHash || getOnlineBattleHash(remoteState));
+  onlineBattleState.revision = Math.max(Number(onlineBattleState.revision || 0), revision);
+  onlineLobbyState.battleRevision = onlineBattleState.revision;
+  // Nunca reaplicar en el mismo navegador el snapshot que acaba de publicar.
+  // El listener de Firebase puede dispararse antes de que termine la promesa
+  // local; updatedBy evita que una confirmación propia limpie selecciones o
+  // interrumpa una animación todavía en curso.
+  if (packet?.updatedBy && packet.updatedBy === onlineBattleState.uid) {
+    if (hash) onlineBattleState.lastPublishedHash = hash;
+    updateOnlineBattleStatus(`PVP conectado · J${LOCAL_PLAYER_ID} · rev ${onlineBattleState.revision}`);
+    return false;
+  }
+  if (hash && hash === onlineBattleState.lastAppliedHash) return false;
+
+  const previousPhaseKey = getOnlineBattlePhaseKey();
+  onlineBattleState.applyingRemote = true;
+  try {
+    clearTimeout(schedulePhaseStartActions.timer);
+    clearTimeout(scheduleSustainedCombatResolution.timer);
+    clearTimeout(scheduleSustainedStructureAttacks.timer);
+    ONLINE_BATTLE_LOGICAL_KEYS.forEach(key => {
+      if (typeof remoteState[key] !== 'undefined') state[key] = cloneOnlineValue(remoteState[key]);
+    });
+    resetOnlineTransientState();
+    state.aiEnabled = false;
+    onlineBattleState.lastAppliedHash = hash;
+    showOnlineBattleScreen();
+    renderAll();
+  } finally {
+    onlineBattleState.applyingRemote = false;
+  }
+
+  const nextPhaseKey = getOnlineBattlePhaseKey();
+  onlineBattleState.lastPhaseKey = nextPhaseKey;
+  updateOnlineBattleStatus(`PVP conectado · J${LOCAL_PLAYER_ID} · rev ${onlineBattleState.revision}`);
+  if (!state.gameOver && previousPhaseKey !== nextPhaseKey && Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) {
+    schedulePhaseStartActions(420);
+  }
+  if (state.gameOver) window.setTimeout(() => {
+    const winner = Number(state.players?.[1]?.caster?.life || 0) <= 0 ? 2 : 1;
+    const defeated = winner === 1 ? 2 : 1;
+    if (!document.getElementById('matchResultOverlay')) showMatchResultOverlay(winner, defeated);
+  }, 350);
+  return true;
+}
+
+function scheduleOnlineBattlePublish(reason = 'state-change', delay = 110) {
+  if (!isOnlineBattleActive() || onlineBattleState.applyingRemote || !onlineLobbyAdapter?.publishBattleState) return;
+  if (Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID) && !state.gameOver) return;
+  clearTimeout(onlineBattlePublishTimer);
+  onlineBattlePublishTimer = window.setTimeout(() => {
+    const snapshot = exportOnlineBattleState(reason);
+    const hash = getOnlineBattleHash(snapshot);
+    if (!hash || hash === onlineBattleState.lastPublishedHash || hash === onlineBattleState.lastAppliedHash) return;
+    onlineBattlePublishChain = onlineBattlePublishChain
+      .then(async () => {
+        onlineBattleState.publishing = true;
+        const result = await onlineLobbyAdapter.publishBattleState({
+          state: snapshot,
+          stateHash: hash,
+          reason,
+          baseRevision: onlineBattleState.revision,
+        });
+        if (result?.revision) onlineBattleState.revision = Math.max(onlineBattleState.revision, Number(result.revision));
+        onlineBattleState.lastPublishedHash = hash;
+        updateOnlineBattleStatus(`PVP conectado · J${LOCAL_PLAYER_ID} · rev ${onlineBattleState.revision}`);
+      })
+      .catch(error => reportGameException(error, 'Sincronizar duelo PVP'))
+      .finally(() => { onlineBattleState.publishing = false; });
+  }, Math.max(20, Number(delay) || 110));
+}
+
+function configureOnlineBattleIdentity(role, roomCode, uid) {
+  const playerId = role === 'guest' ? 2 : 1;
+  LOCAL_PLAYER_ID = playerId;
+  onlineBattleState.enabled = true;
+  onlineBattleState.roomCode = normalizeOnlineRoomCode(roomCode);
+  onlineBattleState.role = role;
+  onlineBattleState.uid = uid || onlineLobbyState.uid || '';
+  onlineBattleState.playerId = playerId;
+  state.aiEnabled = false;
+  document.body.dataset.onlinePlayer = String(playerId);
+  updateOnlineBattleStatus();
+  if (!onlineBattleWatchInterval) {
+    onlineBattleWatchInterval = window.setInterval(() => {
+      if (isOnlineBattleActive()) scheduleOnlineBattlePublish('state-watchdog', 30);
+    }, 320);
+  }
+  return playerId;
+}
+
+async function handleStartOnlineBattle() {
+  if (onlineLobbyState.role !== 'host' || !onlineLobbyState.roomCode) return;
+  if (!onlineLobbyState.opponentConnected) {
+    setOnlineLobbyNotice('Espera a que el Jugador 2 esté conectado.', 'warning');
+    return;
+  }
+  if (!onlineLobbyAdapter?.startBattle) {
+    setOnlineLobbyNotice('La conexión todavía no puede iniciar el duelo.', 'error');
+    return;
+  }
+  setOnlineLobbyState({ busy: true, matchStatus: 'starting' });
+  setOnlineLobbyNotice('Preparando el estado inicial del duelo…');
+  try {
+    configureOnlineBattleIdentity('host', onlineLobbyState.roomCode, onlineLobbyState.uid);
+    onlineBattleState.applyingRemote = true;
+    const hudMode = state.hudMode;
+    const semiAutoMovement = state.semiAutoMovement;
+    const fresh = cloneOnlineValue(INITIAL_BATTLE_STATE);
+    Object.keys(state).forEach(key => delete state[key]);
+    Object.assign(state, fresh);
+    state.hudMode = hudMode;
+    state.semiAutoMovement = semiAutoMovement;
+    state.aiEnabled = false;
+    initializeElementDecks();
+    enterPhase(true, true);
+    resetOnlineTransientState();
+    const snapshot = exportOnlineBattleState('match-start');
+    const result = await onlineLobbyAdapter.startBattle(snapshot);
+    onlineBattleState.revision = Number(result?.revision || 1);
+    onlineBattleState.lastPublishedHash = getOnlineBattleHash(snapshot);
+    onlineLobbyState.battleRevision = onlineBattleState.revision;
+    onlineLobbyState.matchStatus = 'playing';
+    onlineBattleState.applyingRemote = false;
+    showOnlineBattleScreen();
+    renderAll();
+    const introTransitions = [
+      { text: 'DUELO ONLINE', playerId: 1, duration: 1050 },
+      { text: 'JUGADOR 1', playerId: 1, duration: 820 },
+      { text: 'EXTRACCIÓN', playerId: 1, duration: 880 },
+    ];
+    queueTransitions(introTransitions);
+    schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+  } catch (error) {
+    onlineBattleState.applyingRemote = false;
+    reportGameException(error, 'Iniciar duelo PVP');
+    setOnlineLobbyState({ busy: false, matchStatus: 'ready' });
+    setOnlineLobbyNotice(getOnlineLobbyErrorMessage(error, 'No se pudo iniciar el duelo.'), 'error');
+  }
+}
+
+function receiveOnlineBattlePacket(packet = {}) {
+  const lobby = onlineLobbyState;
+  const role = lobby.role || packet.role || '';
+  if (!role || !lobby.roomCode) return;
+  configureOnlineBattleIdentity(role, lobby.roomCode, lobby.uid);
+  onlineLobbyState.matchStatus = packet?.status || 'playing';
+  applyOnlineBattleSnapshot(packet);
+}
 const ONLINE_ROOM_CODE_LENGTH = 6;
 const ONLINE_ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const libraryBuilderState = {
@@ -4486,6 +4766,12 @@ function renderOnlineLobbyState() {
     els.onlineJoinRoomBtn.textContent = onlineLobbyState.busy && !roomActive ? 'Conectando…' : 'Unirse con código';
   }
   if (els.onlineCopyCodeBtn) els.onlineCopyCodeBtn.disabled = !isHost || !onlineLobbyState.roomCode;
+  if (els.onlineStartBattleBtn) {
+    const canStart = isHost && roomActive && onlineLobbyState.opponentConnected && ['ready', 'waiting'].includes(onlineLobbyState.roomStatus) && onlineLobbyState.matchStatus !== 'playing';
+    els.onlineStartBattleBtn.hidden = !isHost || !onlineLobbyState.roomCode;
+    els.onlineStartBattleBtn.disabled = onlineLobbyState.busy || !canStart;
+    els.onlineStartBattleBtn.textContent = onlineLobbyState.busy && onlineLobbyState.matchStatus === 'starting' ? 'Iniciando duelo…' : 'Iniciar duelo';
+  }
   if (els.onlineJoinCodeInput) els.onlineJoinCodeInput.disabled = onlineLobbyState.busy || roomActive;
 }
 
@@ -4521,6 +4807,8 @@ function closeOnlineLobbyScreen() {
     busy: false,
     roomStatus: 'idle',
     opponentConnected: false,
+    matchStatus: 'idle',
+    battleRevision: 0,
   });
   showMainMenu();
   if (leavingAdapter?.leaveRoom && (previousMode === 'host' || previousMode === 'guest')) {
@@ -4557,6 +4845,7 @@ async function handleCreateOnlineRoom() {
       busy: false,
       roomStatus: result?.status || 'waiting',
       opponentConnected: false,
+      matchStatus: 'waiting',
     });
     setOnlineLobbyNotice(`Sala ${onlineLobbyState.roomCode} creada. Comparte el código y espera al Jugador 2.`, 'success');
   } catch (error) {
@@ -4622,6 +4911,7 @@ async function handleJoinOnlineRoom() {
       busy: false,
       roomStatus: result?.status || 'ready',
       opponentConnected: true,
+      matchStatus: 'ready',
     });
     setOnlineLobbyNotice(`Conectado a la sala ${code}. El Jugador 1 ya puede verte.`, 'success');
   } catch (error) {
@@ -4641,6 +4931,9 @@ window.ROK_ONLINE_LOBBY = {
   setNotice: setOnlineLobbyNotice,
   reportError: (error, label = 'Firebase Online') => reportGameException(error, label),
   isOpen: () => document.body.classList.contains('rok-online-mode'),
+  receiveBattleSnapshot: receiveOnlineBattlePacket,
+  getBattleSnapshot: exportOnlineBattleState,
+  isBattleActive: isOnlineBattleActive,
   registerAdapter(adapter) {
     onlineLobbyAdapter = adapter || null;
     setOnlineLobbyState({ firebaseReady: Boolean(adapter) });
@@ -5121,6 +5414,8 @@ function cacheEls() {
   els.onlineHostCodeBox = document.getElementById('onlineHostCodeBox');
   els.onlineHostCode = document.getElementById('onlineHostCode');
   els.onlineCopyCodeBtn = document.getElementById('onlineCopyCodeBtn');
+  els.onlineStartBattleBtn = document.getElementById('onlineStartBattleBtn');
+  els.onlineBattleStatus = document.getElementById('onlineBattleStatus');
   els.onlineJoinCodeInput = document.getElementById('onlineJoinCodeInput');
   els.onlineJoinRoomBtn = document.getElementById('onlineJoinRoomBtn');
   els.onlineLobbyNotice = document.getElementById('onlineLobbyNotice');
@@ -5267,6 +5562,7 @@ function bindEvents() {
   if (els.onlineLobbyBackBtn) els.onlineLobbyBackBtn.addEventListener('click', closeOnlineLobbyScreen);
   if (els.onlineCreateRoomBtn) els.onlineCreateRoomBtn.addEventListener('click', handleCreateOnlineRoom);
   if (els.onlineCopyCodeBtn) els.onlineCopyCodeBtn.addEventListener('click', handleCopyOnlineRoomCode);
+  if (els.onlineStartBattleBtn) els.onlineStartBattleBtn.addEventListener('click', handleStartOnlineBattle);
   if (els.onlineJoinCodeInput) {
     els.onlineJoinCodeInput.addEventListener('input', handleOnlineJoinInput);
     els.onlineJoinCodeInput.addEventListener('keydown', event => {
@@ -11826,7 +12122,7 @@ function nextPhase(force = false) {
     log('Espera a que termine la extracción antes de avanzar de fase.');
     return;
   }
-  if (!force && state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) {
+  if (!force && ((state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) || (isOnlineBattleActive() && state.activePlayer !== LOCAL_PLAYER_ID))) {
     log('El rival está controlando su turno.');
     return;
   }
@@ -12640,6 +12936,7 @@ function shouldBlockLocalInputForBusyFlow() {
   if (offTurnCasterFlow?.active && Number(offTurnCasterFlow.playerId) !== Number(LOCAL_PLAYER_ID)) return true;
   if (isOpponentActionResolving()) return true;
   if (isActionExecutionLocked()) return true;
+  if (isOnlineBattleActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) return true;
   return Boolean(state.aiEnabled && state.aiThinking && state.activePlayer !== LOCAL_PLAYER_ID);
 }
 
@@ -12685,6 +12982,7 @@ function blockPlayerInputWhileOpponentAction(event) {
   }
   if (target?.closest?.('#opponentActionNotice')) return;
   if (target?.closest?.('#matchResultOverlay')) return;
+  if (target?.closest?.('#gameMenuOverlay, #gameMenuBtn, #infoChip, #patchInfoOverlay, #cardMetaInfoOverlay, #onlineBattleStatus')) return;
   if (target?.closest?.('.arena-effect-tracker')) return;
   if (els.cardMetaInfoOverlay?.dataset?.trackerInfoOpen === '1' && target?.closest?.('#cardMetaInfoOverlay')) return;
   // El menú de respuesta del Kaster es una excepción legítima al bloqueo de
@@ -13850,6 +14148,7 @@ function offerQuickReactionWindow(playerId = LOCAL_PLAYER_ID, options = {}) {
 
 async function startPhaseActions() {
   if (state.gameOver) return;
+  if (isOnlineBattleActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) return;
   await waitForOpponentActionNoticePause();
   // La fase no debe arrancar acciones normales mientras una invocación recién liberada
   // de la cola de kasteo todavía está entrando, abriendo ventana de acción rápida
@@ -17324,7 +17623,7 @@ function resetBattleForRematch(preserveWins = true) {
   state.matchWins = wins;
   state.hudMode = hudMode;
   state.semiAutoMovement = semiAutoMovement;
-  state.aiEnabled = aiEnabled;
+  state.aiEnabled = isOnlineBattleActive() ? false : aiEnabled;
   state.gameOver = false;
   mainMenuBattleStarted = true;
   initializeElementDecks();
@@ -17336,6 +17635,7 @@ function resetBattleForRematch(preserveWins = true) {
   ];
   queueTransitions(introTransitions);
   schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+  if (isOnlineBattleActive()) scheduleOnlineBattlePublish('rematch', 40);
 }
 
 function exitMatchToMainMenu() {
@@ -17349,8 +17649,21 @@ function exitMatchToMainMenu() {
   state.matchWins = { 1: 0, 2: 0 };
   state.gameOver = false;
   mainMenuBattleStarted = false;
+  const leavingOnline = isOnlineBattleActive();
+  onlineBattleState.enabled = false;
+  onlineBattleState.roomCode = '';
+  onlineBattleState.role = '';
+  onlineBattleState.uid = '';
+  onlineBattleState.revision = 0;
+  clearTimeout(onlineBattlePublishTimer);
+  if (onlineBattleWatchInterval) window.clearInterval(onlineBattleWatchInterval);
+  onlineBattleWatchInterval = null;
+  document.body.classList.remove('rok-online-battle-mode');
+  document.body.removeAttribute('data-online-player');
+  LOCAL_PLAYER_ID = 1;
   renderAll();
   showMainMenu();
+  if (leavingOnline && onlineLobbyAdapter?.leaveRoom) Promise.resolve(onlineLobbyAdapter.leaveRoom()).catch(error => reportGameException(error, 'Salir del duelo PVP'));
 }
 
 function showMatchResultOverlay(winnerPlayerId, defeatedPlayerId) {
@@ -17368,7 +17681,13 @@ function showMatchResultOverlay(winnerPlayerId, defeatedPlayerId) {
     <div class="match-result-actions"><button type="button" data-match-action="rematch">Jugar otra partida</button><button type="button" data-match-action="menu">Salir al menú</button></div>
   </div>`;
   document.body.appendChild(overlay);
-  overlay.querySelector('[data-match-action="rematch"]')?.addEventListener('click', () => resetBattleForRematch(true));
+  const rematchButton = overlay.querySelector('[data-match-action="rematch"]');
+  if (isOnlineBattleActive() && onlineBattleState.role === 'guest') {
+    rematchButton.disabled = true;
+    rematchButton.textContent = 'Esperando al Jugador 1';
+  } else {
+    rematchButton?.addEventListener('click', () => resetBattleForRematch(true));
+  }
   overlay.querySelector('[data-match-action="menu"]')?.addEventListener('click', exitMatchToMainMenu);
 }
 
@@ -18623,6 +18942,10 @@ function toggleGameSettingsPanel() {
 
 function returnToMainMenuFromGameMenu() {
   closeGameMenu();
+  if (isOnlineBattleActive()) {
+    exitMatchToMainMenu();
+    return;
+  }
   showMainMenu();
 }
 
@@ -18687,6 +19010,8 @@ function renderAll() {
   safeRenderStep('renderVisualDevShowcase', renderVisualDevShowcase);
   safeRenderStep('updateCardInfoAction', updateCardInfoAction);
   safeRenderStep('refreshQuickReactionWindowVisibility', refreshQuickReactionWindowVisibility);
+  updateOnlineBattleStatus();
+  scheduleOnlineBattlePublish('render-state');
 }
 
 function updateOpponentThinkingNotice() {
@@ -18740,7 +19065,7 @@ function renderPhaseUI() {
   });
   if (els.nextPhaseBtn) {
     const extractionLocked = currentPhase().id === 'extraction';
-    els.nextPhaseBtn.disabled = extractionLocked || isOffTurnCasterRepositionBlockingInput() || state.extractionAnimating || state.aiThinking || state.opponentActionResolving || state.actionExecutionLock || (state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID);
+    els.nextPhaseBtn.disabled = extractionLocked || isOffTurnCasterRepositionBlockingInput() || state.extractionAnimating || state.aiThinking || state.opponentActionResolving || state.actionExecutionLock || ((state.aiEnabled || isOnlineBattleActive()) && state.activePlayer !== LOCAL_PLAYER_ID);
   }
   updateOpponentThinkingNotice();
 }

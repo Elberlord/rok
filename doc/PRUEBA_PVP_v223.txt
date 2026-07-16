@@ -1,0 +1,21 @@
+ROK LITE v223 · PRUEBA DEL DUELO PVP
+
+1. Publica todos los archivos de esta carpeta en GitHub Pages.
+2. Conserva las reglas de Realtime Database incluidas en firebase-rtdb-rules.json.
+3. Abre la web en dos navegadores o dispositivos diferentes.
+4. JUGADOR 1: Versus Online > Crear código.
+5. JUGADOR 2: Versus Online > introducir código > Unirse con código.
+6. Cuando aparezca «Jugador 2 conectado», JUGADOR 1 pulsa «Iniciar duelo».
+7. J1 controla a Hattori. J2 controla a Tokugawa. La IA queda desactivada.
+8. Comprueba en ambos dispositivos:
+   - misma fase y mismo jugador activo;
+   - mismos elementos y cola de kasteo;
+   - mismas unidades, nexos, vida y posiciones;
+   - cambio de turno entre J1 y J2;
+   - daño, restauración, Guardianes y final de partida.
+
+Indicador PVP:
+El lateral muestra «PVP conectado · J1/J2 · rev N». El número de revisión debe aumentar cuando cambia el estado lógico del duelo.
+
+Alcance de esta beta:
+Sincroniza el estado y los resultados completos de las acciones normales. Las animaciones rivales se reconstruyen desde el estado recibido. Las ventanas de reacción fuera del turno todavía necesitarán una cola de comandos dedicada para conservar sus pausas interactivas entre dos dispositivos.

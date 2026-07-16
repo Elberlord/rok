@@ -74,6 +74,7 @@
             <strong id="onlineHostCode">------</strong>
             <button id="onlineCopyCodeBtn" class="online-lobby-secondary" type="button">Copiar código</button>
             <div id="onlineHostOpponentStatus" class="online-host-opponent-status" data-connected="false">Esperando al Jugador 2…</div>
+            <button id="onlineStartBattleBtn" class="online-lobby-primary online-start-battle" type="button" hidden disabled>Iniciar duelo</button>
           </div>
         </article>
 
@@ -90,7 +91,7 @@
       </div>
 
       <div id="onlineLobbyNotice" class="online-lobby-notice" aria-live="polite">
-        Interfaz preparada. La sincronización entre dispositivos se conectará con Firebase en el siguiente paso.
+        Firebase listo para crear salas, conectar a ambos jugadores e iniciar el duelo sincronizado.
       </div>
     </div>
   </section>
@@ -213,6 +214,7 @@
         <button id="gameMenuBtn" class="main-button game-menu-button" type="button" aria-expanded="false" title="Abrir menú">Menú</button>
       </div>
       <div id="turnBanner" class="turn-banner turn-banner-vertical" aria-hidden="true"></div>
+      <div id="onlineBattleStatus" class="online-battle-status" data-connected="false" aria-live="polite"></div>
       <div id="systemLog" class="system-log system-log-vertical" aria-hidden="true"></div>
     </section>
 

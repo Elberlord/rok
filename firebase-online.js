@@ -37,6 +37,7 @@ let roomUnsubscribe = null;
 let connectionUnsubscribe = null;
 let disconnectRegistration = null;
 let hostReadyUpdatePending = false;
+let lastDeliveredBattleRevision = 0;
 
 function createUserError(message, code = 'rok-online/error', cause = null) {
   const error = new Error(message);
@@ -123,10 +124,32 @@ function attachRoomListener(roomCode, role, uid) {
     const roomData = snapshot.val() || {};
     const opponentUid = role === 'host' ? roomData.guestUid : roomData.hostUid;
     const opponentConnected = roomPlayerConnected(roomData, opponentUid);
+    const gameData = roomData.game || null;
     lobby.setState({
       roomStatus: roomData.status || 'waiting',
       opponentConnected,
+      matchStatus: gameData?.status || (roomData.status === 'playing' ? 'playing' : (roomData.status || 'waiting')),
+      battleRevision: Number(gameData?.revision || 0),
     });
+
+    const battleRevision = Number(gameData?.revision || 0);
+    let battleState = gameData?.state || null;
+    if (typeof gameData?.stateJson === 'string') {
+      try { battleState = JSON.parse(gameData.stateJson); }
+      catch (error) { lobby.reportError(error, 'Decodificar estado PVP'); }
+    }
+    if (gameData?.status === 'playing' && battleState && battleRevision >= lastDeliveredBattleRevision) {
+      lastDeliveredBattleRevision = battleRevision;
+      lobby.receiveBattleSnapshot?.({
+        status: gameData.status,
+        revision: battleRevision,
+        state: battleState,
+        stateHash: gameData.stateHash || gameData.stateJson || '',
+        updatedBy: gameData.updatedBy || '',
+        reason: gameData.reason || '',
+        role,
+      });
+    }
 
     if (role === 'host' && roomData.guestUid && roomData.status === 'waiting' && !hostReadyUpdatePending) {
       hostReadyUpdatePending = true;
@@ -163,6 +186,7 @@ async function leaveCurrentRoom({ finishHostRoom = false } = {}) {
     try { await update(ref(database, `rooms/${active.roomCode}`), { status: 'finished' }); } catch (_) {}
   }
   currentRoom = null;
+  lastDeliveredBattleRevision = 0;
 }
 
 async function createRoom() {
@@ -243,11 +267,70 @@ async function joinRoom(rawCode) {
   return { roomCode, role: 'guest', uid: user.uid, status: 'ready' };
 }
 
+async function startBattle(initialState) {
+  const active = currentRoom;
+  if (!active || active.role !== 'host') throw createUserError('Solo el Jugador 1 puede iniciar el duelo.', 'rok-online/host-only');
+  const roomRef = ref(database, `rooms/${active.roomCode}`);
+  const roomSnapshot = await get(roomRef);
+  const roomData = roomSnapshot.val() || {};
+  if (!roomData.guestUid) throw createUserError('El Jugador 2 todavía no se ha unido.', 'rok-online/guest-missing');
+  const stateJson = JSON.stringify(initialState);
+  const stateHash = stateJson;
+  const gamePayload = {
+    status: 'playing',
+    revision: 1,
+    stateJson,
+    stateHash,
+    reason: 'match-start',
+    updatedBy: active.uid,
+    updatedAt: Date.now(),
+    startedAt: Date.now(),
+  };
+  try {
+    await update(roomRef, { status: 'playing', game: gamePayload });
+  } catch (error) {
+    throw translateFirebaseError(error, 'Firebase no permitió iniciar el duelo.');
+  }
+  lastDeliveredBattleRevision = 1;
+  return { revision: 1, stateHash };
+}
+
+async function publishBattleState(payload = {}) {
+  const active = currentRoom;
+  if (!active) throw createUserError('No existe una sala PVP activa.', 'rok-online/no-room');
+  const gameRef = ref(database, `rooms/${active.roomCode}/game`);
+  let result;
+  try {
+    result = await runTransaction(gameRef, current => {
+      if (!current || current.status !== 'playing') return undefined;
+      if (payload.stateHash && current.stateHash === payload.stateHash) return current;
+      const revision = Math.max(0, Number(current.revision || 0)) + 1;
+      const stateJson = JSON.stringify(payload.state || {});
+      return {
+        ...current,
+        status: 'playing',
+        revision,
+        stateJson,
+        stateHash: payload.stateHash || stateJson,
+        reason: String(payload.reason || 'state-change').slice(0, 80),
+        updatedBy: active.uid,
+        updatedAt: Date.now(),
+      };
+    }, { applyLocally: false });
+  } catch (error) {
+    throw translateFirebaseError(error, 'No se pudo sincronizar el estado del duelo.');
+  }
+  if (!result.committed) throw createUserError('La partida ya no está disponible.', 'rok-online/game-unavailable');
+  const revision = Number(result.snapshot.val()?.revision || 0);
+  lastDeliveredBattleRevision = Math.max(lastDeliveredBattleRevision, revision);
+  return { revision };
+}
+
 async function leaveRoom() {
   await leaveCurrentRoom({ finishHostRoom: true });
 }
 
-lobby.registerAdapter({ createRoom, joinRoom, leaveRoom });
+lobby.registerAdapter({ createRoom, joinRoom, startBattle, publishBattleState, leaveRoom });
 lobby.setState({ firebaseReady: true });
 
 connectionUnsubscribe = onValue(ref(database, '.info/connected'), snapshot => {
@@ -274,4 +357,6 @@ window.ROK_FIREBASE_ONLINE = {
   getCurrentRoom: () => currentRoom ? { ...currentRoom } : null,
   getUid: () => auth.currentUser?.uid || '',
   getDatabaseUrl: () => firebaseConfig.databaseURL,
+  startBattle,
+  publishBattleState,
 };

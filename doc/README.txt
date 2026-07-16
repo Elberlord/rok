@@ -1,3 +1,12 @@
+ROK LITE v223 / v5.5.137
+- Convierte el lobby Firebase en un duelo PVP online funcional en beta.
+- El anfitrión obtiene el botón Iniciar duelo cuando el Jugador 2 está conectado.
+- J1 controla Hattori y J2 controla Tokugawa; la IA queda completamente desactivada durante el modo online.
+- Sincroniza mediante Firebase Realtime Database el estado lógico de turnos, fases, recursos, casteos, unidades, posiciones, vida, Guardianes, condiciones, restauración, Kaster y final del match.
+- Cada actualización usa una revisión transaccional para evitar sobrescrituras directas y permite reconstruir la partida desde el último snapshot recibido.
+- El jugador que no tiene el turno queda bloqueado para acciones de arena, pero conserva acceso a información y menú.
+- Esta primera beta completa sincroniza resultados lógicos; las animaciones del rival se reconstruyen desde el estado final y las ventanas de reacción fuera de turno todavía requieren una segunda capa de comandos dedicada.
+
 ROK LITE v222 / v5.5.136
 - Conecta el lobby Versus Online con Firebase Realtime Database usando la configuración del proyecto rok-rise-of-caster.
 - Autentica a cada navegador como jugador anónimo.
