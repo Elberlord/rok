@@ -20,7 +20,6 @@
 
   const FIREBASE_VERSION = '12.16.0';
   const ROOM_ROOT = 'rooms';
-  const ROOM_SCHEMA_VERSION = 2;
   const ROOM_CODE_LENGTH = 6;
   const SYNC_INTERVAL_MS = 220;
   const LOCAL_ACTION_GRACE_MS = 5000;
@@ -120,6 +119,15 @@
 
   function roomRefPath(code = roomCode) {
     return `${ROOM_ROOT}/${normalizeRoomCode(code)}`;
+  }
+
+  function getRoomPlayerUid(room, slot) {
+    return Number(slot) === 1 ? String(room?.hostUid || '') : String(room?.guestUid || '');
+  }
+
+  function getRoomPlayerRecord(room, slot) {
+    const playerUid = getRoomPlayerUid(room, slot);
+    return playerUid ? (room?.players?.[playerUid] || null) : null;
   }
 
   function deepClone(value) {
@@ -345,38 +353,34 @@
       for (let attempt = 0; attempt < 12 && !createdCode; attempt += 1) {
         const candidate = makeRoomCode();
         const candidatePath = roomRefPath(candidate);
-        const candidateRef = api.ref(db, candidatePath);
         const now = Date.now();
-
-        // La sala se crea completa en una sola escritura. No se hace get()
-        // previo sobre una sala inexistente y no se reserva /hostUid por
-        // separado. Las reglas PvP que ya funcionaban validan la creación
-        // usando el objeto completo y el hostUid del usuario autenticado.
-        const initialRoom = {
-          schemaVersion: ROOM_SCHEMA_VERSION,
-          code: candidate,
-          hostUid: uid,
-          status: 'waiting',
-          createdAt: now,
-          updatedAt: now,
-          players: {
-            1: { uid, connected: true, joinedAt: now, lastSeenAt: now },
-            2: { connected: false },
-          },
+        const reservationUpdates = {
+          [`${candidatePath}/hostUid`]: uid,
+          [`${candidatePath}/status`]: 'waiting',
+          [`${candidatePath}/createdAt`]: now,
         };
 
         try {
-          await api.set(candidateRef, initialRoom);
-          createdCode = candidate;
+          // Las reglas publicadas permiten crear únicamente estos tres hijos
+          // en la cabecera. Deben nacer juntos para que status y createdAt
+          // puedan validar el hostUid dentro de newData.parent().
+          await api.update(api.ref(db), reservationUpdates);
         } catch (error) {
-          // Un código ya ocupado puede ser rechazado por las reglas porque el
-          // usuario actual no es su host. Probamos otro código sin leer antes
-          // la sala, ya que esa lectura era precisamente el error de v225.
-          if (String(error?.code || '').toLowerCase().includes('permission-denied') && attempt < 11) {
-            continue;
-          }
+          // Si el código ya existe, hostUid no puede volver a crearse y las
+          // reglas responden permission-denied. Se prueba otro código.
+          if (String(error?.code || '').toLowerCase().includes('permission-denied') && attempt < 11) continue;
           throw error;
         }
+
+        // players está indexado por UID en las reglas, no por los números 1/2.
+        await api.set(api.ref(db, `${candidatePath}/players/${uid}`), {
+          uid,
+          slot: 1,
+          connected: true,
+          joinedAt: now,
+          lastSeenAt: now,
+        });
+        createdCode = candidate;
       }
       if (!createdCode) throw new Error('No se pudo reservar un código de sala.');
       await attachToRoom(createdCode, 1);
@@ -404,42 +408,45 @@
       const targetRef = api.ref(db, targetPath);
       const roomSnapshot = await api.get(targetRef);
       const room = roomSnapshot.val();
-      if (!room || Number(room.schemaVersion || 0) !== ROOM_SCHEMA_VERSION) {
-        throw new Error('La sala no existe o usa una versión incompatible.');
-      }
+      if (!room?.hostUid || !room?.status) throw new Error('La sala no existe o no está disponible.');
 
       const now = Date.now();
-      const p1Uid = room.hostUid || room.players?.[1]?.uid || room.players?.['1']?.uid || '';
-      const savedGuestUid = room.guestUid || room.players?.[2]?.uid || room.players?.['2']?.uid || '';
+      const hostUid = String(room.hostUid || '');
+      const savedGuestUid = String(room.guestUid || '');
       let claimedSlot = 0;
-      if (p1Uid === uid) {
+
+      if (hostUid === uid) {
         claimedSlot = 1;
-        await api.update(api.ref(db, `${targetPath}/players/1`), { uid, connected: true, lastSeenAt: now });
       } else {
-        const guestRef = api.ref(db, `${targetPath}/guestUid`);
-        const guestClaim = await api.runTransaction(guestRef, current => {
-          const currentUid = current || savedGuestUid || '';
-          if (currentUid && currentUid !== uid) return;
-          return uid;
-        }, { applyLocally: false });
-        if (!guestClaim.committed) throw new Error('La sala ya tiene un Jugador 2.');
+        if (savedGuestUid && savedGuestUid !== uid) throw new Error('La sala ya tiene un Jugador 2.');
+        if (!savedGuestUid) {
+          try {
+            // guestUid solo puede escribirse una vez y únicamente con el UID
+            // del usuario autenticado que entra como Jugador 2.
+            await api.set(api.ref(db, `${targetPath}/guestUid`), uid);
+          } catch (error) {
+            if (String(error?.code || '').toLowerCase().includes('permission-denied')) {
+              throw new Error('La sala ya tiene un Jugador 2.');
+            }
+            throw error;
+          }
+        }
         claimedSlot = 2;
-        await api.update(api.ref(db, `${targetPath}/players/2`), {
-          uid,
-          connected: true,
-          joinedAt: room.players?.[2]?.joinedAt || room.players?.['2']?.joinedAt || now,
-          lastSeenAt: now,
-        });
       }
 
-      await api.update(targetRef, {
-        guestUid: claimedSlot === 2 ? uid : (room.guestUid || null),
-        status: room.game?.snapshot ? 'active' : 'ready',
-        updatedAt: now,
+      const existingPlayer = room.players?.[uid] || {};
+      await api.update(api.ref(db, `${targetPath}/players/${uid}`), {
+        uid,
+        slot: claimedSlot,
+        connected: true,
+        joinedAt: existingPlayer.joinedAt || now,
+        lastSeenAt: now,
       });
+
+      // J2 no modifica status: las reglas reservan ese cambio al anfitrión.
       await attachToRoom(code, claimedSlot);
       showWaitingRoom(code);
-      setStatus(claimedSlot === 2 ? 'Entraste como Jugador 2. Preparando la partida…' : 'Sala recuperada como Jugador 1.', 'ok');
+      setStatus(claimedSlot === 2 ? 'Entraste como Jugador 2. Esperando el inicio del duelo…' : 'Sala recuperada como Jugador 1.', 'ok');
     } catch (error) {
       reportOnlineError(error, 'No se pudo entrar a la sala');
       setStatus(readableFirebaseError(error), 'error');
@@ -464,11 +471,11 @@
     handledInteractionId = '';
     saveSession();
 
-    const presenceRef = api.ref(db, `${roomPath}/players/${playerSlot}`);
+    const presenceRef = api.ref(db, `${roomPath}/players/${uid}`);
     try {
       presenceDisconnect = api.onDisconnect(presenceRef);
       await presenceDisconnect.update({ connected: false, lastSeenAt: Date.now() });
-      await api.update(presenceRef, { uid, connected: true, lastSeenAt: Date.now() });
+      await api.update(presenceRef, { uid, slot: playerSlot, connected: true, lastSeenAt: Date.now() });
     } catch (_) {}
 
     roomUnsubscribe = api.onValue(api.ref(db, roomPath), snapshot => {
@@ -489,14 +496,14 @@
       return;
     }
     roomCache = room;
-    const p1 = room.players?.[1] || room.players?.['1'];
-    const p2 = room.players?.[2] || room.players?.['2'] || (room.guestUid ? { uid: room.guestUid, connected: true } : null);
+    const p1 = getRoomPlayerRecord(room, 1);
+    const p2 = getRoomPlayerRecord(room, 2);
     if (ui.badgeText) ui.badgeText.textContent = `PVP conectado · J${playerSlot} · rev ${lastKnownRevision}`;
 
     if (!room.game?.snapshot) {
       showWaitingRoom(roomCode);
       if (playerSlot === 1) {
-        const guestReady = Boolean(p2?.uid);
+        const guestReady = Boolean(room.guestUid && p2?.uid);
         setStartButtonVisible(guestReady, startingOnlineBattle);
         setStatus(guestReady
           ? 'Jugador 2 conectado. Pulsa Iniciar duelo.'
@@ -521,12 +528,12 @@
     showBattleScreen();
     setStatus(`Partida activa · sala ${roomCode} · Jugador ${playerSlot}.`, 'ok');
 
-    if (room.interaction) await handleIncomingInteraction(room.interaction);
+    if (room.game?.interaction) await handleIncomingInteraction(room.game.interaction);
   }
 
   async function startFreshOnlineBattleAsHost() {
     if (startingOnlineBattle || playerSlot !== 1) return;
-    const guest = roomCache?.guestUid || roomCache?.players?.[2]?.uid || roomCache?.players?.['2']?.uid;
+    const guest = String(roomCache?.guestUid || '');
     if (!guest) { setStatus('Todavía no se ha conectado el Jugador 2.', 'error'); return; }
     startingOnlineBattle = true;
     setStartButtonVisible(true, true);
@@ -554,7 +561,7 @@
       lastObservedPhaseKey = currentLocalPhaseKey();
       showBattleScreen();
       renderAll();
-      await publishSnapshot({ force: true, status: 'active' });
+      await publishSnapshot({ force: true, status: 'playing' });
       closeLobby();
       const introTransitions = [
         { text: 'INICIA EL COMBATE', playerId: 1, duration: 1150 },
@@ -616,7 +623,7 @@
         const currentWriter = String(current?.writerUid || '');
         if (!options.force && currentRevision > lastKnownRevision && currentWriter && currentWriter !== uid) return;
         committedRevision = currentRevision + 1;
-        return {
+        const nextGame = {
           revision: committedRevision,
           writerUid: uid,
           writerPlayer: playerSlot,
@@ -624,13 +631,20 @@
           snapshot: nextSnapshot,
           updatedAt: Date.now(),
         };
+        // La interacción vive dentro de /game porque las reglas no permiten
+        // hijos adicionales en la raíz de la sala. Se conserva durante cada
+        // transacción de sincronización para que no desaparezca a mitad de J2.
+        if (current?.interaction) nextGame.interaction = deepClone(current.interaction);
+        return nextGame;
       }, { applyLocally: false });
       if (!result.committed) return false;
       lastKnownRevision = Math.max(lastKnownRevision, committedRevision);
       lastSnapshotText = nextText;
       lastObservedPhaseKey = phaseKeyFromSnapshot(nextSnapshot) || lastObservedPhaseKey;
       if (options.status) {
-        await api.update(api.ref(db, roomPath), { status: options.status, updatedAt: Date.now() });
+        if (playerSlot === 1 && ['waiting', 'ready', 'playing', 'finished'].includes(options.status)) {
+          await api.set(api.ref(db, `${roomPath}/status`), options.status);
+        }
       }
       return true;
     } catch (error) {
@@ -687,7 +701,7 @@
         isDirectAttack: Boolean(options.isDirectAttack),
       },
     };
-    const interactionRef = api.ref(db, `${roomPath}/interaction`);
+    const interactionRef = api.ref(db, `${roomPath}/game/interaction`);
     await api.set(interactionRef, interaction);
     try { log(`Esperando la respuesta defensiva del Jugador ${defenderId}…`); } catch (_) {}
 
@@ -727,7 +741,7 @@
         isDirectAttack: Boolean(payload.isDirectAttack),
       });
       const api = await loadFirebase();
-      await api.runTransaction(api.ref(db, `${roomPath}/interaction`), current => {
+      await api.runTransaction(api.ref(db, `${roomPath}/game/interaction`), current => {
         if (!current || current.id !== interaction.id || current.status !== 'pending') return;
         return {
           ...current,
@@ -739,7 +753,7 @@
       reportOnlineError(error, 'Error en la defensa remota del Kaster');
       try {
         const api = await loadFirebase();
-        await api.update(api.ref(db, `${roomPath}/interaction`), {
+        await api.update(api.ref(db, `${roomPath}/game/interaction`), {
           status: 'resolved',
           response: { choice: 'defend', uid, player: playerSlot, resolvedAt: Date.now(), fallback: true },
         });
@@ -783,7 +797,7 @@
       if (oldRoomPath && oldSlot && db && firebaseApiPromise) {
         try {
           const api = await firebaseApiPromise;
-          await api.update(api.ref(db, `${oldRoomPath}/players/${oldSlot}`), { connected: false, lastSeenAt: Date.now() });
+          await api.update(api.ref(db, `${oldRoomPath}/players/${uid}`), { connected: false, lastSeenAt: Date.now() });
         } catch (_) {}
       }
     } finally {
@@ -859,7 +873,7 @@
 
     window.addEventListener('beforeunload', () => {
       if (!roomPath || !playerSlot || !db || !firebaseApiPromise) return;
-      void firebaseApiPromise.then(api => api.update(api.ref(db, `${roomPath}/players/${playerSlot}`), {
+      void firebaseApiPromise.then(api => api.update(api.ref(db, `${roomPath}/players/${uid}`), {
         connected: false,
         lastSeenAt: Date.now(),
       })).catch(() => {});
