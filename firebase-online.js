@@ -345,29 +345,48 @@
       for (let attempt = 0; attempt < 12 && !createdCode; attempt += 1) {
         const candidate = makeRoomCode();
         const candidatePath = roomRefPath(candidate);
-        const hostReservationRef = api.ref(db, `${candidatePath}/hostUid`);
-        const reservation = await api.runTransaction(hostReservationRef, current => {
-          if (current !== null) return;
-          return uid;
-        }, { applyLocally: false });
-        if (!reservation.committed) continue;
+        const candidateRef = api.ref(db, candidatePath);
+
+        // Configuración PvP estable de v222.1:
+        // primero se comprueba que el código no exista y después se crea toda
+        // la cabecera de la sala en una única actualización multipath. No se
+        // intenta reservar /hostUid por separado con runTransaction, porque
+        // las reglas activas de Firebase validan hostUid, status y createdAt
+        // dentro de la misma escritura inicial.
+        const existingSnapshot = await api.get(candidateRef);
+        if (existingSnapshot.exists()) continue;
 
         const now = Date.now();
+        const roomReservationUpdates = {
+          [`${candidatePath}/hostUid`]: uid,
+          [`${candidatePath}/status`]: 'waiting',
+          [`${candidatePath}/createdAt`]: now,
+        };
+
         try {
-          await api.update(api.ref(db, candidatePath), {
+          // Esta es la forma exacta usada por el hotfix estable v222.1:
+          // hostUid, status y createdAt nacen juntos mediante update() desde
+          // la raíz. Después se completa el resto de la sala como anfitrión.
+          await api.update(api.ref(db), roomReservationUpdates);
+          await api.update(candidateRef, {
             schemaVersion: ROOM_SCHEMA_VERSION,
             code: candidate,
-            hostUid: uid,
-            guestUid: null,
-            status: 'waiting',
-            createdAt: now,
             updatedAt: now,
             'players/1': { uid, connected: true, joinedAt: now, lastSeenAt: now },
-            'players/2': { uid: null, connected: false, joinedAt: null, lastSeenAt: null },
+            'players/2': { connected: false },
           });
+          const verificationSnapshot = await api.get(candidateRef);
+          const verificationRoom = verificationSnapshot.val();
+          if (!verificationRoom || verificationRoom.hostUid !== uid) continue;
           createdCode = candidate;
         } catch (error) {
-          try { await api.remove(api.ref(db, candidatePath)); } catch (_) {}
+          // Si otro anfitrión obtuvo el mismo código entre la lectura y la
+          // escritura, probamos otro. Cualquier otro error se conserva.
+          try {
+            const collisionSnapshot = await api.get(candidateRef);
+            const collisionRoom = collisionSnapshot.val();
+            if (collisionRoom?.hostUid && collisionRoom.hostUid !== uid) continue;
+          } catch (_) {}
           throw error;
         }
       }
