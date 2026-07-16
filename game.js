@@ -4308,6 +4308,100 @@ const state = {
 
 const INITIAL_BATTLE_STATE = JSON.parse(JSON.stringify(state));
 
+// Firebase Realtime Database no conserva arreglos vacíos: al volver desde la
+// base pueden llegar como propiedades ausentes, null u objetos con índices
+// numéricos. Esta normalización reconstruye exclusivamente las colecciones
+// de ejecución necesarias, sin alterar cartas, estadísticas ni reglas.
+const RUNTIME_ROOT_ARRAY_KEYS = [
+  'smokeZones',
+  'pendingGuardianStrikes',
+  'kaguyaChargedShots',
+  'pendingTimedAbilityResolutions',
+];
+
+const RUNTIME_PLAYER_ARRAY_KEYS = [
+  'resources',
+  'elementDeck',
+  'elementDiscard',
+  'guardians',
+  'castQueue',
+  'units',
+  'spawnMarkers',
+];
+
+function runtimeCollectionToArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== 'object') return [];
+
+  const numericKeys = Object.keys(value)
+    .filter(key => /^\d+$/.test(key))
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  if (!numericKeys.length) return [];
+  const result = [];
+  numericKeys.forEach(index => {
+    result[index] = value[String(index)];
+  });
+  return result;
+}
+
+function normalizeRuntimeHandTabs(value, templateTabs = []) {
+  const tabs = runtimeCollectionToArray(value);
+  const tabCount = Math.max(3, tabs.length, Array.isArray(templateTabs) ? templateTabs.length : 0);
+  const normalized = [];
+
+  for (let tabIndex = 0; tabIndex < tabCount; tabIndex += 1) {
+    const tab = runtimeCollectionToArray(tabs[tabIndex]);
+    const templateTab = Array.isArray(templateTabs?.[tabIndex]) ? templateTabs[tabIndex] : [];
+    const minimumSlots = Math.max(12, templateTab.length);
+    if (tab.length < minimumSlots) tab.length = minimumSlots;
+    normalized[tabIndex] = tab;
+  }
+
+  return normalized;
+}
+
+function ensureRuntimeStateCollections(targetState = state) {
+  if (!targetState || typeof targetState !== 'object') return targetState;
+
+  RUNTIME_ROOT_ARRAY_KEYS.forEach(key => {
+    targetState[key] = runtimeCollectionToArray(targetState[key]);
+  });
+
+  if (!targetState.players || typeof targetState.players !== 'object') {
+    targetState.players = {};
+  }
+
+  for (const playerId of [1, 2]) {
+    const templatePlayer = INITIAL_BATTLE_STATE.players[playerId];
+    let player = targetState.players[playerId];
+
+    if (!player || typeof player !== 'object') {
+      player = JSON.parse(JSON.stringify(templatePlayer));
+      targetState.players[playerId] = player;
+    }
+
+    RUNTIME_PLAYER_ARRAY_KEYS.forEach(key => {
+      player[key] = runtimeCollectionToArray(player[key]);
+    });
+
+    player.handTabs = normalizeRuntimeHandTabs(player.handTabs, templatePlayer.handTabs);
+
+    if (!player.caster || typeof player.caster !== 'object') {
+      player.caster = JSON.parse(JSON.stringify(templatePlayer.caster));
+    }
+
+    player.units.forEach(unit => {
+      if (!unit || typeof unit !== 'object') return;
+      unit.activeFactors = runtimeCollectionToArray(unit.activeFactors);
+      unit.hiddenSuppressedZoneIds = runtimeCollectionToArray(unit.hiddenSuppressedZoneIds);
+    });
+  }
+
+  return targetState;
+}
+
 const els = {};
 
 let mainMenuBattleStarted = false;
@@ -18379,6 +18473,7 @@ function toggleSemiAutoMovement() {
 }
 
 function renderAll() {
+  ensureRuntimeStateCollections();
   safeRenderStep('refreshGuardianAuraState', refreshGuardianAuraState);
   safeRenderStep('refreshSmokeZoneEffects', refreshSmokeZoneEffects);
   safeRenderStep('applyFountainColors', applyFountainColors);
@@ -19250,10 +19345,13 @@ function getCasterPersistentInvocationCast(playerId) {
 function renderUnits() {
   els.unitsLayer.innerHTML = '';
   for (const playerId of [1, 2]) {
-    const player = state.players[playerId];
+    const player = state.players?.[playerId];
+    if (!player?.caster) continue;
+    const guardians = Array.isArray(player.guardians) ? player.guardians : [];
+    const units = Array.isArray(player.units) ? player.units : [];
     renderUnit(player.caster.row, player.caster.col, 'caster', getCasterTokenImage(player.caster), getCasterDisplayName(player.caster, `Kaster J${playerId}`), playerId, null, getPlayerElementColor(playerId));
-    player.guardians.filter(g => g.active !== false || g.destroying).forEach((g, index) => renderUnit(g.row, g.col, 'guardian', getGuardianAssetForPlayer(playerId), `Guardián ${index + 1} · RES ${g.resistance ?? 5}`, playerId, null, getOwnerColor(playerId), null, g.id));
-    player.units.forEach(unit => {
+    guardians.filter(g => g.active !== false || g.destroying).forEach((g, index) => renderUnit(g.row, g.col, 'guardian', getGuardianAssetForPlayer(playerId), `Guardián ${index + 1} · RES ${g.resistance ?? 5}`, playerId, null, getOwnerColor(playerId), null, g.id));
+    units.forEach(unit => {
       if (unit.restoreAnimating) return;
       const card = CARD_LIBRARY[unit.cardId];
       const element = getElementById(getUnitElementId(playerId, unit));
@@ -19279,8 +19377,9 @@ function renderKaguyaChargeFxLayer() {
   if (!layer) return;
   const activeKeys = new Set();
   for (const playerId of [1, 2]) {
-    const player = state.players[playerId];
-    player.units.forEach(unit => {
+    const player = state.players?.[playerId];
+    const units = Array.isArray(player?.units) ? player.units : [];
+    units.forEach(unit => {
       const visual = getKaguyaChargeVisualState(unit);
       if (!visual?.active || unit.status === 'restoring' || unit.restoreAnimating) return;
       const key = `p${playerId}_${unit.id}`;

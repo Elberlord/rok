@@ -226,6 +226,11 @@
       SNAPSHOT_KEYS.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(snapshot, key)) state[key] = deepClone(snapshot[key]);
       });
+      // RTDB elimina arreglos vacíos y puede devolver arreglos dispersos como
+      // objetos numéricos. Reconstruirlos antes de cualquier render o fase.
+      if (typeof ensureRuntimeStateCollections === 'function') {
+        ensureRuntimeStateCollections(state);
+      }
       state.hudMode = localHudMode;
       state.semiAutoMovement = localSemiAutoMovement;
       state.activeTab = localActiveTab;
