@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>R.O.K LITE</title>
+  <link id="mainStylesheet" rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="rokDebugRibbon" class="rok-debug-ribbon" aria-live="polite" aria-hidden="true">DEBUG · OK</div>
+
+
+  <section id="patchInfoOverlay" class="patch-info-overlay" aria-hidden="true">
+    <div class="patch-info-card">
+      <button id="patchInfoCloseBtn" class="patch-info-close" type="button">×</button>
+      <h2 id="patchInfoTitle">Rok</h2>
+      <div id="patchInfoBody" class="patch-info-body"></div>
+    </div>
+  </section>
+
+  <div id="transitionOverlay" class="transition-overlay show">
+    <div id="transitionText" class="transition-card">INICIA EL DUELO</div>
+  </div>
+
+  <div id="globalFxLayer" class="global-fx-layer" aria-hidden="true"></div>
+
+
+  <section id="mainMenuScreen" class="main-menu-screen" aria-label="Menú principal R.O.K Lite">
+    <div class="main-menu-vignette"></div>
+    <div class="main-menu-buttons" aria-label="Opciones principales">
+      <button id="mainMenuStoryBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Modo Historia próximamente">
+        <img src="assets/menu/btn-story.png" alt="Modo Historia" />
+      </button>
+      <button id="mainMenuBotBtn" class="main-menu-btn main-menu-btn-play" type="button" aria-label="Jugar 1 vs 1 Bot">
+        <img src="assets/menu/btn-bot.png" alt="1 vs 1 Bot" />
+      </button>
+      <button id="mainMenuOnlineBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Versus Online próximamente">
+        <img src="assets/menu/btn-online.png" alt="Versus Online" />
+      </button>
+      <button id="mainMenuLibraryBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Biblioteca próximamente">
+        <img src="assets/menu/btn-library.png" alt="Biblioteca" />
+      </button>
+      <button id="mainMenuSpellbooksBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Spellbooks próximamente">
+        <img src="assets/menu/btn-spellbooks.png" alt="Spellbooks" />
+      </button>
+      <button id="mainMenuCardCreatorBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Creador de Cartas próximamente">
+        <img src="assets/menu/btn-card-creator.png" alt="Creador de Cartas" />
+      </button>
+    </div>
+    <div id="mainMenuNotice" class="main-menu-notice" aria-live="polite"></div>
+  </section>
+
+
+
+  <section id="libraryBuilderScreen" class="library-builder-screen" aria-hidden="true" aria-label="Biblioteca y creador de Spellbook">
+    <div class="library-builder-bg"></div>
+    <div class="library-builder-shell">
+      <header class="library-builder-hud">
+        <div class="library-builder-hud-block library-builder-filter-hud">
+          <span class="library-builder-kicker">Filtros</span>
+          <strong>Biblioteca general</strong>
+          <small>Tipo · Elemento · Caster · Costo · Factor · Cualidad · previsto</small>
+        </div>
+        <div class="library-builder-hud-block library-builder-summary-hud">
+          <span class="library-builder-kicker">Spellbook</span>
+          <strong id="libraryBuilderDeckName">Nuevo Spellbook</strong>
+          <small id="libraryBuilderDeckSummary">0 cartas · curva, elementos y ritmo previstos</small>
+        </div>
+      </header>
+
+      <div class="library-builder-layout">
+        <section class="library-builder-panel library-builder-library-panel">
+          <div class="library-builder-panel-head">
+            <div>
+              <span>Biblioteca</span>
+              <strong>Todas las cartas existentes</strong>
+            </div>
+            <div class="library-builder-head-actions">
+              <button id="libraryBuilderCssRefreshBtn" class="library-builder-mini-btn library-builder-css-refresh-btn" type="button" title="Refrescar CSS sin salir de la biblioteca">CSS</button>
+              <button id="libraryBuilderInfoBtn" class="library-builder-mini-btn" type="button">Info</button>
+            </div>
+          </div>
+          <div id="libraryBuilderLibraryGrid" class="library-builder-card-grid library-builder-library-grid"></div>
+        </section>
+
+        <aside class="library-builder-actions" aria-label="Acciones del Spellbook">
+          <button id="libraryBuilderAddBtn" class="library-builder-action primary" type="button">Agregar carta</button>
+          <button id="libraryBuilderRemoveBtn" class="library-builder-action danger" type="button">Eliminar carta</button>
+          <button id="libraryBuilderClearSelectionBtn" class="library-builder-action" type="button">Limpiar selección</button>
+          <button id="libraryBuilderSaveBtn" class="library-builder-action planned" type="button">Guardar Spellbook</button>
+          <button id="libraryBuilderEditBtn" class="library-builder-action planned" type="button">Editar existente</button>
+          <button id="libraryBuilderFilterBtn" class="library-builder-action planned" type="button">Filtros</button>
+          <button id="libraryBuilderTestBtn" class="library-builder-action test" type="button">Probar</button>
+          <button id="libraryBuilderBackBtn" class="library-builder-action back" type="button">Volver al menú</button>
+          <div id="libraryBuilderNotice" class="library-builder-notice" aria-live="polite"></div>
+        </aside>
+
+        <section class="library-builder-panel library-builder-spellbook-panel">
+          <div class="library-builder-panel-head">
+            <div>
+              <span>Spellbook</span>
+              <strong>Cartas agregadas</strong>
+            </div>
+            <div class="library-builder-page-chip">Pág. <b id="libraryBuilderPageLabel">1</b></div>
+          </div>
+          <div id="libraryBuilderSpellbookGrid" class="library-builder-card-grid library-builder-spellbook-grid"></div>
+          <div class="library-builder-page-row">
+            <button id="libraryBuilderPrevPageBtn" class="library-builder-mini-btn planned" type="button">◀ Página</button>
+            <button id="libraryBuilderNextPageBtn" class="library-builder-mini-btn planned" type="button">Página ▶</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <main class="game-shell">
+    <section class="left-panel panel">
+      <button id="infoChip" class="info-chip" title="Info de versión y parche">i</button>
+      <button id="cssRefreshBtn" class="css-refresh-chip" title="Refrescar CSS sin reiniciar la partida">CSS</button>
+
+      <div class="hidden-player-readout" aria-hidden="true">
+        <span id="p1Life">30</span>
+        <span id="p1ElementCount">0</span>
+      </div>
+
+      <div class="resource-title" aria-hidden="true"></div>
+      <div id="resourceBar" class="resource-bar vertical-resource-bar"></div>
+    </section>
+
+    <section class="board-panel">
+      <div id="board" class="board">
+        <div id="boardContent" class="board-content">
+          <img class="arena-img" src="assets/arena.webp" alt="Arena" />
+          <section id="opponentCasterHud" class="opponent-caster-hud" aria-label="Kaster rival">
+            <div class="opponent-caster-content">
+              <img class="opponent-caster-type-icon" src="assets/card-types/card-type-kaster.svg" alt="Kaster rival" title="Kaster rival">
+              <div id="opponentCasterPureMeter" class="opponent-caster-pure-meter" aria-label="Elemento puro rival"></div>
+              <b id="opponentCasterLife" class="opponent-caster-compact-stat" title="Vida"><span class="caster-life-heart" aria-hidden="true"></span>15/15</b>
+              <b id="opponentCasterCounter" class="opponent-caster-compact-stat" title="Counter especial"><img src="assets/caster/caster-special-counter.svg" alt="Counter especial">0/5</b>
+            </div>
+            <div id="enemyMiniHud" class="opponent-caster-secondary-hud" aria-label="Recursos y kasteos del rival">
+              <div id="enemyMiniResources" class="enemy-mini-resources"></div>
+              <div class="opponent-caster-cast-row">
+                <div id="enemyMiniCastQueue" class="enemy-mini-cast-queue"></div>
+                <button id="enemyMiniCastMore" class="enemy-mini-cast-more" type="button" aria-label="Ver más casteos rivales">▶</button>
+              </div>
+            </div>
+          </section>
+          <div id="enemyGrid" class="grid-layer enemy-grid" aria-label="Grid enemigo"></div>
+          <div id="allyGrid" class="grid-layer ally-grid" aria-label="Grid aliado"></div>
+          <div id="spawnMarkersLayer" class="spawn-markers-layer"></div>
+          <div id="moveOptionsLayer" class="move-options-layer"></div>
+          <div id="unitsLayer" class="units-layer"></div>
+          <div id="extractionFxLayer" class="extraction-fx-layer"></div>
+          <div id="enemyRiskLine" class="arena-line risk-line risk-line-enemy"></div>
+          <div id="allyRiskLine" class="arena-line risk-line risk-line-ally"></div>
+          <div id="battleCenterLine" class="arena-line battle-center-line"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="phase-rail panel">
+      <div id="phaseBoxes" class="phase-boxes phase-boxes-vertical"></div>
+      <button id="nextPhaseBtn" class="main-button next-phase-vertical">Siguiente fase</button>
+      <div class="phase-rail-spacer" aria-hidden="true"></div>
+      <div class="phase-rail-bottom-controls" aria-label="Controles secundarios">
+        <button id="semiAutoMoveToggle" class="main-button assisted-move-toggle" type="button" aria-pressed="false" title="Activar movimiento asistido">Movimiento asistido</button>
+        <button id="gameMenuBtn" class="main-button game-menu-button" type="button" aria-expanded="false" title="Abrir menú">Menú</button>
+      </div>
+      <div id="turnBanner" class="turn-banner turn-banner-vertical" aria-hidden="true"></div>
+      <div id="systemLog" class="system-log system-log-vertical" aria-hidden="true"></div>
+    </section>
+
+    <section class="cast-panel panel">
+      <h3>Zona de kasteo</h3>
+      <div id="castQueue" class="cast-queue"></div>
+      <p class="small-note">Las cartas en kasteo bajan al avanzar fases.</p>
+    </section>
+
+
+    <section id="cardInfoOverlay" class="card-info-overlay" aria-hidden="true">
+      <div class="card-info-box">
+        <div class="card-info-main">
+          <div id="cardInfoPreview" class="card-info-preview"></div>
+          <div class="card-info-text">
+            <h2 id="cardInfoName">Carta</h2>
+            <p id="cardInfoType">Invocación</p>
+            <div id="cardInfoMetaIcons" class="card-info-meta-icons"></div>
+            <div id="cardInfoSummaryTags" class="card-info-summary-tags"></div>
+          </div>
+        </div>
+
+        <div class="card-info-lower">
+          <div class="card-info-stats card-info-stats-grouped">
+            <div class="stat-row stat-row-damage">
+              <strong id="cardInfoDamage">0</strong>
+              <strong id="cardInfoAttackType">-</strong>
+              <strong id="cardInfoRange">-</strong>
+              <strong id="cardInfoFactors">-</strong>
+            </div>
+            <div class="stat-row stat-row-life">
+              <strong id="cardInfoLife">0</strong>
+              <strong id="cardInfoDefense">0</strong>
+            </div>
+            <div class="stat-row stat-row-cast">
+              <strong id="cardInfoCost">0</strong>
+              <strong id="cardInfoCastTime">0</strong>
+              <strong id="cardInfoRestoreTime">0</strong>
+            </div>
+            <div class="stat-row stat-row-move">
+              <strong id="cardInfoMoveType">-</strong>
+              <strong id="cardInfoMove">0</strong>
+              <strong id="cardInfoBiotype">-</strong>
+            </div>
+          </div>
+          <div id="cardInfoExtraPanel" class="card-info-extra-panel"></div>
+        </div>
+
+        <div class="card-info-actions">
+          <button id="cardInfoKastBtn" class="main-button card-info-btn">Kastear</button>
+          <button id="cardInfoCloseBtn" class="main-button card-info-btn secondary">Salir</button>
+        </div>
+      </div>
+    </section>
+
+
+    <section id="randomCostOverlay" class="random-cost-overlay" aria-hidden="true">
+      <div class="random-cost-box">
+        <button id="randomCostCancelBtn" class="meta-info-close" type="button">×</button>
+        <h2 id="randomCostTitle">Costo aleatorio</h2>
+        <div id="randomCostBody" class="random-cost-body"></div>
+        <div id="randomCostRemaining" class="random-cost-remaining">Faltan 0</div>
+        <div id="randomCostOptions" class="random-cost-options"></div>
+        <button id="randomCostConfirmBtn" class="main-button random-cost-confirm" type="button" disabled>Confirmar pago</button>
+      </div>
+    </section>
+
+    <section id="cardMetaInfoOverlay" class="meta-info-overlay" aria-hidden="true">
+      <div class="meta-info-box">
+        <button id="cardMetaInfoBackBtn" class="meta-info-back" type="button" disabled>‹ Back</button>
+        <button id="cardMetaInfoCloseBtn" class="meta-info-close" type="button">×</button>
+        <div class="meta-info-head">
+          <div id="cardMetaInfoIcon" class="meta-info-icon"></div>
+          <div>
+            <h3 id="cardMetaInfoTitle">Información</h3>
+            <p id="cardMetaInfoCategory">Categoría</p>
+          </div>
+        </div>
+        <div id="cardMetaInfoBody" class="meta-info-body"></div>
+      </div>
+    </section>
+
+    <section id="powerImagePreviewOverlay" class="power-image-preview-overlay" aria-hidden="true">
+      <div class="power-image-preview-box">
+        <button id="powerImagePreviewCloseBtn" class="meta-info-close power-image-preview-close" type="button">×</button>
+        <h3 id="powerImagePreviewTitle">Poder</h3>
+        <img id="powerImagePreviewImg" src="" alt="">
+      </div>
+    </section>
+
+
+    <section class="right-panel panel">
+      <div class="tab-stack" id="tabStack">
+        <button class="deck-tab active" data-tab="0">Página 1</button>
+        <button class="deck-tab" data-tab="1">Página 2</button>
+        <button class="deck-tab" data-tab="2">Página 3</button>
+      </div>
+      <div id="cardGrid" class="card-grid"></div>
+
+    </section>
+
+
+    <section class="caster-wide-panel panel">
+      <div class="caster-card-shell">
+        <div class="card caster-wide-card">
+          <img id="casterWideBg" class="card-layer card-bg" src="assets/card-bg-darkness.jpg" alt="fondo kaster">
+          <img id="casterWideArt" class="card-layer card-art caster-wide-art" src="assets/caster-hanzo.png" alt="Kaster">
+          <img id="casterWideSkin" class="card-layer card-skin" src="assets/card-skin-darkness.png" alt="skin kaster">
+        </div>
+      </div>
+
+      <div class="caster-wide-info">
+        <div class="caster-wide-title">
+          <div class="caster-wide-name-row"><img class="caster-wide-type-icon" src="assets/card-types/card-type-kaster.svg" alt="Kaster"><h2 id="casterWideName">Hattori Hanzo</h2><div id="casterPureMeter" class="caster-pure-meter" aria-label="Elemento puro"></div></div>
+          <button id="casterEnemyZoneWarning" class="caster-enemy-zone-warning" type="button" hidden>Estás en el lado rival de la arena</button>
+          <div id="casterWideDomain" class="caster-wide-domain" aria-label="Dominio del Kaster"></div>
+        </div>
+
+        <div class="caster-wide-stats">
+          <div class="stats-line caster-attack-line"><span>ATAQUE</span><strong id="casterAtk"><img src="assets/weapons/ataque-espada.svg" alt="">2</strong></div>
+          <div class="stats-line caster-life-line"><span>VIDA</span><strong id="casterDef"><span class="caster-life-heart" aria-hidden="true"></span><span id="casterLifeValue">12/12</span></strong></div>
+          <div class="stats-line"><span>CAST</span><strong id="casterCast">Libre</strong></div>
+          <div class="stats-line caster-counter-line"><span>COUNTER</span><strong id="casterState"><img src="assets/caster/caster-special-counter.svg" alt=""><span id="casterCounterValue">0/5</span></strong></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="selectedUnitCommandPanel" class="selected-unit-command-panel" aria-hidden="true">
+    <div id="selectedUnitCommandCard" class="selected-unit-command-card"></div>
+    <div id="selectedUnitCommandActions" class="selected-unit-command-actions" aria-label="Acciones de la unidad seleccionada"></div>
+    <div id="selectedUnitCommandStatuses" class="selected-unit-command-statuses" aria-label="Indicadores de la unidad seleccionada"></div>
+  </section>
+  <section id="persistentUnitCommandStack" class="persistent-unit-command-stack" aria-label="Miniaturas persistentes de factores"></section>
+  <section id="quickReactionWindow" class="quick-reaction-window quick-reaction-window-ally" data-action-window-side="ally" aria-hidden="true">
+    <div class="quick-reaction-window-shell">
+      <div class="quick-reaction-window-title">Acción aliada</div>
+      <div id="quickReactionWindowHint" class="quick-reaction-window-hint">Presiona Enter para actuar</div>
+      <div class="quick-reaction-window-track"><span id="quickReactionWindowFill" class="quick-reaction-window-fill"></span></div>
+    </div>
+  </section>
+  <section id="rivalQuickReactionWindow" class="quick-reaction-window quick-reaction-window-rival" data-action-window-side="rival" aria-hidden="true">
+    <div class="quick-reaction-window-shell">
+      <div class="quick-reaction-window-title">Acción rival</div>
+      <div class="quick-reaction-window-hint">El rival puede activar una acción</div>
+      <div class="quick-reaction-window-track"><span class="quick-reaction-window-fill"></span></div>
+    </div>
+  </section>
+  <section id="quickReactionModal" class="quick-reaction-modal" aria-hidden="true">
+    <div class="quick-reaction-modal-shell">
+      <div class="quick-reaction-modal-head">
+        <span id="quickReactionModalTimer">5</span>
+      </div>
+      <div id="quickReactionModalList" class="quick-reaction-modal-list"></div>
+    </div>
+  </section>
+  <section id="opponentActionNotice" class="opponent-action-notice" aria-hidden="true">
+    <div class="opponent-action-notice-shell" role="button" tabindex="0" aria-label="Confirmar acción rival">
+      <div class="opponent-action-notice-kicker">Acción rival</div>
+      <div class="opponent-action-notice-text">El rival usó</div>
+      <strong id="opponentActionNoticeName">Acción activa</strong>
+      <button id="opponentActionNoticeOk" class="opponent-action-notice-ok" type="button">OK</button>
+      <div class="opponent-action-notice-hint">Enter / click para continuar</div>
+    </div>
+  </section>
+  <section id="opponentThinkingNotice" class="opponent-thinking-notice" aria-hidden="true">
+    <div class="opponent-thinking-notice-shell">
+      <span class="opponent-thinking-hourglass" aria-hidden="true">⌛</span>
+      <span id="opponentThinkingText">El rival está pensando…</span>
+    </div>
+  </section>
+
+  <div id="gameMenuOverlay" class="game-menu-overlay" aria-hidden="true">
+    <div class="game-menu-card" role="dialog" aria-modal="true" aria-label="Menú del juego">
+      <button id="gameMenuCloseBtn" class="game-menu-close" type="button" aria-label="Cerrar menú">×</button>
+      <h2>Menú</h2>
+      <div class="game-menu-options">
+        <button id="gameMenuResumeBtn" class="game-menu-option" type="button">Continuar</button>
+        <button id="gameMenuSettingsBtn" class="game-menu-option" type="button">Settings</button>
+        <button id="gameMenuMainMenuBtn" class="game-menu-option game-menu-option-muted" type="button">Volver al menú principal</button>
+        <button id="gameMenuExitBtn" class="game-menu-option game-menu-option-muted" type="button">Salir del juego</button>
+      </div>
+
+      <section id="gameSettingsPanel" class="game-settings-panel" aria-hidden="true">
+        <h3>Settings</h3>
+        <div class="game-settings-section">
+          <h4>HUD</h4>
+          <div class="hud-mode-options" role="radiogroup" aria-label="Modo de HUD">
+            <button id="hudModeAnchoredBtn" class="hud-mode-option" type="button" data-hud-mode="anchored" aria-pressed="false">HUD anclado</button>
+            <button id="hudModeOverlayBtn" class="hud-mode-option" type="button" data-hud-mode="overlay" aria-pressed="false">HUD overlay</button>
+          </div>
+          <p class="hud-mode-help">Anclado acompaña el mapa. Overlay queda flotando sobre la pantalla.</p>
+        </div>
+        <div class="game-settings-section game-settings-placeholder">
+          <h4>Más opciones</h4>
+          <p>Espacio reservado para sonido, controles, accesibilidad y otros ajustes.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+
+  <script>
+    (function () {
+      var ribbon = null;
+      var logs = [];
+      var lastActions = [];
+
+      function getRibbon() {
+        if (!ribbon) ribbon = document.getElementById('rokDebugRibbon');
+        return ribbon;
+      }
+
+      function getPhaseLabel() {
+        try {
+          var active = document.querySelector('.phase-box.active');
+          return active ? active.textContent.trim().replace(/\s+/g, ' ') : '';
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function describeNode(node) {
+        if (!node || !node.tagName) return 'sin nodo';
+        var parts = [node.tagName.toLowerCase()];
+        if (node.id) parts.push('#' + node.id);
+        if (node.className && typeof node.className === 'string') {
+          var cls = node.className.trim().split(/\s+/).slice(0, 4).join('.');
+          if (cls) parts.push('.' + cls);
+        }
+        var text = (node.textContent || '').trim().replace(/\s+/g, ' ');
+        if (text) parts.push('"' + text.slice(0, 42) + (text.length > 42 ? '…' : '') + '"');
+        return parts.join('');
+      }
+
+      function recordAction(label, event) {
+        var target = event && event.target ? event.target : null;
+        var entry = {
+          time: new Date().toISOString(),
+          label: String(label || 'acción'),
+          target: describeNode(target),
+          phase: getPhaseLabel(),
+          screen: document.body.className || ''
+        };
+        lastActions.push(entry);
+        if (lastActions.length > 8) lastActions.shift();
+        return entry;
+      }
+
+      function getLastActionText() {
+        var last = lastActions[lastActions.length - 1];
+        if (!last) return 'sin acción registrada';
+        var bits = [last.label, last.target];
+        if (last.phase) bits.push('fase: ' + last.phase);
+        return bits.join(' · ');
+      }
+
+      function formatError(error) {
+        if (!error) return '';
+        if (error.stack) return String(error.stack).split('\n').slice(0, 4).join(' | ');
+        if (error.message) return String(error.message);
+        return String(error);
+      }
+
+      function showRibbon(message, kind, extra) {
+        var node = getRibbon();
+        if (!node) return;
+        var text = String(message || 'Error desconocido');
+        var detail = extra || '';
+        var full = detail ? text + ' · ' + detail : text;
+        logs.push({ kind: kind || 'error', message: full, time: new Date().toISOString(), lastAction: getLastActionText() });
+        var visible = full.length > 140 ? full.slice(0, 137) + '…' : full;
+        node.textContent = 'DEBUG · ' + (kind === 'warn' ? 'WARN' : 'ERROR') + ' · ' + visible;
+        node.classList.remove('warn', 'error');
+        node.classList.add(kind === 'warn' ? 'warn' : 'error');
+        node.setAttribute('aria-hidden', 'false');
+        node.title = logs.map(function (item) {
+          return '[' + item.time + '] ' + item.kind.toUpperCase() + ': ' + item.message + '\nÚltima acción: ' + item.lastAction;
+        }).join('\n\n');
+        try { console.error('[ROK DEBUG]', full, { logs: logs.slice(-4), lastActions: lastActions.slice() }); } catch (_) {}
+      }
+
+      function showException(error, label) {
+        var message = error && error.message ? error.message : String(error || 'Error JS');
+        var detail = 'última acción: ' + getLastActionText();
+        var stack = formatError(error);
+        if (stack && stack !== message) detail += ' · ' + stack;
+        showRibbon((label ? label + ' · ' : '') + message, 'error', detail);
+      }
+
+      window.ROK_DEBUG_RIBBON = {
+        show: showRibbon,
+        showException: showException,
+        markAction: recordAction,
+        getLogs: function () { return logs.slice(); },
+        getLastActions: function () { return lastActions.slice(); },
+        ok: function (message) {
+          var node = getRibbon();
+          if (!node) return;
+          node.textContent = 'DEBUG · OK' + (message ? ' · ' + message : '');
+          node.classList.remove('warn', 'error');
+          node.setAttribute('aria-hidden', 'true');
+        }
+      };
+
+      ['pointerdown', 'click', 'keydown'].forEach(function (type) {
+        window.addEventListener(type, function (event) {
+          recordAction(type, event);
+        }, true);
+      });
+
+      window.addEventListener('error', function (event) {
+        var target = event.target;
+        if (target && target !== window && !event.message) {
+          var src = target.src || target.href || '';
+          showRibbon('Recurso no cargó', 'error', describeNode(target) + (src ? ' · ' + src.split('/').pop() : ''));
+          return;
+        }
+        var where = event.filename ? ' @ ' + event.filename.split('/').pop() + ':' + event.lineno + ':' + (event.colno || 0) : '';
+        var msg = event.message || 'Script error';
+        if (msg === 'Script error.' || msg === 'Script error') {
+          msg = 'Script error sin detalle del navegador';
+        }
+        var extra = 'última acción: ' + getLastActionText();
+        if (event.error) extra += ' · ' + formatError(event.error);
+        showRibbon(msg + where, 'error', extra);
+      }, true);
+
+      window.onerror = function (message, source, lineno, colno, error) {
+        var where = source ? ' @ ' + String(source).split('/').pop() + ':' + lineno + ':' + colno : '';
+        var msg = String(message || 'Error JS');
+        if (msg === 'Script error.' || msg === 'Script error') msg = 'Script error sin detalle del navegador';
+        showRibbon(msg + where, 'error', 'última acción: ' + getLastActionText() + (error ? ' · ' + formatError(error) : ''));
+        return false;
+      };
+
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event.reason;
+        var msg = reason && reason.message ? reason.message : String(reason || 'Promesa rechazada');
+        showRibbon('Promise · ' + msg, 'error', 'última acción: ' + getLastActionText() + (reason ? ' · ' + formatError(reason) : ''));
+      });
+    }());
+  </script>
+  <script src="game.js"></script>
+</body>
+</html>
