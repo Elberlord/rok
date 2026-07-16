@@ -346,47 +346,35 @@
         const candidate = makeRoomCode();
         const candidatePath = roomRefPath(candidate);
         const candidateRef = api.ref(db, candidatePath);
-
-        // Configuración PvP estable de v222.1:
-        // primero se comprueba que el código no exista y después se crea toda
-        // la cabecera de la sala en una única actualización multipath. No se
-        // intenta reservar /hostUid por separado con runTransaction, porque
-        // las reglas activas de Firebase validan hostUid, status y createdAt
-        // dentro de la misma escritura inicial.
-        const existingSnapshot = await api.get(candidateRef);
-        if (existingSnapshot.exists()) continue;
-
         const now = Date.now();
-        const roomReservationUpdates = {
-          [`${candidatePath}/hostUid`]: uid,
-          [`${candidatePath}/status`]: 'waiting',
-          [`${candidatePath}/createdAt`]: now,
+
+        // La sala se crea completa en una sola escritura. No se hace get()
+        // previo sobre una sala inexistente y no se reserva /hostUid por
+        // separado. Las reglas PvP que ya funcionaban validan la creación
+        // usando el objeto completo y el hostUid del usuario autenticado.
+        const initialRoom = {
+          schemaVersion: ROOM_SCHEMA_VERSION,
+          code: candidate,
+          hostUid: uid,
+          status: 'waiting',
+          createdAt: now,
+          updatedAt: now,
+          players: {
+            1: { uid, connected: true, joinedAt: now, lastSeenAt: now },
+            2: { connected: false },
+          },
         };
 
         try {
-          // Esta es la forma exacta usada por el hotfix estable v222.1:
-          // hostUid, status y createdAt nacen juntos mediante update() desde
-          // la raíz. Después se completa el resto de la sala como anfitrión.
-          await api.update(api.ref(db), roomReservationUpdates);
-          await api.update(candidateRef, {
-            schemaVersion: ROOM_SCHEMA_VERSION,
-            code: candidate,
-            updatedAt: now,
-            'players/1': { uid, connected: true, joinedAt: now, lastSeenAt: now },
-            'players/2': { connected: false },
-          });
-          const verificationSnapshot = await api.get(candidateRef);
-          const verificationRoom = verificationSnapshot.val();
-          if (!verificationRoom || verificationRoom.hostUid !== uid) continue;
+          await api.set(candidateRef, initialRoom);
           createdCode = candidate;
         } catch (error) {
-          // Si otro anfitrión obtuvo el mismo código entre la lectura y la
-          // escritura, probamos otro. Cualquier otro error se conserva.
-          try {
-            const collisionSnapshot = await api.get(candidateRef);
-            const collisionRoom = collisionSnapshot.val();
-            if (collisionRoom?.hostUid && collisionRoom.hostUid !== uid) continue;
-          } catch (_) {}
+          // Un código ya ocupado puede ser rechazado por las reglas porque el
+          // usuario actual no es su host. Probamos otro código sin leer antes
+          // la sala, ya que esa lectura era precisamente el error de v225.
+          if (String(error?.code || '').toLowerCase().includes('permission-denied') && attempt < 11) {
+            continue;
+          }
           throw error;
         }
       }
