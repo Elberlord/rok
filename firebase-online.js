@@ -22,7 +22,6 @@
   const ROOM_ROOT = 'rooms';
   const ROOM_CODE_LENGTH = 6;
   const SYNC_INTERVAL_MS = 220;
-  const LOCAL_ACTION_GRACE_MS = 5000;
   const REMOTE_DEFENSE_TIMEOUT_MS = 45000;
   const SESSION_STORAGE_KEY = 'rok_online_room_session_v2';
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -63,7 +62,11 @@
   let lastKnownRevision = 0;
   let lastSnapshotText = '';
   let lastObservedPhaseKey = '';
-  let localIntentUntil = 0;
+  let lastStartedPhaseKey = '';
+  let phaseDeliveryScheduledKey = '';
+  let lastAnnouncedPhaseKey = '';
+  let phaseDeliveryRetryTimer = null;
+  let turnHandoffPublishPending = false;
   let applyingRemoteSnapshot = false;
   let publishingSnapshot = false;
   let startingOnlineBattle = false;
@@ -248,30 +251,75 @@
     }
 
     const newPhaseKey = currentLocalPhaseKey();
-    if (newPhaseKey !== oldPhaseKey && newPhaseKey !== lastObservedPhaseKey) {
-      lastObservedPhaseKey = newPhaseKey;
-      deliverRemotePhaseIfLocal();
-    } else if (!lastObservedPhaseKey) {
-      lastObservedPhaseKey = newPhaseKey;
+    lastObservedPhaseKey = newPhaseKey;
+    if (newPhaseKey !== oldPhaseKey) {
+      phaseDeliveryScheduledKey = '';
+      if (lastStartedPhaseKey !== newPhaseKey) {
+        clearTimeout(phaseDeliveryRetryTimer);
+        phaseDeliveryRetryTimer = null;
+      }
     }
+    // No depender solo del cambio de clave: si un temporizador fue cancelado,
+    // el mismo snapshot debe poder volver a entregar la fase al dueño local.
+    deliverRemotePhaseIfLocal();
 
     if (writerUid && writerUid !== uid) {
+      turnHandoffPublishPending = false;
       try { window.ROK_DEBUG_RIBBON?.ok?.(`PvP sincronizado · revisión ${lastKnownRevision}`); } catch (_) {}
     }
     return true;
   }
 
-  function deliverRemotePhaseIfLocal() {
-    if (!ROK_ONLINE_MATCH_ACTIVE || Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID) || state.gameOver) return;
+  function clearPhaseDeliveryRetry() {
+    if (phaseDeliveryRetryTimer) window.clearTimeout(phaseDeliveryRetryTimer);
+    phaseDeliveryRetryTimer = null;
+  }
+
+  function markPhaseStarted(phaseKey = '') {
+    const key = String(phaseKey || currentLocalPhaseKey());
+    if (!key) return;
+    lastStartedPhaseKey = key;
+    if (phaseDeliveryScheduledKey === key) phaseDeliveryScheduledKey = '';
+    clearPhaseDeliveryRetry();
+  }
+
+  function schedulePhaseDeliveryRetry(phaseKey, delayMs) {
+    clearPhaseDeliveryRetry();
+    phaseDeliveryRetryTimer = window.setTimeout(() => {
+      phaseDeliveryRetryTimer = null;
+      if (!ROK_ONLINE_MATCH_ACTIVE || state.gameOver) return;
+      if (Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) return;
+      if (currentLocalPhaseKey() !== phaseKey || lastStartedPhaseKey === phaseKey) return;
+      phaseDeliveryScheduledKey = '';
+      deliverRemotePhaseIfLocal({ force: true, announce: false });
+    }, Math.max(900, Number(delayMs || 0)));
+  }
+
+  function deliverRemotePhaseIfLocal(options = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID) || state.gameOver) return false;
+    const phaseKey = currentLocalPhaseKey();
+    if (!phaseKey || lastStartedPhaseKey === phaseKey) return true;
+    if (!options.force && phaseDeliveryScheduledKey === phaseKey) return false;
+
     clearTimeout(schedulePhaseStartActions.timer);
+    phaseDeliveryScheduledKey = phaseKey;
     const phase = currentPhase();
+    const shouldAnnounce = options.announce !== false && lastAnnouncedPhaseKey !== phaseKey;
     const items = [];
-    if (phase?.id === 'extraction') {
-      items.push({ text: `JUGADOR ${LOCAL_PLAYER_ID}`, playerId: LOCAL_PLAYER_ID, duration: 760 });
+    if (shouldAnnounce) {
+      if (phase?.id === 'extraction') {
+        items.push({ text: `JUGADOR ${LOCAL_PLAYER_ID}`, playerId: LOCAL_PLAYER_ID, duration: 760 });
+      }
+      items.push({ text: String(phase?.label || 'FASE').toUpperCase(), playerId: LOCAL_PLAYER_ID, duration: 860 });
+      lastAnnouncedPhaseKey = phaseKey;
+      queueTransitions(items);
     }
-    items.push({ text: String(phase?.label || 'FASE').toUpperCase(), playerId: LOCAL_PLAYER_ID, duration: 860 });
-    queueTransitions(items);
-    schedulePhaseStartActions(Math.max(0, sumTransitionDurations(items) - 120));
+    const delay = shouldAnnounce ? Math.max(0, sumTransitionDurations(items) - 120) : 80;
+    schedulePhaseStartActions(delay);
+    // Si otro flujo cancela el temporizador global, la fase se vuelve a entregar
+    // sin repetir los flyers. La marca solo se completa desde startPhaseActions().
+    schedulePhaseDeliveryRetry(phaseKey, delay + 3200);
+    return true;
   }
 
   function setStartButtonVisible(visible, busy = false) {
@@ -472,6 +520,11 @@
     lastKnownRevision = 0;
     lastSnapshotText = '';
     lastObservedPhaseKey = '';
+    lastStartedPhaseKey = '';
+    phaseDeliveryScheduledKey = '';
+    lastAnnouncedPhaseKey = '';
+    clearPhaseDeliveryRetry();
+    turnHandoffPublishPending = false;
     localStateReady = false;
     handledInteractionId = '';
     saveSession();
@@ -564,6 +617,10 @@
       enterPhase(true, true);
       localStateReady = true;
       lastObservedPhaseKey = currentLocalPhaseKey();
+      lastStartedPhaseKey = '';
+      phaseDeliveryScheduledKey = '';
+      lastAnnouncedPhaseKey = '';
+      clearPhaseDeliveryRetry();
       showBattleScreen();
       renderAll();
       await publishSnapshot({ force: true, status: 'playing' });
@@ -597,16 +654,18 @@
     publishTimer = null;
   }
 
-  function noteLocalIntent() {
+  function markTurnHandoffPending() {
     if (!ROK_ONLINE_MATCH_ACTIVE) return;
-    localIntentUntil = Date.now() + LOCAL_ACTION_GRACE_MS;
+    turnHandoffPublishPending = true;
+    void considerPublishingLocalState();
   }
 
   async function considerPublishingLocalState() {
     if (!ROK_ONLINE_MATCH_ACTIVE || !roomCode || !localStateReady || applyingRemoteSnapshot || publishingSnapshot || leavingRoom) return;
     const ownsTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
-    const hasRecentIntent = Date.now() <= localIntentUntil;
-    if (!ownsTurn && !hasRecentIntent) return;
+    // Fuera de turno solo se permite la escritura única que entrega el turno.
+    // Clics o teclas ya no abren una ventana para sobrescribir el snapshot rival.
+    if (!ownsTurn && !turnHandoffPublishPending) return;
     const nextSnapshot = makeBattleSnapshot();
     const nextText = snapshotText(nextSnapshot);
     if (!nextText || nextText === lastSnapshotText) return;
@@ -646,6 +705,9 @@
       lastKnownRevision = Math.max(lastKnownRevision, committedRevision);
       lastSnapshotText = nextText;
       lastObservedPhaseKey = phaseKeyFromSnapshot(nextSnapshot) || lastObservedPhaseKey;
+      if (turnHandoffPublishPending && Number(nextSnapshot.activePlayer) !== Number(LOCAL_PLAYER_ID)) {
+        turnHandoffPublishPending = false;
+      }
       if (options.status) {
         if (playerSlot === 1 && ['waiting', 'ready', 'playing', 'finished'].includes(options.status)) {
           await api.set(api.ref(db, `${roomPath}/status`), options.status);
@@ -813,9 +875,13 @@
       lastKnownRevision = 0;
       lastSnapshotText = '';
       lastObservedPhaseKey = '';
+      lastStartedPhaseKey = '';
+      phaseDeliveryScheduledKey = '';
+      lastAnnouncedPhaseKey = '';
+      clearPhaseDeliveryRetry();
+      turnHandoffPublishPending = false;
       localStateReady = false;
       handledInteractionId = '';
-      localIntentUntil = 0;
       clearSession();
       ROK_ONLINE_MATCH_ACTIVE = false;
       LOCAL_PLAYER_ID = 1;
@@ -872,10 +938,6 @@
       }
     });
 
-    ['pointerdown', 'click', 'keydown'].forEach(type => {
-      document.addEventListener(type, noteLocalIntent, true);
-    });
-
     window.addEventListener('beforeunload', () => {
       if (!roomPath || !playerSlot || !db || !firebaseApiPromise) return;
       void firebaseApiPromise.then(api => api.update(api.ref(db, `${roomPath}/players/${uid}`), {
@@ -892,8 +954,19 @@
     joinRoom,
     leaveRoom,
     requestRemoteCasterDefense,
+    markPhaseStarted,
+    markTurnHandoffPending,
     publishNow: () => publishSnapshot({ force: true }),
-    getSession: () => ({ roomCode, playerSlot, uid, revision: lastKnownRevision, active: ROK_ONLINE_MATCH_ACTIVE }),
+    getSession: () => ({
+      roomCode,
+      playerSlot,
+      uid,
+      revision: lastKnownRevision,
+      active: ROK_ONLINE_MATCH_ACTIVE,
+      observedPhaseKey: lastObservedPhaseKey,
+      startedPhaseKey: lastStartedPhaseKey,
+      handoffPending: turnHandoffPublishPending,
+    }),
   };
 
   window.addEventListener('DOMContentLoaded', bindUi);

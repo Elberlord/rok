@@ -5063,7 +5063,7 @@ function bindEvents() {
       confirmOpponentActionNotice('ok');
     });
   }
-  els.nextPhaseBtn.addEventListener('click', nextPhase);
+  els.nextPhaseBtn.addEventListener('click', () => nextPhase(false));
   document.querySelectorAll('.deck-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       state.activeTab = Number(btn.dataset.tab);
@@ -11608,12 +11608,12 @@ function advancePhaseTransitionCounters(reason = 'phase-transition') {
 }
 
 function nextPhase(force = false) {
+  if (typeof force !== 'boolean') force = false;
   if (state.gameOver) return;
   if (!force && isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) {
     log('Es el turno del rival.');
     return;
   }
-  if (typeof force !== 'boolean') force = false;
   if (state.hattoriAbilitySelectionActive || state.hattoriReactionPromptActive) return;
   if (state.opponentActionNoticeAwaiting) return;
   if (isOffTurnCasterRepositionBlockingInput()) {
@@ -11672,6 +11672,10 @@ function nextPhase(force = false) {
 
   enterPhase(false, true);
   renderAll();
+
+  if (changedPlayer && isOnlineMatchActive() && Number(oldPlayer) === Number(LOCAL_PLAYER_ID)) {
+    window.ROK_ONLINE_PVP?.markTurnHandoffPending?.();
+  }
 
   const allowOffTurnCasterReposition = oldPhase === 'casting' && currentPhase().id === 'resolution';
   if (changedPlayer) {
@@ -13656,11 +13660,15 @@ function offerQuickReactionWindow(playerId = LOCAL_PLAYER_ID, options = {}) {
 }
 
 async function startPhaseActions() {
-  if (state.gameOver) return;
+  if (state.gameOver) return false;
   if (isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) {
     renderAll();
-    return;
+    return false;
   }
+  const onlinePhaseKey = `${Number(state.turnSerial || 0)}:${Number(state.activePlayer || 0)}:${Number(state.phaseIndex || 0)}`;
+  const markOnlinePhaseStarted = () => {
+    if (isOnlineMatchActive()) window.ROK_ONLINE_PVP?.markPhaseStarted?.(onlinePhaseKey);
+  };
   await waitForOpponentActionNoticePause();
   // La fase no debe arrancar acciones normales mientras una invocación recién liberada
   // de la cola de kasteo todavía está entrando, abriendo ventana de acción rápida
@@ -13668,50 +13676,57 @@ async function startPhaseActions() {
   // encima de las dos Kaguyas iniciales.
   await waitForPendingCastTravelResolutions();
   await waitForOpponentActionNoticePause();
-  if (state.extractionAnimating) return;
+  if (state.extractionAnimating) return false;
   await resolvePendingGuardianStrikes();
   await waitForOpponentActionNoticePause();
-  if (state.extractionAnimating) return;
+  if (state.extractionAnimating) return false;
   // ROK v104 · la oportunidad local ya corre ANTES de la banderita/transición.
   // Aquí solo resuelve el bot sin abrir modal de Enter para el jugador.
   if (state.aiEnabled) await resolveAiQuickReactionWindow(getOpponentId(LOCAL_PLAYER_ID));
-  if (state.extractionAnimating) return;
+  if (state.extractionAnimating) return false;
   const phase = currentPhase();
   if (phase.id === 'extraction' && !state.extractedThisPhase) {
+    markOnlinePhaseStarted();
     const playerId = state.activePlayer;
     await resolveTakedaTurnAttackGrowth(playerId);
-    if (currentPhase().id !== 'extraction' || state.activePlayer !== playerId) return;
+    if (currentPhase().id !== 'extraction' || state.activePlayer !== playerId) return false;
     state.extractedThisPhase = true;
     const shouldAutoAdvance = await animateExtractionPhase(playerId);
     renderAll();
     if (shouldAutoAdvance && state.activePlayer === playerId && currentPhase().id === 'extraction') {
       autoAdvanceExtractionToCasting(playerId);
     }
-    return;
+    return true;
   }
   if (phase.id === 'casting') {
+    markOnlinePhaseStarted();
     const playerId = state.activePlayer;
     await generateCasterPureElementsAtCastingCadence(playerId);
-    if (currentPhase().id !== 'casting' || state.activePlayer !== playerId) return;
+    if (currentPhase().id !== 'casting' || state.activePlayer !== playerId) return false;
     if (!state.pendingCard && !canPlayerCastAnyCard(playerId)) {
       autoAdvanceCastingToResolution(playerId);
-      return;
+      return true;
     }
     if (state.aiEnabled && playerId !== LOCAL_PLAYER_ID) {
       await runEnemyCastingPhase(playerId);
-      return;
+      return true;
     }
+    return true;
   }
   if (phase.id === 'resolution') {
+    markOnlinePhaseStarted();
     const playerId = state.activePlayer;
     await resolveResolutionStartSequence(playerId);
-    if (currentPhase().id !== 'resolution' || state.activePlayer !== playerId) return;
+    if (currentPhase().id !== 'resolution' || state.activePlayer !== playerId) return false;
     prepareResolutionMoves(state.activePlayer);
     renderAll();
     if (state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) {
       await runEnemyResolutionPhase(state.activePlayer);
     }
+    return true;
   }
+  markOnlinePhaseStarted();
+  return true;
 }
 
 
