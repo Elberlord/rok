@@ -174,7 +174,10 @@ async function createRoom() {
     const roomCode = lobby.createCode();
     const roomRef = ref(database, `rooms/${roomCode}`);
     try {
-      await set(roomRef, {
+      // Las reglas de Realtime Database autorizan la creación campo por campo.
+      // update() conserva una sola operación atómica, pero valida cada hijo
+      // (hostUid, status y createdAt) contra su regla específica.
+      await update(roomRef, {
         hostUid: user.uid,
         status: 'waiting',
         createdAt: Date.now(),
