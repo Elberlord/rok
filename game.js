@@ -72,8 +72,9 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.229';
+const GAME_VERSION = 'v5.5.230';
 const PATCH_NOTES = [
+  'v468: Agrega la primera carta de Habilidad, Shirahadori, como Catalizadora con Técnica; solo Guerrero o Asesino pueden equiparla, reutiliza la lógica Shirahadori de O-sensei Ueshiba y no requiere costo, kasteo ni enfriamiento.',
   'v466: Restaura la Biblioteca visual de v460 como base exacta y mantiene el Creador aislado; corrige especialmente los modales de hechizos para que sus contenedores conserven altura y no se compriman.',
   'v462: Mejora el Creador de Cartas con cantidades independientes para Descomponer y Crear, operaciones por lote, modal persistente, navegación entre cartas, contador de copias/mezclador y señalización inmediata de recursos faltantes.',
   'v457: Amplía las cartas de Apertura completada manteniendo máximo 10 por fila, renombra la acción a Abrir todos y consolida la Etapa 4 de boosters: tirada de rareza y carta separadas, filtros de origen/tipo, foil progresivo y efectos de revelado escalonados para rarezas medias, altas y Legendaria.',
@@ -4470,6 +4471,84 @@ const CARD_LIBRARY = {
     focusScoreModifiers: { utility: 5, tactical: 5, defense: 5, tempo: 5 },
   },
 
+  abilityShirahadori: {
+    id: 'abilityShirahadori',
+    name: 'Shirahadori',
+    shortName: 'Shirahadori',
+    latinName: 'Shirahadori',
+    type: 'ability',
+    cardType: 'ability',
+    composition: 'backgroundSkin',
+    usesArtLayer: false,
+    thumbnailImage: 'assets/ability-shirahadori.png',
+    spellIcon: 'assets/ability-shirahadori.png',
+    bgImage: 'assets/ability-shirahadori.png',
+    skinImage: CATALYST_SKIN_ASSET,
+    domain: { elementId: 'catalizadora', attributeId: 'universal', universal: true },
+    isCatalyst: true,
+    cost: {},
+    castPhases: 0,
+    origin: 'japon',
+    gender: 'none',
+    races: [],
+    qualities: [],
+    traits: ['tecnica'],
+    upcoming: false,
+    libraryVisible: true,
+    spellbookLocked: false,
+    stats: { atk: 0, def: 0, damage: 0, life: 0, mov: 0, restore: 0 },
+    weaponType: 'magia',
+    attackProfile: {
+      type: 'ability',
+      combatMode: 'ability',
+      label: 'Habilidad',
+      range: 0,
+      precision: 0,
+      damage: 0,
+      damageNature: 'physical',
+      applicationId: null,
+      modifiers: ['utility', 'defensive', 'redirection'],
+      factors: [],
+    },
+    weaponConditions: {},
+    baseAttackProfile: null,
+    abilitySlots: 1,
+    abilities: [{ id: 'shirahadori', sourceType: 'abilityCard', sourceCardId: 'abilityShirahadori' }],
+    movementType: 'none',
+    biotype: null,
+    effectStatus: 'implemented',
+    grantedAbilityId: 'shirahadori',
+    summary: 'Técnica catalizadora sin costo ni tiempo de kasteo. Se equipa sobre la propia invocación usuaria y le concede Shirahadori. Solo puede usarla una invocación Guerrero o Asesino.',
+    description: 'Habilidad · Técnica. El usuario de esta habilidad es también su objetivo. Puede equiparse únicamente a una invocación aliada activa con cualidad Guerrero o Asesino que tenga un espacio de habilidad disponible. No requiere elementos, no tiene tiempo de kasteo ni enfriamiento. Mientras permanezca equipada, la invocación usuaria obtiene Shirahadori.',
+    spellRules: {
+      user: {
+        mode: 'restricted',
+        label: 'Invocación → Guerrero · Asesino',
+        description: 'El usuario debe ser una invocación aliada activa con cualidad Guerrero o Asesino y con un espacio de habilidad disponible.',
+        requirementMode: 'all',
+        cardTypes: ['invocation'],
+        mandatory: { cardTypes: ['invocation'] },
+        qualities: ['warrior', 'assassin'],
+        displayHierarchy: true,
+      },
+      target: {
+        mode: 'selfUser',
+        label: 'Usuario de esta habilidad',
+        displayText: 'Usuario de esta habilidad',
+        description: 'Técnica hace que la misma invocación que usa Shirahadori sea el objetivo de la carta.',
+      },
+      castRequirements: { traits: ['Técnica'] },
+      consumable: false,
+      effect: {
+        id: 'grantShirahadori',
+        grantedAbilityId: 'shirahadori',
+        persistsUntilUserRestores: true,
+        cooldownPhases: 0,
+      },
+    },
+    focusScoreModifiers: { utility: 4, tactical: 5, defense: 5, tempo: 3 },
+  },
+
   spellNagayoru: {
     id: 'spellNagayoru',
     name: 'Nagayoru',
@@ -8137,6 +8216,15 @@ const CARD_TRAIT_DB = {
     summary: 'Permite usar Interceptar durante el turno rival como un instantáneo sin tiempo de kasteo.',
     description: 'Interceptar puede jugarse fuera de tu fase de Kasteo cuando sea el turno del rival. Si lo haces, se resuelve como un instantáneo y no requiere tiempo de kasteo. La carta exige una invocación aliada activa y una invocación rival que haya ingresado a tu lado de la arena.',
     tags: ['rasgo', 'kasteo', 'artimaña', 'reacción', 'instantáneo', 'intercepción', 'Spellbook'],
+  },
+  tecnica: {
+    id: 'tecnica',
+    label: 'Técnica',
+    category: 'Rasgo de adaptación',
+    icon: 'assets/traits/tecnica.svg',
+    summary: 'Rasgo exclusivo de Habilidades que permite aplicar la carta sobre la propia invocación usuaria.',
+    description: 'Técnica pertenece únicamente a cartas de Habilidad. La invocación que usa la Habilidad es también el objetivo de su efecto: la carta se aplica o equipa sobre esa misma invocación, sin seleccionar una segunda carta como objetivo.',
+    tags: ['rasgo', 'adaptación', 'habilidad', 'técnica', 'usuario', 'autoobjetivo'],
   },
 };
 
@@ -14346,6 +14434,7 @@ function showKishimotoEntryPowerActivationFx(playerId, unit) {
 
 const O_SENSEI_CARD_ID = 'samuraiOSenseiUeshiba';
 const SHIRAHADORI_ABILITY_ID = 'shirahadori';
+const SHIRAHADORI_ABILITY_CARD_ID = 'abilityShirahadori';
 const SHIRAHADORI_PDA = 4;
 
 function isOSenseiUnit(unit = null) {
@@ -14422,8 +14511,28 @@ function unitHasAbility(unit, abilityId) {
   return nativeAbility || temporaryAbility || oSenseiAbility;
 }
 
+function returnEquippedAbilityCardsForUnit(unit, reason = 'restauración') {
+  if (!unit || !Array.isArray(unit.temporaryAbilities)) return 0;
+  const equipped = unit.temporaryAbilities.filter(entry => (
+    typeof entry === 'object'
+    && entry?.sourceType === 'abilityCard'
+    && entry?.sourceCardId
+    && entry?.untilRestore
+  ));
+  if (!equipped.length) return 0;
+  const playerId = Number(getUnitOwnerPlayerId(unit));
+  equipped.forEach(entry => {
+    restoreSpellCardToSpellbook(playerId, entry.sourceCardId, entry.originTab ?? 0, entry.originSlot ?? 0);
+  });
+  unit.temporaryAbilities = unit.temporaryAbilities.filter(entry => !equipped.includes(entry));
+  const cardNames = equipped.map(entry => CARD_LIBRARY[entry.sourceCardId]?.name || entry.sourceCardId).join(', ');
+  log(`${cardNames} regresa${equipped.length === 1 ? '' : 'n'} al Spellbook por ${reason}.`);
+  return equipped.length;
+}
+
 function clearUntilRestoreEffects(unit) {
   if (!unit) return;
+  returnEquippedAbilityCardsForUnit(unit, 'restauración');
   const hasRecoverableDroppedWeapon = getUnitDroppedWeapons().some(entry => (
     Number(entry?.ownerPlayerId || 0) === getUnitOwnerPlayerId(unit)
     && String(entry?.ownerUnitId || '') === String(unit.id || '')
@@ -24366,6 +24475,7 @@ function queueGloriaLatenteRestoreCompletion(playerId, unit, options = {}) {
 
 function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options = {}) {
   if (Number(unit?.hp ?? 1) <= 0) triggerEmboscadaHuntersOnTargetDeath(playerId, unit?.id);
+  returnEquippedAbilityCardsForUnit(unit, reason || 'la invocación dejó la arena');
   const player = state.players[playerId];
   const card = CARD_LIBRARY[unit.cardId];
   const despliegueUseCooldownOnReturn = getDespliegueAnticipadoReturnCooldown(playerId, card);
@@ -30802,6 +30912,21 @@ function updateCardInfoAction() {
   }
   const infoTab = state.infoCard.tab ?? state.activeTab;
   const infoSlot = state.infoCard.slotIndex ?? state.selectedCardSlot;
+  if (card.id === SHIRAHADORI_ABILITY_CARD_ID) {
+    const availability = getShirahadoriAbilityCastAvailability(LOCAL_PLAYER_ID);
+    const isLocalTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
+    const canPhase = currentPhase().id === 'casting';
+    const inSlot = localPlayer().handTabs?.[Number(infoTab)]?.[Number(infoSlot)] === card.id;
+    const enabled = isLocalTurn && canPhase && inSlot && availability.available;
+    els.cardInfoKastBtn.disabled = !enabled;
+    els.cardInfoKastBtn.textContent = 'Equipar habilidad';
+    els.cardInfoKastBtn.title = enabled
+      ? 'Selecciona una invocación Guerrero o Asesino para equiparle Shirahadori.'
+      : (!isLocalTurn
+        ? 'Solo puedes equipar la habilidad durante tu turno.'
+        : (!canPhase ? 'Solo disponible en la fase de Kasteo.' : availability.message));
+    return;
+  }
   const gloriaQuickSelected = isFocusedGloriaLatenteQuickCastCard(card.id, infoTab, infoSlot);
   const isLocalTurn = state.activePlayer === LOCAL_PLAYER_ID;
   const canPhase = currentPhase().id === 'casting';
@@ -35964,6 +36089,117 @@ function restoreSpellCardToSpellbook(playerId, cardId, originTab = 0, originSlot
   return { tab, slot };
 }
 
+function getAbilityCardEquippedEntries(unit) {
+  return Array.isArray(unit?.temporaryAbilities)
+    ? unit.temporaryAbilities.filter(entry => typeof entry === 'object' && entry?.sourceType === 'abilityCard' && entry?.sourceCardId)
+    : [];
+}
+
+function getUnitAbilitySlotStatus(unit) {
+  const card = CARD_LIBRARY[unit?.cardId];
+  const capacity = Math.max(0, Math.floor(Number(card?.abilitySlots) || 0));
+  const nativeCount = Array.isArray(card?.abilities) ? card.abilities.filter(Boolean).length : 0;
+  const equippedCount = getAbilityCardEquippedEntries(unit).length;
+  const used = Math.max(0, nativeCount + equippedCount);
+  return { capacity, used, free: Math.max(0, capacity - used) };
+}
+
+function isEligibleShirahadoriAbilityUser(playerId, unit) {
+  if (!unit || unit.status === 'restoring' || Number(unit.hp ?? 1) <= 0) return false;
+  if (Number(getUnitOwnerPlayerId(unit)) !== Number(playerId)) return false;
+  const allowedQuality = unitHasCardQuality(unit, 'warrior') || unitHasCardQuality(unit, 'assassin');
+  if (!allowedQuality) return false;
+  if (unitHasAbility(unit, SHIRAHADORI_ABILITY_ID)) return false;
+  return getUnitAbilitySlotStatus(unit).free > 0;
+}
+
+function getEligibleShirahadoriAbilityUsers(playerId) {
+  return (state.players?.[playerId]?.units || []).filter(unit => isEligibleShirahadoriAbilityUser(playerId, unit));
+}
+
+function getShirahadoriAbilityCastAvailability(playerId) {
+  const targets = getEligibleShirahadoriAbilityUsers(playerId);
+  if (!targets.length) {
+    return {
+      available: false,
+      targets,
+      message: 'Shirahadori requiere una invocación aliada activa Guerrero o Asesino, sin Shirahadori y con un espacio de habilidad disponible.',
+    };
+  }
+  return { available: true, targets, message: '' };
+}
+
+function cancelShirahadoriAbilityTargeting(message = 'Selección de Shirahadori cancelada.') {
+  if (state.pendingPowerAction?.kind !== 'shirahadoriAbilityTarget') return false;
+  state.pendingPowerAction = null;
+  log(message);
+  renderAll();
+  return true;
+}
+
+function beginShirahadoriAbilityTargeting(playerId, cardId, originTab, originSlot) {
+  const availability = getShirahadoriAbilityCastAvailability(playerId);
+  if (!availability.available) {
+    log(availability.message);
+    renderAll();
+    return false;
+  }
+  state.selectedMover = null;
+  state.selectedTarget = null;
+  state.pendingPlacement = null;
+  state.pendingCard = null;
+  state.pendingPowerAction = {
+    kind: 'shirahadoriAbilityTarget',
+    stage: 'equip',
+    playerId: Number(playerId),
+    cardId: cardId || SHIRAHADORI_ABILITY_CARD_ID,
+    originTab: Math.max(0, Number(originTab) || 0),
+    originSlot: Math.max(0, Number(originSlot) || 0),
+  };
+  log('Shirahadori: selecciona una invocación aliada Guerrero o Asesino resaltada.');
+  renderAll();
+  return true;
+}
+
+function resolveShirahadoriAbilityTarget(playerId, unitId) {
+  const pending = state.pendingPowerAction;
+  if (!pending || pending.kind !== 'shirahadoriAbilityTarget' || Number(pending.playerId) !== Number(playerId)) return false;
+  const target = getUnitById(playerId, unitId);
+  if (!isEligibleShirahadoriAbilityUser(playerId, target)) {
+    log('Shirahadori solo puede equiparse a una invocación Guerrero o Asesino válida con un espacio de habilidad libre.');
+    renderAll();
+    return false;
+  }
+  const player = state.players?.[playerId];
+  const tab = Math.max(0, Number(pending.originTab) || 0);
+  const slot = Math.max(0, Number(pending.originSlot) || 0);
+  const cardId = pending.cardId || SHIRAHADORI_ABILITY_CARD_ID;
+  if (!player || player.handTabs?.[tab]?.[slot] !== cardId) {
+    state.pendingPowerAction = null;
+    log('Shirahadori ya no está disponible en ese espacio del Spellbook.');
+    renderAll();
+    return false;
+  }
+
+  player.handTabs[tab][slot] = null;
+  target.temporaryAbilities = Array.isArray(target.temporaryAbilities) ? target.temporaryAbilities : [];
+  target.temporaryAbilities.push({
+    id: SHIRAHADORI_ABILITY_ID,
+    sourceType: 'abilityCard',
+    sourceCardId: cardId,
+    sourceName: 'Shirahadori',
+    originTab: tab,
+    originSlot: slot,
+    untilRestore: true,
+  });
+  state.pendingPowerAction = null;
+  const targetName = CARD_LIBRARY[target.cardId]?.name || 'la invocación';
+  showFloatingTextAt(target.row, target.col, 'SHIRAHADORI', 'floating-combat buff');
+  log(`Shirahadori se equipa a ${targetName}. La invocación obtiene la habilidad hasta su próxima restauración.`);
+  renderAll();
+  return true;
+}
+
 function endDespliegueAnticipadoLink(link, reason = 'el Caudillo dejó la arena') {
   if (!link) return false;
   state.activeSpellLinks = (state.activeSpellLinks || []).filter(item => String(item.id) !== String(link.id));
@@ -36649,6 +36885,10 @@ function renderSpellRuleRestrictionIcons(kind, rule) {
     const text = rule.displayText || rule.label || 'Selecciona una ubicación en arena';
     return `<span class="card-info-value-chip card-info-spell-channel-value card-info-spell-location-value" title="${rule.description || text}">${text}</span>`;
   }
+  if (String(rule.mode || '').toLowerCase() === 'selfuser') {
+    const text = rule.displayText || rule.label || 'Usuario de esta habilidad';
+    return `<span class="card-info-value-chip card-info-spell-channel-value card-info-spell-self-user-value" title="${rule.description || text}">${text}</span>`;
+  }
 
   const domainChips = [];
   const typeChips = [];
@@ -36691,7 +36931,8 @@ function renderSpellRuleRestrictionIcons(kind, rule) {
   if (Array.isArray(rule.qualities)) {
     rule.qualities.forEach(qualityId => {
       const quality = getQualityProfile(qualityId);
-      if (quality) qualityChips.push(`<button type="button" class="card-info-spell-restriction-chip card-info-icon-chip optional" data-info-kind="quality" data-info-id="${quality.id}" title="Cualidad objetivo: ${quality.label}"><img src="${quality.icon}" alt="${quality.label}"></button>`);
+      const roleLabel = kind === 'user' ? 'Cualidad usuaria' : 'Cualidad objetivo';
+      if (quality) qualityChips.push(`<button type="button" class="card-info-spell-restriction-chip card-info-icon-chip optional" data-info-kind="quality" data-info-id="${quality.id}" title="${roleLabel}: ${quality.label}"><img src="${quality.icon}" alt="${quality.label}"></button>`);
     });
   }
 
@@ -36707,11 +36948,14 @@ function renderSpellRuleRestrictionIcons(kind, rule) {
   return `<span class="card-info-spell-channel-value card-info-spell-channel-icons" title="${rule.description || getSpellRuleStandardLabel(kind, rule)}">${chips.join('') || getSpellRuleStandardLabel(kind, rule)}</span>`;
 }
 
-function renderSpellRuleChip(kind, rule) {
+function renderSpellRuleChip(kind, rule, card = null) {
   const label = getSpellRuleStandardLabel(kind, rule);
   const description = rule?.description || label;
   const iconText = kind === 'user' ? 'U' : 'O';
-  const title = kind === 'user' ? 'Usuarios del hechizo' : 'Objetivos del hechizo';
+  const isAbility = getCardTypeId(card) === 'ability';
+  const title = kind === 'user'
+    ? (isAbility ? 'Usuarios de la habilidad' : 'Usuarios del hechizo')
+    : (isAbility ? 'Objetivo de la habilidad' : 'Objetivos del hechizo');
   return `
     <div class="card-info-spell-channel card-info-spell-channel-${kind}">
       <button type="button" class="card-info-spell-channel-letter card-info-spell-rule-${kind}" data-info-kind="spellRule" data-info-id="${kind}" title="${title}: ${description}">${iconText}</button>
@@ -36722,12 +36966,12 @@ function renderSpellRuleChip(kind, rule) {
 
 function renderSpellUserChip(card) {
   const rules = getSpellRules(card);
-  return renderSpellRuleChip('user', rules.user);
+  return renderSpellRuleChip('user', rules.user, card);
 }
 
 function renderSpellTargetChip(card) {
   const rules = getSpellRules(card);
-  return renderSpellRuleChip('target', rules.target);
+  return renderSpellRuleChip('target', rules.target, card);
 }
 
 function renderSpellTraitChips(card) {
@@ -37017,6 +37261,8 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
   if (!baseCard || !els.cardInfoOverlay) return;
   const card = buildCardInfoViewModel(baseCard, meta);
   const isSpell = isSpellCard(card);
+  const isAbility = getCardTypeId(card) === 'ability';
+  const isSpellLikeSupportCard = isSpell || isAbility;
 
   resetCardInfoSpellbookQuantity();
   state.infoCard = { cardId, slotIndex, tab, ...meta };
@@ -37035,8 +37281,8 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
   renderCardInfoTraits(card);
   renderCardInfoCasterCompatibility(card);
   renderCardAbilityPowerPanel(card);
-  els.cardInfoOverlay.classList.toggle('spell-card-info', isSpell);
-  if (isSpell) {
+  els.cardInfoOverlay.classList.toggle('spell-card-info', isSpellLikeSupportCard);
+  if (isSpellLikeSupportCard) {
     renderSpellInfoRows(card);
     renderCardInfoCooldownTray(card, { show: false });
     enforceDamageApplicationVisibility(card);
@@ -37045,7 +37291,7 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
     scheduleCardInfoStatRowScrollCueSync();
     updateCardInfoAction();
     updateBattleScoreDebugToggleButton(card, meta);
-    log(`${card.name}: vista de hechizo abierta.`);
+    log(`${card.name}: vista de ${isAbility ? 'habilidad' : 'hechizo'} abierta.`);
     return;
   }
   const profile = getAttackProfile(card);
@@ -37404,6 +37650,23 @@ function startKastFromInfo() {
     });
     return;
   }
+  if (card.id === SHIRAHADORI_ABILITY_CARD_ID) {
+    const isLocalTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
+    if (!isLocalTurn || currentPhase().id !== 'casting') {
+      log('Shirahadori solo puede equiparse durante tu fase de Kasteo.');
+      updateCardInfoAction();
+      return;
+    }
+    const availability = getShirahadoriAbilityCastAvailability(LOCAL_PLAYER_ID);
+    if (!availability.available) {
+      log(availability.message);
+      updateCardInfoAction();
+      return;
+    }
+    closeCardInfo();
+    beginShirahadoriAbilityTargeting(LOCAL_PLAYER_ID, card.id, infoTab, infoSlot);
+    return;
+  }
   const activeUseCooldown = getSpellbookUseCooldown(LOCAL_PLAYER_ID, infoTab, infoSlot);
   if (activeUseCooldown > 0) {
     log(`${card.name} está bloqueada por Despliegue anticipado durante ${activeUseCooldown} fase${activeUseCooldown === 1 ? '' : 's'} más.`);
@@ -37578,6 +37841,10 @@ function handleKeyDown(event) {
     }
     if (state.pendingPowerAction?.kind === 'despliegueAnticipadoTarget') {
       cancelDespliegueAnticipadoTargeting();
+      return;
+    }
+    if (state.pendingPowerAction?.kind === 'shirahadoriAbilityTarget') {
+      cancelShirahadoriAbilityTargeting();
       return;
     }
     if (['tacticaGuerraSelection', 'tacticaGuerraDestination'].includes(state.pendingPowerAction?.kind)) {
@@ -37835,6 +38102,7 @@ function handleCellClick(row, col) {
     else if (state.pendingPowerAction.kind === 'kaguyaChargedShot') cancelKaguyaChargedShotTargeting('Disparo energizado cancelado: selecciona una unidad, Guardián o Kaster rival.');
     else if (state.pendingPowerAction.kind === 'minokageShippuUgachi') cancelMinokagePowerTargeting('Shippū Ugachi cancelado.');
     else if (state.pendingPowerAction.kind === 'despliegueAnticipadoTarget') log('Despliegue anticipado: selecciona una invocación Caudillo aliada resaltada.');
+    else if (state.pendingPowerAction.kind === 'shirahadoriAbilityTarget') log('Shirahadori: selecciona una invocación aliada Guerrero o Asesino resaltada.');
     else if (state.pendingPowerAction.kind === 'gloriaLatenteTarget') log('Gloria latente: selecciona una invocación aliada Guerrero, Caudillo, Caballero o Héroe.');
     return;
   }
@@ -40335,8 +40603,9 @@ function renderDespliegueAnticipadoTargetingGuide() {
   const pending = state.pendingPowerAction;
   const isDespliegue = pending?.kind === 'despliegueAnticipadoTarget' && Number(pending.playerId) === Number(LOCAL_PLAYER_ID);
   const isGloria = pending?.kind === 'gloriaLatenteTarget' && Number(pending.playerId) === Number(LOCAL_PLAYER_ID);
+  const isShirahadoriAbility = pending?.kind === 'shirahadoriAbilityTarget' && Number(pending.playerId) === Number(LOCAL_PLAYER_ID);
   const isTacticaDestination = pending?.kind === 'tacticaGuerraDestination' && Number(pending.playerId) === Number(LOCAL_PLAYER_ID);
-  const activeTargetFoil = Boolean(isDespliegue || isGloria);
+  const activeTargetFoil = Boolean(isDespliegue || isGloria || isShirahadoriAbility);
   const active = Boolean(activeTargetFoil || isTacticaDestination);
 
   els.boardContent.classList.toggle('despliegue-targeting-active', activeTargetFoil);
@@ -40349,6 +40618,10 @@ function renderDespliegueAnticipadoTargetingGuide() {
   }
   if (isGloria && !getSelectableGloriaLatenteTargets(Number(pending.playerId)).length) {
     cancelGloriaLatenteTargeting('Gloria latente se canceló porque ya no hay un objetivo aliado válido activo.');
+    return;
+  }
+  if (isShirahadoriAbility && !getEligibleShirahadoriAbilityUsers(Number(pending.playerId)).length) {
+    cancelShirahadoriAbilityTargeting('Shirahadori se canceló porque ya no hay un Guerrero o Asesino válido con espacio de habilidad.');
     return;
   }
   if (isTacticaDestination && !getTacticaGuerraCurrentUnit(pending)) {
@@ -40364,7 +40637,9 @@ function renderDespliegueAnticipadoTargetingGuide() {
     ? 'Selecciona un Caudillo en arena'
     : isGloria
       ? 'Selecciona una invocación Guerrero, Caudillo, Caballero o Héroe'
-      : `Coloca el nexo ${Number(pending.currentIndex || 0) + 1} de ${pending.selectedUnitIds.length}`;
+      : isShirahadoriAbility
+        ? 'Selecciona una invocación Guerrero o Asesino'
+        : `Coloca el nexo ${Number(pending.currentIndex || 0) + 1} de ${pending.selectedUnitIds.length}`;
   els.boardContent.appendChild(guide);
 }
 
@@ -41387,8 +41662,8 @@ function renderMoveOptions() {
     return;
   }
 
-  if (state.pendingPowerAction?.kind === 'despliegueAnticipadoTarget') {
-    // La selección se realiza directamente sobre las fichas Caudillo con foil y punto luminoso.
+  if (['despliegueAnticipadoTarget', 'shirahadoriAbilityTarget'].includes(state.pendingPowerAction?.kind)) {
+    // Estas selecciones se realizan directamente sobre las fichas válidas con foil y punto luminoso.
     // No se dibujan cuadros ni glifos encima de las casillas.
     return;
   }
@@ -42280,14 +42555,16 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
     const burnFxNode = createBurnFxNode(guardianState);
     if (burnFxNode) protectedLayer.appendChild(burnFxNode);
   }
-  if (type === 'invocation' && unitState && ['despliegueAnticipadoTarget', 'gloriaLatenteTarget'].includes(state.pendingPowerAction?.kind)) {
+  if (type === 'invocation' && unitState && ['despliegueAnticipadoTarget', 'gloriaLatenteTarget', 'shirahadoriAbilityTarget'].includes(state.pendingPowerAction?.kind)) {
     const pending = state.pendingPowerAction;
     const selectable = Number(playerId) === Number(pending.playerId)
       && (pending.kind === 'despliegueAnticipadoTarget'
         ? getEligibleDespliegueAnticipadoTargets(Number(pending.playerId)).some(candidate => String(candidate.id) === String(unitState.id))
         : pending.kind === 'gloriaLatenteTarget'
           ? getSelectableGloriaLatenteTargets(Number(pending.playerId)).some(candidate => String(candidate.id) === String(unitState.id))
-          : getEligibleTacticaGuerraTargets(Number(pending.playerId), { quickOnly: pending.quickDefense === true, requirePayable: true }).some(candidate => String(candidate.id) === String(unitState.id)));
+          : pending.kind === 'shirahadoriAbilityTarget'
+            ? getEligibleShirahadoriAbilityUsers(Number(pending.playerId)).some(candidate => String(candidate.id) === String(unitState.id))
+            : getEligibleTacticaGuerraTargets(Number(pending.playerId), { quickOnly: pending.quickDefense === true, requirePayable: true }).some(candidate => String(candidate.id) === String(unitState.id)));
     if (selectable) {
       div.classList.add('despliegue-target-selectable-foil');
       const targetFoil = document.createElement('img');
@@ -42299,7 +42576,11 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
       div.appendChild(targetFoil);
       const readyDot = document.createElement('span');
       readyDot.className = 'unit-action-ready-indicator despliegue-target-ready-indicator';
-      readyDot.title = pending.kind === 'despliegueAnticipadoTarget' ? 'Caudillo seleccionable' : 'Objetivo seleccionable';
+      readyDot.title = pending.kind === 'despliegueAnticipadoTarget'
+        ? 'Caudillo seleccionable'
+        : pending.kind === 'shirahadoriAbilityTarget'
+          ? 'Guerrero o Asesino seleccionable'
+          : 'Objetivo seleccionable';
       (div.querySelector('.unit-protected-icons-layer') || div).appendChild(readyDot);
     }
   }
@@ -42622,15 +42903,18 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
     event.stopImmediatePropagation?.();
 
     const pendingDespliegue = state.pendingPowerAction;
-    if (type === 'invocation' && unitId && ['despliegueAnticipadoTarget', 'gloriaLatenteTarget'].includes(pendingDespliegue?.kind)) {
+    if (type === 'invocation' && unitId && ['despliegueAnticipadoTarget', 'gloriaLatenteTarget', 'shirahadoriAbilityTarget'].includes(pendingDespliegue?.kind)) {
       const sourcePlayerId = Number(pendingDespliegue.playerId);
       const valid = Number(playerId) === sourcePlayerId
         && (pendingDespliegue.kind === 'despliegueAnticipadoTarget'
           ? getEligibleDespliegueAnticipadoTargets(sourcePlayerId).some(candidate => String(candidate.id) === String(unitId))
-          : getSelectableGloriaLatenteTargets(sourcePlayerId).some(candidate => String(candidate.id) === String(unitId)));
+          : pendingDespliegue.kind === 'gloriaLatenteTarget'
+            ? getSelectableGloriaLatenteTargets(sourcePlayerId).some(candidate => String(candidate.id) === String(unitId))
+            : getEligibleShirahadoriAbilityUsers(sourcePlayerId).some(candidate => String(candidate.id) === String(unitId)));
       if (valid) {
         if (pendingDespliegue.kind === 'despliegueAnticipadoTarget') resolveDespliegueAnticipadoTarget(sourcePlayerId, unitId);
-        else resolveGloriaLatenteTarget(sourcePlayerId, unitId);
+        else if (pendingDespliegue.kind === 'gloriaLatenteTarget') resolveGloriaLatenteTarget(sourcePlayerId, unitId);
+        else resolveShirahadoriAbilityTarget(sourcePlayerId, unitId);
         return;
       }
     }
@@ -43517,6 +43801,7 @@ const PB_TRAIT_TABLE = {
   casteorapido: { value: 125, note: 'Abre una ventana reactiva y permite usar la carta fuera de la fase normal de Kasteo.' },
   casteoprogresivo: { value: 150, note: 'Permite rekastear el hechizo en fases posteriores mediante costo progresivo.' },
   defensarapida: { value: 110, note: 'Permite usar el hechizo fuera de la fase normal de Kasteo cuando el objetivo permanece en el campo aliado.' },
+  tecnica: { value: 25, note: 'Permite que una Habilidad se aplique o equipe sobre su propia invocación usuaria.' },
 };
 
 // Disponibilidad de hechizos: más usuarios u objetivos válidos aumentan el PB.
@@ -43730,6 +44015,8 @@ function calculateCardBattleScore(card) {
   const breakdown = [];
   const typeId = getCardTypeId(card);
   const isSpell = typeId === 'spell';
+  const isAbility = typeId === 'ability';
+  const isSupportCard = isSpell || isAbility;
   const stats = card.stats || {};
   const attack = getAttackProfile(card) || {};
   const costTotal = getCardTotalCost(card);
@@ -43741,7 +44028,7 @@ function calculateCardBattleScore(card) {
   addBattleScoreBreakdown(breakdown, 'Costo', getTableValueByNumber(PB_VALUE_TABLES.costTempo, costTotal, 7), `Costo total ${costTotal}`, { keepZero: true });
   addBattleScoreBreakdown(breakdown, 'Kasteo', getTableValueByNumber(PB_VALUE_TABLES.costTempo, castPhases, 7), `${castPhases} fase(s)`, { keepZero: true });
 
-  if (!isSpell) {
+  if (!isSupportCard) {
     const restore = Math.max(0, Number(stats.restore ?? 0));
     const life = Math.max(0, Number(stats.life ?? stats.def ?? 0));
     const speed = Math.max(-2, Number(stats.mov ?? 3));
@@ -43762,8 +44049,8 @@ function calculateCardBattleScore(card) {
     const movementScore = getMovementBattleScore(card);
     addBattleScoreBreakdown(breakdown, 'Movilidad especial', movementScore, card.movementType || 'basic', { keepZero: true });
     addBattleScoreBreakdown(breakdown, 'Velocidad', getTableValueByNumber(PB_VALUE_TABLES.speed, speed, 6), `Velocidad/MOV ${speed}`, { keepZero: true });
-  } else if (isSpell) {
-    // Los hechizos no tienen precisión, restauración, rango, movilidad ni velocidad.
+  } else if (isSupportCard) {
+    // Hechizos y Habilidades no suman precisión, restauración, rango, movilidad ni velocidad propios.
     // En su lugar se mide cuánto restringen al usuario y al objetivo.
     const userAccess = getSpellAccessBattleScore(card?.spellRules?.user, 'user');
     const targetAccess = getSpellAccessBattleScore(card?.spellRules?.target, 'target');
@@ -43840,8 +44127,8 @@ function buildBattleScoreDebugPanelHtml(card) {
       <div class="rarity-debug-summary">${topRows}</div>
       <div class="rarity-debug-list-title">Cálculo por ventaja real</div>
       <ul class="rarity-debug-list">${positiveRows || '<li><span>Sin aportes</span><strong>0</strong></li>'}</ul>
-      <p class="rarity-debug-note">${result.typeId === 'spell'
-        ? 'Hechizo: no suma precisión, restauración, rango, movilidad ni velocidad. Sí suma costo, kasteo, disponibilidad, rasgos, factores y poder.'
+      <p class="rarity-debug-note">${['spell', 'ability'].includes(result.typeId)
+        ? `${result.typeId === 'ability' ? 'Habilidad' : 'Hechizo'}: no suma precisión, restauración, rango, movilidad ni velocidad propios. Sí suma costo, kasteo, disponibilidad, rasgos, factores y efecto.`
         : 'Invocación: calcula sus estadísticas de combate, aplicación, movilidad, rasgos, factores y poder sin cobrar dos veces el nombre de raza, cualidad o tipo.'}</p>
     </div>`;
 }
