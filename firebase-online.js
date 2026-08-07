@@ -66,6 +66,7 @@
   let phaseDeliveryScheduledKey = '';
   let lastAnnouncedPhaseKey = '';
   let phaseDeliveryRetryTimer = null;
+  let pendingPhaseDeliveryContext = null;
   let turnHandoffPublishPending = false;
   let applyingRemoteSnapshot = false;
   let publishingSnapshot = false;
@@ -133,6 +134,22 @@
     return playerUid ? (room?.players?.[playerUid] || null) : null;
   }
 
+
+  function getLocalSelectedLoadout() {
+    return window.ROK_SPELLBOOK_MATCH?.getPendingOnlineLoadout?.() || null;
+  }
+
+  function getLoadoutIssue(loadout) {
+    return window.ROK_SPELLBOOK_MATCH?.getLoadoutIssue?.(loadout) || (!loadout ? 'Selecciona un Spellbook antes de entrar al PvP.' : '');
+  }
+
+  function requireLocalSelectedLoadout() {
+    const loadout = getLocalSelectedLoadout();
+    const issue = getLoadoutIssue(loadout);
+    if (!loadout || issue) throw new Error(issue || 'Selecciona un Spellbook antes de entrar al PvP.');
+    return loadout;
+  }
+
   function deepClone(value) {
     if (value === undefined) return undefined;
     return JSON.parse(JSON.stringify(value));
@@ -145,6 +162,19 @@
 
   function currentLocalPhaseKey() {
     return `${Number(state.turnSerial || 0)}:${Number(state.activePlayer || 0)}:${Number(state.phaseIndex || 0)}`;
+  }
+
+  function currentPhaseContext() {
+    const phaseIndex = Number(state.phaseIndex || 0);
+    const phase = Array.isArray(PHASES) ? PHASES[phaseIndex] : null;
+    return {
+      key: currentLocalPhaseKey(),
+      turnSerial: Number(state.turnSerial || 0),
+      activePlayer: Number(state.activePlayer || 0),
+      phaseIndex,
+      phaseId: String(phase?.id || ''),
+      phaseLabel: String(phase?.label || 'FASE').toUpperCase(),
+    };
   }
 
   function makeBattleSnapshot() {
@@ -187,6 +217,9 @@
     state.opponentActionLockReason = '';
     state.actionExecutionLock = false;
     state.actionExecutionLockReason = '';
+    state.gioshoninPriorityAction = null;
+    state.gioshoninSupplyPrompt = { active: false, playerId: null, unitId: null, signature: '', lastResolvedSignature: '', startedAt: 0, timeoutId: null, intervalId: null };
+    state.remotePriorityAction = null;
     state.opponentActionNoticeAwaiting = false;
     state.opponentActionNoticeResolve = null;
     state.opponentActionNoticeWaiters = [];
@@ -219,7 +252,8 @@
 
   function applyBattleSnapshot(snapshot, revision, writerUid) {
     if (!snapshot || typeof snapshot !== 'object') return false;
-    const oldPhaseKey = currentLocalPhaseKey();
+    const previousPhaseContext = currentPhaseContext();
+    const oldPhaseKey = previousPhaseContext.key;
     const localHudMode = state.hudMode;
     const localSemiAutoMovement = state.semiAutoMovement;
     const localActiveTab = state.activeTab;
@@ -254,14 +288,15 @@
     lastObservedPhaseKey = newPhaseKey;
     if (newPhaseKey !== oldPhaseKey) {
       phaseDeliveryScheduledKey = '';
+      pendingPhaseDeliveryContext = previousPhaseContext;
       if (lastStartedPhaseKey !== newPhaseKey) {
         clearTimeout(phaseDeliveryRetryTimer);
         phaseDeliveryRetryTimer = null;
       }
     }
-    // No depender solo del cambio de clave: si un temporizador fue cancelado,
+    // No depender solo del cambio de clave: si un flujo fue cancelado,
     // el mismo snapshot debe poder volver a entregar la fase al dueño local.
-    deliverRemotePhaseIfLocal();
+    deliverRemotePhaseIfLocal({ previousPhase: pendingPhaseDeliveryContext });
 
     if (writerUid && writerUid !== uid) {
       turnHandoffPublishPending = false;
@@ -280,6 +315,7 @@
     if (!key) return;
     lastStartedPhaseKey = key;
     if (phaseDeliveryScheduledKey === key) phaseDeliveryScheduledKey = '';
+    pendingPhaseDeliveryContext = null;
     clearPhaseDeliveryRetry();
   }
 
@@ -291,7 +327,11 @@
       if (Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) return;
       if (currentLocalPhaseKey() !== phaseKey || lastStartedPhaseKey === phaseKey) return;
       phaseDeliveryScheduledKey = '';
-      deliverRemotePhaseIfLocal({ force: true, announce: false });
+      deliverRemotePhaseIfLocal({
+        force: true,
+        announce: false,
+        previousPhase: pendingPhaseDeliveryContext,
+      });
     }, Math.max(900, Number(delayMs || 0)));
   }
 
@@ -303,22 +343,65 @@
 
     clearTimeout(schedulePhaseStartActions.timer);
     phaseDeliveryScheduledKey = phaseKey;
+
     const phase = currentPhase();
+    const previous = options.previousPhase || pendingPhaseDeliveryContext || null;
     const shouldAnnounce = options.announce !== false && lastAnnouncedPhaseKey !== phaseKey;
+    const changedPlayer = Boolean(
+      previous
+      && Number(previous.activePlayer)
+      && Number(previous.activePlayer) !== Number(state.activePlayer)
+      && phase?.id === 'extraction'
+    );
+    const castingToResolution = Boolean(
+      previous
+      && Number(previous.activePlayer) === Number(state.activePlayer)
+      && String(previous.phaseId || '') === 'casting'
+      && phase?.id === 'resolution'
+    );
+
     const items = [];
     if (shouldAnnounce) {
-      if (phase?.id === 'extraction') {
-        items.push({ text: `JUGADOR ${LOCAL_PLAYER_ID}`, playerId: LOCAL_PLAYER_ID, duration: 760 });
+      if (changedPlayer) {
+        // Misma plantilla exacta de nextPhase() para J1 y J2.
+        items.push(
+          { text: 'TERMINA EL TURNO', playerId: Number(previous.activePlayer), duration: 950 },
+          { text: `JUGADOR ${state.activePlayer}`, playerId: Number(state.activePlayer), duration: 900 },
+          { text: 'EXTRACCIÓN', playerId: Number(state.activePlayer), duration: 900 },
+        );
+      } else {
+        items.push({
+          text: String(phase?.label || 'FASE').toUpperCase(),
+          playerId: Number(state.activePlayer),
+          duration: 860,
+        });
       }
-      items.push({ text: String(phase?.label || 'FASE').toUpperCase(), playerId: LOCAL_PLAYER_ID, duration: 860 });
       lastAnnouncedPhaseKey = phaseKey;
-      queueTransitions(items);
     }
-    const delay = shouldAnnounce ? Math.max(0, sumTransitionDurations(items) - 120) : 80;
-    schedulePhaseStartActions(delay);
-    // Si otro flujo cancela el temporizador global, la fase se vuelve a entregar
-    // sin repetir los flyers. La marca solo se completa desde startPhaseActions().
-    schedulePhaseDeliveryRetry(phaseKey, delay + 3200);
+
+    const transitionAnchor = typeof getTransitionAnchorPoint === 'function'
+      ? getTransitionAnchorPoint()
+      : undefined;
+
+    // El jugador remoto ya no tiene una secuencia abreviada propia. Usa
+    // exactamente schedulePhaseIntroFlow(), igual que el jugador base.
+    if (typeof schedulePhaseIntroFlow === 'function') {
+      schedulePhaseIntroFlow(items, {
+        allowOffTurnCasterReposition: shouldAnnounce && castingToResolution,
+        transitionAnchor,
+      });
+    } else {
+      if (items.length) queueTransitions(items, { anchor: transitionAnchor });
+      schedulePhaseStartActions(items.length ? Math.max(0, sumTransitionDurations(items) - 120) : 80);
+    }
+
+    // La marca definitiva solo llega desde startPhaseActions(). El margen
+    // contempla TERMINA/JUGADOR/EXTRACCIÓN y ACCIÓN DE KASTER.
+    const retryDelay = Math.max(
+      5200,
+      sumTransitionDurations(items) + (castingToResolution ? 15000 : 0) + 3200,
+    );
+    schedulePhaseDeliveryRetry(phaseKey, retryDelay);
     return true;
   }
 
@@ -353,7 +436,12 @@
     ui.overlay.setAttribute('aria-hidden', 'false');
     ui.overlay.classList.add('visible');
     if (roomCode) showWaitingRoom(roomCode);
-    if (!roomCode) setStatus('Crea una sala o escribe el código recibido.', '');
+    if (!roomCode) {
+      const loadout = getLocalSelectedLoadout();
+      setStatus(loadout
+        ? `Spellbook seleccionado: ${loadout.name}. Crea una sala o escribe el código recibido.`
+        : 'Selecciona un Spellbook desde el menú antes de crear o unirte a una sala.', loadout ? 'ok' : 'error');
+    }
     setTimeout(() => ui.codeInput?.focus(), 40);
   }
 
@@ -401,6 +489,7 @@
     setLobbyBusy(true);
     setStatus('Conectando con Firebase…', 'working');
     try {
+      const selectedLoadout = requireLocalSelectedLoadout();
       const api = await loadFirebase();
       let createdCode = '';
       for (let attempt = 0; attempt < 12 && !createdCode; attempt += 1) {
@@ -432,6 +521,7 @@
           connected: true,
           joinedAt: now,
           lastSeenAt: now,
+          loadout: selectedLoadout,
         });
         createdCode = candidate;
       }
@@ -456,6 +546,7 @@
     setLobbyBusy(true);
     setStatus(`Buscando la sala ${code}…`, 'working');
     try {
+      const selectedLoadout = requireLocalSelectedLoadout();
       const api = await loadFirebase();
       const targetPath = roomRefPath(code);
       const targetRef = api.ref(db, targetPath);
@@ -494,6 +585,7 @@
         connected: true,
         joinedAt: existingPlayer.joinedAt || now,
         lastSeenAt: now,
+        loadout: selectedLoadout,
       });
 
       // J2 no modifica status: las reglas reservan ese cambio al anfitrión.
@@ -561,14 +653,21 @@
     if (!room.game?.snapshot) {
       showWaitingRoom(roomCode);
       if (playerSlot === 1) {
-        const guestReady = Boolean(room.guestUid && p2?.uid);
+        const guestConnected = Boolean(room.guestUid && p2?.uid);
+        const hostLoadoutReady = Boolean(p1?.loadout && !getLoadoutIssue(p1.loadout));
+        const guestLoadoutReady = Boolean(p2?.loadout && !getLoadoutIssue(p2.loadout));
+        const guestReady = guestConnected && hostLoadoutReady && guestLoadoutReady;
         setStartButtonVisible(guestReady, startingOnlineBattle);
         setStatus(guestReady
-          ? 'Jugador 2 conectado. Pulsa Iniciar duelo.'
-          : `Sala ${roomCode} lista. Esperando al Jugador 2.`, guestReady ? 'ok' : 'ok');
+          ? `Ambos Spellbooks están listos. J1: ${p1.loadout.name} · J2: ${p2.loadout.name}.`
+          : guestConnected
+            ? 'Jugador 2 conectado. Esperando que ambos Spellbooks estén listos.'
+            : `Sala ${roomCode} lista. Esperando al Jugador 2.`, guestReady ? 'ok' : 'working');
       } else {
         setStartButtonVisible(false);
-        setStatus('Conectado como Jugador 2. Esperando que el anfitrión inicie el duelo…', 'working');
+        setStatus(p2?.loadout
+          ? `Spellbook ${p2.loadout.name} enviado. Esperando que el anfitrión inicie el duelo…`
+          : 'Conectado como Jugador 2. Falta cargar tu Spellbook.', 'working');
       }
       return;
     }
@@ -587,6 +686,7 @@
     setStatus(`Partida activa · sala ${roomCode} · Jugador ${playerSlot}.`, 'ok');
 
     if (room.game?.interaction) await handleIncomingInteraction(room.game.interaction);
+    handleIncomingPriorityAction(room.game?.priorityAction || null);
   }
 
   async function startFreshOnlineBattleAsHost() {
@@ -613,6 +713,15 @@
       LOCAL_PLAYER_ID = 1;
       ROK_ONLINE_MATCH_ACTIVE = true;
       mainMenuBattleStarted = true;
+      const hostRecord = getRoomPlayerRecord(roomCache, 1);
+      const guestRecord = getRoomPlayerRecord(roomCache, 2);
+      const hostLoadout = hostRecord?.loadout;
+      const guestLoadout = guestRecord?.loadout;
+      const hostIssue = getLoadoutIssue(hostLoadout);
+      const guestIssue = getLoadoutIssue(guestLoadout);
+      if (hostIssue || guestIssue) throw new Error(hostIssue || guestIssue || 'Falta un Spellbook válido.');
+      window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
+      window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
       initializeElementDecks();
       enterPhase(true, true);
       localStateReady = true;
@@ -620,6 +729,7 @@
       lastStartedPhaseKey = '';
       phaseDeliveryScheduledKey = '';
       lastAnnouncedPhaseKey = '';
+      pendingPhaseDeliveryContext = null;
       clearPhaseDeliveryRetry();
       showBattleScreen();
       renderAll();
@@ -699,6 +809,7 @@
         // hijos adicionales en la raíz de la sala. Se conserva durante cada
         // transacción de sincronización para que no desaparezca a mitad de J2.
         if (current?.interaction) nextGame.interaction = deepClone(current.interaction);
+        if (current?.priorityAction) nextGame.priorityAction = deepClone(current.priorityAction);
         return nextGame;
       }, { applyLocally: false });
       if (!result.committed) return false;
@@ -719,6 +830,60 @@
       return false;
     } finally {
       publishingSnapshot = false;
+    }
+  }
+
+
+  function handleIncomingPriorityAction(priorityAction) {
+    const active = Boolean(priorityAction && priorityAction.status === 'active');
+    const ownerPlayer = Number(priorityAction?.ownerPlayer || 0);
+    if (active && ownerPlayer && ownerPlayer !== Number(LOCAL_PLAYER_ID)) {
+      window.ROK_PRIORITY_ACTION?.activateRemote?.(priorityAction);
+      return true;
+    }
+    window.ROK_PRIORITY_ACTION?.clearRemote?.(priorityAction?.id || '');
+    return false;
+  }
+
+  async function setPriorityAction(payload = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot) return false;
+    const id = String(payload.id || `priority_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+    const priorityAction = {
+      id,
+      type: String(payload.type || 'priority-action'),
+      label: String(payload.label || 'acción prioritaria'),
+      status: 'active',
+      ownerUid: uid,
+      ownerPlayer: Number(payload.ownerPlayer || playerSlot),
+      unitId: payload.unitId || null,
+      startedAt: Number(payload.startedAt || Date.now()),
+      updatedAt: Date.now(),
+    };
+    try {
+      const api = await loadFirebase();
+      await api.set(api.ref(db, `${roomPath}/game/priorityAction`), priorityAction);
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo iniciar la acción prioritaria');
+      return false;
+    }
+  }
+
+  async function clearPriorityAction(priorityId = '', result = 'closed') {
+    if (!roomPath || !playerSlot) return false;
+    try {
+      const api = await loadFirebase();
+      const ref = api.ref(db, `${roomPath}/game/priorityAction`);
+      const outcome = await api.runTransaction(ref, current => {
+        if (!current) return null;
+        if (String(current.ownerUid || '') !== String(uid)) return;
+        if (priorityId && current.id && String(current.id) !== String(priorityId)) return;
+        return null;
+      }, { applyLocally: false });
+      return Boolean(outcome.committed);
+    } catch (error) {
+      reportOnlineError(error, `No se pudo cerrar la acción prioritaria (${result})`);
+      return false;
     }
   }
 
@@ -860,6 +1025,9 @@
     const oldRoomPath = roomPath;
     const oldSlot = playerSlot;
     try {
+      if (oldRoomPath && oldSlot) {
+        try { await clearPriorityAction('', 'leave-room'); } catch (_) {}
+      }
       await detachRoomListener();
       if (oldRoomPath && oldSlot && db && firebaseApiPromise) {
         try {
@@ -878,6 +1046,7 @@
       lastStartedPhaseKey = '';
       phaseDeliveryScheduledKey = '';
       lastAnnouncedPhaseKey = '';
+      pendingPhaseDeliveryContext = null;
       clearPhaseDeliveryRetry();
       turnHandoffPublishPending = false;
       localStateReady = false;
@@ -954,6 +1123,8 @@
     joinRoom,
     leaveRoom,
     requestRemoteCasterDefense,
+    setPriorityAction,
+    clearPriorityAction,
     markPhaseStarted,
     markTurnHandoffPending,
     publishNow: () => publishSnapshot({ force: true }),

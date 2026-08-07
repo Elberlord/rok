@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>R.O.K LITE</title>
-  <link id="mainStylesheet" rel="stylesheet" href="style.css" />
+  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=463-card-creator-resources-rules" />
   <link rel="icon" href="assets/kast-cell-icon.jpg" />
 </head>
 <body>
@@ -28,6 +29,34 @@
 
   <section id="mainMenuScreen" class="main-menu-screen" aria-label="Menú principal R.O.K Lite">
     <div class="main-menu-vignette"></div>
+    <div id="mainMenuUserHud" class="main-menu-user-hud" aria-label="Perfil de usuario" tabindex="0" role="button" aria-expanded="false" title="Abrir perfil de usuario">
+      <span class="main-menu-user-hud-label">Perfil</span>
+      <div id="mainMenuResourceStrip" class="rok-user-resource-strip main-menu-resource-strip" aria-label="Recursos del usuario">
+        <span class="rok-resource-chip pure" title="Cristal Puro"><img src="assets/user/pure-crystal.png" alt="Cristal Puro"><strong id="mainMenuPureCrystalValue">9,000</strong></span>
+        <span class="rok-resource-chip element" data-user-element="oscuridad" title="Oscuridad"><img src="assets/cost-icons/cost-darkness.png" alt="Oscuridad"><strong>0</strong></span>
+        <span class="rok-resource-chip element" data-user-element="luz" title="Luz"><img src="assets/cost-icons/cost-light.png" alt="Luz"><strong>0</strong></span>
+        <span class="rok-resource-chip element" data-user-element="fuego" title="Fuego"><img src="assets/cost-icons/cost-fire.png" alt="Fuego"><strong>0</strong></span>
+        <span class="rok-resource-chip element" data-user-element="agua" title="Agua"><img src="assets/cost-icons/cost-water.png" alt="Agua"><strong>0</strong></span>
+        <span class="rok-resource-chip element" data-user-element="tierra" title="Tierra"><img src="assets/cost-icons/cost-earth.png" alt="Tierra"><strong>0</strong></span>
+        <span class="rok-resource-divider" aria-hidden="true"></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="ordinary" title="Ordinaria"><img src="assets/rarities/rarity-ordinary.png" alt="Ordinaria"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="uncommon" title="Poco ordinaria"><img src="assets/rarities/rarity-uncommon.png" alt="Poco ordinaria"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="extraordinary" title="Extra ordinaria"><img src="assets/rarities/rarity-extraordinary.png" alt="Extra ordinaria"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="singular" title="Singular"><img src="assets/rarities/rarity-singular.png" alt="Singular"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="infrequent" title="Infrecuente"><img src="assets/rarities/rarity-infrequent.png" alt="Infrecuente"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="unusual" title="Inhabitual"><img src="assets/rarities/rarity-unusual.png" alt="Inhabitual"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="strange" title="Extraña"><img src="assets/rarities/rarity-strange.png" alt="Extraña"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="mythic" title="Mítica"><img src="assets/rarities/rarity-mythic.png" alt="Mítica"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="legendary" title="Legendaria"><img src="assets/rarities/rarity-legendary.png" alt="Legendaria"><strong>0</strong></span>
+      </div>
+      <div id="mainMenuUserHudMenu" class="main-menu-user-hud-menu" aria-hidden="true">
+        <button id="mainMenuResetUserBtn" class="main-menu-reset-user-btn" type="button">Reiniciar usuario</button>
+      </div>
+    </div>
+    <button id="mainMenuUserModeBtn" class="main-menu-user-mode-btn" type="button" aria-pressed="false" title="Activa la experiencia de colección del jugador">
+      <span>Modo Usuario</span>
+      <small id="mainMenuUserModeState">Desactivado</small>
+    </button>
     <div class="main-menu-buttons" aria-label="Opciones principales">
       <button id="mainMenuStoryBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Modo Historia próximamente">
         <img src="assets/menu/btn-story.png" alt="Modo Historia" />
@@ -38,13 +67,16 @@
       <button id="mainMenuOnlineBtn" class="main-menu-btn main-menu-btn-online" type="button" aria-label="Versus Online">
         <img src="assets/menu/btn-online.png" alt="Versus Online" />
       </button>
-      <button id="mainMenuLibraryBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Biblioteca próximamente">
+      <button id="mainMenuLibraryBtn" class="main-menu-btn" type="button" aria-label="Abrir Biblioteca y creador de Spellbooks">
         <img src="assets/menu/btn-library.png" alt="Biblioteca" />
       </button>
-      <button id="mainMenuSpellbooksBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Spellbooks próximamente">
+      <button id="mainMenuSpellbooksBtn" class="main-menu-btn" type="button" aria-label="Abrir mis Spellbooks guardados">
         <img src="assets/menu/btn-spellbooks.png" alt="Spellbooks" />
       </button>
-      <button id="mainMenuCardCreatorBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Creador de Cartas próximamente">
+      <button id="mainMenuShopBtn" class="main-menu-btn main-menu-shop-btn" type="button" aria-label="Abrir tienda de booster packs">
+        <img class="shop-button-image" src="assets/menu/btn-shop.png" alt="Tienda">
+      </button>
+      <button id="mainMenuCardCreatorBtn" class="main-menu-btn" type="button" aria-label="Creador de Cartas">
         <img src="assets/menu/btn-card-creator.png" alt="Creador de Cartas" />
       </button>
     </div>
@@ -52,7 +84,67 @@
   </section>
 
 
+  <section id="boosterStoreScreen" class="booster-store-screen" aria-hidden="true" aria-label="Tienda de booster packs">
+    <div class="booster-store-bg" aria-hidden="true"></div>
+    <div class="booster-store-vignette" aria-hidden="true"></div>
+    <div class="booster-store-shell">
+      <header class="booster-store-head">
+        <div>
+          <span class="booster-store-kicker">R.O.K LITE · COLECCIONES</span>
+          <h1 id="boosterStoreTitle">Adquirir booster packs</h1>
+          <p id="boosterStoreSubtitle">Selecciona una booster box para entrar a su colección.</p>
+        </div>
+        <div class="booster-store-head-actions">
+          <div class="booster-store-crystal-balance pure-crystal-balance"><img src="assets/user/pure-crystal.png" alt="Cristal Puro"><strong id="boosterStorePureCrystalValue">9,000</strong><small>Cristal Puro</small></div>
+          <div id="boosterStoreInventory" class="booster-store-inventory">Packs sin abrir: 0</div>
+          <button id="boosterStoreBackBtn" class="booster-store-secondary-btn" type="button">Volver</button>
+          <button id="boosterStoreCloseBtn" class="booster-store-close-btn" type="button" aria-label="Cerrar tienda">×</button>
+        </div>
+      </header>
+      <main id="boosterStoreContent" class="booster-store-content"></main>
+      <div id="boosterStoreNotice" class="booster-store-notice" aria-live="polite"></div>
+    </div>
+  </section>
 
+
+  <section id="botMatchModeModal" class="bot-match-mode-modal" aria-hidden="true">
+    <div class="bot-match-mode-card" role="dialog" aria-modal="true" aria-labelledby="botMatchModeTitle">
+      <button id="botMatchModeCloseBtn" class="bot-match-mode-close" type="button" aria-label="Cerrar">×</button>
+      <span class="bot-match-mode-kicker">PLAYER VS BOT</span>
+      <h2 id="botMatchModeTitle">Selecciona el tipo de partida</h2>
+      <p>La partida normal conserva el bot principal. La partida de prueba usa un bot independiente y recursos amplios para probar cartas sin modificar sus costos.</p>
+      <div class="bot-match-mode-options">
+        <button id="botMatchNormalBtn" class="bot-match-mode-option" type="button">
+          <strong>Partida normal</strong>
+          <span>Usa el bot y las reglas actuales.</span>
+        </button>
+        <button id="botMatchTestBtn" class="bot-match-mode-option bot-match-mode-option-test" type="button">
+          <strong>Partida de prueba</strong>
+          <span>30 elementos de cada tipo para ambos jugadores. El bot de prueba usa únicamente a O-sensei Ueshiba.</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="matchSpellbookSelectModal" class="match-spellbook-select-modal" aria-hidden="true">
+    <div class="match-spellbook-select-card" role="dialog" aria-modal="true" aria-labelledby="matchSpellbookSelectTitle">
+      <button id="matchSpellbookSelectCloseBtn" class="match-spellbook-select-close" type="button" aria-label="Cerrar">×</button>
+      <span id="matchSpellbookSelectKicker" class="match-spellbook-select-kicker">PREPARAR PARTIDA</span>
+      <h2 id="matchSpellbookSelectTitle">Selecciona tu Spellbook</h2>
+      <p id="matchSpellbookSelectCopy">El Kaster, las cartas y la Fuente elemental se cargarán desde el Spellbook elegido.</p>
+      <div id="matchSpellbookSelectList" class="match-spellbook-select-list"></div>
+      <div id="matchSpellbookSelectEmpty" class="match-spellbook-select-empty" hidden>
+        <strong>No hay Spellbooks utilizables</strong>
+        <span>Guarda al menos un Spellbook con Kaster, cartas y distribución elemental.</span>
+      </div>
+      <div id="matchSpellbookSelectNotice" class="match-spellbook-select-notice" aria-live="polite"></div>
+      <div class="match-spellbook-select-actions">
+        <button id="matchSpellbookSelectCancelBtn" class="spellbooks-secondary-btn" type="button">Cancelar</button>
+        <button id="matchSpellbookSelectConfirmBtn" class="spellbooks-primary-btn" type="button" disabled>Usar este Spellbook</button>
+      </div>
+    </div>
+  </section>
 
 
   <section id="onlineLobbyOverlay" class="online-lobby-overlay" aria-hidden="true">
@@ -90,14 +182,30 @@
     <div class="library-builder-shell">
       <header class="library-builder-hud">
         <div class="library-builder-hud-block library-builder-filter-hud">
-          <span class="library-builder-kicker">Filtros</span>
-          <strong>Biblioteca general</strong>
-          <small>Tipo · Elemento · Caster · Costo · Factor · Cualidad · previsto</small>
+          <span class="library-builder-kicker">Biblioteca</span>
+          <strong id="libraryBuilderLibraryModeTitle">Biblioteca general</strong>
+          <small id="libraryBuilderLibraryModeCopy">Abre o crea un Spellbook para empezar.</small>
+        </div>
+        <div class="library-builder-hud-block library-builder-crystal-hud" aria-label="Cristal Puro disponible">
+          <span class="pure-crystal-balance library-pure-crystal-balance"><img src="assets/user/pure-crystal.png" alt="Cristal Puro"><strong id="libraryPureCrystalValue">9,000</strong><small>Cristal Puro</small></span>
         </div>
         <div class="library-builder-hud-block library-builder-summary-hud">
-          <span class="library-builder-kicker">Spellbook</span>
-          <strong id="libraryBuilderDeckName">Nuevo Spellbook</strong>
-          <small id="libraryBuilderDeckSummary">0 cartas · curva, elementos y ritmo previstos</small>
+          <div class="library-builder-summary-default">
+            <span class="library-builder-kicker">Spellbook</span>
+            <strong id="libraryBuilderDeckName">Sin Spellbook activo</strong>
+            <small id="libraryBuilderDeckSummary">Selecciona Crear nuevo Spellbook para comenzar.</small>
+          </div>
+          <div id="cardCreatorTopHud" class="card-creator-top-hud" aria-label="Creador de Cartas y recursos del usuario">
+            <div class="card-creator-top-head">
+              <div class="card-creator-top-copy">
+                <span class="library-builder-kicker">Spellbook · Creador de Cartas</span>
+                <strong>Recursos del usuario</strong>
+                <small>Descomposición y creación</small>
+              </div>
+              <div id="cardCreatorQueueCount" class="card-creator-queue-count" title="Cartas actualmente reservadas en el mezclador">0 / 50</div>
+            </div>
+            <div id="cardCreatorStockHud" class="rok-user-resource-strip card-creator-stock-hud" aria-label="Cristal Puro, elementos y recursos de rareza disponibles"></div>
+          </div>
         </div>
       </header>
 
@@ -106,11 +214,107 @@
           <div class="library-builder-panel-head">
             <div>
               <span>Biblioteca</span>
-              <strong>Todas las cartas existentes</strong>
+              <strong id="libraryBuilderLibraryTitle">Todas las cartas existentes</strong>
             </div>
             <div class="library-builder-head-actions">
               <button id="libraryBuilderCssRefreshBtn" class="library-builder-mini-btn library-builder-css-refresh-btn" type="button" title="Refrescar CSS sin salir de la biblioteca">CSS</button>
               <button id="libraryBuilderInfoBtn" class="library-builder-mini-btn" type="button">Info</button>
+            </div>
+          </div>
+          <div id="libraryBuilderControlsPanel" class="library-builder-controls-panel" hidden>
+            <div class="library-builder-control-grid">
+              <label class="library-builder-control-field library-builder-search-field">
+                <span>Buscar carta</span>
+                <input id="libraryBuilderSearchInput" type="search" autocomplete="off" placeholder="Nombre, tipo, elemento…" />
+              </label>
+              <label class="library-builder-control-field">
+                <span>Tipo de carta</span>
+                <select id="libraryBuilderTypeFilter">
+                  <option value="all">Todos los tipos</option>
+                  <option value="kaster">Kaster</option>
+                  <option value="invocation">Invocación</option>
+                  <option value="spell">Hechizo</option>
+                  <option value="ability">Habilidad</option>
+                  <option value="artifact">Artilugio</option>
+                  <option value="structure">Estructura</option>
+                  <option value="event">Evento</option>
+                  <option value="element">Elemento</option>
+                </select>
+              </label>
+              <label class="library-builder-control-field">
+                <span>Elemento</span>
+                <select id="libraryBuilderElementFilter">
+                  <option value="all">Todos los elementos</option>
+                  <option value="oscuridad">Oscuridad</option>
+                  <option value="luz">Luz</option>
+                  <option value="fuego">Fuego</option>
+                  <option value="agua">Agua</option>
+                  <option value="tierra">Tierra</option>
+                  <option value="catalizadora">Catalizadora</option>
+                </select>
+              </label>
+              <label class="library-builder-control-field">
+                <span>Costo total</span>
+                <select id="libraryBuilderCostFilter">
+                  <option value="all">Cualquier costo</option>
+                  <option value="0">Costo 0</option>
+                  <option value="1">Costo 1</option>
+                  <option value="2">Costo 2</option>
+                  <option value="3">Costo 3</option>
+                  <option value="4">Costo 4</option>
+                  <option value="5">Costo 5</option>
+                  <option value="6plus">Costo 6 o más</option>
+                </select>
+              </label>
+              <label class="library-builder-control-field">
+                <span>Poder de batalla</span>
+                <select id="libraryBuilderPbFilter">
+                  <option value="all">Cualquier PB</option>
+                  <option value="0-99">0–99 PB</option>
+                  <option value="100-199">100–199 PB</option>
+                  <option value="200-324">200–324 PB</option>
+                  <option value="325-474">325–474 PB</option>
+                  <option value="475plus">475 PB o más</option>
+                </select>
+              </label>
+              <label class="library-builder-control-field">
+                <span>Rareza</span>
+                <select id="libraryBuilderRarityFilter">
+                  <option value="all">Todas las rarezas</option>
+                  <option value="ordinary">Ordinaria</option>
+                  <option value="uncommon">Poco ordinaria</option>
+                  <option value="extraordinary">Extra ordinaria</option>
+                  <option value="singular">Singular</option>
+                  <option value="infrequent">Infrecuente</option>
+                  <option value="unusual">Inhabitual</option>
+                  <option value="strange">Extraña</option>
+                  <option value="mythic">Mítica</option>
+                  <option value="legendary">Legendaria</option>
+                </select>
+              </label>
+              <label class="library-builder-control-field library-builder-sort-field">
+                <span>Ordenar por</span>
+                <select id="libraryBuilderSortSelect">
+                  <option value="recommended">Orden recomendado</option>
+                  <option value="nameAsc">Nombre: A–Z</option>
+                  <option value="nameDesc">Nombre: Z–A</option>
+                  <option value="type">Tipo de carta</option>
+                  <option value="element">Elemento</option>
+                  <option value="costAsc">Costo: menor a mayor</option>
+                  <option value="costDesc">Costo: mayor a menor</option>
+                  <option value="pbDesc">PB: mayor a menor</option>
+                  <option value="pbAsc">PB: menor a mayor</option>
+                  <option value="rarityDesc">Rareza: mayor a menor</option>
+                  <option value="rarityAsc">Rareza: menor a mayor</option>
+                </select>
+              </label>
+            </div>
+            <div class="library-builder-controls-foot">
+              <span id="libraryBuilderResultCount">0 cartas</span>
+              <div>
+                <button id="libraryBuilderClearFiltersBtn" class="library-builder-control-btn" type="button">Limpiar filtros</button>
+                <button id="libraryBuilderControlsCloseBtn" class="library-builder-control-btn" type="button">Cerrar</button>
+              </div>
             </div>
           </div>
           <div id="libraryBuilderLibraryGrid" class="library-builder-card-grid library-builder-library-grid"></div>
@@ -120,28 +324,151 @@
           <button id="libraryBuilderAddBtn" class="library-builder-action primary" type="button">Agregar carta</button>
           <button id="libraryBuilderRemoveBtn" class="library-builder-action danger" type="button">Eliminar carta</button>
           <button id="libraryBuilderClearSelectionBtn" class="library-builder-action" type="button">Limpiar selección</button>
-          <button id="libraryBuilderSaveBtn" class="library-builder-action planned" type="button">Guardar Spellbook</button>
-          <button id="libraryBuilderEditBtn" class="library-builder-action planned" type="button">Editar existente</button>
-          <button id="libraryBuilderFilterBtn" class="library-builder-action planned" type="button">Filtros</button>
+          <button id="libraryBuilderSaveBtn" class="library-builder-action" type="button">Guardar Spellbook</button>
+          <button id="libraryBuilderEditBtn" class="library-builder-action" type="button">Mis Spellbooks</button>
+          <button id="libraryBuilderFilterBtn" class="library-builder-action" type="button" aria-expanded="false" aria-controls="libraryBuilderControlsPanel">Filtros</button>
+          <button id="libraryBuilderSortBtn" class="library-builder-action" type="button" aria-expanded="false" aria-controls="libraryBuilderControlsPanel">Ordenar por</button>
           <button id="libraryBuilderTestBtn" class="library-builder-action test" type="button">Probar</button>
+          <button id="libraryBuilderShopBtn" class="library-builder-action shop" type="button" aria-label="Tienda">Tienda</button>
           <button id="libraryBuilderBackBtn" class="library-builder-action back" type="button">Volver al menú</button>
           <div id="libraryBuilderNotice" class="library-builder-notice" aria-live="polite"></div>
         </aside>
 
-        <section class="library-builder-panel library-builder-spellbook-panel">
+        <section id="libraryBuilderSpellbookPanel" class="library-builder-panel library-builder-spellbook-panel">
           <div class="library-builder-panel-head">
             <div>
               <span>Spellbook</span>
-              <strong>Cartas agregadas</strong>
+              <strong id="libraryBuilderSpellbookTitle">Ninguno activo</strong>
             </div>
-            <div class="library-builder-page-chip">Pág. <b id="libraryBuilderPageLabel">1</b></div>
+            <div class="library-builder-caster-head">
+              <button id="libraryBuilderCasterChip" class="library-builder-caster-chip" type="button" aria-hidden="true" title="Cambiar Kaster"></button>
+              <div class="library-builder-page-chip">Pág. <b id="libraryBuilderPageLabel">1</b></div>
+            </div>
+          </div>
+          <div id="libraryBuilderGate" class="library-builder-gate">
+            <div class="library-builder-gate-symbol">✦</div>
+            <h3 id="libraryBuilderGateTitle">No hay un Spellbook activo</h3>
+            <p id="libraryBuilderGateCopy">Crea uno nuevo y selecciona primero el Kaster que lo utilizará.</p>
+            <div class="library-builder-gate-actions">
+              <button id="libraryBuilderGateCreateBtn" class="library-builder-action primary" type="button">Crear nuevo Spellbook</button>
+              <button id="libraryBuilderGateContinueBtn" class="library-builder-action" type="button" hidden>Continuar borrador</button>
+              <button id="libraryBuilderGateOpenBtn" class="library-builder-action" type="button">Abrir mis Spellbooks</button>
+            </div>
           </div>
           <div id="libraryBuilderSpellbookGrid" class="library-builder-card-grid library-builder-spellbook-grid"></div>
           <div class="library-builder-page-row">
-            <button id="libraryBuilderPrevPageBtn" class="library-builder-mini-btn planned" type="button">◀ Página</button>
-            <button id="libraryBuilderNextPageBtn" class="library-builder-mini-btn planned" type="button">Página ▶</button>
+            <button id="libraryBuilderPrevPageBtn" class="library-builder-mini-btn" type="button">◀ Página</button>
+            <button id="libraryBuilderNextPageBtn" class="library-builder-mini-btn" type="button">Página ▶</button>
           </div>
         </section>
+
+        <section id="cardCreatorWorkshopPanel" class="library-builder-panel card-creator-workshop-panel" hidden>
+          <div class="card-creator-workshop-body">
+            <div id="cardCreatorOrb" class="card-creator-orb" aria-label="Mezclador de descomposición">
+              <div class="card-creator-orb-core" aria-hidden="true"></div>
+              <div id="cardCreatorOrbItems" class="card-creator-orb-items"></div>
+              <div id="cardCreatorOrbEmpty" class="card-creator-orb-empty"><strong>Mezclador vacío</strong><span>Abre una carta de la Biblioteca y agrégala para descomponer.</span></div>
+            </div>
+            <div class="card-creator-return-panel">
+              <div class="card-creator-return-row"><span>CRISTAL PURO</span><div id="cardCreatorReturnCrystal" class="card-creator-return-values"></div></div>
+              <div class="card-creator-return-row"><span>ELEMENTOS</span><div id="cardCreatorReturnElements" class="card-creator-return-values"></div></div>
+              <div class="card-creator-return-row"><span>RAREZAS</span><div id="cardCreatorReturnRarities" class="card-creator-return-values rarity-values"></div></div>
+            </div>
+            <div class="card-creator-workshop-actions">
+              <button id="cardCreatorClearBtn" class="library-builder-action" type="button">Vaciar mezclador</button>
+              <button id="cardCreatorDecomposeBtn" class="library-builder-action danger card-creator-decompose-btn" type="button" disabled>Descomponer</button>
+            </div>
+            <div id="cardCreatorNotice" class="library-builder-notice card-creator-notice" aria-live="polite"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section id="spellbooksCollectionScreen" class="spellbooks-collection-screen" aria-hidden="true" aria-label="Spellbooks guardados">
+    <div class="spellbooks-collection-bg"></div>
+    <div class="spellbooks-collection-shell">
+      <header class="spellbooks-collection-head">
+        <div>
+          <span>COLECCIÓN</span>
+          <h1>Mis Spellbooks</h1>
+          <p>Guardados en este navegador. Permanecen después de recargar con F5.</p>
+        </div>
+        <div class="spellbooks-collection-head-actions">
+          <button id="spellbooksCreateBtn" class="spellbooks-primary-btn" type="button">Crear nuevo Spellbook</button>
+          <button id="spellbooksShopBtn" class="spellbooks-secondary-btn spellbooks-shop-btn" type="button" aria-label="Tienda">Tienda</button>
+          <button id="spellbooksBackBtn" class="spellbooks-secondary-btn" type="button">Volver al menú</button>
+        </div>
+      </header>
+      <div id="spellbooksCollectionNotice" class="spellbooks-collection-notice" aria-live="polite"></div>
+      <div id="spellbooksCollectionGrid" class="spellbooks-collection-grid"></div>
+      <div id="spellbooksCollectionEmpty" class="spellbooks-collection-empty">
+        <div>✦</div>
+        <h2>Aún no has guardado ningún Spellbook</h2>
+        <p>Crea uno nuevo, selecciona un Kaster y agrega tus cartas.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="casterChangeModal" class="spellbook-name-modal caster-change-modal" aria-hidden="true">
+    <div class="spellbook-name-card caster-change-card" role="dialog" aria-modal="true" aria-labelledby="casterChangeTitle">
+      <button id="casterChangeCloseBtn" class="spellbook-name-close" type="button" aria-label="Cerrar">×</button>
+      <span class="spellbook-name-kicker">KASTER</span>
+      <h2 id="casterChangeTitle">Cambiar Kaster</h2>
+      <p>Si cambias el Kaster, algunas cartas que ya están dentro del Spellbook pueden quedar incompatibles. No se eliminarán: permanecerán en sus posiciones y se marcarán con un foil rojo para que puedas revisarlas.</p>
+      <div class="caster-change-warning">Las cartas incompatibles no serán borradas automáticamente.</div>
+      <div class="spellbook-name-actions">
+        <button id="casterChangeCancelBtn" class="spellbooks-secondary-btn" type="button">Cancelar</button>
+        <button id="casterChangeConfirmBtn" class="spellbooks-primary-btn danger-confirm" type="button">Cambiar Kaster</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="spellbookNameModal" class="spellbook-name-modal" aria-hidden="true">
+    <div class="spellbook-name-card" role="dialog" aria-modal="true" aria-labelledby="spellbookNameTitle">
+      <button id="spellbookNameCloseBtn" class="spellbook-name-close" type="button" aria-label="Cerrar">×</button>
+      <span class="spellbook-name-kicker">SPELLBOOK</span>
+      <h2 id="spellbookNameTitle">Guardar Spellbook</h2>
+      <p id="spellbookNameCopy">Escribe el nombre que tendrá este Spellbook.</p>
+      <label for="spellbookNameInput">Nombre</label>
+      <input id="spellbookNameInput" type="text" maxlength="48" autocomplete="off" placeholder="Nombre del Spellbook">
+      <div id="spellbookNameError" class="spellbook-name-error" aria-live="polite"></div>
+      <div class="spellbook-name-actions">
+        <button id="spellbookNameCancelBtn" class="spellbooks-secondary-btn" type="button">Cancelar</button>
+        <button id="spellbookNameConfirmBtn" class="spellbooks-primary-btn" type="button">Guardar</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="spellbookElementsModal" class="spellbook-name-modal spellbook-elements-modal" aria-hidden="true">
+    <div class="spellbook-name-card spellbook-elements-card" role="dialog" aria-modal="true" aria-labelledby="spellbookElementsTitle">
+      <button id="spellbookElementsCloseBtn" class="spellbook-name-close" type="button" aria-label="Cerrar">×</button>
+      <span class="spellbook-name-kicker">FUENTE ELEMENTAL</span>
+      <h2 id="spellbookElementsTitle">Distribución de elementos</h2>
+      <p>Distribuye hasta 60 elementos entre los dominios presentes en el Spellbook. Puedes escribir directamente la cantidad o utilizar los botones.</p>
+      <div id="spellbookElementsRows" class="spellbook-elements-rows"></div>
+      <div class="spellbook-elements-summary">
+        <div><span>TOTAL</span><strong id="spellbookElementsTotal">0 / 60</strong></div>
+        <small id="spellbookElementsRemaining">60 disponibles</small>
+      </div>
+      <div id="spellbookElementsError" class="spellbook-name-error" aria-live="polite"></div>
+      <div class="spellbook-name-actions">
+        <button id="spellbookElementsCancelBtn" class="spellbooks-secondary-btn" type="button">Cancelar</button>
+        <button id="spellbookElementsConfirmBtn" class="spellbooks-primary-btn" type="button">Guardar Spellbook</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="spellbookElementWarningModal" class="spellbook-name-modal spellbook-element-warning-modal" aria-hidden="true">
+    <div class="spellbook-name-card spellbook-element-warning-card" role="dialog" aria-modal="true" aria-labelledby="spellbookElementWarningTitle">
+      <span class="spellbook-name-kicker">ADVERTENCIA ELEMENTAL</span>
+      <h2 id="spellbookElementWarningTitle">Hay conjuros sin elementos compatibles</h2>
+      <p id="spellbookElementWarningCount">Algunas cartas no podrán kastearse con esta distribución.</p>
+      <ul id="spellbookElementWarningList" class="spellbook-element-warning-list"></ul>
+      <div class="spellbook-element-warning-copy">Puedes guardar el Spellbook de todos modos o regresar al constructor. Al volver, las cartas afectadas quedarán marcadas con un foil rojo.</div>
+      <div class="spellbook-name-actions">
+        <button id="spellbookElementWarningEditBtn" class="spellbooks-secondary-btn" type="button">Volver a editar</button>
+        <button id="spellbookElementWarningSaveBtn" class="spellbooks-primary-btn danger-confirm" type="button">Guardar de todos modos</button>
       </div>
     </div>
   </section>
@@ -221,6 +548,8 @@
             <p id="cardInfoType">Invocación</p>
             <div id="cardInfoMetaIcons" class="card-info-meta-icons"></div>
             <div id="cardInfoSummaryTags" class="card-info-summary-tags"></div>
+            <div id="cardInfoTraits" class="card-info-traits" hidden></div>
+            <div id="cardInfoCasterCompatibility" class="card-info-caster-compatibility" hidden></div>
           </div>
         </div>
 
@@ -240,23 +569,83 @@
               <strong id="cardInfoCost">0</strong>
               <strong id="cardInfoCastTime">0</strong>
               <strong id="cardInfoRestoreTime">0</strong>
+              <strong id="cardInfoUtilityFactors">-</strong>
             </div>
             <div class="stat-row stat-row-move">
               <strong id="cardInfoMoveType">-</strong>
               <strong id="cardInfoMove">0</strong>
               <strong id="cardInfoBiotype">-</strong>
             </div>
+            <div class="stat-row stat-row-cooldowns">
+              <strong id="cardInfoCooldownTray">-</strong>
+            </div>
           </div>
           <div id="cardInfoExtraPanel" class="card-info-extra-panel"></div>
         </div>
 
         <div class="card-info-actions">
-          <button id="cardInfoKastBtn" class="main-button card-info-btn">Kastear</button>
-          <button id="cardInfoCloseBtn" class="main-button card-info-btn secondary">Salir</button>
+          <div id="cardInfoPrimaryActionWrap" class="card-info-primary-action-wrap">
+            <div id="cardInfoSpellbookQuantity" class="card-info-spellbook-quantity" hidden aria-label="Cantidad de copias a agregar">
+              <button id="cardInfoSpellbookMinusBtn" class="card-info-spellbook-step" type="button" aria-label="Restar una copia">−</button>
+              <output id="cardInfoSpellbookQuantityValue" class="card-info-spellbook-quantity-value" aria-live="polite">0</output>
+              <button id="cardInfoSpellbookPlusBtn" class="card-info-spellbook-step" type="button" aria-label="Agregar una copia">+</button>
+            </div>
+            <div class="card-info-creator-action-group card-info-creator-decompose-group">
+              <div id="cardInfoCreatorDecomposeQuantity" class="card-info-creator-quantity" hidden aria-label="Cantidad de copias a descomponer">
+                <button id="cardInfoCreatorDecomposeMinusBtn" class="card-info-creator-step" type="button" aria-label="Restar una copia para descomponer">−</button>
+                <input id="cardInfoCreatorDecomposeQuantityValue" class="card-info-creator-quantity-value" type="number" inputmode="numeric" min="0" step="1" value="1" aria-label="Cantidad de copias a descomponer">
+                <button id="cardInfoCreatorDecomposePlusBtn" class="card-info-creator-step" type="button" aria-label="Agregar una copia para descomponer">+</button>
+              </div>
+              <button id="cardInfoKastBtn" class="main-button card-info-btn">Kastear</button>
+            </div>
+            <div class="card-info-creator-action-group card-info-creator-create-group">
+              <div id="cardInfoCreatorCreateQuantity" class="card-info-creator-quantity" hidden aria-label="Cantidad de copias a crear">
+                <button id="cardInfoCreatorCreateMinusBtn" class="card-info-creator-step" type="button" aria-label="Restar una copia para crear">−</button>
+                <input id="cardInfoCreatorCreateQuantityValue" class="card-info-creator-quantity-value" type="number" inputmode="numeric" min="1" step="1" value="1" aria-label="Cantidad de copias a crear">
+                <button id="cardInfoCreatorCreatePlusBtn" class="card-info-creator-step" type="button" aria-label="Agregar una copia para crear">+</button>
+              </div>
+              <button id="cardInfoCreatorCreateBtn" class="main-button card-info-btn card-info-creator-create-btn" type="button" hidden>Crear carta</button>
+            </div>
+            <div id="cardInfoSpellbookFeedback" class="card-info-spellbook-feedback" role="status" aria-live="polite" hidden></div>
+          </div>
+          <button id="cardInfoCloseBtn" class="main-button card-info-btn secondary" type="button">Salir</button>
         </div>
       </div>
     </section>
 
+
+    <section id="gioshoninSupplyPrompt" class="gioshonin-supply-prompt" aria-hidden="true">
+      <div class="gioshonin-supply-prompt-box" role="dialog" aria-modal="true" aria-labelledby="gioshoninSupplyPromptTitle">
+        <div class="gioshonin-supply-prompt-icon" aria-hidden="true">
+          <img src="assets/gioshonin-token.png" alt="">
+        </div>
+        <div class="gioshonin-supply-prompt-copy">
+          <span class="gioshonin-supply-prompt-kicker">Acción disponible</span>
+          <h2 id="gioshoninSupplyPromptTitle">Usar Mercancía de guerra</h2>
+          <p id="gioshoninSupplyPromptText">Hay una invocación aliada dentro del radio 2 que puede ser reabastecida.</p>
+          <div class="gioshonin-supply-prompt-time"><span id="gioshoninSupplyPromptSeconds">5</span>s</div>
+          <div class="gioshonin-supply-prompt-track"><span id="gioshoninSupplyPromptFill"></span></div>
+        </div>
+        <div class="gioshonin-supply-prompt-actions">
+          <button id="gioshoninSupplyPromptUseBtn" class="main-button" type="button">Usar</button>
+          <button id="gioshoninSupplyPromptSkipBtn" class="main-button secondary" type="button">No usar</button>
+        </div>
+      </div>
+    </section>
+
+
+    <section id="gioshoninSupplyOverlay" class="random-cost-overlay gioshonin-supply-overlay" aria-hidden="true">
+      <div class="random-cost-box gioshonin-supply-modal-box">
+        <button id="gioshoninSupplyCloseBtn" class="meta-info-close" type="button">×</button>
+        <h2 id="gioshoninSupplyTitle">Mercancía de guerra</h2>
+        <div id="gioshoninSupplyBody" class="random-cost-body gioshonin-supply-modal-body"></div>
+        <div id="gioshoninSupplyTargets" class="gioshonin-supply-target-grid"></div>
+        <div class="gioshonin-supply-modal-actions">
+          <button id="gioshoninSupplyBackBtn" class="main-button secondary" type="button" hidden>Volver</button>
+          <button id="gioshoninSupplyCancelBtn" class="main-button secondary" type="button">Cancelar</button>
+        </div>
+      </div>
+    </section>
 
     <section id="randomCostOverlay" class="random-cost-overlay" aria-hidden="true">
       <div class="random-cost-box">
@@ -295,9 +684,9 @@
 
     <section class="right-panel panel">
       <div class="tab-stack" id="tabStack">
-        <button class="deck-tab active" data-tab="0">Página 1</button>
-        <button class="deck-tab" data-tab="1">Página 2</button>
-        <button class="deck-tab" data-tab="2">Página 3</button>
+        <button class="deck-tab active" data-tab="0"><span class="deck-tab-label">Página 1</span></button>
+        <button class="deck-tab" data-tab="1"><span class="deck-tab-label">Página 2</span></button>
+        <button class="deck-tab" data-tab="2"><span class="deck-tab-label">Página 3</span></button>
       </div>
       <div id="cardGrid" class="card-grid"></div>
 
@@ -337,6 +726,7 @@
   </section>
   <section id="persistentUnitCommandStack" class="persistent-unit-command-stack" aria-label="Miniaturas persistentes de factores"></section>
   <section id="quickReactionWindow" class="quick-reaction-window quick-reaction-window-ally" data-action-window-side="ally" aria-hidden="true">
+    <div id="quickReactionCardIndicators" class="quick-reaction-card-indicators" aria-label="Cartas con acciones disponibles"></div>
     <div class="quick-reaction-window-shell">
       <div class="quick-reaction-window-title">Acción aliada</div>
       <div id="quickReactionWindowHint" class="quick-reaction-window-hint">Presiona Enter para actuar</div>
@@ -545,7 +935,7 @@
       });
     }());
   </script>
-  <script src="game.js?v=229-pvp-turn-handoff"></script>
-  <script src="firebase-online.js?v=229-pvp-turn-handoff"></script>
+  <script src="game.js?v=463-card-creator-resources-rules"></script>
+  <script src="firebase-online.js?v=258-gioshonin-dedicated-prompt"></script>
 </body>
 </html>
