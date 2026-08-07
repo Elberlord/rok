@@ -37000,6 +37000,11 @@ body.rok-user-mode .library-builder-card-tile.user-collection-locked::before {
   100% { transform: translateY(-28%) scale(1.05); opacity: 0; }
 }
 
+
+/* ==========================================================================
+   R.O.K Lite v466 · Creador sobre Biblioteca v460 restaurada
+   Base visual de Biblioteca: EXACTAMENTE v460. Solo se añaden reglas del Creador.
+   ========================================================================== */
 /* ========================================================================== 
    R.O.K Lite v461 · Etapa 5 · HUD de recursos + Creador de Cartas
    ========================================================================== */
@@ -37317,59 +37322,6 @@ body.rok-card-creator-mode .library-builder-card-tile.user-collection-locked::be
   pointer-events: none;
   background: rgba(9,9,12,.22);
 }
-
-/* Modal del Creador: dos acciones y costo de creación ocupando el área de enfriamiento. */
-.card-info-primary-action-wrap.creator-action-mode {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 9px !important;
-}
-.card-info-primary-action-wrap.creator-action-mode .card-info-spellbook-feedback {
-  grid-column: 1 / -1;
-}
-.card-info-creator-create-btn {
-  background: linear-gradient(180deg, rgba(42,102,73,.98), rgba(13,35,25,.98)) !important;
-  border-color: rgba(118,235,174,.34) !important;
-}
-.card-info-creator-create-btn:disabled,
-.card-info-primary-action-wrap.creator-action-mode .card-info-btn:disabled {
-  opacity: .46 !important;
-  filter: grayscale(.4) !important;
-}
-.card-creator-modal-cost {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 39px;
-  padding: 4px 6px;
-}
-.card-creator-modal-cost-title {
-  flex: 0 0 auto;
-  color: rgba(238,218,252,.68);
-  font: 900 8px/1 system-ui,sans-serif;
-  letter-spacing: .09em;
-}
-.card-creator-modal-cost-values {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.creator-modal-cost-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 27px;
-  padding: 3px 7px;
-  border: 1px solid rgba(255,255,255,.11);
-  border-radius: 9px;
-  background: rgba(7,5,12,.72);
-}
-.creator-modal-cost-chip img { width: 20px; height: 20px; object-fit: contain; }
-.creator-modal-cost-chip strong { color: #f8ecff; font: 900 10px/1 system-ui,sans-serif; }
-
 @keyframes creatorOrbRingSpin { to { transform: rotate(360deg); } }
 @keyframes creatorOrbRingSpinReverse { to { transform: rotate(-360deg); } }
 @keyframes creatorOrbCorePulse {
@@ -37401,238 +37353,6 @@ body.rok-card-creator-mode .library-builder-card-tile.user-collection-locked::be
   .rok-resource-chip.rarity { width: 31px; }
   .rok-resource-chip.rarity > img { width: 16px; height: 16px; }
 }
-
-/* ========================================================================== 
-   R.O.K Lite v462 · Creador: lotes, modal persistente y controles integrados
-   ========================================================================== */
-.card-info-creator-action-group {
-  display: contents;
-}
-.card-info-creator-quantity[hidden] {
-  display: none !important;
-}
-
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-actions {
-  display: grid !important;
-  grid-template-columns: minmax(0, 4fr) minmax(190px, 1fr) !important;
-  grid-template-areas: "add exit" !important;
-  align-items: stretch !important;
-  gap: 12px !important;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice #battleScoreDebugToggleBtn {
-  display: none !important;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-primary-action-wrap.creator-action-mode {
-  grid-area: add !important;
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  gap: 12px !important;
-  min-width: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice #cardInfoCloseBtn {
-  grid-area: exit !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  min-height: 58px !important;
-  height: 58px !important;
-  margin: 0 !important;
-  border-radius: 16px !important;
-}
-
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-action-group {
-  display: grid;
-  grid-template-columns: 116px minmax(0, 1fr);
-  align-items: stretch;
-  min-width: 0;
-  min-height: 58px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--card-info-theme-color, var(--p1, #9b4dff)) 66%, rgba(255,255,255,.26));
-  border-radius: 16px;
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--card-info-theme-color, var(--p1, #9b4dff)) 62%, rgba(43,22,60,.96)),
-    color-mix(in srgb, var(--card-info-theme-color, var(--p1, #9b4dff)) 24%, rgba(11,7,17,.99)));
-  box-shadow:
-    0 8px 22px rgba(0,0,0,.34),
-    0 0 16px color-mix(in srgb, var(--card-info-theme-color, var(--p1, #9b4dff)) 20%, transparent),
-    inset 0 1px 0 rgba(255,255,255,.09);
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-create-group {
-  border-color: rgba(186, 126, 92, .58);
-  background: linear-gradient(180deg, rgba(111, 66, 45, .98), rgba(49, 27, 18, .99));
-  box-shadow: 0 8px 22px rgba(0,0,0,.34), 0 0 15px rgba(174, 89, 47, .15), inset 0 1px 0 rgba(255,255,255,.09);
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-action-group:has(.card-info-btn:disabled) {
-  opacity: .58;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-quantity {
-  display: grid;
-  grid-template-columns: 31px minmax(34px, 1fr) 31px;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  padding: 7px 7px 7px 8px;
-  border-right: 1px solid rgba(255,255,255,.14);
-  background: rgba(8, 6, 13, .46);
-  box-shadow: inset -8px 0 16px rgba(0,0,0,.16);
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-step {
-  width: 31px;
-  min-width: 31px;
-  height: 36px;
-  padding: 0 !important;
-  border: 1px solid rgba(237, 218, 255, .30) !important;
-  border-radius: 9px !important;
-  color: #fff !important;
-  background: rgba(55, 32, 72, .84) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
-  font: 900 18px/1 system-ui, sans-serif !important;
-  cursor: pointer;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-create-group .card-info-creator-step {
-  background: rgba(90, 48, 31, .88) !important;
-  border-color: rgba(247, 189, 153, .26) !important;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-step:not(:disabled):hover,
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-step:not(:disabled):focus-visible {
-  filter: brightness(1.18);
-  outline: none;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-step:disabled {
-  opacity: .28;
-  cursor: default;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-quantity-value {
-  display: grid;
-  place-items: center;
-  min-width: 34px;
-  height: 36px;
-  padding: 0 4px;
-  border: 1px solid rgba(255,255,255,.22);
-  border-radius: 9px;
-  color: #fff;
-  background: rgba(6,5,10,.72);
-  box-shadow: inset 0 0 10px rgba(0,0,0,.42);
-  font: 900 13px/1 system-ui, sans-serif;
-  font-variant-numeric: tabular-nums;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-action-group .card-info-btn {
-  width: 100% !important;
-  min-width: 0 !important;
-  height: 58px !important;
-  min-height: 58px !important;
-  margin: 0 !important;
-  padding: 0 14px !important;
-  border: 0 !important;
-  border-radius: 0 15px 15px 0 !important;
-  background: transparent !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
-  font-size: 12px !important;
-  font-weight: 900 !important;
-  letter-spacing: .04em !important;
-  text-transform: uppercase;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-action-group .card-info-btn:not(:disabled):hover,
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-action-group .card-info-btn:not(:disabled):focus-visible {
-  filter: brightness(1.18) !important;
-  outline: none !important;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-primary-action-wrap.creator-action-mode .card-info-spellbook-feedback {
-  grid-column: 1 / -1 !important;
-  margin-top: -3px;
-}
-
-/* Costo total para la cantidad seleccionada + inventario real de la carta. */
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-creator-modal-cost {
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  min-height: 52px;
-  padding: 5px 8px;
-}
-.card-creator-modal-cost-main {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.card-creator-modal-cost-title b {
-  color: #fff;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .creator-modal-cost-chip {
-  min-height: 30px;
-  position: relative;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .creator-modal-cost-chip.is-missing {
-  border-color: rgba(255, 132, 91, .72) !important;
-  background: linear-gradient(180deg, rgba(102, 37, 23, .82), rgba(43, 15, 12, .88)) !important;
-  box-shadow: 0 0 12px rgba(255, 92, 47, .18), inset 0 0 10px rgba(0,0,0,.26);
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .creator-modal-cost-chip small {
-  margin-left: 2px;
-  color: #ffd0bd;
-  font: 800 7px/1.05 system-ui, sans-serif;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-.card-creator-owned-copies {
-  min-width: 156px;
-  min-height: 42px;
-  display: grid;
-  grid-template-columns: auto auto;
-  grid-template-areas: "label value" "sub sub";
-  align-items: center;
-  gap: 3px 9px;
-  padding: 6px 10px;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 12px;
-  background: rgba(8,6,13,.58);
-  box-shadow: inset 0 0 12px rgba(0,0,0,.28);
-}
-.card-creator-owned-copies > span {
-  grid-area: label;
-  color: rgba(239,224,248,.72);
-  font: 900 7px/1 system-ui, sans-serif;
-  letter-spacing: .08em;
-  white-space: nowrap;
-}
-.card-creator-owned-copies > strong {
-  grid-area: value;
-  color: #fff;
-  font: 900 17px/1 system-ui, sans-serif;
-  font-variant-numeric: tabular-nums;
-}
-.card-creator-owned-copies > small {
-  grid-area: sub;
-  color: rgba(233,218,243,.70);
-  font: 800 7px/1.15 system-ui, sans-serif;
-  white-space: nowrap;
-}
-
-@media (max-width: 900px) {
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-actions {
-    grid-template-columns: 1fr !important;
-    grid-template-areas: "add" "exit" !important;
-  }
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-primary-action-wrap.creator-action-mode {
-    grid-template-columns: 1fr !important;
-  }
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-creator-modal-cost {
-    grid-template-columns: 1fr;
-  }
-  .card-creator-owned-copies {
-    justify-self: stretch;
-  }
-}
-
 /* ========================================================================== 
    R.O.K Lite v463 · Creador: HUD superior unificado + cantidades editables
    ========================================================================== */
@@ -37779,63 +37499,219 @@ body.rok-card-creator-mode .library-builder-shell {
   --library-builder-hud-h: 108px;
 }
 
-
-/* ========================================================================== 
-   R.O.K Lite v464 · Modal estable en vertical + devolución 20% PB
-   ========================================================================== */
-
-/*
-  El Creador añade costo, copias y acciones al modal compartido. Para que las
-  cartas con más chips o textos no compriman/monten los contenedores vecinos,
-  el modal usa filas de contenido intrínseco y deja que la CAJA completa haga
-  scroll. Ninguna sección interna puede encogerse para intentar caber a la fuerza.
-*/
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-box {
-  grid-template-rows: max-content max-content max-content !important;
-  align-content: start !important;
+/* --------------------------------------------------------------------------
+   Modal del Creador
+   Conserva la geometría de la Biblioteca v460. Los controles nuevos se
+   insertan únicamente en el área de acciones y en la fila de costo.
+   -------------------------------------------------------------------------- */
+.card-info-creator-action-group {
+  min-width: 0;
 }
-
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-main,
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-lower,
+.card-info-creator-quantity[hidden] {
+  display: none !important;
+}
 body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-actions {
-  min-width: 0 !important;
-  flex-shrink: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, .25fr) !important;
+  grid-template-areas: "add exit" !important;
+  align-items: stretch !important;
+  gap: 12px !important;
 }
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice #battleScoreDebugToggleBtn {
+  display: none !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-primary-action-wrap.creator-action-mode {
+  grid-area: add !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice #cardInfoCloseBtn {
+  grid-area: exit !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 58px !important;
+  height: 58px !important;
+  margin: 0 !important;
+  border-radius: 16px !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-action-group {
+  display: grid !important;
+  grid-template-columns: 116px minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  min-width: 0 !important;
+  min-height: 58px !important;
+  height: 58px !important;
+  overflow: hidden !important;
+  border: 1px solid color-mix(in srgb, var(--card-info-theme-color, var(--p1, #9b4dff)) 66%, rgba(255,255,255,.26)) !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--card-info-theme-color, var(--p1, #9b4dff)) 62%, rgba(43,22,60,.96)),
+    color-mix(in srgb, var(--card-info-theme-color, var(--p1, #9b4dff)) 24%, rgba(11,7,17,.99))) !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.34),
+    0 0 16px color-mix(in srgb, var(--card-info-theme-color, var(--p1, #9b4dff)) 20%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.09) !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-create-group {
+  border-color: rgba(186,126,92,.58) !important;
+  background: linear-gradient(180deg, rgba(111,66,45,.98), rgba(49,27,18,.99)) !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.34), 0 0 15px rgba(174,89,47,.15), inset 0 1px 0 rgba(255,255,255,.09) !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-action-group:has(.card-info-btn:disabled) {
+  opacity: .58;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-quantity {
+  display: grid !important;
+  grid-template-columns: 31px minmax(34px, 1fr) 31px !important;
+  align-items: center !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+  height: 58px !important;
+  padding: 7px 7px 7px 8px !important;
+  border-right: 1px solid rgba(255,255,255,.14) !important;
+  background: rgba(8,6,13,.46) !important;
+  box-shadow: inset -8px 0 16px rgba(0,0,0,.16) !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-step {
+  width: 31px !important;
+  min-width: 31px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(237,218,255,.30) !important;
+  border-radius: 9px !important;
+  color: #fff !important;
+  background: rgba(55,32,72,.84) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
+  font: 900 18px/1 system-ui,sans-serif !important;
+  cursor: pointer !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-create-group .card-info-creator-step {
+  background: rgba(90,48,31,.88) !important;
+  border-color: rgba(247,189,153,.26) !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-step:disabled {
+  opacity: .28 !important;
+  cursor: default !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-creator-action-group .card-info-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 58px !important;
+  min-height: 58px !important;
+  margin: 0 !important;
+  padding: 0 14px !important;
+  border: 0 !important;
+  border-radius: 0 15px 15px 0 !important;
+  background: transparent !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  letter-spacing: .04em !important;
+  text-transform: uppercase !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-primary-action-wrap.creator-action-mode .card-info-spellbook-feedback {
+  grid-column: 1 / -1 !important;
+  margin-top: -3px !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-creator-modal-cost {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 0 4px !important;
+  overflow: hidden !important;
+}
+.card-creator-modal-cost-main {
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  overflow: hidden !important;
+}
+.card-creator-modal-cost-title {
+  flex: 0 0 auto !important;
+  color: rgba(238,218,252,.72) !important;
+  font: 900 8px/1 system-ui,sans-serif !important;
+  letter-spacing: .09em !important;
+  white-space: nowrap !important;
+}
+.card-creator-modal-cost-title b {
+  color: #fff !important;
+  font-size: 10px !important;
+  font-variant-numeric: tabular-nums !important;
+}
+.card-creator-modal-cost-values {
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: thin !important;
+}
+.creator-modal-cost-chip {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  min-height: 30px !important;
+  padding: 3px 7px !important;
+  border: 1px solid rgba(255,255,255,.11) !important;
+  border-radius: 9px !important;
+  background: rgba(7,5,12,.72) !important;
+}
+.creator-modal-cost-chip img { width: 20px !important; height: 20px !important; object-fit: contain !important; }
+.creator-modal-cost-chip strong { color: #f8ecff !important; font: 900 10px/1 system-ui,sans-serif !important; }
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .creator-modal-cost-chip.is-missing {
+  border-color: rgba(255,132,91,.72) !important;
+  background: linear-gradient(180deg, rgba(102,37,23,.82), rgba(43,15,12,.88)) !important;
+  box-shadow: 0 0 12px rgba(255,92,47,.18), inset 0 0 10px rgba(0,0,0,.26) !important;
+}
+body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .creator-modal-cost-chip small {
+  margin-left: 2px !important;
+  color: #ffd0bd !important;
+  font: 800 7px/1.05 system-ui,sans-serif !important;
+  white-space: nowrap !important;
+  text-transform: uppercase !important;
+}
+.card-creator-owned-copies {
+  flex: 0 0 auto !important;
+  min-width: 156px !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  display: grid !important;
+  grid-template-columns: auto auto !important;
+  grid-template-areas: "label value" "sub sub" !important;
+  align-items: center !important;
+  gap: 3px 9px !important;
+  padding: 5px 10px !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 12px !important;
+  background: rgba(8,6,13,.58) !important;
+  box-shadow: inset 0 0 12px rgba(0,0,0,.28) !important;
+}
+.card-creator-owned-copies > span { grid-area: label; color: rgba(239,224,248,.72); font: 900 7px/1 system-ui,sans-serif; letter-spacing: .08em; white-space: nowrap; }
+.card-creator-owned-copies > strong { grid-area: value; color: #fff; font: 900 17px/1 system-ui,sans-serif; font-variant-numeric: tabular-nums; }
+.card-creator-owned-copies > small { grid-area: sub; color: rgba(233,218,243,.70); font: 800 7px/1.15 system-ui,sans-serif; white-space: nowrap; }
 
-/* Las cuatro filas normales conservan el alto aprobado de 58 px y nunca se
-   aplastan aunque otra zona del modal crezca. El contenido extra sigue usando
-   el scroll interno oculto que ya tenía el sistema. */
 @media (min-width: 901px) {
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice:not(.spell-card-info):not(.guardian-info-open) {
-    --card-info-uniform-row-height: 58px;
-    --card-info-uniform-row-gap: 8px;
-  }
-
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice:not(.spell-card-info):not(.guardian-info-open)
-    .card-info-stats.card-info-stats-grouped > .stat-row:not(.stat-row-cooldowns) {
-    height: var(--card-info-uniform-row-height) !important;
-    min-height: var(--card-info-uniform-row-height) !important;
-    max-height: var(--card-info-uniform-row-height) !important;
-    flex: 0 0 var(--card-info-uniform-row-height) !important;
-  }
-
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice:not(.spell-card-info):not(.guardian-info-open)
-    .card-info-stats.card-info-stats-grouped > .stat-row-cooldowns {
-    height: var(--card-info-uniform-row-height) !important;
-    min-height: var(--card-info-uniform-row-height) !important;
-    max-height: var(--card-info-uniform-row-height) !important;
-  }
-
-  /* Los hechizos estaban fuera de la regla uniforme anterior. En el Creador
-     tienen tres filas visibles + la fila inferior de costo/enfriamiento. Se les
-     fija la misma altura para eliminar los modales comprimidos o superpuestos. */
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info:not(.guardian-info-open) .card-info-lower {
-    --card-info-uniform-row-height: 58px;
-    --card-info-uniform-row-gap: 8px;
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info .card-info-lower {
+    --creator-spell-row-h: 58px;
+    --creator-spell-row-gap: 8px;
     position: relative !important;
     display: grid !important;
     grid-template-columns: minmax(0, 58%) minmax(190px, 1fr) !important;
-    grid-template-rows: 190px !important;
     gap: 10px !important;
     width: 100% !important;
     height: 256px !important;
@@ -37844,16 +37720,14 @@ body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-actio
     margin: 8px 0 12px !important;
     padding: 0 !important;
     overflow: visible !important;
-    align-items: stretch !important;
+    align-items: start !important;
   }
-
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info:not(.guardian-info-open)
-    .card-info-lower > .card-info-stats.card-info-stats-grouped {
-    position: static !important;
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info .card-info-lower > .card-info-stats.card-info-stats-grouped {
+    position: relative !important;
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: repeat(3, var(--card-info-uniform-row-height)) !important;
-    gap: var(--card-info-uniform-row-gap) !important;
+    grid-template-columns: minmax(0,1fr) !important;
+    grid-template-rows: repeat(3, var(--creator-spell-row-h)) !important;
+    gap: var(--creator-spell-row-gap) !important;
     width: 100% !important;
     height: 190px !important;
     min-height: 190px !important;
@@ -37862,99 +37736,80 @@ body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-actio
     padding: 0 !important;
     overflow: visible !important;
   }
-
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info:not(.guardian-info-open)
-    .card-info-stats.card-info-stats-grouped > .stat-row:not(.stat-row-move):not(.stat-row-cooldowns) {
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info .card-info-stats.card-info-stats-grouped > .stat-row-damage,
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info .card-info-stats.card-info-stats-grouped > .stat-row-life,
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info .card-info-stats.card-info-stats-grouped > .stat-row-cast {
     box-sizing: border-box !important;
     width: 100% !important;
-    height: var(--card-info-uniform-row-height) !important;
-    min-height: var(--card-info-uniform-row-height) !important;
-    max-height: var(--card-info-uniform-row-height) !important;
-    flex: 0 0 var(--card-info-uniform-row-height) !important;
+    height: var(--creator-spell-row-h) !important;
+    min-height: var(--creator-spell-row-h) !important;
+    max-height: var(--creator-spell-row-h) !important;
     margin: 0 !important;
     padding: 10px 8px 2px !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     scrollbar-width: none !important;
   }
-
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info:not(.guardian-info-open)
-    .card-info-lower > .card-info-extra-panel {
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info .card-info-stats.card-info-stats-grouped > .stat-row-move {
+    display: none !important;
+  }
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info .card-info-stats.card-info-stats-grouped > .stat-row-cooldowns {
+    box-sizing: border-box !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 198px !important;
+    bottom: auto !important;
+    width: 100% !important;
+    height: var(--creator-spell-row-h) !important;
+    min-height: var(--creator-spell-row-h) !important;
+    max-height: var(--creator-spell-row-h) !important;
+    margin: 0 !important;
+    padding: 6px 8px !important;
+    overflow: hidden !important;
+  }
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info .card-info-lower > .card-info-extra-panel {
     width: 100% !important;
     height: 190px !important;
     min-height: 190px !important;
     max-height: 190px !important;
     margin: 0 !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    scrollbar-width: none !important;
-    align-self: stretch !important;
-  }
-
-  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice.spell-card-info:not(.guardian-info-open)
-    .card-info-stats.card-info-stats-grouped > .stat-row-cooldowns {
-    box-sizing: border-box !important;
-    position: absolute !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    height: var(--card-info-uniform-row-height) !important;
-    min-height: var(--card-info-uniform-row-height) !important;
-    max-height: var(--card-info-uniform-row-height) !important;
-    margin: 0 !important;
-    padding: 10px 8px 2px !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    scrollbar-width: none !important;
+    overflow: auto !important;
+    align-self: start !important;
   }
 }
-
-/* El costo de creación también conserva una sola altura. Si una carta tiene
-   muchos recursos, éstos se desplazan horizontalmente en lugar de aumentar la
-   fila y empujar/montar los botones inferiores. */
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-creator-modal-cost {
-  box-sizing: border-box !important;
-  height: 52px !important;
-  min-height: 52px !important;
-  max-height: 52px !important;
-  overflow: hidden !important;
+@media (max-width: 900px) {
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-actions {
+    grid-template-columns: 1fr !important;
+    grid-template-areas: "add" "exit" !important;
+  }
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-primary-action-wrap.creator-action-mode {
+    grid-template-columns: 1fr !important;
+  }
+  body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-creator-modal-cost {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+  }
+  .card-creator-owned-copies { justify-self: stretch !important; }
 }
 
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-creator-modal-cost-main {
-  min-width: 0 !important;
-  height: 100% !important;
-  overflow: hidden !important;
-}
-
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-creator-modal-cost-values {
-  min-width: 0 !important;
-  flex-wrap: nowrap !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  scrollbar-width: thin;
-  overscroll-behavior-x: contain;
-}
-
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-creator-owned-copies {
-  height: 42px !important;
-  min-height: 42px !important;
-  max-height: 42px !important;
-  overflow: hidden !important;
-}
-
-
-/* Panel derecho: altura exterior fija, contenido interno desplazable. Así los
-   poderes largos no invaden las filas ni fuerzan a encoger el modal. */
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-extra-panel {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  overscroll-behavior: contain;
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-body.rok-library-mode #cardInfoOverlay.card-creator-card-choice .card-info-extra-panel::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
+/* ========================================================================== 
+   R.O.K Lite v467 · Biblioteca restaurada / Creador aislado
+   La Biblioteca conserva exactamente su DOM v460. Los dos componentes del
+   Creador se mantienen fuera y se montan solo mientras rok-card-creator-mode
+   está activo.
+   ========================================================================== */
+.card-creator-detached-host {
   display: none !important;
+}
+
+/* En modo Creador, ocultar únicamente el contenido normal del bloque Spellbook
+   y mostrar el HUD del Creador que fue montado dinámicamente. */
+body.rok-card-creator-mode .library-builder-summary-hud > .library-builder-kicker,
+body.rok-card-creator-mode .library-builder-summary-hud > #libraryBuilderDeckName,
+body.rok-card-creator-mode .library-builder-summary-hud > #libraryBuilderDeckSummary {
+  display: none !important;
+}
+body.rok-card-creator-mode .library-builder-summary-hud > #cardCreatorTopHud {
+  display: grid !important;
 }

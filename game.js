@@ -74,6 +74,7 @@ const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
 const GAME_VERSION = 'v5.5.229';
 const PATCH_NOTES = [
+  'v466: Restaura la Biblioteca visual de v460 como base exacta y mantiene el Creador aislado; corrige especialmente los modales de hechizos para que sus contenedores conserven altura y no se compriman.',
   'v462: Mejora el Creador de Cartas con cantidades independientes para Descomponer y Crear, operaciones por lote, modal persistente, navegación entre cartas, contador de copias/mezclador y señalización inmediata de recursos faltantes.',
   'v457: Amplía las cartas de Apertura completada manteniendo máximo 10 por fila, renombra la acción a Abrir todos y consolida la Etapa 4 de boosters: tirada de rareza y carta separadas, filtros de origen/tipo, foil progresivo y efectos de revelado escalonados para rarezas medias, altas y Legendaria.',
   'v458: Refuerza la diferenciación visual por rareza en boosters/resultados con patrones, auras, partículas y estelas específicos por rareza; mantiene e intensifica las cartas temporales de muestra para rarezas sin catálogo pleno.',
@@ -8835,7 +8836,7 @@ function getCardCreatorElementalCostTotal(card) {
 }
 
 function getCardCreatorDecomposeReward(card) {
-  // Regla v464: por cada copia se calcula primero y SIEMPRE se redondea hacia abajo.
+  // Regla v465: por cada copia se calcula primero y SIEMPRE se redondea hacia abajo.
   // Cristal Puro devuelto = floor(PB total × 20%).
   const pureCrystal = Math.max(0, Math.floor((Number(getCardBattlePointsValue(card)) || 0) * 0.20));
   const rarityId = getCardCreatorRarityId(card);
@@ -9270,6 +9271,25 @@ function createCardFromCreatorModal() {
   return true;
 }
 
+function mountCardCreatorUi() {
+  const screen = els.libraryBuilderScreen || document.getElementById('libraryBuilderScreen');
+  const layout = screen?.querySelector('.library-builder-layout');
+  const summaryHud = screen?.querySelector('.library-builder-summary-hud');
+  const topHud = els.cardCreatorTopHud || document.getElementById('cardCreatorTopHud');
+  const workshop = els.cardCreatorWorkshopPanel || document.getElementById('cardCreatorWorkshopPanel');
+  if (summaryHud && topHud && topHud.parentElement !== summaryHud) summaryHud.appendChild(topHud);
+  if (layout && workshop && workshop.parentElement !== layout) layout.appendChild(workshop);
+}
+
+function unmountCardCreatorUi() {
+  const host = els.cardCreatorDetachedHost || document.getElementById('cardCreatorDetachedHost');
+  const topHud = els.cardCreatorTopHud || document.getElementById('cardCreatorTopHud');
+  const workshop = els.cardCreatorWorkshopPanel || document.getElementById('cardCreatorWorkshopPanel');
+  if (!host) return;
+  if (topHud && topHud.parentElement !== host) host.appendChild(topHud);
+  if (workshop && workshop.parentElement !== host) host.appendChild(workshop);
+}
+
 function openCardCreatorScreen() {
   cardCreatorState.active = true;
   cardCreatorState.decomposing = false;
@@ -9282,6 +9302,7 @@ function openCardCreatorScreen() {
   if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
   if (els.spellbooksCollectionScreen) els.spellbooksCollectionScreen.setAttribute('aria-hidden', 'true');
   if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'false');
+  mountCardCreatorUi();
   renderLibraryBuilder();
   renderCardCreatorWorkshop();
   showCardCreatorNotice('Selecciona una carta: puedes agregar una copia poseída al mezclador o crearla si tienes recursos.');
@@ -9291,6 +9312,7 @@ function closeCardCreatorMode() {
   cardCreatorState.active = false;
   resetCardCreatorPendingCreationCost();
   resetCardCreatorModalQuantities();
+  unmountCardCreatorUi();
   document.body.classList.remove('rok-card-creator-mode');
 }
 
@@ -12926,6 +12948,8 @@ function cacheEls() {
   els.libraryBuilderLibraryTitle = document.getElementById('libraryBuilderLibraryTitle');
   els.libraryBuilderSpellbookTitle = document.getElementById('libraryBuilderSpellbookTitle');
   els.libraryBuilderSpellbookPanel = document.getElementById('libraryBuilderSpellbookPanel');
+  els.cardCreatorDetachedHost = document.getElementById('cardCreatorDetachedHost');
+  els.cardCreatorTopHud = document.getElementById('cardCreatorTopHud');
   els.cardCreatorWorkshopPanel = document.getElementById('cardCreatorWorkshopPanel');
   els.cardCreatorStockHud = document.getElementById('cardCreatorStockHud');
   els.cardCreatorQueueCount = document.getElementById('cardCreatorQueueCount');

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>R.O.K LITE</title>
-  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=463-card-creator-resources-rules" />
+  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=466-library-v460-restored" />
   <link rel="icon" href="assets/kast-cell-icon.jpg" />
 </head>
 <body>
@@ -190,22 +190,9 @@
           <span class="pure-crystal-balance library-pure-crystal-balance"><img src="assets/user/pure-crystal.png" alt="Cristal Puro"><strong id="libraryPureCrystalValue">9,000</strong><small>Cristal Puro</small></span>
         </div>
         <div class="library-builder-hud-block library-builder-summary-hud">
-          <div class="library-builder-summary-default">
-            <span class="library-builder-kicker">Spellbook</span>
-            <strong id="libraryBuilderDeckName">Sin Spellbook activo</strong>
-            <small id="libraryBuilderDeckSummary">Selecciona Crear nuevo Spellbook para comenzar.</small>
-          </div>
-          <div id="cardCreatorTopHud" class="card-creator-top-hud" aria-label="Creador de Cartas y recursos del usuario">
-            <div class="card-creator-top-head">
-              <div class="card-creator-top-copy">
-                <span class="library-builder-kicker">Spellbook · Creador de Cartas</span>
-                <strong>Recursos del usuario</strong>
-                <small>Descomposición y creación</small>
-              </div>
-              <div id="cardCreatorQueueCount" class="card-creator-queue-count" title="Cartas actualmente reservadas en el mezclador">0 / 50</div>
-            </div>
-            <div id="cardCreatorStockHud" class="rok-user-resource-strip card-creator-stock-hud" aria-label="Cristal Puro, elementos y recursos de rareza disponibles"></div>
-          </div>
+          <span class="library-builder-kicker">Spellbook</span>
+          <strong id="libraryBuilderDeckName">Sin Spellbook activo</strong>
+          <small id="libraryBuilderDeckSummary">Selecciona Crear nuevo Spellbook para comenzar.</small>
         </div>
       </header>
 
@@ -359,26 +346,6 @@
           <div class="library-builder-page-row">
             <button id="libraryBuilderPrevPageBtn" class="library-builder-mini-btn" type="button">◀ Página</button>
             <button id="libraryBuilderNextPageBtn" class="library-builder-mini-btn" type="button">Página ▶</button>
-          </div>
-        </section>
-
-        <section id="cardCreatorWorkshopPanel" class="library-builder-panel card-creator-workshop-panel" hidden>
-          <div class="card-creator-workshop-body">
-            <div id="cardCreatorOrb" class="card-creator-orb" aria-label="Mezclador de descomposición">
-              <div class="card-creator-orb-core" aria-hidden="true"></div>
-              <div id="cardCreatorOrbItems" class="card-creator-orb-items"></div>
-              <div id="cardCreatorOrbEmpty" class="card-creator-orb-empty"><strong>Mezclador vacío</strong><span>Abre una carta de la Biblioteca y agrégala para descomponer.</span></div>
-            </div>
-            <div class="card-creator-return-panel">
-              <div class="card-creator-return-row"><span>CRISTAL PURO</span><div id="cardCreatorReturnCrystal" class="card-creator-return-values"></div></div>
-              <div class="card-creator-return-row"><span>ELEMENTOS</span><div id="cardCreatorReturnElements" class="card-creator-return-values"></div></div>
-              <div class="card-creator-return-row"><span>RAREZAS</span><div id="cardCreatorReturnRarities" class="card-creator-return-values rarity-values"></div></div>
-            </div>
-            <div class="card-creator-workshop-actions">
-              <button id="cardCreatorClearBtn" class="library-builder-action" type="button">Vaciar mezclador</button>
-              <button id="cardCreatorDecomposeBtn" class="library-builder-action danger card-creator-decompose-btn" type="button" disabled>Descomponer</button>
-            </div>
-            <div id="cardCreatorNotice" class="library-builder-notice card-creator-notice" aria-live="polite"></div>
           </div>
         </section>
       </div>
@@ -794,6 +761,44 @@
   </div>
 
 
+
+  <!-- Creador de Cartas: componentes aislados de la Biblioteca.
+       Se montan dinámicamente solo al entrar al Creador y se retiran al salir,
+       de modo que la estructura normal de Biblioteca permanezca idéntica a v460. -->
+  <div id="cardCreatorDetachedHost" class="card-creator-detached-host" hidden aria-hidden="true">
+    <div id="cardCreatorTopHud" class="card-creator-top-hud" aria-label="Creador de Cartas y recursos del usuario">
+      <div class="card-creator-top-head">
+        <div class="card-creator-top-copy">
+          <span class="library-builder-kicker">Spellbook · Creador de Cartas</span>
+          <strong>Recursos del usuario</strong>
+          <small>Descomposición y creación</small>
+        </div>
+        <div id="cardCreatorQueueCount" class="card-creator-queue-count" title="Cartas actualmente reservadas en el mezclador">0 / 50</div>
+      </div>
+      <div id="cardCreatorStockHud" class="rok-user-resource-strip card-creator-stock-hud" aria-label="Cristal Puro, elementos y recursos de rareza disponibles"></div>
+    </div>
+
+    <section id="cardCreatorWorkshopPanel" class="library-builder-panel card-creator-workshop-panel" hidden>
+      <div class="card-creator-workshop-body">
+        <div id="cardCreatorOrb" class="card-creator-orb" aria-label="Mezclador de descomposición">
+          <div class="card-creator-orb-core" aria-hidden="true"></div>
+          <div id="cardCreatorOrbItems" class="card-creator-orb-items"></div>
+          <div id="cardCreatorOrbEmpty" class="card-creator-orb-empty"><strong>Mezclador vacío</strong><span>Abre una carta de la Biblioteca y agrégala para descomponer.</span></div>
+        </div>
+        <div class="card-creator-return-panel">
+          <div class="card-creator-return-row"><span>CRISTAL PURO</span><div id="cardCreatorReturnCrystal" class="card-creator-return-values"></div></div>
+          <div class="card-creator-return-row"><span>ELEMENTOS</span><div id="cardCreatorReturnElements" class="card-creator-return-values"></div></div>
+          <div class="card-creator-return-row"><span>RAREZAS</span><div id="cardCreatorReturnRarities" class="card-creator-return-values rarity-values"></div></div>
+        </div>
+        <div class="card-creator-workshop-actions">
+          <button id="cardCreatorClearBtn" class="library-builder-action" type="button">Vaciar mezclador</button>
+          <button id="cardCreatorDecomposeBtn" class="library-builder-action danger card-creator-decompose-btn" type="button" disabled>Descomponer</button>
+        </div>
+        <div id="cardCreatorNotice" class="library-builder-notice card-creator-notice" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+
   <script>
     (function () {
       var ribbon = null;
@@ -935,7 +940,7 @@
       });
     }());
   </script>
-  <script src="game.js?v=463-card-creator-resources-rules"></script>
+  <script src="game.js?v=467-library-structure-restored"></script>
   <script src="firebase-online.js?v=258-gioshonin-dedicated-prompt"></script>
 </body>
 </html>

@@ -1,9 +1,14 @@
-ROK LITE v464 — Creador: modales estables + devolución de 20% PB
+ROK Lite v466 — Biblioteca v460 restaurada + Creador aislado
+- La Biblioteca usa nuevamente la base visual exacta de v460.
+- El Creador conserva recursos, lotes, cantidades editables y descomposición al 20% del PB.
+- Los modales de hechizos del Creador fijan sus alturas sin alterar los modales de Biblioteca normal.
+
+ROK LITE v463 — Creador: HUD unificado, cantidades manuales y reglas de recursos
 
 - En modo Creador, el panel central de Cristal Puro desaparece y el panel superior derecho se amplía para reunir Cristal Puro, elementos, recursos de rareza y el contador del mezclador 0/50.
 - El título/contador y la fila de recursos ya no se duplican dentro del panel del mezclador.
 - Los contadores de Descomponer y Crear aceptan escritura directa con teclado, además de los botones − y +.
-- Descomposición por copia: Cristal Puro = floor(PB total × 20%), +1 recurso de la rareza exacta, y elementos = floor(costo elemental total/2), convertidos al elemento base de la carta.
+- Descomposición por copia: Cristal Puro = floor(PB/2), +1 recurso de la rareza exacta, y elementos = floor(costo elemental total/2), convertidos al elemento base de la carta.
 - El redondeo de descomposición se realiza por copia antes de multiplicar por la cantidad del lote.
 - Creación: el costo elemental usa el costo TOTAL de kasteo; cualquier porción aleatoria se convierte al elemento base de la carta.
 - Se mantiene el costo de Cristal Puro de creación igual al PB de la carta y 1 recurso de su rareza por copia.
@@ -364,9 +369,10 @@ v384 · Costos corregidos
 - Takeda Shingen: costo total 4 mediante el control maestro (3 Fuego + 1 aleatorio).
 
 
-v464:
-- La descomposición devuelve floor(PB total × 20%) en Cristal Puro por copia.
-- Se mantienen la devolución elemental y de rareza existentes.
-- Se estabiliza la altura de los contenedores del modal del Creador para evitar compresión o solapes.
-- Los hechizos reciben geometría vertical fija dentro del Creador.
-- La fila de costo de creación conserva altura fija y desplaza recursos horizontalmente si fuera necesario.
+ROK Lite v465 — Restauración de Biblioteca + descomposición al 20% PB
+- Se restaura íntegramente el CSS y la geometría de Biblioteca/modales de v463.
+- Se retira el bloque de CSS experimental de v464 que alteró la presentación.
+- Único cambio funcional conservado: al descomponer, Cristal Puro = floor(PB total × 20%) por copia.
+- La devolución elemental y de rareza permanece sin cambios respecto de v463.
+
+ROK Lite v467: restaura la estructura de Biblioteca de v460 y aísla el panel del mezclador para que solo se monte en modo Creador.
