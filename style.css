@@ -37813,3 +37813,23 @@ body.rok-card-creator-mode .library-builder-summary-hud > #libraryBuilderDeckSum
 body.rok-card-creator-mode .library-builder-summary-hud > #cardCreatorTopHud {
   display: grid !important;
 }
+
+
+/* v469 · Arrastrar cartas desde el Spellbook hacia la arena. */
+body.rok-battle-mode .card-grid .card-slot:not(.empty) .spellbook-draggable-card {
+  cursor: grab;
+  -webkit-user-drag: element;
+  user-select: none;
+}
+
+body.rok-battle-mode .card-grid .card-slot.spellbook-drag-source .spellbook-draggable-card {
+  cursor: grabbing;
+  opacity: 0.62;
+  filter: brightness(1.08);
+}
+
+body.rok-battle-mode .board-content.spellbook-card-drop-ready {
+  outline: 3px solid rgba(243, 213, 126, 0.92);
+  outline-offset: -3px;
+  box-shadow: inset 0 0 34px rgba(243, 213, 126, 0.15);
+}

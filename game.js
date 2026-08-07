@@ -72,8 +72,9 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.230';
+const GAME_VERSION = 'v5.5.231';
 const PATCH_NOTES = [
+  'v469: Permite arrastrar con clic izquierdo cualquier carta del Spellbook hacia la arena. Al soltarla, inicia exactamente el mismo flujo de Kastear/Equipar de su modal y habilita la colocación o selección de objetivo correspondiente sin alterar el clic normal para abrir la ficha.',
   'v468: Agrega la primera carta de Habilidad, Shirahadori, como Catalizadora con Técnica; solo Guerrero o Asesino pueden equiparla, reutiliza la lógica Shirahadori de O-sensei Ueshiba y no requiere costo, kasteo ni enfriamiento.',
   'v466: Restaura la Biblioteca visual de v460 como base exacta y mantiene el Creador aislado; corrige especialmente los modales de hechizos para que sus contenedores conserven altura y no se compriman.',
   'v462: Mejora el Creador de Cartas con cantidades independientes para Descomponer y Crear, operaciones por lote, modal persistente, navegación entre cartas, contador de copias/mezclador y señalización inmediata de recursos faltantes.',
@@ -13378,6 +13379,10 @@ function bindEvents() {
       setLibraryBuilderControlsOpen(false);
     }
   });
+  if (els.boardContent) {
+    els.boardContent.addEventListener('dragover', handleSpellbookCardDragOverArena);
+    els.boardContent.addEventListener('drop', handleSpellbookCardDropOnArena);
+  }
   bindBoardZoomAndPan();
 }
 
@@ -40861,6 +40866,118 @@ function renderSpellbookPageAvailabilityHints() {
   });
 }
 
+const spellbookCardDragState = {
+  active: false,
+  cardId: null,
+  tab: null,
+  slot: null,
+  sourceNode: null,
+};
+
+function clearSpellbookCardDragVisuals() {
+  document.body.classList.remove('rok-spellbook-card-dragging');
+  els.boardContent?.classList.remove('spellbook-card-drop-ready');
+  document.querySelectorAll('.card-slot.spellbook-drag-source').forEach(node => node.classList.remove('spellbook-drag-source'));
+  spellbookCardDragState.active = false;
+  spellbookCardDragState.cardId = null;
+  spellbookCardDragState.tab = null;
+  spellbookCardDragState.slot = null;
+  spellbookCardDragState.sourceNode = null;
+}
+
+function beginSpellbookDragCast(cardId, tabIndex, slotIndex) {
+  const tab = Number(tabIndex);
+  const slot = Number(slotIndex);
+  const liveCardId = localPlayer()?.handTabs?.[tab]?.[slot];
+  if (!cardId || liveCardId !== cardId) {
+    log('Esa copia ya no está disponible en el Spellbook.');
+    renderAll();
+    return false;
+  }
+  if (state.actionExecutionLock || state.opponentActionResolving) {
+    log('Espera a que termine la acción en curso antes de kastear otra carta.');
+    return false;
+  }
+  if (state.pendingPowerAction) {
+    log('Termina o cancela la selección actual antes de arrastrar otra carta.');
+    return false;
+  }
+
+  // El arrastre sustituye a seleccionar la carta y pulsar Kastear/Equipar en su modal.
+  // Reutilizamos el mismo botón oculto para respetar exactamente sus validaciones actuales.
+  state.activeTab = tab;
+  state.selectedCardSlot = slot;
+  state.pendingCard = null;
+  state.pendingPlacement = null;
+  state.infoCard = { cardId, slotIndex: slot, tab };
+  updateCardInfoAction();
+
+  if (!els.cardInfoKastBtn || els.cardInfoKastBtn.disabled) {
+    const reason = els.cardInfoKastBtn?.title || `No puedes usar ${CARD_LIBRARY[cardId]?.name || 'esa carta'} ahora.`;
+    log(reason);
+    renderAll();
+    return false;
+  }
+
+  startKastFromInfo();
+  return true;
+}
+
+function setupSpellbookCardDrag(cardNode, cardId, tabIndex, slotIndex) {
+  if (!cardNode || !cardId) return;
+  cardNode.draggable = true;
+  cardNode.classList.add('spellbook-draggable-card');
+  cardNode.querySelectorAll('img').forEach(img => { img.draggable = false; });
+
+  cardNode.addEventListener('dragstart', event => {
+    if (!event.dataTransfer) return;
+    spellbookCardDragState.active = true;
+    spellbookCardDragState.cardId = cardId;
+    spellbookCardDragState.tab = Number(tabIndex);
+    spellbookCardDragState.slot = Number(slotIndex);
+    spellbookCardDragState.sourceNode = cardNode;
+    cardNode.closest('.card-slot')?.classList.add('spellbook-drag-source');
+    document.body.classList.add('rok-spellbook-card-dragging');
+    event.dataTransfer.effectAllowed = 'copy';
+    const payload = JSON.stringify({ cardId, tab: Number(tabIndex), slot: Number(slotIndex) });
+    try { event.dataTransfer.setData('application/x-rok-spellbook-card', payload); } catch (_) {}
+    try { event.dataTransfer.setData('text/plain', payload); } catch (_) {}
+  });
+
+  cardNode.addEventListener('dragend', () => {
+    cardNode.dataset.spellbookDragEndedAt = String(Date.now());
+    clearSpellbookCardDragVisuals();
+  });
+}
+
+function handleSpellbookCardDragOverArena(event) {
+  if (!spellbookCardDragState.active) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  els.boardContent?.classList.add('spellbook-card-drop-ready');
+}
+
+function handleSpellbookCardDropOnArena(event) {
+  if (!spellbookCardDragState.active) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  let payload = null;
+  const raw = event.dataTransfer?.getData('application/x-rok-spellbook-card')
+    || event.dataTransfer?.getData('text/plain')
+    || '';
+  if (raw) {
+    try { payload = JSON.parse(raw); } catch (_) {}
+  }
+  const cardId = payload?.cardId || spellbookCardDragState.cardId;
+  const tab = Number(payload?.tab ?? spellbookCardDragState.tab);
+  const slot = Number(payload?.slot ?? spellbookCardDragState.slot);
+  const sourceNode = spellbookCardDragState.sourceNode;
+  clearSpellbookCardDragVisuals();
+  if (sourceNode) sourceNode.dataset.spellbookDragEndedAt = String(Date.now());
+  beginSpellbookDragCast(cardId, tab, slot);
+}
+
 function renderCards() {
   const tab = localPlayer().handTabs[state.activeTab] || [];
   const reactionFocus = state.quickReactionSpellbookFocus;
@@ -40883,6 +41000,7 @@ function renderCards() {
       const card = CARD_LIBRARY[cardId];
       const cardNode = createCardElement(card);
       cardNode.dataset.cardId = cardId;
+      setupSpellbookCardDrag(cardNode, cardId, state.activeTab, i);
       if (isHideyoshiWarColleaguesInstantReady(card)) cardNode.classList.add('war-colleagues-ready');
       if ([DESPLIEGUE_ANTICIPADO_CARD_ID, GLORIA_LATENTE_CARD_ID, TACTICA_GUERRA_CARD_ID, INTERCEPTAR_CARD_ID, EMBOSCADA_CARD_ID].includes(card.id)) {
         const availability = card.id === DESPLIEGUE_ANTICIPADO_CARD_ID
@@ -40918,6 +41036,8 @@ function renderCards() {
       cardNode.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
+        const dragEndedAt = Number(cardNode.dataset.spellbookDragEndedAt || 0);
+        if (dragEndedAt && Date.now() - dragEndedAt < 250) return;
         selectCardSlot(i);
       });
       slot.appendChild(cardNode);
