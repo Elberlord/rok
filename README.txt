@@ -1,3 +1,16 @@
+ROK LITE v478 — Sistema de amigos
+
+NUEVO
+- Perfil social persistente sobre Firebase Anonymous Authentication.
+- Código de amigo único de 8 caracteres.
+- Nombre visible editable.
+- Envío de solicitudes por código, aceptar/rechazar y eliminar amigos.
+- Lista de amigos y solicitudes actualizada en tiempo real.
+- API `window.ROK_SOCIAL` preparada para que el siguiente paso de Versus Online pueda mostrar únicamente partidas creadas por amigos.
+
+IMPORTANTE — FIREBASE RTDB
+Esta versión amplía `firebase-rtdb-rules.json` con `socialProfiles`, `friendCodes`, `friendRequests`, `sentFriendRequests` y `friends`. Para que el sistema social funcione en la web publicada, copia/publica estas reglas en Firebase Realtime Database. Anonymous Authentication debe continuar habilitado.
+
 ROK Lite v466 — Biblioteca v460 restaurada + Creador aislado
 - La Biblioteca usa nuevamente la base visual exacta de v460.
 - El Creador conserva recursos, lotes, cantidades editables y descomposición al 20% del PB.
@@ -376,3 +389,11 @@ ROK Lite v465 — Restauración de Biblioteca + descomposición al 20% PB
 - La devolución elemental y de rareza permanece sin cambios respecto de v463.
 
 ROK Lite v467: restaura la estructura de Biblioteca de v460 y aísla el panel del mezclador para que solo se monte en modo Creador.
+
+v482 · Versus Online entre amigos
+- Versus Online abre Crear partida / Unirse.
+- Crear publica un lobby únicamente visible para amigos.
+- Unirse muestra una bandeja en vivo de partidas abiertas de amigos.
+- Dentro del lobby cada jugador selecciona su Spellbook; el Host selecciona la arena.
+- Ambos jugadores deben marcar LISTO. Cuando los dos están conectados/listos comienza 3-2-1 y arranca el combate.
+- IMPORTANTE: publicar firebase-rtdb-rules.json de esta versión en Firebase Realtime Database antes de probar el nuevo lobby.

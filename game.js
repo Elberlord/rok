@@ -72,8 +72,194 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.231';
+const GAME_VERSION = 'v5.5.232';
+
+// PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
+// este canal reproduce el trayecto visual exacto en el segundo navegador.
+let ONLINE_FX_REPLAY_DEPTH = 0;
+
+function emitOnlineVisualEvent(type, payload = {}) {
+  if (ONLINE_FX_REPLAY_DEPTH > 0) return false;
+  try {
+    if (!ROK_ONLINE_MATCH_ACTIVE || typeof window.ROK_ONLINE_PVP?.emitVisualEvent !== 'function') return false;
+    void window.ROK_ONLINE_PVP.emitVisualEvent(type, payload);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function snapshotOnlineFxUnit(playerId, unit) {
+  if (!unit) return null;
+  return {
+    playerId: Number(playerId || 0),
+    unitId: unit.id || null,
+    cardId: unit.cardId || null,
+    row: Number(unit.row ?? 0),
+    col: Number(unit.col ?? 0),
+  };
+}
+
+function snapshotOnlineFxTarget(target) {
+  if (!target) return null;
+  const pos = typeof getTargetBoardPosition === 'function' ? getTargetBoardPosition(target) : null;
+  return {
+    type: target.type || 'cell',
+    playerId: Number(target.playerId || 0),
+    unitId: target.unitId || null,
+    guardianId: target.guardianId || null,
+    row: Number(target.row ?? pos?.row ?? 0),
+    col: Number(target.col ?? pos?.col ?? 0),
+  };
+}
+
+function onlineFxVirtualUnit(payload = {}) {
+  return {
+    id: payload.unitId || `online-fx-${Date.now()}`,
+    cardId: payload.cardId || '',
+    row: Number(payload.row ?? 0),
+    col: Number(payload.col ?? 0),
+    status: 'active',
+  };
+}
+
+async function playOnlineVisualEvent(event = {}) {
+  const payload = event.payload || {};
+  const replay = async action => {
+    ONLINE_FX_REPLAY_DEPTH += 1;
+    let result;
+    try { result = action(); }
+    finally { ONLINE_FX_REPLAY_DEPTH = Math.max(0, ONLINE_FX_REPLAY_DEPTH - 1); }
+    return await result;
+  };
+
+  switch (String(event.type || '')) {
+    case 'floating-text':
+      await replay(() => showFloatingTextAt(payload.row, payload.col, payload.text, payload.className || 'floating-combat'));
+      break;
+    case 'floating-damage':
+      await replay(() => showFloatingDamageAt(payload.row, payload.col, payload.amount));
+      break;
+    case 'critical-damage':
+      await replay(() => showCriticalDamageChipAt(payload.row, payload.col, payload.amount));
+      break;
+    case 'unit-lunge': {
+      const unit = getUnitById(payload.playerId, payload.unitId) || onlineFxVirtualUnit(payload);
+      await replay(() => triggerUnitAttackLunge(payload.playerId, unit, payload.target || null));
+      break;
+    }
+    case 'distance-attack': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      const card = CARD_LIBRARY[unit.cardId] || {};
+      await replay(() => showDistanceAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null));
+      break;
+    }
+    case 'weapon-attack': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      const card = CARD_LIBRARY[unit.cardId] || {};
+      await replay(() => showWeaponAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null, payload.weaponType || 'golpe'));
+      break;
+    }
+    case 'kouuten':
+      await replay(() => playRemoteKouutenFx(payload));
+      break;
+    case 'guren-gan':
+      await replay(() => playRemoteGurenGanFx(payload));
+      break;
+    case 'carga-real':
+      await replay(() => playRemoteCargaRealFx(payload));
+      break;
+    case 'minokage-dash': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      await replay(() => playMinokageDashFx(Number(payload.source?.playerId || 0), unit, payload.path || [], payload.landing || { row: unit.row, col: unit.col }, payload.targets || []));
+      break;
+    }
+    case 'minokage-travel': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      await replay(() => playMinokagePassiveTravelFx(Number(payload.source?.playerId || 0), unit, payload.destination || { row: unit.row, col: unit.col }, { ...(payload.options || {}), suppressOnlineFx: true }));
+      break;
+    }
+    case 'minokage-windup': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      await replay(() => playMinokagePassiveWindupFx(unit, Number(payload.duration || 420), { suppressOnlineFx: true }));
+      break;
+    }
+    case 'restore-travel': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      await replay(() => animateRestoreInvocationToSpawn(Number(payload.source?.playerId || 0), unit, payload.destination || null, null, { fromRow: payload.source?.row, fromCol: payload.source?.col, suppressOnlineFx: true }));
+      break;
+    }
+    case 'return-spellbook': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      await replay(() => animateReturnInvocationToSpellbook(Number(payload.source?.playerId || 0), unit, Number(payload.tab || 0), Number(payload.slot || 0), null, { ...(payload.options || {}), suppressOnlineFx: true }));
+      break;
+    }
+    case 'tokugawa-nexus': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      await replay(() => animateTokugawaNexusTransfer(Number(payload.source?.playerId || 0), unit, payload.from, payload.to, { suppressOnlineFx: true }));
+      break;
+    }
+    case 'tactica-resolution':
+      await replay(() => playTacticaGuerraResolutionFx(payload.title, payload.subtitle, { suppressOnlineFx: true }));
+      break;
+    case 'tactica-water': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      await replay(() => playTacticaGuerraWaterRestoreFx(unit, Number(payload.delayMs || 0), { suppressOnlineFx: true }));
+      break;
+    }
+    case 'shirahadori-trigger': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      await replay(() => createShirahadoriTriggerFx(Number(payload.source?.playerId || 0), unit));
+      break;
+    }
+    case 'shirahadori-redirect':
+      await replay(() => showShirahadoriRedirectFx(payload.originalTarget || null, payload.redirectedTarget || null, { ...(payload.options || {}), suppressOnlineFx: true }));
+      break;
+    case 'minokage-oscillation': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      const card = CARD_LIBRARY[unit.cardId] || {};
+      await replay(() => playMinokageOscillationCompleteFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.targets || [], { suppressOnlineFx: true }));
+      break;
+    }
+    case 'structure-destroy':
+      await replay(() => showStructureDestroyFx(payload.target || null));
+      break;
+    case 'caster-defense':
+      await replay(() => showCasterDefenseFx(Number(payload.playerId || 0)));
+      break;
+    case 'caster-special-counter':
+      await replay(() => showCasterSpecialCounterFx(Number(payload.playerId || 0)));
+      break;
+    case 'cast-landing':
+      await replay(() => showImmediateCastLandingFx(Number(payload.playerId || 0), payload.item || {}));
+      break;
+    case 'invocation-summon-circle':
+      await replay(() => playInvocationSummonCircleFxAtCell(Number(payload.playerId || 0), payload.item || {}));
+      break;
+    case 'invocation-entry': {
+      const unit = onlineFxVirtualUnit(payload.source || {});
+      // La ficha puede llegar por snapshot unos milisegundos después del evento.
+      // Darle una oportunidad breve evita perder la animación de entrada.
+      let attempts = 0;
+      while (!findRenderedUnitNode(Number(payload.source?.playerId || 0), unit.id) && attempts < 6) {
+        attempts += 1;
+        await sleep(90);
+      }
+      await replay(() => playInvocationEntryDropFx(Number(payload.source?.playerId || 0), unit));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+window.ROK_ONLINE_FX = { play: playOnlineVisualEvent };
+
 const PATCH_NOTES = [
+  'v482: Reemplaza el acceso por código del Versus Online por un sistema de partidas entre amigos: Crear/Unirse, bandeja en vivo de salas abiertas de amigos, lobby con selección de Spellbook y arena del Host, estado Listo independiente para ambos jugadores y cuenta regresiva automática 3-2-1 antes de iniciar el duelo.',
+  'v472: Etapa 3 PvP: agrega un canal efímero de eventos visuales independiente del snapshot y reproduce en ambos clientes Kouuten, Guren Gan, Carga Real, desplazamientos/canalizaciones de Minokage, ataques, restauraciones, retornos al Spellbook, traslados de nexo, Táctica de guerra, defensas del Kaster y entradas de invocaciones.',
+  'v471: Etapa 2 PvP: amplía el snapshot autoritativo con lámparas, Larga Noche, vínculos de hechizos, cargas de Minokage, armas caídas y Kasteo progresivo de Kouuten; limpia correctamente colecciones vacías omitidas por RTDB y separa el estado lógico de devolución/restauración de sus animaciones para evitar divergencias entre J1 y J2.',
+  'v470: Etapa 1 de saneamiento: corrige la composición de costos de Naito Sutoka, Kurokagi butai #3 y Yasugana Hattori según el costo total; elimina los botones duplicados del estado sin Spellbook y restaura el ancho útil de las miniaturas de Biblioteca para que la banda de costo no quede comprimida.',
   'v469: Permite arrastrar con clic izquierdo cualquier carta del Spellbook hacia la arena. Al soltarla, inicia exactamente el mismo flujo de Kastear/Equipar de su modal y habilita la colocación o selección de objetivo correspondiente sin alterar el clic normal para abrir la ficha.',
   'v468: Agrega la primera carta de Habilidad, Shirahadori, como Catalizadora con Técnica; solo Guerrero o Asesino pueden equiparla, reutiliza la lógica Shirahadori de O-sensei Ueshiba y no requiere costo, kasteo ni enfriamiento.',
   'v466: Restaura la Biblioteca visual de v460 como base exacta y mantiene el Creador aislado; corrige especialmente los modales de hechizos para que sus contenedores conserven altura y no se compriman.',
@@ -3138,7 +3324,7 @@ const CARD_LIBRARY = {
     skinImage: 'assets/card-skin-darkness.png',
     tokenImage: 'assets/naito-sutoka-token.png',
     domain: { elementId: 'oscuridad', attributeId: 'misterio' },
-    cost: { oscuridad: 5 },
+    cost: { oscuridad: 3, random: 2 },
     castPhases: 3,
     rarity: 'common',
     origin: 'japon',
@@ -3409,7 +3595,7 @@ const CARD_LIBRARY = {
     skinImage: 'assets/card-skin-darkness.png',
     tokenImage: 'assets/yasugana-hattori-token.png',
     domain: { elementId: 'oscuridad', attributeId: 'misterio' },
-    cost: { oscuridad: 4, random: 1 },
+    cost: { oscuridad: 3, random: 2 },
     castPhases: 1,
     rarity: 'common',
     origin: 'japon',
@@ -3748,7 +3934,7 @@ const CARD_LIBRARY = {
     skinImage: 'assets/card-skin-darkness.png',
     tokenImage: 'assets/kurokagi-butai-3-token-v286.png',
     domain: { elementId: 'oscuridad', attributeId: 'misterio' },
-    cost: { oscuridad: 4 },
+    cost: { oscuridad: 3, random: 1 },
     castPhases: 2,
     rarity: 'common',
     origin: 'japon',
@@ -7978,7 +8164,9 @@ const state = {
   kaguyaChargedShots: [],
   minokageCharges: [],
   pendingImmediateMinokageResolutions: [],
+  pendingTimedAbilityResolutions: [],
   droppedWeapons: [],
+  kouutenProgressiveByPlayer: {},
   extractedThisPhase: false,
   extractionAnimating: false,
   opponentActionResolving: false,
@@ -11080,6 +11268,7 @@ function confirmMatchSpellbookSelection() {
   closeMatchSpellbookSelector();
   if (mode === 'online') {
     pendingOnlineSpellbookLoadout = loadout;
+    void window.ROK_ONLINE_PVP?.setLobbyLoadout?.(loadout);
     window.ROK_ONLINE_PVP?.openLobby?.();
     return;
   }
@@ -11088,6 +11277,7 @@ function confirmMatchSpellbookSelection() {
 
 window.ROK_SPELLBOOK_MATCH = {
   getPendingOnlineLoadout: () => cloneMatchData(pendingOnlineSpellbookLoadout),
+  openOnlineSelector: () => openMatchSpellbookSelector('online'),
   clearPendingOnlineLoadout: () => { pendingOnlineSpellbookLoadout = null; },
   applyLoadoutToPlayer: (playerId, loadout) => applySpellbookLoadoutToPlayer(Number(playerId), loadout),
   getLoadoutIssue: loadout => getSpellbookMatchIssue(loadout),
@@ -12440,14 +12630,15 @@ function updateLibraryBuilderModeUi() {
   if (els.libraryBuilderGateTitle) {
     els.libraryBuilderGateTitle.textContent = isCasterSelection
       ? (isCasterReplacement ? 'Selecciona el nuevo Kaster' : 'Selecciona un Kaster')
-      : 'No hay un Spellbook activo';
+      : 'No hay un Spellbook seleccionado';
   }
   if (els.libraryBuilderGateCopy) {
+    els.libraryBuilderGateCopy.hidden = !isCasterSelection;
     els.libraryBuilderGateCopy.textContent = isCasterSelection
       ? (isCasterReplacement
         ? 'Selecciona una carta de Kaster y pulsa Cambiar Kaster. El contenido actual se conservará para comprobar su compatibilidad.'
         : 'Selecciona una carta de Kaster en la Biblioteca y pulsa Seleccionar Kaster.')
-      : 'Crea uno nuevo y selecciona primero el Kaster que lo utilizará.';
+      : '';
   }
   if (els.libraryBuilderGateCreateBtn) els.libraryBuilderGateCreateBtn.hidden = isCasterSelection;
   if (els.libraryBuilderGateOpenBtn) els.libraryBuilderGateOpenBtn.hidden = isCasterSelection;
@@ -13272,12 +13463,12 @@ function bindEvents() {
   if (els.mainMenuUserModeBtn) els.mainMenuUserModeBtn.addEventListener('click', toggleRokUserMode);
   if (els.mainMenuUserHud) {
     els.mainMenuUserHud.addEventListener('click', event => {
-      if (event.target?.closest?.('#mainMenuResetUserBtn')) return;
+      if (event.target?.closest?.('#mainMenuResetUserBtn, #mainMenuProfileBtn, #mainMenuAvatarBtn, #mainMenuAchievementsBtn, #mainMenuFriendsBtn, #mainMenuAccountBtn, #mainMenuLogoutBtn')) return;
       event.stopPropagation();
       toggleMainMenuUserHudMenu();
     });
     els.mainMenuUserHud.addEventListener('keydown', event => {
-      if (event.target?.closest?.('#mainMenuResetUserBtn')) return;
+      if (event.target?.closest?.('#mainMenuResetUserBtn, #mainMenuProfileBtn, #mainMenuAvatarBtn, #mainMenuAchievementsBtn, #mainMenuFriendsBtn, #mainMenuAccountBtn, #mainMenuLogoutBtn')) return;
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         toggleMainMenuUserHudMenu();
@@ -13295,7 +13486,7 @@ function bindEvents() {
   });
   if (els.mainMenuBotBtn) els.mainMenuBotBtn.addEventListener('click', openBotMatchModeSelector);
   if (els.mainMenuStoryBtn) els.mainMenuStoryBtn.addEventListener('click', () => showMainMenuComingSoon('Modo Historia'));
-  if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', () => openMatchSpellbookSelector('online'));
+  if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', () => window.ROK_ONLINE_PVP?.openLobby?.());
   if (els.mainMenuLibraryBtn) els.mainMenuLibraryBtn.addEventListener('click', () => openLibraryBuilderScreen({ mode: 'idle' }));
   if (els.mainMenuSpellbooksBtn) els.mainMenuSpellbooksBtn.addEventListener('click', () => openSpellbooksCollectionScreen());
   if (els.mainMenuShopBtn) els.mainMenuShopBtn.addEventListener('click', () => openBoosterStoreScreen('main'));
@@ -16322,9 +16513,16 @@ async function runOffTurnCasterRepositionOpportunityBeforePhase(options = {}) {
   if (state.offTurnCasterReposition?.lastResolvedPhaseKey === phaseKey) return 'none';
 
   if (playerId !== LOCAL_PLAYER_ID) {
-    if (!state.aiEnabled) return 'none';
-    state.offTurnCasterReposition.lastResolvedPhaseKey = phaseKey;
-    return runAiOffTurnCasterRepositionOpportunity(playerId);
+    if (state.aiEnabled) {
+      state.offTurnCasterReposition.lastResolvedPhaseKey = phaseKey;
+      return runAiOffTurnCasterRepositionOpportunity(playerId);
+    }
+    if (isOnlineMatchActive()) {
+      const remote = await requestRemoteOnlineActionWindow(playerId, 'off-turn-caster-reposition', { phaseKey });
+      state.offTurnCasterReposition.lastResolvedPhaseKey = phaseKey;
+      return remote?.result || 'remote-completed';
+    }
+    return 'none';
   }
 
   return new Promise(resolve => {
@@ -16963,7 +17161,8 @@ function beginTokugawaAbilitySelection(playerId) {
   return true;
 }
 
-async function animateTokugawaNexusTransfer(playerId, unit, fromCell, toCell) {
+async function animateTokugawaNexusTransfer(playerId, unit, fromCell, toCell, options = {}) {
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('tokugawa-nexus', { source: snapshotOnlineFxUnit(playerId, unit), from: { row: Number(fromCell?.row ?? unit?.row ?? 0), col: Number(fromCell?.col ?? unit?.col ?? 0) }, to: { row: Number(toCell?.row ?? unit?.row ?? 0), col: Number(toCell?.col ?? unit?.col ?? 0) } });
   const card = CARD_LIBRARY[unit.cardId];
   const from = getCellViewportCenter(fromCell.row, fromCell.col);
   const to = getCellViewportCenter(toCell.row, toCell.col);
@@ -17796,7 +17995,8 @@ function getMinokageYariSpinMarkup(mode = 'channel') {
   return `<span class="minokage-yari-spin-system minokage-yari-spin-${safeMode}" aria-hidden="true"><span class="minokage-yari-afterimage-layer"></span><span class="minokage-yari-orbit minokage-yari-orbit-main"><img src="${src}" alt=""></span></span>`;
 }
 
-async function playMinokagePassiveWindupFx(unit, duration = 420) {
+async function playMinokagePassiveWindupFx(unit, duration = 420, options = {}) {
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('minokage-windup', { source: snapshotOnlineFxUnit(unit?.playerId || 0, unit), duration: Number(duration || 420) });
   if (!els.boardContent || !unit) return 0;
   const pos = cellCenter(unit.row, unit.col);
   const fx = document.createElement('span');
@@ -17886,6 +18086,7 @@ function buildMinokageDashKeyframes(motionPoints, boardRect, ascentMs = 260, hov
 }
 
 async function playMinokageDashFx(playerId, unit, path, landing, targets) {
+  emitOnlineVisualEvent('minokage-dash', { source: snapshotOnlineFxUnit(playerId, unit), path: (path || []).map(cell => ({ row: Number(cell.row), col: Number(cell.col) })), landing: landing ? { row: Number(landing.row), col: Number(landing.col) } : null, targets: (targets || []).map(snapshotOnlineFxTarget).filter(Boolean) });
   showFloatingTextAt(unit.row, unit.col, 'SHIPPU UGACHI', 'floating-combat buff');
   if (!els.boardContent || !path.length) return 0;
 
@@ -20109,7 +20310,9 @@ function canSelectTarget(source, target) {
     const targetUnit = getUnitById(target.playerId, target.unitId);
     if (!targetUnit || targetUnit.status === 'restoring') return false;
     if (unitHasActiveFactor(targetUnit, 'hidden')) return false;
-    if (isUnitEngaged(targetUnit)) return false;
+    // El Kaster puede intervenir contra una invocación rival dentro de alcance
+    // aunque esa invocación ya esté trabada con otra unidad. La restricción de
+    // "nuevo objetivo" pertenece a invocaciones, no al ataque del Kaster.
     return true;
   }
 
@@ -20340,6 +20543,7 @@ function restoreCombatSurvivorIfNeeded(defeatedPlayerId, defeatedUnit, reason = 
 }
 
 function showFloatingTextAt(row, col, text, className = 'floating-combat') {
+  emitOnlineVisualEvent('floating-text', { row: Number(row), col: Number(col), text: String(text), className: String(className || 'floating-combat') });
   const pos = cellCenter(row, col);
   const div = document.createElement('div');
   div.className = className;
@@ -20732,6 +20936,7 @@ function triggerStructureDestroySequence(target, guardian, destroySource = null)
   guardian.resistance = 0;
   guardian.channelTargets = {};
   guardian.strikingTargetKey = '';
+  emitOnlineVisualEvent('structure-destroy', { target: { ...snapshotOnlineFxTarget({ ...target, row: guardian.row, col: guardian.col }), row: Number(guardian.row), col: Number(guardian.col) } });
   refreshGuardianAuraState();
   renderGuardianAuras();
   renderGuardianChannelFx();
@@ -20901,6 +21106,7 @@ function createCombatMiniModifierChip(modifier) {
 }
 
 function createShirahadoriTriggerFx(playerId, unit) {
+  emitOnlineVisualEvent('shirahadori-trigger', { source: snapshotOnlineFxUnit(playerId, unit) });
   if (!els?.boardContent || !unit) return null;
   const pos = cellCenter(unit.row, unit.col);
   const div = document.createElement('div');
@@ -20914,6 +21120,7 @@ function createShirahadoriTriggerFx(playerId, unit) {
 }
 
 async function showShirahadoriRedirectFx(originalTarget, redirectedTarget, options = {}) {
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('shirahadori-redirect', { originalTarget: snapshotOnlineFxTarget(originalTarget), redirectedTarget: snapshotOnlineFxTarget(redirectedTarget), options: { projectile: Boolean(options.projectile) } });
   if (!els?.boardContent || !originalTarget || !redirectedTarget) return;
   const from = getTargetFxPoint(originalTarget);
   const to = getTargetFxPoint(redirectedTarget);
@@ -22779,6 +22986,7 @@ function spawnBurnProjectileTrailParticles(from, to, angle) {
 }
 
 async function showDistanceAttackFx(source, target) {
+  emitOnlineVisualEvent('distance-attack', { source: snapshotOnlineFxUnit(source?.playerId, source?.unit), target: snapshotOnlineFxTarget(target) });
   if (!els.boardContent || !source?.unit || !target) return;
   const from = getUnitFxPoint(source.playerId, source.unit.id, source.unit);
   const to = getTargetFxPoint(target);
@@ -22842,6 +23050,7 @@ function getWeaponTypeForAttackUnit(unit) {
 }
 
 async function showWeaponAttackFx(source, target, weaponType = 'golpe') {
+  emitOnlineVisualEvent('weapon-attack', { source: snapshotOnlineFxUnit(source?.playerId, source?.unit), target: snapshotOnlineFxTarget(target), weaponType: String(weaponType || 'golpe') });
   if (!els.boardContent || !source?.unit || !target) return;
   const targetPoint = getTargetFxPoint(target);
   if (!targetPoint) return;
@@ -22949,7 +23158,8 @@ function getOscillationCompleteTargets(source, range = 1) {
   return targets;
 }
 
-async function playMinokageOscillationCompleteFx(source, targets) {
+async function playMinokageOscillationCompleteFx(source, targets, options = {}) {
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('minokage-oscillation', { source: snapshotOnlineFxUnit(source?.playerId, source?.unit), targets: (targets || []).map(snapshotOnlineFxTarget).filter(Boolean) });
   createMinokageBoardFx('minokage-oscillation-complete-fx', source.unit.row, source.unit.col, 680);
   (targets || []).forEach((target, index) => window.setTimeout(() => createMinokageBoardFx('minokage-impact-slash-fx', target.row, target.col, 540), 80 + index * 28));
   await sleep(430);
@@ -23061,6 +23271,7 @@ function buildMinokagePassiveTravelKeyframes(fromCell, toCell, boardRect, return
 }
 
 async function playMinokagePassiveTravelFx(playerId, unit, destination, options = {}) {
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('minokage-travel', { source: snapshotOnlineFxUnit(playerId, unit), destination: { row: Number(destination?.row ?? unit?.row ?? 0), col: Number(destination?.col ?? unit?.col ?? 0) }, options: { returning: Boolean(options.returning), evasion: Boolean(options.evasion), showYari: options.showYari !== false, keepSourceHidden: Boolean(options.keepSourceHidden) } });
   if (!els.boardContent || !unit || !destination) return 0;
   const from = cellCenter(unit.row, unit.col);
   const boardRect = els.boardContent.getBoundingClientRect();
@@ -23410,6 +23621,7 @@ function setAttackVector(node, fromUnit, targetPosition, distancePx = 24) {
 }
 
 function triggerUnitAttackLunge(playerId, unit, targetLike) {
+  emitOnlineVisualEvent('unit-lunge', { ...snapshotOnlineFxUnit(playerId, unit), target: snapshotOnlineFxTarget(targetLike) });
   const node = getUnitDomNode(playerId, unit?.id);
   const targetPosition = getTargetBoardPosition(targetLike);
   if (!node || !unit || !targetPosition) return;
@@ -23735,6 +23947,7 @@ function canCasterReact(playerId) {
 }
 
 function showCasterSpecialCounterFx(playerId) {
+  emitOnlineVisualEvent('caster-special-counter', { playerId: Number(playerId) });
   const caster = state.players?.[playerId]?.caster;
   if (!caster || !els.boardContent) return Promise.resolve();
   const pos = cellCenter(caster.row, caster.col);
@@ -23750,6 +23963,7 @@ function showCasterSpecialCounterFx(playerId) {
 }
 
 function showCasterDefenseFx(playerId) {
+  emitOnlineVisualEvent('caster-defense', { playerId: Number(playerId) });
   const caster = state.players?.[playerId]?.caster;
   if (!caster || !els.boardContent) return Promise.resolve();
   const pos = cellCenter(caster.row, caster.col);
@@ -23982,6 +24196,7 @@ function createFloatingFactorDamageChip(row, col, factorId, text, className = ''
 }
 
 function showCriticalDamageChipAt(row, col, damageAmount) {
+  emitOnlineVisualEvent('critical-damage', { row: Number(row), col: Number(col), amount: Math.max(0, Number(damageAmount) || 0) });
   return createFloatingFactorDamageChip(row, col, 'criticalHit', `-${Math.max(0, Number(damageAmount) || 0)}`, 'floating-critical-damage-chip critical');
 }
 
@@ -24217,6 +24432,7 @@ function showInvocationDestroyFxAtViewport(x, y, color = '#9b4dff') {
 }
 
 function animateReturnInvocationToSpellbook(playerId, unit, tab, slot, onRevealCard = null, options = {}) {
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('return-spellbook', { source: snapshotOnlineFxUnit(playerId, unit), tab: Number(tab || 0), slot: Number(slot || 0), options: { immediateVisual: options?.immediateVisual === true } });
   const card = CARD_LIBRARY[unit.cardId];
   if (!card) return;
   const from = getCellViewportCenter(unit.row, unit.col);
@@ -24286,13 +24502,16 @@ function animateReturnInvocationToSpellbook(playerId, unit, tab, slot, onRevealC
   })();
 }
 
-function animateRestoreInvocationToSpawn(playerId, unit, marker, onArrive = null) {
+function animateRestoreInvocationToSpawn(playerId, unit, marker, onArrive = null, options = {}) {
   const card = CARD_LIBRARY[unit.cardId];
   if (!card || !marker) {
     if (typeof onArrive === 'function') onArrive();
     return;
   }
-  const from = getCellViewportCenter(unit.row, unit.col);
+  const fromRow = Number.isFinite(Number(options.fromRow)) ? Number(options.fromRow) : (Number.isFinite(Number(options.row)) ? Number(options.row) : Number(unit.row));
+  const fromCol = Number.isFinite(Number(options.fromCol)) ? Number(options.fromCol) : (Number.isFinite(Number(options.col)) ? Number(options.col) : Number(unit.col));
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('restore-travel', { source: { ...snapshotOnlineFxUnit(playerId, unit), row: fromRow, col: fromCol }, destination: { row: Number(marker.row), col: Number(marker.col) } });
+  const from = getCellViewportCenter(fromRow, fromCol);
   const to = getCellViewportCenter(marker.row, marker.col);
   const color = getUnitElementColor(playerId, unit);
   createElementBurstAtViewport(from.x, from.y, color, { kind: 'restore-start', count: 11, duration: 1050 });
@@ -24495,20 +24714,22 @@ function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options
   const tab = marker?.originTab ?? unit.originTab ?? 0;
   const slot = marker?.originSlot ?? unit.originSlot ?? player.handTabs[tab]?.findIndex(v => !v) ?? 0;
   const applyUseCooldownOnReturn = despliegueUseCooldownOnReturn > 0;
+  // La devolución al Spellbook es estado de juego, no parte de la animación.
+  // Se confirma inmediatamente para que el snapshot online nunca dependa de
+  // un callback visual que puede terminar después de entregar el turno.
+  if (!player.handTabs[tab]) player.handTabs[tab] = [];
+  let returnedSlot = slot;
+  if (player.handTabs[tab][slot]) {
+    const freeSlot = player.handTabs[tab].findIndex(v => !v);
+    returnedSlot = freeSlot >= 0 ? freeSlot : slot;
+  }
+  player.handTabs[tab][returnedSlot] = unit.cardId;
+  if (applyUseCooldownOnReturn) setSpellbookUseCooldown(playerId, tab, returnedSlot, unit.cardId, despliegueUseCooldownOnReturn);
+
   const revealReturnedCard = () => {
-    if (!player.handTabs[tab]) player.handTabs[tab] = [];
-    let returnedSlot = slot;
-    if (player.handTabs[tab][slot]) {
-      const freeSlot = player.handTabs[tab].findIndex(v => !v);
-      returnedSlot = freeSlot >= 0 ? freeSlot : slot;
-      player.handTabs[tab][returnedSlot] = unit.cardId;
-    } else {
-      player.handTabs[tab][slot] = unit.cardId;
-    }
-    if (applyUseCooldownOnReturn) setSpellbookUseCooldown(playerId, tab, returnedSlot, unit.cardId, despliegueUseCooldownOnReturn);
     if (playerId === LOCAL_PLAYER_ID) renderCards();
   };
-  animateReturnInvocationToSpellbook(playerId, unit, tab, slot, revealReturnedCard, options);
+  animateReturnInvocationToSpellbook(playerId, unit, tab, returnedSlot, revealReturnedCard, options);
   player.units = player.units.filter(u => u.id !== unit.id);
   player.spawnMarkers = player.spawnMarkers.filter(m => m.id !== unit.spawnId);
   if (options?.renderAfterRemoval === true) {
@@ -26888,6 +27109,7 @@ function scheduleNobunagaBuffVisualFxAfterEntry(playerId, unit, delay = 0) {
 }
 
 function showImmediateCastLandingFx(playerId, item) {
+  emitOnlineVisualEvent('cast-landing', { playerId: Number(playerId), item: { cardId: item?.cardId || null, elementId: item?.elementId || null, row: Number(item?.row ?? item?.targetRow ?? 0), col: Number(item?.col ?? item?.targetCol ?? 0) } });
   if (!item || !els.boardContent) return Promise.resolve(false);
   const card = CARD_LIBRARY[item.cardId];
   const elementId = item.elementId || getEffectiveCardElementId(card, playerId);
@@ -26910,6 +27132,7 @@ function getInvocationSummonFxColor(playerId, item) {
 }
 
 function playInvocationSummonCircleFxAtCell(playerId, item) {
+  emitOnlineVisualEvent('invocation-summon-circle', { playerId: Number(playerId), item: { cardId: item?.cardId || null, elementId: item?.elementId || null, row: Number(item?.row ?? 0), col: Number(item?.col ?? 0) } });
   if (!item || !els.boardContent) return Promise.resolve();
   const pos = cellCenter(item.row, item.col);
   const size = getBoardCellSizePercent(item.row);
@@ -26946,6 +27169,7 @@ function findRenderedUnitNode(playerId, unitId) {
 }
 
 function playInvocationEntryDropFx(playerId, unit) {
+  emitOnlineVisualEvent('invocation-entry', { source: snapshotOnlineFxUnit(playerId, unit) });
   if (!unit) return Promise.resolve('no-unit');
   const node = findRenderedUnitNode(playerId, unit.id);
   if (!node) return Promise.resolve('no-node');
@@ -28538,6 +28762,55 @@ async function runLocalQuickReactionOpportunityBeforePhase(options = {}) {
   });
 }
 
+async function requestRemoteOnlineActionWindow(targetPlayerId, kind, payload = {}) {
+  if (!isOnlineMatchActive()) return { result: 'none', applied: false };
+  if (Number(targetPlayerId) === Number(LOCAL_PLAYER_ID)) return { result: 'local', applied: false };
+  const requester = window.ROK_ONLINE_PVP?.requestRemoteActionWindow;
+  if (typeof requester !== 'function') return { result: 'unsupported', applied: false };
+  try {
+    return await requester(Number(targetPlayerId), String(kind || ''), payload || {});
+  } catch (error) {
+    reportDebugError(`requestRemoteOnlineActionWindow:${kind || 'unknown'}`, error);
+    return { result: 'error', applied: false };
+  }
+}
+
+async function runOnlineActionWindowRequest(kind, payload = {}) {
+  const safeKind = String(kind || '');
+  if (!isOnlineMatchActive()) return 'offline';
+
+  if (safeKind === 'phase-reaction') {
+    // Kouuten usa una compuerta propia antes del recolector general.
+    await runLocalKouutenRecastOpportunityBeforePhase();
+    return await runLocalQuickReactionOpportunityBeforePhase({
+      windowMs: Math.max(120, Number(payload.windowMs || QUICK_REACTION_WINDOW_MS)),
+      collectContext: { ...(payload.collectContext || {}), phaseTransition: true, onlineRemoteWindow: true },
+    });
+  }
+
+  if (safeKind === 'off-turn-caster-reposition') {
+    return await runOffTurnCasterRepositionOpportunityBeforePhase({ allowOffTurnCasterReposition: true, onlineRemoteWindow: true });
+  }
+
+  if (safeKind === 'interceptar-ingress') {
+    const movingPlayerId = Number(payload.movingPlayerId || 0);
+    const unit = getUnitById(movingPlayerId, payload.unitId);
+    if (!unit) return 'missing-unit';
+    return await runLocalInterceptarIngressOpportunity(
+      movingPlayerId,
+      unit,
+      Number(payload.previousRow),
+      Number(payload.previousCol)
+    );
+  }
+
+  return 'unsupported';
+}
+
+window.ROK_ONLINE_ACTION_WINDOW = {
+  run: runOnlineActionWindowRequest,
+};
+
 function schedulePhaseIntroFlow(items, options = {}) {
   const flowId = Number(state.quickReactionWindow?.phaseFlowId || 0) + 1;
   const phaseLockReason = `phase-intro-flow:${flowId}`;
@@ -28555,6 +28828,17 @@ function schedulePhaseIntroFlow(items, options = {}) {
       if (state.quickReactionWindow.phaseFlowId !== flowId) return;
       await runLocalQuickReactionOpportunityBeforePhase({ windowMs: QUICK_REACTION_WINDOW_MS });
       if (state.quickReactionWindow.phaseFlowId !== flowId) return;
+
+      // En PvP el navegador que conduce la fase también debe detenerse para
+      // entregar la misma oportunidad al otro jugador. El rival resuelve su
+      // ventana localmente y devuelve un snapshot de resultado antes de seguir.
+      if (isOnlineMatchActive()) {
+        await requestRemoteOnlineActionWindow(getOpponentId(LOCAL_PLAYER_ID), 'phase-reaction', {
+          windowMs: QUICK_REACTION_WINDOW_MS,
+          collectContext: { phaseTransition: true },
+        });
+        if (state.quickReactionWindow.phaseFlowId !== flowId) return;
+      }
 
       // Desde este punto la fase ya cambió internamente, pero todavía no está
       // entregada al jugador. Este bloqueo evita acciones/movimiento prematuros.
@@ -30528,6 +30812,12 @@ async function executeSemiAutoMovementTo(row, col) {
         log('Movimiento asistido detenido: la ruta ya no está disponible.');
         break;
       }
+      if (state.pendingOnlineActionWindowPromise) {
+        try { await state.pendingOnlineActionWindowPromise; } catch (_) {}
+        const liveSel = state.selectedMover;
+        if (!liveSel || liveSel.type !== sel.type || Number(liveSel.playerId) !== Number(sel.playerId)
+          || (sel.type === 'invocation' && String(liveSel.unitId || '') !== String(sel.unitId || ''))) break;
+      }
       await sleep(145);
     }
   } finally {
@@ -30535,6 +30825,26 @@ async function executeSemiAutoMovementTo(row, col) {
     renderAll();
   }
   return true;
+}
+
+function requestRemoteInterceptarIngressIfNeeded(movingPlayerId, unit, previousRow, previousCol) {
+  if (!isOnlineMatchActive() || !unit || Number(movingPlayerId) !== Number(LOCAL_PLAYER_ID)) return null;
+  const defendingPlayerId = getOpponentId(movingPlayerId);
+  if (!didInvocationEnterPlayerOwnSide(defendingPlayerId, previousRow, previousCol, unit)) return null;
+  const lockReason = `online-reaction-ingress:${movingPlayerId}:${unit.id}`;
+  setActionExecutionLock(true, lockReason);
+  const promise = requestRemoteOnlineActionWindow(defendingPlayerId, 'interceptar-ingress', {
+    movingPlayerId: Number(movingPlayerId),
+    unitId: unit.id,
+    previousRow: Number(previousRow),
+    previousCol: Number(previousCol),
+  }).finally(() => {
+    releaseActionExecutionLockIfOwned(lockReason);
+    if (state.pendingOnlineActionWindowPromise === promise) state.pendingOnlineActionWindowPromise = null;
+    try { renderAll(); } catch (_) {}
+  });
+  state.pendingOnlineActionWindowPromise = promise;
+  return promise;
 }
 
 function tryMoveSelectedTo(row, col, moveContext = {}) {
@@ -30590,9 +30900,20 @@ function tryMoveSelectedTo(row, col, moveContext = {}) {
     if (fukuroEntryMove) unit.fukuroEntryMoveUsed = true;
     const recoveredDroppedWeapon = tryRecoverDroppedWeaponForUnit(unit);
     log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} se mueve a ${coordLabel(row, col)}.${recoveredDroppedWeapon ? ' Recupera su arma.' : ''}`);
+    const ingressPromise = requestRemoteInterceptarIngressIfNeeded(sel.playerId, unit, previousRow, previousCol);
     const approachTarget = getEngagedOpponentSnapshot(sel.playerId, unit);
     if (approachTarget?.unit && canUnitDamageUnit(sel.playerId, unit, approachTarget.playerId, approachTarget.unit)) {
       log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} ya está dentro de su rango de ataque para el combate sostenido.`);
+    }
+    if (ingressPromise) {
+      // Interceptar/Emboscada tienen prioridad sobre cualquier consecuencia de
+      // seguir avanzando (incluido alcanzar al Kaster). La casilla ya está
+      // sincronizada, pero el resto de la acción espera la respuesta rival.
+      ingressPromise.then(() => {
+        const liveUnit = getUnitById(sel.playerId, sel.unitId);
+        if (liveUnit && liveUnit.status !== 'restoring' && Number(liveUnit.hp ?? 0) > 0) checkRiskZoneAttack(sel.playerId, liveUnit);
+      }).catch(() => {});
+      return true;
     }
     if (checkRiskZoneAttack(sel.playerId, unit)) return true;
     // La invocación queda seleccionada aunque ya no tenga movimiento,
@@ -33306,17 +33627,24 @@ function playKouutenStrikeAtCell(fx, row, col, delayMs = 0, playerId = LOCAL_PLA
 async function resolveKouutenCast(playerId, item, card = CARD_LIBRARY[KOUUTEN_CARD_ID]) {
   const center = getKouutenClampedCenter(item?.targetRow ?? item?.row ?? 8, item?.targetCol ?? item?.col ?? 4);
   const plan = getKouutenImpactPlan(center.row, center.col);
+  const orderedHits = [...plan.centerCells, ...plan.sideHits]
+    .sort((a, b) => (a.row - b.row) || (a.col - b.col))
+    .map((cell, index) => ({ ...cell, delayMs: Math.floor(Math.random() * 460) + index * 44 }));
+  emitOnlineVisualEvent('kouuten', {
+    playerId: Number(playerId),
+    center,
+    hits: orderedHits.map(cell => ({ row: Number(cell.row), col: Number(cell.col), kind: cell.kind || 'center', side: cell.side || null, delayMs: Number(cell.delayMs || 0) })),
+  });
   const fx = createKouutenFx();
   const resolvedCells = new Set();
   log(`Kouuten bombardea ${coordLabel(center.row, center.col)} con una lluvia irregular de flechas incendiarias.`);
   const cleanupTimer = fx ? window.setTimeout(() => fx.remove(), 7000) : null;
   try {
-    const orderedHits = [...plan.centerCells, ...plan.sideHits].sort((a, b) => (a.row - b.row) || (a.col - b.col));
-    await Promise.all(orderedHits.map((cell, index) => playKouutenStrikeAtCell(
+    await Promise.all(orderedHits.map(cell => playKouutenStrikeAtCell(
       fx,
       cell.row,
       cell.col,
-      Math.floor(Math.random() * 460) + index * 44,
+      cell.delayMs,
       playerId,
       () => {
         const key = `${cell.row}:${cell.col}`;
@@ -33328,6 +33656,28 @@ async function resolveKouutenCast(playerId, item, card = CARD_LIBRARY[KOUUTEN_CA
     activateKouutenProgressiveState(playerId);
     renderAll();
     return { type: 'spell', card, spellId: card?.id || KOUUTEN_CARD_ID };
+  } finally {
+    if (cleanupTimer) window.clearTimeout(cleanupTimer);
+    if (fx) window.setTimeout(() => fx.remove(), 1900);
+  }
+}
+
+
+async function playRemoteKouutenFx(payload = {}) {
+  const hits = Array.isArray(payload.hits) ? payload.hits : [];
+  if (!hits.length) return false;
+  const fx = createKouutenFx();
+  const cleanupTimer = fx ? window.setTimeout(() => fx.remove(), 7000) : null;
+  try {
+    await Promise.all(hits.map(cell => playKouutenStrikeAtCell(
+      fx,
+      Number(cell.row),
+      Number(cell.col),
+      Number(cell.delayMs || 0),
+      Number(payload.playerId || 1),
+      null
+    )));
+    return true;
   } finally {
     if (cleanupTimer) window.clearTimeout(cleanupTimer);
     if (fx) window.setTimeout(() => fx.remove(), 1900);
@@ -33859,6 +34209,12 @@ function playGurenGanCannonball(fx, center, playerId, onImpact) {
 async function resolveGurenGanCast(playerId, item, card = CARD_LIBRARY[GUREN_GAN_CARD_ID]) {
   const center = getGurenGanClampedCenter(item?.targetRow ?? item?.row ?? 8, item?.targetCol ?? item?.col ?? 4);
   const plan = getGurenGanImpactPlan(center.row, center.col);
+  const splashSchedule = plan.splashHits.map((cell, index) => ({ ...cell, delayMs: 110 + index * 42 + Math.floor(Math.random() * 180) }));
+  emitOnlineVisualEvent('guren-gan', {
+    playerId: Number(playerId),
+    center: { row: Number(center.row), col: Number(center.col) },
+    splashHits: splashSchedule.map(cell => ({ row: Number(cell.row), col: Number(cell.col), kind: cell.kind || 'splash', group: cell.group || null, delayMs: Number(cell.delayMs || 0) })),
+  });
   const fx = createGurenGanFx();
   log(`Guren Gan dispara una bola de cañón incendiaria hacia ${coordLabel(center.row, center.col)}.`);
   await playGurenGanCannonball(fx, center, playerId, () => {
@@ -33866,17 +34222,44 @@ async function resolveGurenGanCast(playerId, item, card = CARD_LIBRARY[GUREN_GAN
     spawnGurenGanShockwave(fx, center);
     plan.effectiveCells.forEach(cell => resolveGurenGanImpactCell(playerId, cell, card));
   });
-  await Promise.all(plan.splashHits.map((cell, index) => playGurenGanSplash(
+  await Promise.all(splashSchedule.map(cell => playGurenGanSplash(
     fx,
     center,
     cell,
-    110 + index * 42 + Math.floor(Math.random() * 180),
+    cell.delayMs,
     playerId,
     () => resolveGurenGanImpactCell(playerId, cell, card)
   )));
   renderAll();
   if (fx) window.setTimeout(() => fx.remove(), 2400);
   return { type: 'spell', card, spellId: card?.id || GUREN_GAN_CARD_ID };
+}
+
+
+async function playRemoteGurenGanFx(payload = {}) {
+  const center = getGurenGanClampedCenter(payload.center?.row ?? 8, payload.center?.col ?? 4);
+  const splashHits = Array.isArray(payload.splashHits) ? payload.splashHits : [];
+  const plan = {
+    center,
+    effectiveCells: getGurenGanEffectiveCells(center.row, center.col),
+    outerCells: getGurenGanOuterCells(center.row, center.col).map(cell => ({ ...cell, kind: 'outer' })),
+    splashHits,
+  };
+  const fx = createGurenGanFx();
+  await playGurenGanCannonball(fx, center, Number(payload.playerId || 1), () => {
+    showGurenGanImpactIllumination(fx, plan);
+    spawnGurenGanShockwave(fx, center);
+  });
+  await Promise.all(splashHits.map(cell => playGurenGanSplash(
+    fx,
+    center,
+    cell,
+    Number(cell.delayMs || 0),
+    Number(payload.playerId || 1),
+    null
+  )));
+  if (fx) window.setTimeout(() => fx.remove(), 2400);
+  return true;
 }
 
 function chooseBestGurenGanCenter(playerId) {
@@ -34282,6 +34665,7 @@ function pushCargaRealTargetOnImpact(snapshot, direction) {
 async function resolveCargaRealCast(playerId, item, card = CARD_LIBRARY[CARGA_REAL_CARD_ID]) {
   const bandStartCol = Math.max(0, Math.min(9 - CARGA_REAL_WIDTH_COLUMNS, Number(item?.bandStartCol ?? getCargaRealBandStartCol(item?.col ?? 4))));
   const direction = getCargaRealDirection(playerId);
+  emitOnlineVisualEvent('carga-real', { playerId: Number(playerId), bandStartCol: Number(bandStartCol) });
   const rows = direction < 0
     ? Array.from({ length: 18 }, (_, index) => 17 - index)
     : Array.from({ length: 18 }, (_, index) => index);
@@ -34368,6 +34752,40 @@ async function resolveCargaRealCast(playerId, item, card = CARD_LIBRARY[CARGA_RE
     renderAll();
   }
   return { type: 'spell', card, spellId: card?.id || CARGA_REAL_CARD_ID };
+}
+
+
+async function playRemoteCargaRealFx(payload = {}) {
+  const playerId = Number(payload.playerId || 1);
+  const bandStartCol = Math.max(0, Math.min(9 - CARGA_REAL_WIDTH_COLUMNS, Number(payload.bandStartCol || 0)));
+  const direction = getCargaRealDirection(playerId);
+  const rows = direction < 0
+    ? Array.from({ length: 18 }, (_, index) => 17 - index)
+    : Array.from({ length: 18 }, (_, index) => index);
+  const fx = createCargaRealFx(playerId, bandStartCol);
+  if (!fx) return false;
+  try {
+    const startTime = performance.now();
+    let nextRowIndex = 0;
+    while (true) {
+      const now = performance.now();
+      const progress = Math.max(0, Math.min(1, (now - startTime) / CARGA_REAL_TRAVEL_DURATION_MS));
+      updateCargaRealFx(fx, progress, now);
+      while (nextRowIndex < rows.length && progress >= ((nextRowIndex + CARGA_REAL_ROW_HIT_LEAD) / rows.length)) {
+        spawnCargaRealBurstAtRow(fx, rows[nextRowIndex], bandStartCol, direction);
+        nextRowIndex += 1;
+      }
+      if (progress >= 1) break;
+      await nextAnimationFramePromise();
+    }
+    updateCargaRealFx(fx, 1, performance.now());
+    await sleep(130);
+    preserveCargaRealParticleLayer(fx);
+    return true;
+  } finally {
+    if (fx?.particleLayer) preserveCargaRealParticleLayer(fx);
+    fx?.remove();
+  }
 }
 
 function getSpellbookCooldownKey(tab, slot) {
@@ -34810,7 +35228,8 @@ function renderTacticaGuerraNexusCursor() {
   document.body.appendChild(cursor);
 }
 
-async function playTacticaGuerraResolutionFx(title = 'TÁCTICA DE GUERRA', subtitle = 'REPOSICIONAMIENTO DE NEXOS') {
+async function playTacticaGuerraResolutionFx(title = 'TÁCTICA DE GUERRA', subtitle = 'REPOSICIONAMIENTO DE NEXOS', options = {}) {
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('tactica-resolution', { title: String(title || ''), subtitle: String(subtitle || '') });
   const boardRect = els.boardContent?.getBoundingClientRect?.();
   if (!boardRect) return;
   const fx = document.createElement('div');
@@ -34827,7 +35246,8 @@ async function playTacticaGuerraResolutionFx(title = 'TÁCTICA DE GUERRA', subti
   setTimeout(() => fx.remove(), 700);
 }
 
-function playTacticaGuerraWaterRestoreFx(unit, delayMs = 0) {
+function playTacticaGuerraWaterRestoreFx(unit, delayMs = 0, options = {}) {
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('tactica-water', { source: snapshotOnlineFxUnit(0, unit), delayMs: Number(delayMs || 0) });
   if (!unit) return;
   setTimeout(() => {
     const point = getCellViewportCenter(unit.row, unit.col);
@@ -38736,32 +39156,46 @@ function restoreInvocation(playerId, unit, reason = 'restauración') {
   unit.sukiruGuardBroken = false;
   state.selectedMover = null;
 
-  const finishRestoreTravel = () => {
-    if (restorePoint) {
-      const blocked = isOccupiedForPlayer(restorePoint.row, restorePoint.col, null)
-        && !(unit.row === restorePoint.row && unit.col === restorePoint.col && unit.status !== 'restoring');
-      if (!blocked) {
-        unit.row = restorePoint.row;
-        unit.col = restorePoint.col;
+  // La posición de restauración se resuelve de forma autoritativa antes de
+  // iniciar el viaje visual. Así ambos clientes reciben la misma casilla aun
+  // si la animación termina después de un cambio de turno.
+  const restoreTravelFrom = { row: Number(unit.row), col: Number(unit.col) };
+  let resolvedRestorePoint = null;
+  if (restorePoint) {
+    const blocked = isOccupiedForPlayer(restorePoint.row, restorePoint.col, null)
+      && !(unit.row === restorePoint.row && unit.col === restorePoint.col && unit.status !== 'restoring');
+    if (!blocked) {
+      resolvedRestorePoint = { row: Number(restorePoint.row), col: Number(restorePoint.col) };
+    } else {
+      const fallback = getCellsInRadius(restorePoint.row, restorePoint.col, 1, false)
+        .filter(cell => isInside(cell.row, cell.col))
+        .find(cell => !isOccupiedForPlayer(cell.row, cell.col, null) && !hasSpawnMarkerAtForPlayer(cell.row, cell.col, null));
+      if (fallback) {
+        resolvedRestorePoint = { row: Number(fallback.row), col: Number(fallback.col) };
+        log(`${card?.name || 'Invocación'} vuelve cerca de su punto de restauración porque ${coordLabel(restorePoint.row, restorePoint.col)} está ocupada.`);
       } else {
-        const fallback = getCellsInRadius(restorePoint.row, restorePoint.col, 1, false)
-          .filter(cell => isInside(cell.row, cell.col))
-          .find(cell => !isOccupiedForPlayer(cell.row, cell.col, null) && !hasSpawnMarkerAtForPlayer(cell.row, cell.col, null));
-        if (fallback) {
-          unit.row = fallback.row;
-          unit.col = fallback.col;
-          log(`${card?.name || 'Invocación'} vuelve cerca de su punto de restauración porque ${coordLabel(restorePoint.row, restorePoint.col)} está ocupada.`);
-        } else {
-          log(`${card?.name || 'Invocación'} no puede volver a su punto de restauración porque no hay casilla libre cercana.`);
-        }
+        log(`${card?.name || 'Invocación'} no puede volver a su punto de restauración porque no hay casilla libre cercana.`);
       }
     }
+  }
+
+  if (resolvedRestorePoint) {
+    unit.row = resolvedRestorePoint.row;
+    unit.col = resolvedRestorePoint.col;
+  }
+
+  // El estado final de estasis también se fija antes del FX. restoreAnimating
+  // mantiene la ficha fuera de interacción/render hasta que llegue el viaje.
+  unit.status = restoreTime > 0 ? 'restoring' : 'active';
+  if (restoreTime <= 0) {
+    unit.restoreRemaining = 0;
+    unit.stasisBuffSnapshot = null;
+    if (isOdaNoKageUnit(unit)) unit.odaNoKageShadowReady = true;
+  }
+
+  const finishRestoreTravel = () => {
     unit.restoreAnimating = false;
     if (restoreTime <= 0) {
-      unit.status = 'active';
-      unit.restoreRemaining = 0;
-      unit.stasisBuffSnapshot = null;
-      if (isOdaNoKageUnit(unit)) unit.odaNoKageShadowReady = true;
       showFloatingTextAt(unit.row, unit.col, gloriaStacks > 0 ? 'RESTAURA 0 · GLORIA' : 'RESTAURA 0', 'floating-combat buff');
     }
     renderAll();
@@ -38772,18 +39206,17 @@ function restoreInvocation(playerId, unit, reason = 'restauración') {
     }
   };
 
-  if (restorePoint) {
+  if (resolvedRestorePoint) {
     unit.restoreAnimating = true;
-    animateRestoreInvocationToSpawn(playerId, unit, restorePoint, finishRestoreTravel);
+    animateRestoreInvocationToSpawn(playerId, unit, resolvedRestorePoint, finishRestoreTravel, restoreTravelFrom);
   }
 
   if (restoreTime <= 0) {
-    if (!restorePoint) finishRestoreTravel();
+    if (!resolvedRestorePoint) finishRestoreTravel();
     log(`${card?.name || 'Invocación'} vuelve a su punto de restauración por ${reason} sin tiempo de espera.`);
     return;
   }
-  unit.status = 'restoring';
-  if (!restorePoint) finishRestoreTravel();
+  if (!resolvedRestorePoint) finishRestoreTravel();
   if (isOSenseiUnit(unit) && oSenseiShirahadoriCount > 0) {
     log(`Habilidad definitiva aumenta la restauración de O-sensei Ueshiba: ${baseRestoreTime} + ${oSenseiShirahadoriCount} por Samuráis con Shirahadori = ${restoreTime} fases.`);
   }
@@ -38960,6 +39393,7 @@ function handleCasterDefeat(defeatedPlayerId, winnerPlayerId = null) {
 }
 
 function showFloatingDamageAt(row, col, amount) {
+  emitOnlineVisualEvent('floating-damage', { row: Number(row), col: Number(col), amount });
   const pos = cellCenter(row, col);
   const div = document.createElement('div');
   div.className = 'floating-damage';
@@ -43752,6 +44186,9 @@ const INVOCATION_COST_TOTALS = {
   ninjaIchikawaGoemon: 3,
   ninjaKurayami: 7,
   ninjaMinokageNoKurai: 5,
+  ninjaNaitoSutoka: 5,
+  ninjaKurokagiButai3: 4,
+  ninjaYasuganaHattori: 5,
 };
 
 function getInvocationTotalCostControl(card) {
@@ -43769,7 +44206,10 @@ function distributeInvocationCostByTotal(card, total) {
   // 4 => 3 base + 1 aleatorio, 5 => 3 base + 2 aleatorios,
   // 6 => 4 base + 2 aleatorios, 7 => 4 base + 3 aleatorios,
   // 8 => 5 base + 3 aleatorios, 9 => 5 base + 4 aleatorios, y continúa alternando.
-  const fixedBase = Math.max(0, Math.min(amount, Math.floor(amount / 2) + 1));
+  const fixedBaseByTotal = { 1: 1, 2: 2, 3: 2, 4: 3, 5: 3 };
+  const fixedBase = Object.prototype.hasOwnProperty.call(fixedBaseByTotal, amount)
+    ? fixedBaseByTotal[amount]
+    : Math.max(0, Math.min(amount, Math.floor(amount / 2) + 1));
   const random = Math.max(0, amount - fixedBase);
   const cost = { [elementId]: fixedBase };
   if (random) cost.random = random;
@@ -44591,6 +45031,80 @@ function bindBoardZoomAndPan() {
     renderAll();
   });
 }
+
+/* ========================================================================== 
+   R.O.K Lite v474 · Etapa 5 · sincronización responsive de overlays de arena
+   ========================================================================== */
+let battleResponsiveResizeRaf = 0;
+let battleResponsiveObserver = null;
+
+function clampBoardPanToResponsiveViewport() {
+  if (!els.board) return;
+  const zoom = Math.max(1, Number(boardView.zoom) || 1);
+  const rect = els.board.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  if (zoom <= 1.001) {
+    boardView.panX = 0;
+    boardView.panY = 0;
+  } else {
+    const maxPanX = Math.max(0, (rect.width * (zoom - 1)) / 2);
+    const maxPanY = Math.max(0, (rect.height * (zoom - 1)) / 2);
+    boardView.panX = Math.max(-maxPanX, Math.min(maxPanX, Number(boardView.panX) || 0));
+    boardView.panY = Math.max(-maxPanY, Math.min(maxPanY, Number(boardView.panY) || 0));
+  }
+
+  writeRootValue('--board-pan-x', `${Math.round(boardView.panX)}px`);
+  writeRootValue('--board-pan-y', `${Math.round(boardView.panY)}px`);
+}
+
+function syncBattleResponsiveViewport() {
+  if (!document.body?.classList?.contains('rok-battle-mode')) return;
+
+  clampBoardPanToResponsiveViewport();
+  syncHudOverlayLayerToBoard();
+
+  if (els.quickReactionModal?.classList?.contains('visible')) {
+    positionQuickReactionModalOverBoard();
+    const count = els.quickReactionModalList?.querySelectorAll?.('.selected-unit-command-modal-copy-wrap')?.length || 0;
+    if (count) setQuickReactionModalCardLayout(count);
+  }
+
+  if (els.opponentActionNotice?.classList?.contains('visible')) {
+    positionOpponentActionNoticeOverBoard();
+  }
+
+  scheduleCardInfoStatRowScrollCueSync?.();
+  updateCombatHudFixedPosition?.();
+  refreshHudFloatingMenus?.();
+  renderGuardianAuras?.();
+  renderGuardianChannelFx?.();
+  renderMinokageChannelFxLayer?.();
+  renderParalysisLinksLayer?.();
+  renderUnits?.();
+}
+
+function scheduleBattleResponsiveViewportSync() {
+  cancelAnimationFrame(battleResponsiveResizeRaf);
+  battleResponsiveResizeRaf = requestAnimationFrame(() => {
+    battleResponsiveResizeRaf = 0;
+    syncBattleResponsiveViewport();
+  });
+}
+
+function installBattleResponsiveObserver() {
+  if (typeof ResizeObserver !== 'function' || battleResponsiveObserver) return;
+  const board = document.getElementById('board');
+  const shell = document.querySelector('.game-shell');
+  battleResponsiveObserver = new ResizeObserver(scheduleBattleResponsiveViewportSync);
+  if (board) battleResponsiveObserver.observe(board);
+  if (shell) battleResponsiveObserver.observe(shell);
+  scheduleBattleResponsiveViewportSync();
+}
+
+window.addEventListener('resize', scheduleBattleResponsiveViewportSync, { passive: true });
+window.addEventListener('orientationchange', scheduleBattleResponsiveViewportSync, { passive: true });
+window.addEventListener('DOMContentLoaded', installBattleResponsiveObserver);
 
 window.addEventListener('resize', () => { syncHudOverlayLayerToBoard(); renderGuardianAuras(); renderGuardianChannelFx(); renderMinokageChannelFxLayer(); renderUnits(); renderParalysisLinksLayer(); refreshHudFloatingMenus(); });
 window.addEventListener('DOMContentLoaded', init);

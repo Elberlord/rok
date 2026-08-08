@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>R.O.K LITE</title>
-  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=469-spellbook-drag-cast" />
+  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=481-user-profile-hub" />
   <link rel="icon" href="assets/kast-cell-icon.jpg" />
 </head>
 <body>
@@ -27,11 +27,56 @@
   <div id="globalFxLayer" class="global-fx-layer" aria-hidden="true"></div>
 
 
+  <section id="accountAuthOverlay" class="account-auth-overlay visible" aria-hidden="false">
+    <div class="account-auth-card" role="dialog" aria-modal="true" aria-labelledby="accountAuthTitle">
+      <div class="account-auth-brand">
+        <span>R.O.K LITE · CUENTA DE JUGADOR</span>
+        <h1 id="accountAuthTitle">The Rise of the Kasters</h1>
+        <p>Inicia sesión para conservar una identidad única en el modo online, tus amigos y las partidas asociadas a tu cuenta.</p>
+      </div>
+
+      <div class="account-auth-tabs" role="tablist" aria-label="Acceso a cuenta">
+        <button id="accountLoginTabBtn" class="account-auth-tab active" type="button" role="tab" aria-selected="true">Iniciar sesión</button>
+        <button id="accountRegisterTabBtn" class="account-auth-tab" type="button" role="tab" aria-selected="false">Crear cuenta</button>
+      </div>
+
+      <form id="accountLoginForm" class="account-auth-form active" autocomplete="on">
+        <label for="accountLoginEmail">Correo electrónico</label>
+        <input id="accountLoginEmail" type="email" autocomplete="email" maxlength="160" required placeholder="correo@ejemplo.com">
+        <label for="accountLoginPassword">Contraseña</label>
+        <input id="accountLoginPassword" type="password" autocomplete="current-password" minlength="6" maxlength="128" required placeholder="Contraseña">
+        <button id="accountLoginSubmitBtn" class="account-auth-primary" type="submit">Iniciar sesión</button>
+        <button id="accountPasswordResetBtn" class="account-auth-link" type="button">Recuperar contraseña</button>
+      </form>
+
+      <form id="accountRegisterForm" class="account-auth-form" autocomplete="on" hidden>
+        <label for="accountRegisterName">Nombre visible</label>
+        <input id="accountRegisterName" type="text" autocomplete="nickname" maxlength="24" required placeholder="Nombre de Kaster">
+        <label for="accountRegisterEmail">Correo electrónico</label>
+        <input id="accountRegisterEmail" type="email" autocomplete="email" maxlength="160" required placeholder="correo@ejemplo.com">
+        <label for="accountRegisterPassword">Contraseña</label>
+        <input id="accountRegisterPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required placeholder="Mínimo 6 caracteres">
+        <label for="accountRegisterPasswordConfirm">Confirmar contraseña</label>
+        <input id="accountRegisterPasswordConfirm" type="password" autocomplete="new-password" minlength="6" maxlength="128" required placeholder="Repite la contraseña">
+        <button id="accountRegisterSubmitBtn" class="account-auth-primary" type="submit">Crear cuenta</button>
+      </form>
+
+      <div id="accountAuthStatus" class="account-auth-status working" aria-live="polite">Comprobando sesión…</div>
+      <p class="account-auth-footnote">La contraseña es gestionada por Firebase Authentication y no se guarda en la base de datos del juego.</p>
+    </div>
+  </section>
+
+
   <section id="mainMenuScreen" class="main-menu-screen" aria-label="Menú principal R.O.K Lite">
     <div class="main-menu-vignette"></div>
     <div id="mainMenuUserHud" class="main-menu-user-hud" aria-label="Perfil de usuario" tabindex="0" role="button" aria-expanded="false" title="Abrir perfil de usuario">
       <span class="main-menu-user-hud-label">Perfil</span>
       <div id="mainMenuResourceStrip" class="rok-user-resource-strip main-menu-resource-strip" aria-label="Recursos del usuario">
+        <span id="mainMenuProfileChip" class="main-menu-profile-chip" title="Perfil de usuario">
+          <span class="main-menu-profile-avatar"><img id="mainMenuProfileAvatar" src="assets/shinra-hitokiri-token.png" alt="Avatar del usuario"></span>
+          <span class="main-menu-profile-copy"><strong id="mainMenuProfileName">Kaster</strong><small><span id="mainMenuProfileLevel">Nivel 1</span><span id="mainMenuProfileXp">0 / 100 XP</span></small></span>
+        </span>
+        <span class="rok-resource-divider profile-divider" aria-hidden="true"></span>
         <span class="rok-resource-chip pure" title="Cristal Puro"><img src="assets/user/pure-crystal.png" alt="Cristal Puro"><strong id="mainMenuPureCrystalValue">9,000</strong></span>
         <span class="rok-resource-chip element" data-user-element="oscuridad" title="Oscuridad"><img src="assets/cost-icons/cost-darkness.png" alt="Oscuridad"><strong>0</strong></span>
         <span class="rok-resource-chip element" data-user-element="luz" title="Luz"><img src="assets/cost-icons/cost-light.png" alt="Luz"><strong>0</strong></span>
@@ -50,6 +95,17 @@
         <span class="rok-resource-chip rarity" data-user-rarity="legendary" title="Legendaria"><img src="assets/rarities/rarity-legendary.png" alt="Legendaria"><strong>0</strong></span>
       </div>
       <div id="mainMenuUserHudMenu" class="main-menu-user-hud-menu" aria-hidden="true">
+        <div id="mainMenuAccountIdentity" class="main-menu-account-identity profile-menu-identity">
+          <span class="profile-menu-avatar"><img id="mainMenuMenuAvatar" src="assets/shinra-hitokiri-token.png" alt="Avatar"></span>
+          <span class="profile-menu-copy"><strong id="mainMenuAccountName">Cuenta</strong><small id="mainMenuAccountEmail">Sesión no iniciada</small><b id="mainMenuMenuLevel">Nivel 1</b></span>
+        </div>
+        <div class="main-menu-profile-xp"><span><i id="mainMenuMenuXpFill"></i></span><small id="mainMenuMenuXpText">0 / 100 XP</small></div>
+        <button id="mainMenuProfileBtn" class="main-menu-profile-action-btn" type="button">Mi perfil</button>
+        <button id="mainMenuAvatarBtn" class="main-menu-profile-action-btn" type="button">Configurar avatar</button>
+        <button id="mainMenuAchievementsBtn" class="main-menu-profile-action-btn" type="button">Logros</button>
+        <button id="mainMenuFriendsBtn" class="main-menu-profile-action-btn" type="button">Amigos</button>
+        <button id="mainMenuAccountBtn" class="main-menu-profile-action-btn" type="button">Cuenta</button>
+        <button id="mainMenuLogoutBtn" class="main-menu-profile-action-btn main-menu-logout-btn" type="button">Cerrar sesión</button>
         <button id="mainMenuResetUserBtn" class="main-menu-reset-user-btn" type="button">Reiniciar usuario</button>
       </div>
     </div>
@@ -147,26 +203,180 @@
   </section>
 
 
-  <section id="onlineLobbyOverlay" class="online-lobby-overlay" aria-hidden="true">
-    <div class="online-lobby-card" role="dialog" aria-modal="true" aria-labelledby="onlineLobbyTitle">
-      <button id="onlineLobbyCloseBtn" class="online-lobby-close" type="button" aria-label="Cerrar">×</button>
-      <span class="online-lobby-kicker">VERSUS ONLINE</span>
-      <h2 id="onlineLobbyTitle">Partida privada PvP</h2>
-      <p class="online-lobby-copy">Crea una sala y comparte el código, o escribe el código recibido para entrar como Jugador 2.</p>
-      <div class="online-lobby-actions">
-        <button id="onlineCreateRoomBtn" class="online-lobby-primary" type="button">Crear partida</button>
-        <div class="online-lobby-join-row">
-          <input id="onlineRoomCodeInput" type="text" maxlength="6" autocomplete="off" inputmode="text" placeholder="CÓDIGO" aria-label="Código de sala">
-          <button id="onlineJoinRoomBtn" type="button">Unirse</button>
+  <section id="profileCenterOverlay" class="profile-center-overlay" aria-hidden="true">
+    <div class="profile-center-card" role="dialog" aria-modal="true" aria-labelledby="profileCenterTitle">
+      <button id="profileCenterCloseBtn" class="profile-center-close" type="button" aria-label="Cerrar">×</button>
+      <div class="profile-center-hero">
+        <span class="profile-center-avatar"><img id="profileCenterAvatar" src="assets/shinra-hitokiri-token.png" alt="Avatar del usuario"></span>
+        <div class="profile-center-hero-copy">
+          <span class="profile-center-kicker">PERFIL DE KASTER</span>
+          <h2 id="profileCenterTitle">Kaster</h2>
+          <div class="profile-center-level-row"><strong id="profileCenterLevel">Nivel 1</strong><span id="profileCenterFriendCode">Código --------</span></div>
+          <div class="profile-center-xp"><span><i id="profileCenterXpFill"></i></span><small id="profileCenterXpText">0 / 100 XP</small></div>
         </div>
       </div>
-      <div id="onlineRoomCodeBox" class="online-room-code-box" aria-hidden="true">
-        <span>Código de sala</span>
-        <strong id="onlineRoomCodeValue">------</strong>
-        <button id="onlineCopyCodeBtn" type="button">Copiar</button>
+      <nav class="profile-center-tabs" aria-label="Opciones del perfil">
+        <button type="button" class="active" data-profile-tab="summary">Resumen</button>
+        <button type="button" data-profile-tab="avatar">Avatar</button>
+        <button type="button" data-profile-tab="achievements">Logros</button>
+        <button type="button" data-profile-tab="account">Cuenta</button>
+      </nav>
+      <div class="profile-center-content">
+        <section class="profile-center-panel active" data-profile-panel="summary">
+          <div class="profile-summary-grid">
+            <article><span>Spellbooks</span><strong id="profileSummarySpellbooks">0</strong></article>
+            <article><span>Colección</span><strong id="profileSummaryCollection">0</strong><small>cartas distintas</small></article>
+            <article><span>Amigos</span><strong id="profileSummaryFriends">0</strong></article>
+            <article><span>Cristal puro</span><strong id="profileSummaryCrystal">0</strong></article>
+          </div>
+          <div class="profile-summary-copy"><h3>Progreso de cuenta</h3><p>El nivel y la experiencia pertenecen a tu cuenta de R.O.K. El sistema queda preparado para sumar XP mediante partidas, progresión y logros en etapas posteriores.</p></div>
+        </section>
+        <section class="profile-center-panel" data-profile-panel="avatar">
+          <div class="profile-panel-heading"><div><span>PERSONALIZACIÓN</span><h3>Selecciona tu avatar</h3></div><small>Se guarda en tu perfil de Firebase.</small></div>
+          <div id="profileAvatarGrid" class="profile-avatar-grid"></div>
+        </section>
+        <section class="profile-center-panel" data-profile-panel="achievements">
+          <div class="profile-panel-heading"><div><span>PROGRESO</span><h3>Logros</h3></div><small id="profileAchievementsCount">0 / 4</small></div>
+          <div id="profileAchievementsGrid" class="profile-achievements-grid"></div>
+        </section>
+        <section class="profile-center-panel" data-profile-panel="account">
+          <div class="profile-panel-heading"><div><span>CUENTA</span><h3>Configuración</h3></div></div>
+          <div class="profile-account-form">
+            <label for="profileAccountNameInput">Nombre visible</label>
+            <div class="profile-account-inline"><input id="profileAccountNameInput" type="text" maxlength="24" autocomplete="nickname"><button id="profileAccountSaveNameBtn" type="button">Guardar</button></div>
+            <label>Correo</label><div id="profileAccountEmail" class="profile-account-readonly">—</div>
+            <label>Código de amigo</label><div class="profile-account-inline"><div id="profileAccountFriendCode" class="profile-account-readonly">--------</div><button id="profileAccountCopyCodeBtn" type="button">Copiar</button></div>
+            <div class="profile-account-actions"><button id="profileAccountFriendsBtn" type="button">Abrir Amigos</button><button id="profileAccountPasswordBtn" type="button">Restablecer contraseña</button><button id="profileAccountLogoutBtn" class="danger" type="button">Cerrar sesión</button></div>
+            <div id="profileCenterStatus" class="profile-center-status" aria-live="polite"></div>
+          </div>
+        </section>
       </div>
+    </div>
+  </section>
+
+  <section id="friendsOverlay" class="friends-overlay" aria-hidden="true">
+    <div class="friends-card" role="dialog" aria-modal="true" aria-labelledby="friendsTitle">
+      <button id="friendsCloseBtn" class="friends-close" type="button" aria-label="Cerrar">×</button>
+      <span class="friends-kicker">PERFIL SOCIAL</span>
+      <h2 id="friendsTitle">Amigos</h2>
+      <p class="friends-copy">Agrega jugadores por su código de amigo. Una amistad solo queda activa cuando la otra persona acepta la solicitud.</p>
+
+      <div class="friends-profile-panel">
+        <div class="friends-profile-name">
+          <label for="friendsDisplayNameInput">Nombre visible</label>
+          <div class="friends-inline-row">
+            <input id="friendsDisplayNameInput" type="text" maxlength="24" autocomplete="off" placeholder="Tu nombre de jugador">
+            <button id="friendsSaveNameBtn" type="button">Guardar</button>
+          </div>
+        </div>
+        <div class="friends-code-box">
+          <span>Tu código de amigo</span>
+          <strong id="friendsOwnCode">--------</strong>
+          <button id="friendsCopyCodeBtn" type="button">Copiar</button>
+        </div>
+      </div>
+
+      <div class="friends-add-panel">
+        <label for="friendsAddCodeInput">Añadir amigo</label>
+        <div class="friends-inline-row">
+          <input id="friendsAddCodeInput" type="text" maxlength="9" autocomplete="off" inputmode="text" placeholder="CÓDIGO DE AMIGO">
+          <button id="friendsSendRequestBtn" type="button">Enviar solicitud</button>
+        </div>
+      </div>
+
+      <div id="friendsStatus" class="friends-status" aria-live="polite">Conecta con Firebase para cargar tus amigos.</div>
+
+      <div class="friends-columns">
+        <section class="friends-list-panel" aria-labelledby="friendsRequestsTitle">
+          <div class="friends-section-heading">
+            <h3 id="friendsRequestsTitle">Solicitudes</h3>
+            <span id="friendsRequestCount">0</span>
+          </div>
+          <div id="friendsRequestList" class="friends-list"><p class="friends-empty">No tienes solicitudes pendientes.</p></div>
+        </section>
+        <section class="friends-list-panel" aria-labelledby="friendsListTitle">
+          <div class="friends-section-heading">
+            <h3 id="friendsListTitle">Mis amigos</h3>
+            <span id="friendsCount">0</span>
+          </div>
+          <div id="friendsList" class="friends-list"><p class="friends-empty">Todavía no has agregado amigos.</p></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section id="onlineLobbyOverlay" class="online-lobby-overlay" aria-hidden="true">
+    <div class="online-lobby-card online-friends-lobby-card" role="dialog" aria-modal="true" aria-labelledby="onlineLobbyTitle">
+      <button id="onlineLobbyCloseBtn" class="online-lobby-close" type="button" aria-label="Cerrar">×</button>
+      <span class="online-lobby-kicker">VERSUS ONLINE</span>
+      <h2 id="onlineLobbyTitle">Duelo entre amigos</h2>
+      <p id="onlineLobbyCopy" class="online-lobby-copy">Crea una partida o entra a una partida abierta por uno de tus amigos.</p>
+
+      <div id="onlineLobbyHomeView" class="online-lobby-view online-lobby-home-view">
+        <div class="online-lobby-choice-grid">
+          <button id="onlineCreateRoomBtn" class="online-lobby-choice online-lobby-primary" type="button">
+            <strong>Crear partida</strong><span>Abre un lobby visible para tus amigos.</span>
+          </button>
+          <button id="onlineJoinRoomBtn" class="online-lobby-choice" type="button">
+            <strong>Unirse</strong><span>Consulta las partidas disponibles de tus amigos.</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="onlineJoinBrowserView" class="online-lobby-view online-join-browser-view" hidden>
+        <div class="online-lobby-toolbar">
+          <button id="onlineJoinBackBtn" type="button">← Volver</button>
+          <strong>Partidas disponibles</strong>
+          <button id="onlineJoinRefreshBtn" type="button">Actualizar</button>
+        </div>
+        <div id="onlineAvailableRoomsList" class="online-available-rooms-list">
+          <div class="online-room-empty">Buscando partidas de tus amigos…</div>
+        </div>
+      </div>
+
+      <div id="onlineRoomView" class="online-lobby-view online-room-view" hidden>
+        <div class="online-room-heading">
+          <div><span id="onlineRoomRole">LOBBY</span><strong id="onlineRoomName">Preparando duelo</strong></div>
+          <span id="onlineRoomConnection" class="online-room-connection">Conectando…</span>
+        </div>
+
+        <div class="online-room-players">
+          <article class="online-player-card" data-slot="1">
+            <div class="online-player-avatar"><img id="onlineHostAvatar" src="assets/shinra-hitokiri-token.png" alt="Host"></div>
+            <div class="online-player-copy"><small>HOST · JUGADOR 1</small><strong id="onlineHostName">Esperando…</strong><span id="onlineHostSpellbook">Sin Spellbook</span></div>
+            <b id="onlineHostReady" class="online-player-ready">NO LISTO</b>
+          </article>
+          <div class="online-room-versus">VS</div>
+          <article class="online-player-card" data-slot="2">
+            <div class="online-player-avatar"><img id="onlineGuestAvatar" src="assets/shinra-hitokiri-token.png" alt="Invitado"></div>
+            <div class="online-player-copy"><small>INVITADO · JUGADOR 2</small><strong id="onlineGuestName">Esperando amigo…</strong><span id="onlineGuestSpellbook">Sin Spellbook</span></div>
+            <b id="onlineGuestReady" class="online-player-ready">NO LISTO</b>
+          </article>
+        </div>
+
+        <div class="online-room-setup-grid">
+          <section class="online-room-setup-panel">
+            <span class="online-room-label">TU SPELLBOOK</span>
+            <strong id="onlineLocalSpellbookName">Sin seleccionar</strong>
+            <button id="onlineSelectSpellbookBtn" type="button">Seleccionar Spellbook</button>
+          </section>
+          <section class="online-room-setup-panel online-arena-panel">
+            <span class="online-room-label">ARENA · ELIGE EL HOST</span>
+            <div class="online-arena-preview"><img id="onlineArenaPreview" src="assets/arena.webp" alt="Arena seleccionada"></div>
+            <select id="onlineArenaSelect" aria-label="Seleccionar arena">
+              <option value="classic">Arena clásica</option>
+              <option value="egypt">Arena Egipto</option>
+            </select>
+          </section>
+        </div>
+
+        <button id="onlineStartMatchBtn" class="online-start-match-btn online-ready-btn" type="button" aria-hidden="false">LISTO</button>
+        <div id="onlineCountdown" class="online-countdown" aria-hidden="true"><span>3</span></div>
+      </div>
+
       <div id="onlineLobbyStatus" class="online-lobby-status" aria-live="polite">Conecta con Firebase para comenzar.</div>
-      <button id="onlineStartMatchBtn" class="online-start-match-btn" type="button" aria-hidden="true">Iniciar duelo</button>
+      <input id="onlineRoomCodeInput" type="hidden" value="">
+      <div id="onlineRoomCodeBox" class="online-room-code-box" aria-hidden="true" hidden><strong id="onlineRoomCodeValue">------</strong><button id="onlineCopyCodeBtn" type="button">Copiar</button></div>
     </div>
   </section>
 
@@ -334,13 +544,8 @@
           </div>
           <div id="libraryBuilderGate" class="library-builder-gate">
             <div class="library-builder-gate-symbol">✦</div>
-            <h3 id="libraryBuilderGateTitle">No hay un Spellbook activo</h3>
-            <p id="libraryBuilderGateCopy">Crea uno nuevo y selecciona primero el Kaster que lo utilizará.</p>
-            <div class="library-builder-gate-actions">
-              <button id="libraryBuilderGateCreateBtn" class="library-builder-action primary" type="button">Crear nuevo Spellbook</button>
-              <button id="libraryBuilderGateContinueBtn" class="library-builder-action" type="button" hidden>Continuar borrador</button>
-              <button id="libraryBuilderGateOpenBtn" class="library-builder-action" type="button">Abrir mis Spellbooks</button>
-            </div>
+            <h3 id="libraryBuilderGateTitle">No hay un Spellbook seleccionado</h3>
+            <p id="libraryBuilderGateCopy" hidden></p>
           </div>
           <div id="libraryBuilderSpellbookGrid" class="library-builder-card-grid library-builder-spellbook-grid"></div>
           <div class="library-builder-page-row">
@@ -940,7 +1145,7 @@
       });
     }());
   </script>
-  <script src="game.js?v=469-spellbook-drag-cast"></script>
-  <script src="firebase-online.js?v=258-gioshonin-dedicated-prompt"></script>
+  <script src="game.js?v=482-friends-lobby"></script>
+  <script src="firebase-online.js?v=482-friends-lobby"></script>
 </body>
 </html>
