@@ -1322,6 +1322,7 @@
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
       initializeElementDecks();
+      if (typeof prepareStartingElementStocks === 'function') prepareStartingElementStocks();
       enterPhase(true, true);
       localStateReady = true;
       lastObservedPhaseKey = currentLocalPhaseKey();
@@ -1337,8 +1338,8 @@
       try { const api = await loadFirebase(); await removeOpenRoomListing(api, roomCode, uid); } catch (_) {}
       closeLobby();
       const introTransitions = [
-        { text: 'INICIA EL COMBATE', playerId: 1, duration: 1150 },
-        { text: 'EXTRACCIÓN', playerId: 1, duration: 900 },
+        { text: 'INICIA EL COMBATE', playerId: 1, duration: 1050 },
+        { text: '10 ELEMENTOS INICIALES', playerId: 1, duration: 900 },
       ];
       queueTransitions(introTransitions);
       schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);

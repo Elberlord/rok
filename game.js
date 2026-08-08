@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.232';
+const GAME_VERSION = 'v5.5.233';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -1705,7 +1705,8 @@ function getElementCostIcon(elementId) {
   return ELEMENT_COST_ICON_ASSETS[elementId] || ELEMENT_COST_ICON_ASSETS.oscuridad;
 }
 
-const EXTRACTION_CARDS_PER_PHASE = 2;
+const STARTING_ELEMENT_CARDS_PER_PLAYER = 10;
+const EXTRACTION_CARDS_PER_PHASE = 3;
 const ELEMENT_PRIMARY_RATIO_DUAL = 0.6;
 
 const EXTRACTION_DEFS = [
@@ -8169,6 +8170,8 @@ const state = {
   kouutenProgressiveByPlayer: {},
   extractedThisPhase: false,
   extractionAnimating: false,
+  openingElementsDealt: false,
+  openingExtractionSkippedByPlayer: { 1: false, 2: false },
   opponentActionResolving: false,
   opponentActionLockReason: '',
   actionExecutionLock: false,
@@ -10845,12 +10848,16 @@ function startBotBattleFromMainMenu(selectedLoadout = null, options = {}) {
     mainMenuBattleStarted = true;
     runGameStep('startBotBattle · updateHudModeUi', updateHudModeUi);
     runGameStep('startBotBattle · initializeElementDecks', initializeElementDecks);
-    if (isTestMatchActive()) runGameStep('startBotBattle · prepareTestMatchRuntime', prepareTestMatchRuntime);
+    if (isTestMatchActive()) {
+      runGameStep('startBotBattle · prepareTestMatchRuntime', prepareTestMatchRuntime);
+    } else {
+      runGameStep('startBotBattle · prepareStartingElementStocks', prepareStartingElementStocks);
+    }
     runGameStep('startBotBattle · enterPhase inicial', () => enterPhase(true, true));
     runGameStep('startBotBattle · renderAll inicial', renderAll);
     const introTransitions = [
-      { text: 'INICIA EL COMBATE', playerId: 1, duration: 1150 },
-      { text: 'EXTRACCIÓN', playerId: 1, duration: 900 },
+      { text: 'INICIA EL COMBATE', playerId: 1, duration: 1050 },
+      { text: isTestMatchActive() ? 'EXTRACCIÓN' : '10 ELEMENTOS INICIALES', playerId: 1, duration: 900 },
     ];
     runGameStep('startBotBattle · queueTransitions', () => queueTransitions(introTransitions));
     runGameStep('startBotBattle · schedulePhaseStartActions', () => schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120));
@@ -27594,6 +27601,57 @@ function initializeElementDecks() {
   for (const playerId of [1, 2]) reshuffleElementDeck(playerId);
 }
 
+function dealStartingElementCards(playerId, amount = STARTING_ELEMENT_CARDS_PER_PLAYER) {
+  const player = state.players?.[playerId];
+  if (!player) return [];
+  const total = Math.max(0, Math.floor(Number(amount) || 0));
+  const dealt = [];
+  for (let index = 0; index < total; index += 1) {
+    const cardDef = drawElementCard(playerId);
+    const ownerElement = getPlayerElement(playerId);
+    const element = ELEMENTS.find(item => item.id === (cardDef?.elementId || ownerElement.id)) || ownerElement;
+    player.resources.push({
+      ...element,
+      icon: getElementCostIcon(element.id),
+      uid: `opening_${playerId}_${Date.now()}_${index}_${Math.random()}`,
+      createdAt: Date.now() + index,
+    });
+    dealt.push(element.id);
+  }
+  return dealt;
+}
+
+function prepareStartingElementStocks() {
+  state.openingElementsDealt = true;
+  state.openingExtractionSkippedByPlayer = { 1: false, 2: false };
+  for (const playerId of [1, 2]) {
+    const dealt = dealStartingElementCards(playerId, STARTING_ELEMENT_CARDS_PER_PLAYER);
+    const counts = dealt.reduce((acc, elementId) => {
+      acc[elementId] = (acc[elementId] || 0) + 1;
+      return acc;
+    }, {});
+    const summary = Object.entries(counts)
+      .map(([elementId, count]) => `${count} ${(ELEMENTS.find(item => item.id === elementId)?.label || elementId)}`)
+      .join(', ');
+    log(`Jugador ${playerId} inicia con ${dealt.length} elementos aleatorios${summary ? ` (${summary})` : ''}.`);
+  }
+}
+
+function shouldSkipOpeningExtraction(playerId) {
+  if (!state.openingElementsDealt) return false;
+  if (!state.openingExtractionSkippedByPlayer || typeof state.openingExtractionSkippedByPlayer !== 'object') {
+    state.openingExtractionSkippedByPlayer = { 1: false, 2: false };
+  }
+  return state.openingExtractionSkippedByPlayer[playerId] !== true;
+}
+
+function markOpeningExtractionSkipped(playerId) {
+  if (!state.openingExtractionSkippedByPlayer || typeof state.openingExtractionSkippedByPlayer !== 'object') {
+    state.openingExtractionSkippedByPlayer = { 1: false, 2: false };
+  }
+  state.openingExtractionSkippedByPlayer[playerId] = true;
+}
+
 
 function getElementDeckConfig(playerId) {
   const player = state.players[playerId];
@@ -30237,6 +30295,13 @@ async function startPhaseActions() {
     await resolveTakedaTurnAttackGrowth(playerId);
     if (currentPhase().id !== 'extraction' || state.activePlayer !== playerId) return false;
     state.extractedThisPhase = true;
+    if (!isTestMatchActive() && shouldSkipOpeningExtraction(playerId)) {
+      markOpeningExtractionSkipped(playerId);
+      log(`Jugador ${playerId}: la primera Extracción ya está cubierta por sus ${STARTING_ELEMENT_CARDS_PER_PLAYER} elementos iniciales.`);
+      renderAll();
+      if (state.activePlayer === playerId && currentPhase().id === 'extraction') autoAdvanceExtractionToCasting(playerId);
+      return true;
+    }
     const shouldAutoAdvance = await animateExtractionPhase(playerId);
     renderAll();
     if (shouldAutoAdvance && state.activePlayer === playerId && currentPhase().id === 'extraction') {
@@ -39315,11 +39380,12 @@ function resetBattleForRematch(preserveWins = true) {
   state.gameOver = false;
   mainMenuBattleStarted = true;
   initializeElementDecks();
+  prepareStartingElementStocks();
   enterPhase(true, true);
   renderAll();
   const introTransitions = [
-    { text: 'NUEVA PARTIDA', playerId: 1, duration: 1050 },
-    { text: 'EXTRACCIÓN', playerId: 1, duration: 880 },
+    { text: 'NUEVA PARTIDA', playerId: 1, duration: 1000 },
+    { text: '10 ELEMENTOS INICIALES', playerId: 1, duration: 880 },
   ];
   queueTransitions(introTransitions);
   schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
