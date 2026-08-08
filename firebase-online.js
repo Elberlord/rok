@@ -1663,7 +1663,24 @@
       state.hudMode = localHudMode;
       state.semiAutoMovement = localSemiAutoMovement;
       state.activeTab = localActiveTab;
-      resetTransientStateAfterRemoteApply();
+
+      // IMPORTANTE · PvP: esta función se ejecuta mientras el navegador que
+      // conduce la transición está ESPERANDO una ventana de acción del rival.
+      // El snapshot devuelto solo contiene estado autoritativo (SNAPSHOT_KEYS);
+      // selectedMover, quickReactionWindow, offTurnCasterReposition, locks y
+      // resolvers son estado transitorio LOCAL y deben sobrevivir.
+      //
+      // Antes se llamaba resetTransientStateAfterRemoteApply() aquí. Ese reset
+      // incrementaba quickReactionWindow.phaseFlowId y cancelaba inmediatamente
+      // schedulePhaseIntroFlow() al volver de la ventana remota. El resultado era:
+      // - no aparecía la ACCIÓN DE KASTER rival,
+      // - Resolución no alcanzaba startPhaseActions()/prepareResolutionMoves(),
+      // - las unidades quedaban con movesLeft=0,
+      // - el siguiente relevo de turno podía quedar detenido en la transición.
+      //
+      // No limpiar nada transitorio en una RESPUESTA de action-window. Si un
+      // snapshot normal cambia de fase, applyBattleSnapshot() ya entrega la nueva
+      // fase mediante su flujo específico.
       ROK_ONLINE_MATCH_ACTIVE = true;
       LOCAL_PLAYER_ID = playerSlot;
       localStateReady = true;
