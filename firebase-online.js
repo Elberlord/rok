@@ -32,7 +32,7 @@
   const LOBBY_COUNTDOWN_MS = 3400;
   const ARENA_OPTIONS = Object.freeze({
     classic: { id: 'classic', label: 'Arena clásica', src: 'assets/arena.webp' },
-    egypt: { id: 'egypt', label: 'Arena Egipto', src: 'assets/arena-egipto-backup.webp' },
+    egypt: { id: 'egypt', label: 'Arena Egipto', src: 'assets/arena-egipto.webp' },
   });
 
   const ONLINE_SNAPSHOT_SCHEMA_VERSION = 2;

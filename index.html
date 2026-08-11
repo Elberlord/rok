@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>R.O.K LITE</title>
-  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=481-user-profile-hub" />
+  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=529-adventure-water-region" />
   <link rel="icon" href="assets/kast-cell-icon.jpg" />
 </head>
 <body>
+  <div id="rokAppViewport" aria-hidden="false">
+    <div id="rokAppStage">
   <div id="rokDebugRibbon" class="rok-debug-ribbon" aria-live="polite" aria-hidden="true">DEBUG · OK</div>
 
 
@@ -23,8 +25,6 @@
   <div id="transitionOverlay" class="transition-overlay show">
     <div id="transitionText" class="transition-card">INICIA EL DUELO</div>
   </div>
-
-  <div id="globalFxLayer" class="global-fx-layer" aria-hidden="true"></div>
 
 
   <section id="accountAuthOverlay" class="account-auth-overlay visible" aria-hidden="false">
@@ -114,31 +114,148 @@
       <small id="mainMenuUserModeState">Desactivado</small>
     </button>
     <div class="main-menu-buttons" aria-label="Opciones principales">
-      <button id="mainMenuStoryBtn" class="main-menu-btn main-menu-btn-disabled" type="button" aria-label="Modo Historia próximamente">
-        <img src="assets/menu/btn-story.png" alt="Modo Historia" />
+      <button id="mainMenuStoryBtn" class="main-menu-btn" type="button" aria-label="Modo Historia próximamente" data-menu-role="story">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-story.png" alt=""></span></span>
+        <span class="main-menu-btn-label">Modo Historia</span>
       </button>
-      <button id="mainMenuBotBtn" class="main-menu-btn main-menu-btn-play" type="button" aria-label="Jugar 1 vs 1 Bot">
-        <img src="assets/menu/btn-bot.png" alt="1 vs 1 Bot" />
+      <button id="mainMenuAdventureBtn" class="main-menu-btn" type="button" aria-label="Abrir Modo Aventura" data-menu-role="adventure">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-adventure.png" alt=""></span></span>
+        <span class="main-menu-btn-label">Aventura</span>
       </button>
-      <button id="mainMenuOnlineBtn" class="main-menu-btn main-menu-btn-online" type="button" aria-label="Versus Online">
-        <img src="assets/menu/btn-online.png" alt="Versus Online" />
+      <button id="mainMenuBotBtn" class="main-menu-btn" type="button" aria-label="Jugar 1 vs 1 Bot" data-menu-role="bot">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-bot.png" alt=""></span></span>
+        <span class="main-menu-btn-label">1 vs 1 Bot</span>
       </button>
-      <button id="mainMenuLibraryBtn" class="main-menu-btn" type="button" aria-label="Abrir Biblioteca y creador de Spellbooks">
-        <img src="assets/menu/btn-library.png" alt="Biblioteca" />
+      <button id="mainMenuOnlineBtn" class="main-menu-btn" type="button" aria-label="Versus Online" data-menu-role="online">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-online.png" alt=""></span></span>
+        <span class="main-menu-btn-label">Versus Online</span>
       </button>
-      <button id="mainMenuSpellbooksBtn" class="main-menu-btn" type="button" aria-label="Abrir mis Spellbooks guardados">
-        <img src="assets/menu/btn-spellbooks.png" alt="Spellbooks" />
+      <button id="mainMenuLibraryBtn" class="main-menu-btn" type="button" aria-label="Abrir Biblioteca y creador de Spellbooks" data-menu-role="library">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-library.png" alt=""></span></span>
+        <span class="main-menu-btn-label">Biblioteca</span>
       </button>
-      <button id="mainMenuShopBtn" class="main-menu-btn main-menu-shop-btn" type="button" aria-label="Abrir tienda de booster packs">
-        <img class="shop-button-image" src="assets/menu/btn-shop.png" alt="Tienda">
+      <button id="mainMenuSpellbooksBtn" class="main-menu-btn" type="button" aria-label="Abrir mis Spellbooks guardados" data-menu-role="spellbooks">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-spellbooks.png" alt=""></span></span>
+        <span class="main-menu-btn-label">Spellbooks</span>
       </button>
-      <button id="mainMenuCardCreatorBtn" class="main-menu-btn" type="button" aria-label="Creador de Cartas">
-        <img src="assets/menu/btn-card-creator.png" alt="Creador de Cartas" />
+      <button id="mainMenuShopBtn" class="main-menu-btn" type="button" aria-label="Abrir tienda de booster packs" data-menu-role="shop">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-shop.png" alt=""></span></span>
+        <span class="main-menu-btn-label">Tienda</span>
+      </button>
+      <button id="mainMenuCardCreatorBtn" class="main-menu-btn" type="button" aria-label="Alquimia / Creador de Cartas" data-menu-role="alchemy">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-alchemy.png" alt=""></span></span>
+        <span class="main-menu-btn-label">Alquimia</span>
       </button>
     </div>
     <div id="mainMenuNotice" class="main-menu-notice" aria-live="polite"></div>
   </section>
 
+
+
+
+  <section id="adventureScreen" class="adventure-screen" aria-hidden="true" aria-label="Modo Aventura">
+    <div class="adventure-bg" aria-hidden="true"></div>
+    <div class="adventure-vignette" aria-hidden="true"></div>
+    <div class="adventure-shell">
+      <header class="adventure-head">
+        <div class="adventure-head-copy">
+          <span class="adventure-kicker">R.O.K LITE · MODO AVENTURA</span>
+          <h1 id="adventureTitle">Regiones elementales</h1>
+          <p id="adventureSubtitle">Explora el continente y elige la región donde comenzará tu travesía.</p>
+        </div>
+        <div class="adventure-head-actions">
+          <span id="adventureProgressChip" class="adventure-progress-chip">ETAPA 1 · REGIONES</span>
+          <button id="adventureBackBtn" class="adventure-back-btn" type="button">Volver</button>
+        </div>
+      </header>
+
+      <div id="adventureWorldView" class="adventure-view adventure-world-view">
+        <aside class="adventure-side-panel" aria-label="Zonas del continente">
+          <div class="adventure-panel-title">
+            <small>CONTINENTE DE ELHIE</small>
+            <strong>Zonas</strong>
+            <span>Coloca el cursor sobre una región para localizarla en el mapa.</span>
+          </div>
+          <div id="adventureZoneList" class="adventure-option-list" role="listbox" aria-label="Regiones elementales"></div>
+        </aside>
+
+        <section class="adventure-world-main">
+          <div class="adventure-map-frame adventure-world-map-frame">
+            <div class="adventure-map-canvas adventure-world-map-canvas">
+              <img class="adventure-map-image" src="assets/adventure/elhie-world-map.png" alt="Mapa del continente de Elhie">
+              <img id="adventureWorldMarker" class="adventure-map-marker" src="assets/adventure/zone-marker.png" alt="" aria-hidden="true">
+              <div class="adventure-map-shade" aria-hidden="true"></div>
+            </div>
+          </div>
+          <article id="adventureZoneInfo" class="adventure-info-card adventure-zone-info">
+            <div class="adventure-info-heading">
+              <div>
+                <small id="adventureZoneElement">AGUA</small>
+                <h2 id="adventureZoneName">Conocimiento</h2>
+              </div>
+              <span id="adventureZoneStatus" class="adventure-status available">DISPONIBLE</span>
+            </div>
+            <div class="adventure-domain-line"><b>Composición del dominio</b><span id="adventureZoneDomain">Agua · Conocimiento</span></div>
+            <p id="adventureZoneDescription"></p>
+            <button id="adventureEnterZoneBtn" class="adventure-primary-btn" type="button">Entrar al área de Agua</button>
+          </article>
+        </section>
+      </div>
+
+      <div id="adventureWaterView" class="adventure-view adventure-water-view" hidden>
+        <aside class="adventure-side-panel adventure-caster-panel" aria-label="Enfrentamientos del área de Agua">
+          <div class="adventure-panel-title">
+            <small>AGUA · CONOCIMIENTO</small>
+            <strong>Enfrentamientos</strong>
+            <span>Selecciona un Kaster para localizar su zona de combate.</span>
+          </div>
+          <div id="adventureCasterList" class="adventure-option-list adventure-caster-list" role="listbox" aria-label="Kasters de Agua"></div>
+        </aside>
+
+        <section class="adventure-water-main">
+          <div class="adventure-water-top">
+            <div class="adventure-map-frame adventure-water-map-frame">
+              <div class="adventure-map-canvas adventure-water-map-canvas">
+                <img class="adventure-map-image" src="assets/adventure/water-region-map.png" alt="Mapa del área de Agua">
+                <img id="adventureWaterMarker" class="adventure-map-marker adventure-water-marker" src="assets/adventure/zone-marker.png" alt="" aria-hidden="true">
+                <div class="adventure-map-shade" aria-hidden="true"></div>
+              </div>
+            </div>
+
+            <article class="adventure-caster-preview">
+              <div class="adventure-caster-visual">
+                <div id="adventureCasterPlaceholder" class="adventure-caster-placeholder" hidden>
+                  <span>?</span>
+                  <strong>Próximamente</strong>
+                </div>
+                <img id="adventureCasterImage" src="assets/adventure/casters/enigma-first-apprentice.png" alt="Primera aprendiz de Enigma">
+              </div>
+              <div class="adventure-caster-caption">
+                <small id="adventureCasterDomain">AGUA · CONOCIMIENTO</small>
+                <h2 id="adventureCasterName">Primera aprendiz de Enigma</h2>
+                <div id="adventureCasterQualities" class="adventure-quality-tags"></div>
+              </div>
+            </article>
+          </div>
+
+          <article class="adventure-info-card adventure-caster-info">
+            <div class="adventure-info-heading">
+              <div>
+                <small>ENFOQUE DEL SPELLBOOK</small>
+                <h2 id="adventureCasterDeckTitle">Control mágico adaptable</h2>
+              </div>
+              <span id="adventureCasterStatus" class="adventure-status available">DISPONIBLE</span>
+            </div>
+            <p id="adventureCasterDescription"></p>
+            <div id="adventureCasterRoles" class="adventure-role-summary"></div>
+            <button id="adventureStartEncounterBtn" class="adventure-primary-btn adventure-start-btn" type="button">Preparar combate</button>
+          </article>
+        </section>
+      </div>
+
+      <div id="adventureNotice" class="adventure-notice" aria-live="polite"></div>
+    </div>
+  </section>
 
   <section id="boosterStoreScreen" class="booster-store-screen" aria-hidden="true" aria-label="Tienda de booster packs">
     <div class="booster-store-bg" aria-hidden="true"></div>
@@ -645,6 +762,36 @@
     </div>
   </section>
 
+
+  <section id="cardInfoSpellbookTargetModal" class="spellbook-name-modal card-info-spellbook-target-modal" aria-hidden="true">
+    <div class="spellbook-name-card card-info-spellbook-target-card" role="dialog" aria-modal="true" aria-labelledby="cardInfoSpellbookTargetTitle">
+      <button id="cardInfoSpellbookTargetCloseBtn" class="spellbook-name-close" type="button" aria-label="Cerrar">×</button>
+      <span class="spellbook-name-kicker">SPELLBOOK</span>
+      <h2 id="cardInfoSpellbookTargetTitle">¿A cuál Spellbook deseas añadir esta carta?</h2>
+      <p id="cardInfoSpellbookTargetCopy">Selecciona un Spellbook disponible. La carta se añadirá inmediatamente.</p>
+      <div id="cardInfoSpellbookTargetList" class="card-info-spellbook-target-list"></div>
+      <div id="cardInfoSpellbookTargetNotice" class="spellbook-name-error" aria-live="polite"></div>
+      <div class="spellbook-name-actions">
+        <button id="cardInfoSpellbookTargetCancelBtn" class="spellbooks-secondary-btn" type="button">Cancelar</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="libraryBuilderExitModal" class="spellbook-name-modal library-builder-exit-modal" aria-hidden="true">
+    <div class="spellbook-name-card library-builder-exit-card" role="dialog" aria-modal="true" aria-labelledby="libraryBuilderExitTitle">
+      <button id="libraryBuilderExitCloseBtn" class="spellbook-name-close" type="button" aria-label="Cerrar">×</button>
+      <span class="spellbook-name-kicker">SPELLBOOK</span>
+      <h2 id="libraryBuilderExitTitle">¿Deseas guardar antes de salir?</h2>
+      <p id="libraryBuilderExitCopy">Hay cambios sin guardar en el Spellbook actual.</p>
+      <div id="libraryBuilderExitNotice" class="spellbook-name-error" aria-live="polite"></div>
+      <div class="library-builder-exit-actions">
+        <button id="libraryBuilderExitCancelBtn" class="spellbooks-secondary-btn" type="button">Cancelar</button>
+        <button id="libraryBuilderExitDiscardBtn" class="spellbooks-secondary-btn danger-confirm" type="button">Salir sin guardar</button>
+        <button id="libraryBuilderExitSaveBtn" class="spellbooks-primary-btn" type="button">Guardar y salir</button>
+      </div>
+    </div>
+  </section>
+
   <main class="game-shell">
     <section class="left-panel panel">
       <button id="infoChip" class="info-chip" title="Info de versión y parche">i</button>
@@ -741,6 +888,7 @@
               <strong id="cardInfoCost">0</strong>
               <strong id="cardInfoCastTime">0</strong>
               <strong id="cardInfoRestoreTime">0</strong>
+              <strong id="cardInfoSpellbookCooldown">-</strong>
               <strong id="cardInfoUtilityFactors">-</strong>
             </div>
             <div class="stat-row stat-row-move">
@@ -849,7 +997,7 @@
       <div class="power-image-preview-box">
         <button id="powerImagePreviewCloseBtn" class="meta-info-close power-image-preview-close" type="button">×</button>
         <h3 id="powerImagePreviewTitle">Poder</h3>
-        <img id="powerImagePreviewImg" src="" alt="">
+        <img id="powerImagePreviewImg" alt="">
       </div>
     </section>
 
@@ -1004,6 +1152,12 @@
     </section>
   </div>
 
+    </div><!-- /#rokAppStage -->
+  </div><!-- /#rokAppViewport -->
+
+  <!-- FX físicos del viewport: deliberadamente fuera del lienzo lógico escalado. -->
+  <div id="globalFxLayer" class="global-fx-layer" aria-hidden="true"></div>
+
   <script>
     (function () {
       var ribbon = null;
@@ -1116,6 +1270,10 @@
       window.addEventListener('error', function (event) {
         var target = event.target;
         if (target && target !== window && !event.message) {
+          var rawSrc = target.getAttribute && target.getAttribute('src');
+          // Un <img> auxiliar sin src no es un fallo de recurso. El visor de poderes
+          // permanece vacío hasta que el usuario abre una imagen; no debe encender DEBUG.
+          if (target.tagName === 'IMG' && (!rawSrc || !String(rawSrc).trim())) return;
           var src = target.src || target.href || '';
           showRibbon('Recurso no cargó', 'error', describeNode(target) + (src ? ' · ' + src.split('/').pop() : ''));
           return;
@@ -1145,7 +1303,8 @@
       });
     }());
   </script>
-  <script src="game.js?v=482-friends-lobby"></script>
-  <script src="firebase-online.js?v=482-friends-lobby"></script>
+  <script src="rok-layout-scale.js?v=528-smoke-action-window-cast-geometry"></script>
+  <script src="game.js?v=528-smoke-action-window-cast-geometry"></script>
+  <script src="firebase-online.js?v=528-smoke-action-window-cast-geometry"></script>
 </body>
 </html>

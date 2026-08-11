@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.234';
+const GAME_VERSION = 'v5.5.269';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -87,6 +87,18 @@ function emitOnlineVisualEvent(type, payload = {}) {
   } catch (_) {
     return false;
   }
+}
+
+// v487 · Todos los modales/HUD estructurales viven dentro del lienzo lógico.
+// Los FX que trabajan con coordenadas físicas del viewport permanecen en body.
+function getRokUiStage() {
+  return document.getElementById('rokAppStage') || document.body;
+}
+
+function appendRokUiNode(node) {
+  if (!node) return node;
+  getRokUiStage().appendChild(node);
+  return node;
 }
 
 function snapshotOnlineFxUnit(playerId, unit) {
@@ -184,6 +196,9 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => playMinokagePassiveWindupFx(unit, Number(payload.duration || 420), { suppressOnlineFx: true }));
       break;
     }
+    case 'minokage-hit-slash':
+      await replay(() => playMinokageHitSlashBurstFx({ row: Number(payload.row || 0), col: Number(payload.col || 0) }, { angles: payload.angles || [], suppressOnlineFx: true }));
+      break;
     case 'restore-travel': {
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => animateRestoreInvocationToSpawn(Number(payload.source?.playerId || 0), unit, payload.destination || null, null, { fromRow: payload.source?.row, fromCol: payload.source?.col, suppressOnlineFx: true }));
@@ -256,6 +271,40 @@ async function playOnlineVisualEvent(event = {}) {
 window.ROK_ONLINE_FX = { play: playOnlineVisualEvent };
 
 const PATCH_NOTES = [
+  'v516: Repara la regresión estructural introducida en v512 que eliminó accidentalmente 160 funciones del flujo principal (kasteo, restauración, render general, HUD overlay, mini HUD rival y controles de arena). Restituye el bloque funcional sin retirar los cambios posteriores de v513/v514.',
+  'v505: Minokage: corrige el trail de sombras desalineado por mezcla de coordenadas viewport/stage, aplica el mismo trail al dash final de Shippū, sustituye la X de impacto por 2–3 slashes del nuevo asset, mantiene el giro lento durante acercamiento y rápido al impacto, fuerza el retiro con fallback, excluye Guardianes del salto pasivo y vuelve a trabarlo con estructuras; restauración natural 3 y restauración forzada posterior al poder 6.',
+  'v504: Biblioteca: permite elegir copias de una carta antes de tener un Spellbook activo y, al confirmar, abre un selector de Spellbook de destino que valida compatibilidad, dominios, copias y espacio. Constructor: al salir con cambios sin guardar pregunta si deseas Guardar y salir, Salir sin guardar o Cancelar.',
+  'v513: Separa Estasis de Spellbook y habilidades aprendidas por copia física de carta mediante un ID persistente de instancia. Varias Kagero/Kaguya iguales ya no comparten enfriamiento ni estado aprendido al morir, regresar o rekastearse.',
+  'v512: Unifica la selección visual de fichas en arena: cualquier invocación, Guardián o Kaster seleccionable usa el mismo foil de acción y punto amarillo. Retira glifos especiales de Minokage, Kaguya, Kurayami y Yasugana y elimina el halo distinto usado por Shirahadori/Despliegue.',
+  'v525: Shirahadori ahora puede responder a otro Shirahadori. Cada contraataque reflejado se trata como una nueva instancia física y encadena nuevas comprobaciones PDA hasta que una falla y recibe el impacto, o una devolución queda fuera de rango.',
+  'v526: Shirahadori muestra disponibilidad directa en el Spellbook con foil y burbuja amarilla cuando realmente puede usarse, sin crear ventana de acción. Cuando no hay usuario legal permanece únicamente en gris, sin rótulo BLOQUEADA.',
+  'v527: Shirahadori sanea habilidades aprendidas por copia para que una misma habilidad nunca acumule su +3 más de una vez, y espacia cada eslabón de las cadenas de contraataques para que detección, PDA, desvío e impacto se lean visualmente antes del siguiente Shirahadori.',
+  'v528: Bomba de humo deja de usar el anclaje dinámico junto a Sutoka y vuelve a la ventana de acción normal; la zona de kasteo normaliza miniaturas y contadores con coordenadas relativas para conservar su alineación bajo la escala universal.',
+  'v520: Reescribe la compatibilidad de Shirahadori con una cadena estricta y centralizada: Invocación → Guerrero/Asesino → Espada explícitamente compatible → Cuerpo a cuerpo. El arma base nunca cuenta; una espada pesada/no marcada tampoco. Carta y habilidad se bloquean dinámicamente usando el mismo evaluador.',
+  'v519: Shirahadori queda gris en el Spellbook cuando no existe ningún usuario legal en arena y no puede arrastrarse/activarse. Si una invocación que ya aprendió Shirahadori pierde su arma principal y no conserva una secundaria cuerpo a cuerpo válida, la habilidad permanece aprendida pero aparece BLOQUEADA y deja de dispararse hasta recuperar un arma compatible.',
+  'v518: Shirahadori se resuelve universalmente por objetivo sin interrumpir animaciones multiblanco; el contraataque de Oscilación parcial se difiere hasta terminar el barrido. Excluye por regla el arma base y exige Guerrero/Asesino con arma principal o secundaria cuerpo a cuerpo.',
+  'v517: Corrige Shirahadori con ataques de Rango/Oscilación parcial por objetivo sin cancelar el barrido, restaura clic derecho para cancelar movimiento extra del Kaster y Bomba de humo, alinea Junkai #2 y reubica las acciones rápidas para no quedar detrás del HUD.',
+  'v511: Corrige el arranque del modo de prueba: la constante del Spellbook de prueba ya no referencia SHIRAHADORI_ABILITY_CARD_ID antes de su inicialización; usa el id estable abilityShirahadori y evita el ReferenceError que detenía init().',
+  'v510: Reconfigura exclusivamente el bot del modo de prueba para validar Shirahadori: reemplaza Minokage/Táctica por 3 Kagero + 3 Shirahadori y fuerza en su primer Kasteo que despliegue las tres Kagero y enseñe Shirahadori a cada copia durante ese mismo turno.',
+  'v509: Corrige la entrega del slash de contraataque de Shirahadori actualizando el cache-busting de todos los recursos; el código de v508 ya disparaba el FX, pero index.html seguía solicitando game.js con la URL de v506 y podía cargar una copia antigua desde caché.',
+  'v506: Corrige la persistencia real de Shirahadori al rekastear una invocación: el estado aprendido viaja del Spellbook a la cola de kasteo y vuelve a la unidad al entrar. Las fichas de la zona de kasteo ahora son inspeccionables en todo momento y muestran las habilidades aprendidas de esa copia.',
+  'v503: Implementa aprendizaje permanente de Shirahadori y Estasis de Spellbook: enfriamiento base por costo, bonificación por habilidades aprendidas, persistencia por copia y modal de habilidad basado en su poder de aprendizaje.',
+  'v502: Corrige de raíz el selector de Kaster en Biblioteca: la fila real de acciones recibe un layout dedicado y los wrappers intermedios dejan de participar visualmente; Seleccionar/Cambiar Kaster pasa a ser el botón central completo.',
+  'v501: Corrige el botón Seleccionar/Cambiar Kaster en Biblioteca en todos sus estados: el estilo ya no depende del modo selectCaster y se aplica también cuando el botón está deshabilitado.',
+  'v500: Biblioteca: el selector Seleccionar/Cambiar Kaster vuelve a ser un botón completo, centrado y redondeado; el wrapper central deja de dibujar un segundo contenedor visual.',
+  'v499: Corrige la iconografía de Penetración de armadura: deja de reutilizar el icono de la aplicación de daño Penetración y usa el icono del factor Armadura. La aplicación Daño de penetración conserva su icono propio y su lógica de trayectoria.',
+  'v497: Añade una línea decorativa bajo el nombre del modal usando el color elemental real de la carta y devuelve el límite derecho del modal al inicio del Spellbook, manteniéndolo visible durante la inspección de cartas.',
+  'v496: Unifica de forma real la geometría del modal de carta en partida: cabecera, cuerpo y acciones usan alturas fijas compartidas para invocaciones, hechizos, habilidades, Kaster y guardianes; el contenido ya no puede recolocar ni estrechar el modal padre.',
+  'v495: Unifica la lógica exterior de todos los modales de carta en partida: el padre deja de autoescalarse por el contenido, hechizos/habilidades ocupan la columna completa de estadísticas, guardianes respetan la misma proporción y todas las variantes comparten ancho, márgenes y acciones.',
+  'v494: Elimina el clipping superior restante del dominio flotante del modal de carta en partida: se reserva headroom real en el bloque principal y el conjunto deja de apoyarse en coordenadas negativas recortadas.',
+  'v493: Completa el dominio flotante del modal de carta en partida: fondo, símbolo elemental y atributo vuelven a renderizarse como un solo conjunto unido, conservando la posición visual anterior fuera del contenedor de la miniatura.',
+  'v492: El dominio/atributo del modal de carta vuelve a su posición visual original, pero ahora es hermano de la miniatura dentro del bloque principal en partida; deja de ser hijo del preview y por eso ya no puede ser recortado por ese contenedor.',
+  'v491: Reancla el grupo de dominio/atributo del modal de carta en partida para que quede dentro de la miniatura y deje de recortarse en la parte superior.',
+  'v490: Corrige el recorte real del título del modal de carta en partida: libera el overflow vertical del bloque superior, aumenta el line-height del nombre y añade colchón interno para que el texto deje de cortarse arriba.',
+  'v489: Recoloca más abajo el modal de carta en partida: añade margen superior adicional para que toda la composición deje de verse corrida hacia arriba, manteniendo el cierre del hueco vertical y la geometría pareja de Kastear/Salir.',
+  'v488: Ajusta el modal de carta en partida: baja la cabecera para evitar recortes en la parte superior y elimina el hueco excesivo entre el contenido y Kastear/Salir, manteniendo la misma geometría de ambos botones.',
+  'v487: Escala universal por lienzo lógico 1600x900: resolución, zoom y tamaño de ventana ya no reorganizan la interfaz; modales y submodales conservan jerarquía, márgenes seguros y ajuste uniforme, y Kastear recupera la misma geometría exterior de Salir.',
+  'v486: Estabiliza PvP: corrige el reporter DEBUG faltante, elimina el falso error del visor de poderes, fuerza cache-busting v486, recupera limpiamente kasteos de invocación fallidos para evitar nexos huérfanos y permite que Evasión de Minokage se reposicione también ante ataques del Kaster.',
   'v482: Reemplaza el acceso por código del Versus Online por un sistema de partidas entre amigos: Crear/Unirse, bandeja en vivo de salas abiertas de amigos, lobby con selección de Spellbook y arena del Host, estado Listo independiente para ambos jugadores y cuenta regresiva automática 3-2-1 antes de iniciar el duelo.',
   'v472: Etapa 3 PvP: agrega un canal efímero de eventos visuales independiente del snapshot y reproduce en ambos clientes Kouuten, Guren Gan, Carga Real, desplazamientos/canalizaciones de Minokage, ataques, restauraciones, retornos al Spellbook, traslados de nexo, Táctica de guerra, defensas del Kaster y entradas de invocaciones.',
   'v471: Etapa 2 PvP: amplía el snapshot autoritativo con lámparas, Larga Noche, vínculos de hechizos, cargas de Minokage, armas caídas y Kasteo progresivo de Kouuten; limpia correctamente colecciones vacías omitidas por RTDB y separa el estado lógico de devolución/restauración de sus animaciones para evitar divergencias entre J1 y J2.',
@@ -1886,6 +1935,9 @@ const WEAPON_DB = {
     slug: "espada",
     icon: "assets/weapons/ataque-espada.svg",
     category: "ataque nativo",
+    // v520 · La familia Espada puede participar en Shirahadori, pero el perfil
+    // concreto de la carta también debe declararse compatible explícitamente.
+    shirahadoriWeaponFamily: true,
     summary: "Arma cc de alcance 1 a 2 y precisión 6, estable y sin efecto adicional nativo.",
     description: "Arma de cuerpo a cuerpo equilibrada y directa. Maneja alcance entre 1 y 2, precisión 6 y no trae un efecto de daño adicional nativo. Su función es ofrecer un perfil ofensivo estable, confiable y flexible para combate cercano sin depender de efectos secundarios.",
     consumableDefault: false,
@@ -2179,6 +2231,7 @@ function buildAttackProfileFromWeaponEntry(entry = null, fallbackCard = null) {
   const explicitApplication = Object.prototype.hasOwnProperty.call(entry, 'applicationId') ? entry.applicationId : entry.damageApplication;
   return {
     weaponType: entry.weaponType || fallbackCard?.weaponType || 'golpe',
+    shirahadoriCompatible: entry.shirahadoriCompatible === true,
     type: combatMode,
     combatMode,
     label: entry.label || combatModeLabel,
@@ -2197,7 +2250,11 @@ function getAttackProfileForWeapon(card, weaponType = null) {
   const normalized = String(weaponType || '').trim();
   const primaryWeaponType = String(card?.attackProfile?.weaponType || card?.weaponType || '').trim();
   const baseWeaponType = String(card?.baseAttackProfile?.weaponType || 'golpe').trim();
-  if (!normalized || normalized === primaryWeaponType) return { ...(card.attackProfile || {}) };
+  if (!normalized || normalized === primaryWeaponType) return {
+    ...(card.attackProfile || {}),
+    weaponType: primaryWeaponType || card.weaponType || 'golpe',
+    shirahadoriCompatible: card.attackProfile?.shirahadoriCompatible === true || card.shirahadoriCompatible === true,
+  };
   if (normalized === baseWeaponType) return { ...(card.baseAttackProfile || {}) };
   const extra = getExtraWeaponProfile(card, normalized);
   if (extra && (String(extra.id) === normalized || String(extra.weaponType) === normalized)) {
@@ -2644,7 +2701,7 @@ function openKurokagiDroppedWeaponChoiceModal(candidate) {
     stopTargetMenuEvent(event);
     void resolveKurokagiDroppedWeaponChoice(candidate.dropId);
   });
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   return true;
 }
 
@@ -3172,6 +3229,7 @@ const CARD_LIBRARY = {
     builderFocus: 'Hattori Hanzo se especializa en infiltración, eliminación selectiva y presión táctica. Puede dirigir invocaciones cuyas cualidades encajen con su dominio de Asesino, Guerrero, Invocador, Acechador, Centinela, Tirador, Héroe o Maestro.',
     stats: { atk: 2, def: CASTER_DEFENSE_VALUE, damage: 2, life: 12, maxLife: 12, mov: 2, restore: 0, pureBase: 0, pureCadence: 2, pureMax: 8 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -3228,6 +3286,7 @@ const CARD_LIBRARY = {
     builderFocus: 'Ieyasu Tokugawa se especializa en mando, coordinación de formaciones y diversidad táctica. Puede dirigir invocaciones cuyas cualidades encajen con su dominio de Caudillo, Guerrero, Tirador, Asesino, Bandido, Maestro, Héroe, Centinela o Invocador.',
     stats: { atk: 2, def: CASTER_DEFENSE_VALUE, damage: 2, life: 15, maxLife: 15, mov: 2, restore: 0, pureBase: 0, pureCadence: 2, pureMax: 8 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -3282,6 +3341,7 @@ const CARD_LIBRARY = {
     qualities: ['assassin'],
     stats: { atk: 2, def: 0, damage: 2, life: 1, mov: 3, restore: 0 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -3432,6 +3492,7 @@ const CARD_LIBRARY = {
         id: 'sword',
         label: 'Espada',
         weaponType: 'espada',
+        shirahadoriCompatible: true,
         sourceFactor: 'extraWeapon',
         sourceRace: 'human',
         combatMode: 'melee',
@@ -3495,6 +3556,7 @@ const CARD_LIBRARY = {
         id: 'espadaSecundaria',
         label: 'Espada',
         weaponType: 'espada',
+        shirahadoriCompatible: true,
         sourceFactor: 'extraWeapon',
         source: 'native',
         sourceType: 'card',
@@ -3609,6 +3671,7 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 3, def: 0, damage: 3, life: 2, mov: 2, restore: 3 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -3668,6 +3731,7 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 3, def: 0, damage: 3, life: 2, mov: 3, restore: 2 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -3727,8 +3791,10 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 2, def: 0, damage: 2, life: 1, mov: 3, restore: 2 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       weaponType: 'espada',
+      shirahadoriCompatible: true,
       type: 'melee',
       combatMode: 'melee',
       label: 'Cuerpo a cuerpo',
@@ -3827,6 +3893,7 @@ const CARD_LIBRARY = {
         id: 'espadaSecundaria',
         label: 'Espada',
         weaponType: 'espada',
+        shirahadoriCompatible: true,
         sourceFactor: 'extraWeapon',
         source: 'human',
         sourceRace: 'human',
@@ -3884,8 +3951,10 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 1, def: 0, damage: 1, life: 3, mov: 3, restore: 1 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       weaponType: 'espada',
+      shirahadoriCompatible: true,
       type: 'melee',
       combatMode: 'melee',
       label: 'Cuerpo a cuerpo',
@@ -4700,23 +4769,28 @@ const CARD_LIBRARY = {
     },
     weaponConditions: {},
     baseAttackProfile: null,
-    abilitySlots: 1,
-    abilities: [{ id: 'shirahadori', sourceType: 'abilityCard', sourceCardId: 'abilityShirahadori' }],
+    abilitySlots: 0,
+    abilities: [],
+    power: 'aprenderShirahadori',
+    spellbookCooldown: 3,
     movementType: 'none',
     biotype: null,
     effectStatus: 'implemented',
     grantedAbilityId: 'shirahadori',
-    summary: 'Técnica catalizadora sin costo ni tiempo de kasteo. Se equipa sobre la propia invocación usuaria y le concede Shirahadori. Solo puede usarla una invocación Guerrero o Asesino.',
-    description: 'Habilidad · Técnica. El usuario de esta habilidad es también su objetivo. Puede equiparse únicamente a una invocación aliada activa con cualidad Guerrero o Asesino que tenga un espacio de habilidad disponible. No requiere elementos, no tiene tiempo de kasteo ni enfriamiento. Mientras permanezca equipada, la invocación usuaria obtiene Shirahadori.',
+    summary: 'Técnica catalizadora consumible. Usuario → Invocación → Guerrero o Asesino → Espada compatible → Cuerpo a cuerpo. El arma base nunca cuenta. La copia aprende Shirahadori permanentemente, puede encadenar devoluciones contra otro Shirahadori y recibe +3 de Estasis de Spellbook.',
+    description: 'Habilidad · Técnica. Usuario → Invocación → Guerrero o Asesino → Espada compatible → Cuerpo a cuerpo. La Espada puede ser principal, secundaria o una Espada equipada/capturada, pero debe estar declarada compatible con Shirahadori; una espada pesada como Montante/Nodachi no queda habilitada automáticamente. El arma base de la invocación —por ejemplo Golpe— nunca cuenta. La carta se consume al resolverse y no regresa al Spellbook. Esa copia conserva Shirahadori al restaurarse, morir, regresar al Spellbook y volver a ser kasteada. Aprender Shirahadori añade +3 fases a su Estasis de Spellbook.',
     spellRules: {
       user: {
         mode: 'restricted',
-        label: 'Invocación → Guerrero · Asesino',
-        description: 'El usuario debe ser una invocación aliada activa con cualidad Guerrero o Asesino y con un espacio de habilidad disponible.',
+        label: 'Invocación → Guerrero/Asesino → Espada compatible → Cuerpo a cuerpo',
+        description: 'El usuario debe seguir la cadena completa: Invocación → Guerrero o Asesino → Espada compatible → Cuerpo a cuerpo. La Espada puede ser principal, secundaria o equipada/capturada. El arma base nunca cuenta.',
         requirementMode: 'all',
         cardTypes: ['invocation'],
         mandatory: { cardTypes: ['invocation'] },
         qualities: ['warrior', 'assassin'],
+        weapons: ['espada'],
+        combatModes: ['melee'],
+        weaponCompatibility: 'shirahadori',
         displayHierarchy: true,
       },
       target: {
@@ -4726,11 +4800,12 @@ const CARD_LIBRARY = {
         description: 'Técnica hace que la misma invocación que usa Shirahadori sea el objetivo de la carta.',
       },
       castRequirements: { traits: ['Técnica'] },
-      consumable: false,
+      consumable: true,
       effect: {
         id: 'grantShirahadori',
         grantedAbilityId: 'shirahadori',
-        persistsUntilUserRestores: true,
+        persistsAsLearnedAbility: true,
+        spellbookCooldownBonus: 3,
         cooldownPhases: 0,
       },
     },
@@ -5163,6 +5238,7 @@ const CARD_LIBRARY = {
     },
     baseAttackProfile: {
       weaponType: 'espada',
+      shirahadoriCompatible: true,
       combatMode: 'melee',
       range: 1,
       precision: 6,
@@ -5202,8 +5278,10 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 1, def: 0, damage: 1, life: 2, mov: 3, restore: 3 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       weaponType: 'espada',
+      shirahadoriCompatible: true,
       type: 'melee',
       combatMode: 'melee',
       label: 'Cuerpo a cuerpo',
@@ -5302,7 +5380,7 @@ const CARD_LIBRARY = {
     power: { id: 'shippuUgachi' },
     movementType: 'basic',
     biotype: 'terrestre',
-    summary: 'Asesino Ninja catalizador de Vida 1. Su Yari de daño 2 tiene alcance 1 y Oscilación completa. Shippū Ugachi posee una fase activa de embestida y una fase pasiva que le permite fijar enemigos a radio 3, saltar hasta alcance 1, atacar y reposicionarse.',
+    summary: 'Asesino Ninja catalizador de Vida 1. Su Yari de daño 2 tiene alcance 1 y Oscilación completa. Shippū Ugachi posee una fase activa de embestida y una fase pasiva que le permite fijar invocaciones o Kaster a radio 3, saltar hasta alcance 1, atacar y reposicionarse. Los Guardianes lo bloquean de forma normal.',
   },
 
   samuraiKaguya: {
@@ -5382,6 +5460,7 @@ const CARD_LIBRARY = {
     qualities: ['hero', 'caudillo'],
     stats: { atk: 2, def: 0, damage: 2, life: 1, mov: 1, restore: 6 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -5438,6 +5517,7 @@ const CARD_LIBRARY = {
     qualities: ['caudillo', 'warrior'],
     stats: { atk: 4, def: 0, damage: 4, life: 2, mov: 1, restore: 2 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -5457,6 +5537,7 @@ const CARD_LIBRARY = {
       {
         id: 'segundaEspada',
         weaponType: 'espada',
+        shirahadoriCompatible: true,
         combatMode: 'melee',
         range: 1,
         precision: 6,
@@ -5507,6 +5588,7 @@ const CARD_LIBRARY = {
     qualities: ['hero', 'warrior'],
     stats: { atk: 2, def: 0, damage: 2, life: 1, mov: 2, restore: 5 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -5571,6 +5653,7 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 1, def: 0, damage: 1, life: 4, mov: 3, restore: 2 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -5601,6 +5684,7 @@ const CARD_LIBRARY = {
         id: 'segundaEspada',
         label: 'Espada',
         weaponType: 'espada',
+        shirahadoriCompatible: true,
         combatMode: 'melee',
         range: 1,
         precision: 6,
@@ -5659,6 +5743,7 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 2, def: 0, damage: 2, life: 2, mov: 3, restore: 2 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -5724,6 +5809,7 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 1, def: 0, damage: 1, life: 1, mov: 3, restore: 0 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -5789,6 +5875,7 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 0, def: 0, damage: 0, life: 1, mov: 1, restore: 0 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -5854,6 +5941,7 @@ const CARD_LIBRARY = {
     spellbookLocked: false,
     stats: { atk: 0, def: 0, damage: 0, life: 5, mov: 1, restore: 2 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -5890,7 +5978,7 @@ const CARD_LIBRARY = {
     power: { id: 'habilidadDefinitiva' },
     movementType: 'retreat',
     biotype: 'terrestre',
-    summary: 'Héroe y Maestro Samurai catalizador. Su Habilidad definitiva concede Desvío 3 físico a Guerreros aliados no Samurái y Shirahadori a Guerreros Samurái. Su restauración base 2 aumenta en 1 por cada Samurai que conserve Shirahadori por medio de este poder al comenzar la restauración.',
+    summary: 'Héroe y Maestro Samurai catalizador. Su Habilidad definitiva concede Desvío 3 físico a Guerreros aliados no Samurái; los Guerreros Samurái solo reciben Shirahadori si disponen de una Espada compatible de Cuerpo a cuerpo. Su restauración base 2 aumenta en 1 por cada Samurai que realmente conserve Shirahadori por medio de este poder al comenzar la restauración.',
   },
 
   samuraiToyotomiHideyoshi: {
@@ -5973,6 +6061,7 @@ const CARD_LIBRARY = {
     qualities: ['warrior'],
     stats: { atk: 3, def: 0, damage: 3, life: 1, mov: 2, restore: 1 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -6032,6 +6121,7 @@ const CARD_LIBRARY = {
     qualities: ['warrior'],
     stats: { atk: 4, def: 0, damage: 4, life: 2, mov: 2, restore: 1 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -6091,6 +6181,7 @@ const CARD_LIBRARY = {
     qualities: ['warrior', 'assassin'],
     stats: { atk: 3, def: 0, damage: 3, life: 3, mov: 3, restore: 4 },
     weaponType: 'espada',
+    shirahadoriCompatible: true,
     attackProfile: {
       type: 'melee',
       combatMode: 'melee',
@@ -6660,7 +6751,7 @@ const FACTOR_DB = {
   armorPenetration: {
     id: 'armorPenetration',
     label: 'Penetración de armadura',
-    icon: 'assets/damage-applications/damage-application-penetration.png',
+    icon: 'assets/factors/factor-armadura.svg',
     classification: { applicationModes: ['passive'], applicationTags: [], natures: ['physical'], functionalCategories: ['offensive', 'armorPiercing'] },
     tags: ['factor', 'ofensivo', 'físico', 'penetración', 'armadura', 'reducción de armadura'],
     summary: 'Reduce la Armadura física efectiva del objetivo antes de calcular el daño.',
@@ -7383,9 +7474,23 @@ function buildCardInfoViewModel(card, meta = {}) {
     ? { ...(card.weaponConditions || {}), [capturedWeaponProfile.weaponType]: { consumable: false, note: `Arma equipada mediante Buki Utsushi. ${capturedWeaponProfile.label}: ${capturedWeaponProfile.combatMode}, alcance ${capturedWeaponProfile.range}, precisión ${capturedWeaponProfile.precision}, daño ${capturedWeaponProfile.damage}. No transmite factores ni poderes.` } }
     : (card.weaponConditions || {});
   const maxHpBonusSources = getMaxHpBonusSourcesForUnit(unit, card, meta.playerId);
+  migrateLegacyAbilityCardEntries(unit);
   const runtimeAbilities = Array.isArray(card.abilities) ? card.abilities.map(entry => ({ ...entry })) : [];
+  getUnitLearnedAbilityEntries(unit).forEach(entry => {
+    if (!runtimeAbilities.some(item => item?.id === entry.id)) runtimeAbilities.push({ ...entry });
+  });
   if (unitReceivesOSenseiShirahadori(unit, meta.playerId) && !runtimeAbilities.some(entry => entry?.id === SHIRAHADORI_ABILITY_ID)) {
     runtimeAbilities.push({ id: SHIRAHADORI_ABILITY_ID, sourcePower: 'habilidadDefinitiva', sourceType: 'power' });
+  }
+  const shirahadoriRuntime = runtimeAbilities.some(entry => entry?.id === SHIRAHADORI_ABILITY_ID)
+    ? getShirahadoriRuntimeAvailability(meta.playerId, unit)
+    : null;
+  if (shirahadoriRuntime && !shirahadoriRuntime.available) {
+    runtimeAbilities.forEach(entry => {
+      if (entry?.id !== SHIRAHADORI_ABILITY_ID) return;
+      entry.runtimeBlocked = true;
+      entry.runtimeBlockedReason = shirahadoriRuntime.reason;
+    });
   }
   return {
     ...card,
@@ -7427,7 +7532,60 @@ function buildCardInfoViewModel(card, meta = {}) {
       kageNoMichiPdaOverride: Math.max(0, Number(unit.kageNoMichiPdaOverride || 0)),
       kurokagiWeaponMode: unit.kurokagiWeaponMode || 'primary',
       capturedWeapon: capturedWeaponProfile ? { ...capturedWeaponProfile } : null,
+      learnedAbilities: getUnitLearnedAbilityEntries(unit),
+      spellbookCooldown: getUnitSpellbookCooldownBreakdown(unit, card),
       cooldowns: buildCardModalCooldownMaps(unit, runtimeActiveFactors),
+    },
+  };
+}
+
+function buildSpellbookPersistentCardInfoViewModel(card, playerId, tab, slot) {
+  if (!card || getCardTypeId(card) !== 'invocation') return card;
+  const persistent = getSpellbookCardPersistentState(playerId, tab, slot, card.id);
+  if (!persistent?.learnedAbilities?.length) return card;
+  const learned = normalizeLearnedAbilityEntries(persistent.learnedAbilities);
+  const abilities = Array.isArray(card.abilities) ? card.abilities.map(entry => ({ ...entry })) : [];
+  learned.forEach(entry => {
+    if (!abilities.some(item => item?.id === entry.id)) abilities.push({ ...entry });
+  });
+  const baseCooldown = getInvocationBaseSpellbookCooldown(card);
+  const learnedCooldown = getLearnedAbilitiesSpellbookCooldownTotal(learned);
+  return {
+    ...card,
+    abilitySlots: Math.max(Number(card.abilitySlots || 0), abilities.length),
+    abilities,
+    __runtime: {
+      ...(card.__runtime || {}),
+      source: 'spellbook',
+      learnedAbilities: learned,
+      spellbookCooldown: { base: baseCooldown, learned: learnedCooldown, total: baseCooldown + learnedCooldown },
+    },
+  };
+}
+
+function buildCastQueuePersistentCardInfoViewModel(card, playerId, item = null) {
+  if (!card) return card;
+  const learned = getCardTypeId(card) === 'invocation'
+    ? normalizeLearnedAbilityEntries(item?.persistentCardState?.learnedAbilities)
+    : [];
+  const abilities = Array.isArray(card.abilities) ? card.abilities.map(entry => ({ ...entry })) : [];
+  learned.forEach(entry => {
+    if (!abilities.some(itemAbility => itemAbility?.id === entry.id)) abilities.push({ ...entry });
+  });
+  const baseCooldown = getCardTypeId(card) === 'invocation' ? getInvocationBaseSpellbookCooldown(card) : 0;
+  const learnedCooldown = getLearnedAbilitiesSpellbookCooldownTotal(learned);
+  return {
+    ...card,
+    abilitySlots: Math.max(Number(card.abilitySlots || 0), abilities.length),
+    abilities,
+    __runtime: {
+      ...(card.__runtime || {}),
+      source: 'castQueue',
+      playerId: Number(playerId || 0),
+      spawnId: item?.spawnId || '',
+      castRemaining: Math.max(0, Number(item?.remaining || 0)),
+      learnedAbilities: learned,
+      spellbookCooldown: { base: baseCooldown, learned: learnedCooldown, total: baseCooldown + learnedCooldown },
     },
   };
 }
@@ -8221,7 +8379,7 @@ const state = {
       units: [],
       spawnMarkers: [],
       spellbookUseCooldowns: {},
-      spellbookUseCooldowns: {},
+      spellbookCardStates: {},
     },
     2: {
       life: 30,
@@ -8239,6 +8397,8 @@ const state = {
       castQueue: [],
       units: [],
       spawnMarkers: [],
+      spellbookUseCooldowns: {},
+      spellbookCardStates: {},
     },
   },
 };
@@ -8330,6 +8490,17 @@ function ensureRuntimeStateCollections(targetState = state) {
     });
 
     player.handTabs = normalizeRuntimeHandTabs(player.handTabs, templatePlayer.handTabs);
+    player.spellbookUseCooldowns = player.spellbookUseCooldowns && typeof player.spellbookUseCooldowns === 'object' ? player.spellbookUseCooldowns : {};
+    player.spellbookCardStates = player.spellbookCardStates && typeof player.spellbookCardStates === 'object' ? player.spellbookCardStates : {};
+    player.spellbookCardInstances = player.spellbookCardInstances && typeof player.spellbookCardInstances === 'object' ? player.spellbookCardInstances : {};
+    player.castQueue.forEach(item => {
+      if (!item || typeof item !== 'object' || !item.persistentCardState || typeof item.persistentCardState !== 'object') return;
+      item.persistentCardState.learnedAbilities = runtimeCollectionToArray(item.persistentCardState.learnedAbilities)
+        .map(entry => normalizeLearnedAbilityEntry(entry))
+        .filter(Boolean);
+      item.persistentCardState.instanceId = String(item.persistentCardState.instanceId || item.spellbookInstanceId || '');
+      if (item.persistentCardState.instanceId) item.spellbookInstanceId = item.persistentCardState.instanceId;
+    });
 
     if (!player.caster || typeof player.caster !== 'object') {
       player.caster = JSON.parse(JSON.stringify(templatePlayer.caster));
@@ -8339,6 +8510,8 @@ function ensureRuntimeStateCollections(targetState = state) {
       if (!unit || typeof unit !== 'object') return;
       unit.activeFactors = runtimeCollectionToArray(unit.activeFactors);
       unit.hiddenSuppressedZoneIds = runtimeCollectionToArray(unit.hiddenSuppressedZoneIds);
+      unit.temporaryAbilities = runtimeCollectionToArray(unit.temporaryAbilities);
+      unit.learnedAbilities = runtimeCollectionToArray(unit.learnedAbilities);
     });
   }
 
@@ -8481,10 +8654,10 @@ function getSpellbookCardCopyCount(cardOrId, cards = libraryBuilderState.spellbo
   return cards.reduce((total, value) => total + (value === cardId ? 1 : 0), 0);
 }
 
-function getBuilderCardCopyStatus(cardOrId) {
+function getSpellbookCardCopyStatusFor(cardOrId, cards = libraryBuilderState.spellbookCards) {
   const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
   const cardId = card?.id || (typeof cardOrId === 'string' ? cardOrId : null);
-  const count = getSpellbookCardCopyCount(cardId);
+  const count = getSpellbookCardCopyCount(cardId, Array.isArray(cards) ? cards : []);
   const limit = getSpellbookCardCopyLimit(card);
   const hasForcedLimits = cardHasForcedLimits(card);
   const collectionLimited = Boolean(isRokUserModeActive() && card && getCardTypeId(card) !== 'kaster');
@@ -8513,6 +8686,10 @@ function getBuilderCardCopyStatus(cardOrId) {
         ? `Límite de Límites forzados alcanzado: ${count}/${limit} copias.`
         : `Límite de copias alcanzado: ${count}/${limit}.`),
   };
+}
+
+function getBuilderCardCopyStatus(cardOrId) {
+  return getSpellbookCardCopyStatusFor(cardOrId, libraryBuilderState.spellbookCards);
 }
 
 
@@ -10657,8 +10834,11 @@ window.ROK_USER_COLLECTION = {
 };
 
 const TEST_MATCH_MODE_ID = 'test';
-const TEST_BOT_CARD_ID = 'ninjaMinokageNoKurai';
-const TEST_BOT_TACTICA_CARD_ID = TACTICA_GUERRA_CARD_ID;
+const TEST_BOT_CARD_ID = 'ninjaMinokageNoKurai'; // legado del escenario anterior; ya no forma parte del Spellbook de prueba.
+const TEST_BOT_TACTICA_CARD_ID = TACTICA_GUERRA_CARD_ID; // legado del escenario anterior.
+const TEST_BOT_KAGERO_CARD_ID = 'naitoSutoka';
+const TEST_BOT_SHIRAHADORI_CARD_ID = 'abilityShirahadori';
+const TEST_BOT_SHIRAHADORI_TARGET_COUNT = 3;
 const TEST_MATCH_RESOURCE_COPIES_PER_ELEMENT = 30;
 let matchSpellbookSelectMode = null;
 let matchSpellbookSelectedId = null;
@@ -10692,6 +10872,9 @@ const libraryBuilderState = {
 
 let cardInfoSpellbookAddQuantity = 0;
 let cardInfoSpellbookFeedbackTimer = null;
+let cardInfoSpellbookTargetState = null;
+let libraryBuilderExitDestination = null;
+let libraryBuilderExitAfterSave = null;
 
 function init() {
   cacheEls();
@@ -10714,10 +10897,334 @@ function init() {
   }
 }
 
+
+const ADVENTURE_WORLD_ZONES = [
+  {
+    id: 'water',
+    element: 'Agua',
+    domain: 'Conocimiento',
+    available: true,
+    accent: '#58d9ff',
+    marker: { x: 86.6, y: 49.6 },
+    description: 'Una región dedicada al dominio del Conocimiento. Sus Kasters controlan el avance de la partida mediante ralentización, Silencio, manipulación del kasteo y del consumo elemental. Sus Spellbooks suelen adaptar la arena a entornos acuáticos y recurren principalmente al daño mágico o elemental para imponer un juego defensivo, analítico y meticuloso.'
+  },
+  {
+    id: 'fire',
+    element: 'Fuego',
+    domain: 'Destrucción',
+    available: false,
+    accent: '#ff6b3d',
+    marker: { x: 52.4, y: 48.8 },
+    description: 'El dominio de la Destrucción concentra ataques potentes, explosiones, Quemadura y presión directa. Sus Spellbooks buscan mantener una ofensiva constante, romper defensas y resolver la partida antes de que el rival pueda estabilizar su estrategia.'
+  },
+  {
+    id: 'earth',
+    element: 'Tierra',
+    domain: 'Vida',
+    available: false,
+    accent: '#7fc96a',
+    marker: { x: 19.5, y: 48.2 },
+    description: 'La Vida se especializa en sustentabilidad elemental, sobreproducción de recursos e invocaciones terrestres muy resistentes. La experiencia gira alrededor de fortalecer el campo y mantener una presencia difícil de eliminar durante combates prolongados.'
+  },
+  {
+    id: 'lightning',
+    element: 'Rayo',
+    domain: 'Energía',
+    available: false,
+    accent: '#a985ff',
+    marker: { x: 50.4, y: 80.1 },
+    description: 'La Energía favorece ataques rápidos y precisos, velocidad superior y efectos de área capaces de paralizar, confundir o debilitar temporalmente. Es una región de ritmo dinámico, presión continua y aprovechamiento inmediato de las aperturas del rival.'
+  },
+  {
+    id: 'death',
+    element: 'Muerte',
+    domain: 'Corrupción',
+    available: false,
+    accent: '#87908a',
+    marker: { x: 40.8, y: 47.7 },
+    description: 'La Corrupción utiliza daño progresivo, resurrección, propagación de efectos negativos y robo de vida. Sus enfrentamientos exigen administrar riesgos elevados mientras el campo se llena de amenazas que pueden regresar o seguir debilitando al rival con el paso de las fases.'
+  },
+  {
+    id: 'light',
+    element: 'Luz',
+    domain: 'Revelación',
+    available: false,
+    accent: '#ffe09a',
+    marker: { x: 31.1, y: 20.4 },
+    description: 'Revelación combina información táctica, purificación, curación y estructuras defensivas. Sus poderosas invocaciones voladoras recompensan la supervivencia hasta etapas avanzadas, donde la región puede transformar una defensa sólida en una ofensiva dominante.'
+  },
+  {
+    id: 'darkness',
+    element: 'Oscuridad',
+    domain: 'Misterio',
+    available: false,
+    accent: '#8d6de8',
+    marker: { x: 27.6, y: 62.7 },
+    description: 'Misterio gira alrededor del sigilo, las trampas, la ocultación y el engaño. Sus invocaciones suelen tener mucho daño y poca vida, por lo que sobreviven mediante efectos que les permiten desaparecer, reaparecer y alterar la toma de decisiones del rival.'
+  },
+  {
+    id: 'wind',
+    element: 'Viento',
+    domain: 'Libertad',
+    available: false,
+    accent: '#d5f3ff',
+    marker: { x: 53.0, y: 15.5 },
+    description: 'Libertad domina la movilidad y la ofensiva aérea. Los Kasters de Viento despliegan invocaciones rápidas, ágiles y difíciles de fijar, capaces de ignorar obstáculos terrestres y convertir el posicionamiento en su principal ventaja táctica.'
+  },
+  {
+    id: 'sound',
+    element: 'Sonido',
+    domain: 'Vibración',
+    available: false,
+    accent: '#e09a55',
+    marker: { x: 35.3, y: 75.7 },
+    description: 'Vibración usa el sonido para desorientar, debilitar y manipular emocionalmente a las invocaciones rivales. Sus propias unidades no dependen de grandes estadísticas: sobreviven explotando control mental, Confusión y potenciaciones temporales.'
+  },
+  {
+    id: 'ehlie',
+    element: 'Ehlie',
+    domain: 'Territorio central',
+    available: false,
+    accent: '#c59661',
+    marker: { x: 73.7, y: 39.4 },
+    description: 'El gran desierto corresponde al país de Ehlie y funciona como territorio central del continente. No constituye una región elemental seleccionable dentro de esta primera etapa de Aventura.'
+  }
+];
+
+const ADVENTURE_WATER_ENCOUNTERS = [
+  {
+    id: 'enigma-first-apprentice',
+    label: 'Primera aprendiz de Enigma',
+    subtitle: 'Control mágico adaptable',
+    available: true,
+    marker: { x: 58.5, y: 58.0 },
+    image: 'assets/adventure/casters/enigma-first-apprentice.png',
+    domain: 'Agua · Conocimiento',
+    deckTitle: 'Control mágico adaptable',
+    qualities: ['Hechicero', 'Telépata', 'Sabio'],
+    description: 'Su Spellbook mono elemental de Agua está construido alrededor de Hechiceros, Telépatas y Sabios. No busca imponerse mediante fuerza bruta: combina interferencia mágica, manipulación mental y conocimiento aplicado para limitar tus opciones, alterar el kasteo y adaptar sus respuestas a la estrategia que presentes.',
+    roles: [
+      { name: 'Hechicero', text: 'Presión mágica, Silencio, inmunidad mágica temporal y Purificar para retirar factores progresivos.' },
+      { name: 'Telépata', text: 'Control mental, Sugestión e interferencia directa sobre los kasteos y las invocaciones rivales.' },
+      { name: 'Sabio', text: 'Acelera la capacidad de juego, altera tiempos de kasteo/enfriamiento y amplía las opciones de movilidad.' }
+    ]
+  },
+  {
+    id: 'water-encounter-2',
+    label: 'Encuentro II',
+    subtitle: 'Kaster por definir',
+    available: false,
+    marker: { x: 58.0, y: 15.7 }
+  },
+  {
+    id: 'water-encounter-3',
+    label: 'Encuentro III',
+    subtitle: 'Kaster por definir',
+    available: false,
+    marker: { x: 49.4, y: 34.5 }
+  },
+  {
+    id: 'water-encounter-4',
+    label: 'Encuentro IV',
+    subtitle: 'Kaster por definir',
+    available: false,
+    marker: { x: 52.0, y: 74.0 }
+  },
+  {
+    id: 'water-encounter-5',
+    label: 'Encuentro V',
+    subtitle: 'Kaster por definir',
+    available: false,
+    marker: { x: 54.2, y: 89.2 }
+  }
+];
+
+const adventureState = {
+  view: 'world',
+  worldZoneId: 'water',
+  encounterId: 'enigma-first-apprentice',
+  noticeTimer: null
+};
+
+function getAdventureWorldZone(id) {
+  return ADVENTURE_WORLD_ZONES.find(zone => zone.id === id) || ADVENTURE_WORLD_ZONES[0];
+}
+
+function getAdventureWaterEncounter(id) {
+  return ADVENTURE_WATER_ENCOUNTERS.find(encounter => encounter.id === id) || ADVENTURE_WATER_ENCOUNTERS[0];
+}
+
+function setAdventureMarkerPosition(markerEl, point) {
+  if (!markerEl || !point) return;
+  markerEl.style.setProperty('--marker-x', `${Number(point.x) || 50}%`);
+  markerEl.style.setProperty('--marker-y', `${Number(point.y) || 50}%`);
+}
+
+function showAdventureNotice(message = '') {
+  if (!els.adventureNotice) return;
+  if (adventureState.noticeTimer) clearTimeout(adventureState.noticeTimer);
+  els.adventureNotice.textContent = String(message || '');
+  els.adventureNotice.classList.toggle('show', Boolean(message));
+  if (message) {
+    adventureState.noticeTimer = setTimeout(() => {
+      els.adventureNotice?.classList.remove('show');
+      adventureState.noticeTimer = null;
+    }, 2600);
+  }
+}
+
+function renderAdventureZoneList() {
+  if (!els.adventureZoneList) return;
+  els.adventureZoneList.innerHTML = ADVENTURE_WORLD_ZONES.map(zone => {
+    const selected = zone.id === adventureState.worldZoneId;
+    return `<button class="adventure-option ${zone.available ? 'available' : 'locked'}${selected ? ' selected' : ''}" type="button" role="option" aria-selected="${selected ? 'true' : 'false'}" data-adventure-zone="${zone.id}" style="--option-accent:${zone.accent}">
+      <span class="adventure-option-main"><span class="adventure-option-name">${zone.element}</span><span class="adventure-option-badge">${zone.available ? 'DISPONIBLE' : 'BLOQUEADA'}</span></span>
+      <small>${zone.domain}</small>
+    </button>`;
+  }).join('');
+}
+
+function selectAdventureWorldZone(zoneId, options = {}) {
+  const zone = getAdventureWorldZone(zoneId);
+  adventureState.worldZoneId = zone.id;
+  renderAdventureZoneList();
+  setAdventureMarkerPosition(els.adventureWorldMarker, zone.marker);
+  if (els.adventureZoneElement) els.adventureZoneElement.textContent = String(zone.element || '').toUpperCase();
+  if (els.adventureZoneName) els.adventureZoneName.textContent = zone.domain || '';
+  if (els.adventureZoneDomain) els.adventureZoneDomain.textContent = `${zone.element} · ${zone.domain}`;
+  if (els.adventureZoneDescription) els.adventureZoneDescription.textContent = zone.description || '';
+  if (els.adventureZoneStatus) {
+    els.adventureZoneStatus.textContent = zone.available ? 'DISPONIBLE' : 'BLOQUEADA';
+    els.adventureZoneStatus.classList.toggle('available', zone.available);
+    els.adventureZoneStatus.classList.toggle('locked', !zone.available);
+  }
+  if (els.adventureEnterZoneBtn) {
+    els.adventureEnterZoneBtn.disabled = !zone.available;
+    els.adventureEnterZoneBtn.textContent = zone.available ? `Entrar al área de ${zone.element}` : 'Zona no disponible';
+  }
+  if (options.notifyLocked && !zone.available) showAdventureNotice(`${zone.element} · esta región todavía no está disponible.`);
+}
+
+function renderAdventureCasterList() {
+  if (!els.adventureCasterList) return;
+  els.adventureCasterList.innerHTML = ADVENTURE_WATER_ENCOUNTERS.map((encounter, index) => {
+    const selected = encounter.id === adventureState.encounterId;
+    return `<button class="adventure-option adventure-caster-option ${encounter.available ? 'available' : 'locked'}${selected ? ' selected' : ''}" type="button" role="option" aria-selected="${selected ? 'true' : 'false'}" data-adventure-encounter="${encounter.id}" style="--option-accent:${encounter.available ? '#58d9ff' : '#64727a'}">
+      <span class="adventure-option-main"><span class="adventure-option-name">${index + 1}. ${encounter.label}</span><span class="adventure-option-badge">${encounter.available ? 'ACTIVO' : 'PENDIENTE'}</span></span>
+      <small>${encounter.subtitle}</small>
+    </button>`;
+  }).join('');
+}
+
+function selectAdventureWaterEncounter(encounterId, options = {}) {
+  const encounter = getAdventureWaterEncounter(encounterId);
+  adventureState.encounterId = encounter.id;
+  renderAdventureCasterList();
+  setAdventureMarkerPosition(els.adventureWaterMarker, encounter.marker);
+
+  const ready = encounter.available === true;
+  if (els.adventureCasterImage) {
+    els.adventureCasterImage.hidden = !ready;
+    if (ready && encounter.image) els.adventureCasterImage.src = encounter.image;
+    els.adventureCasterImage.alt = ready ? encounter.label : '';
+  }
+  if (els.adventureCasterPlaceholder) els.adventureCasterPlaceholder.hidden = ready;
+  if (els.adventureCasterDomain) els.adventureCasterDomain.textContent = ready ? encounter.domain : 'AGUA · CONOCIMIENTO';
+  if (els.adventureCasterName) els.adventureCasterName.textContent = encounter.label;
+  if (els.adventureCasterQualities) {
+    els.adventureCasterQualities.innerHTML = ready
+      ? (encounter.qualities || []).map(name => `<span class="adventure-quality-tag">${name}</span>`).join('')
+      : '<span class="adventure-quality-tag">POR DEFINIR</span>';
+  }
+  if (els.adventureCasterDeckTitle) els.adventureCasterDeckTitle.textContent = ready ? encounter.deckTitle : 'Encuentro en desarrollo';
+  if (els.adventureCasterDescription) els.adventureCasterDescription.textContent = ready
+    ? encounter.description
+    : 'Este punto de combate queda reservado para uno de los próximos Kasters de la región de Agua. Su identidad, Spellbook y arena temática se añadirán cuando queden definidos.';
+  if (els.adventureCasterRoles) {
+    els.adventureCasterRoles.innerHTML = ready
+      ? (encounter.roles || []).map(role => `<div class="adventure-role-pill"><b>${role.name}</b>${role.text}</div>`).join('')
+      : '';
+  }
+  if (els.adventureCasterStatus) {
+    els.adventureCasterStatus.textContent = ready ? 'DISPONIBLE' : 'PENDIENTE';
+    els.adventureCasterStatus.classList.toggle('available', ready);
+    els.adventureCasterStatus.classList.toggle('locked', !ready);
+  }
+  if (els.adventureStartEncounterBtn) {
+    els.adventureStartEncounterBtn.disabled = !ready;
+    els.adventureStartEncounterBtn.textContent = ready ? 'Preparar combate' : 'Encuentro pendiente';
+  }
+  if (options.notifyLocked && !ready) showAdventureNotice('Este encuentro todavía no ha sido definido.');
+}
+
+function setAdventureView(view = 'world') {
+  adventureState.view = view === 'water' ? 'water' : 'world';
+  const water = adventureState.view === 'water';
+  if (els.adventureWorldView) els.adventureWorldView.hidden = water;
+  if (els.adventureWaterView) els.adventureWaterView.hidden = !water;
+  if (els.adventureTitle) els.adventureTitle.textContent = water ? 'Área de Agua' : 'Regiones elementales';
+  if (els.adventureSubtitle) els.adventureSubtitle.textContent = water
+    ? 'Selecciona un enfrentamiento para conocer al Kaster rival y localizar su arena.'
+    : 'Explora el continente y elige la región donde comenzará tu travesía.';
+  if (els.adventureProgressChip) els.adventureProgressChip.textContent = water ? 'ETAPA 2 · AGUA' : 'ETAPA 1 · REGIONES';
+  if (els.adventureBackBtn) els.adventureBackBtn.textContent = water ? 'Regiones' : 'Volver';
+  if (water) selectAdventureWaterEncounter(adventureState.encounterId);
+  else selectAdventureWorldZone(adventureState.worldZoneId);
+}
+
+function openAdventureScreen() {
+  document.body.classList.remove('rok-menu-mode', 'rok-battle-mode', 'rok-library-mode', 'rok-spellbooks-mode', 'rok-card-creator-mode');
+  document.body.classList.add('rok-adventure-mode');
+  clearBattleHudForInactiveScreen();
+  closeBotMatchModeSelector();
+  closeMatchSpellbookSelector();
+  if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
+  if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
+  if (els.spellbooksCollectionScreen) els.spellbooksCollectionScreen.setAttribute('aria-hidden', 'true');
+  if (els.adventureScreen) els.adventureScreen.setAttribute('aria-hidden', 'false');
+  adventureState.worldZoneId = 'water';
+  adventureState.encounterId = 'enigma-first-apprentice';
+  setAdventureView('world');
+  renderAdventureZoneList();
+  renderAdventureCasterList();
+  showAdventureNotice('');
+}
+
+function closeAdventureScreen() {
+  if (els.adventureScreen) els.adventureScreen.setAttribute('aria-hidden', 'true');
+  showMainMenu();
+}
+
+function handleAdventureBack() {
+  if (adventureState.view === 'water') {
+    setAdventureView('world');
+    return;
+  }
+  closeAdventureScreen();
+}
+
+function enterSelectedAdventureZone() {
+  const zone = getAdventureWorldZone(adventureState.worldZoneId);
+  if (!zone.available || zone.id !== 'water') {
+    showAdventureNotice(`${zone.element} · esta región todavía no está disponible.`);
+    return;
+  }
+  setAdventureView('water');
+}
+
+function prepareSelectedAdventureEncounter() {
+  const encounter = getAdventureWaterEncounter(adventureState.encounterId);
+  if (!encounter.available) {
+    showAdventureNotice('Este encuentro todavía no ha sido definido.');
+    return;
+  }
+  showAdventureNotice('La selección está lista. La arena y el Spellbook de combate se conectarán cuando queden definidos.');
+}
+
 function showMainMenu() {
   if (typeof closeCardCreatorMode === 'function') closeCardCreatorMode();
   document.body.classList.add('rok-menu-mode');
-  document.body.classList.remove('rok-battle-mode', 'rok-library-mode', 'rok-spellbooks-mode', 'rok-card-creator-mode');
+  document.body.classList.remove('rok-battle-mode', 'rok-library-mode', 'rok-spellbooks-mode', 'rok-card-creator-mode', 'rok-adventure-mode');
   clearBattleHudForInactiveScreen();
   closeSpellbookNameModal();
   closeSpellbookElementModal();
@@ -10726,6 +11233,7 @@ function showMainMenu() {
   closeBotMatchModeSelector();
   closeMatchSpellbookSelector();
   if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'false');
+  if (els.adventureScreen) els.adventureScreen.setAttribute('aria-hidden', 'true');
   if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
   if (els.spellbooksCollectionScreen) els.spellbooksCollectionScreen.setAttribute('aria-hidden', 'true');
   updateRokUserModeUi();
@@ -10738,6 +11246,14 @@ function showMainMenu() {
 function reportGameException(error, label = 'Juego') {
   try { window.ROK_DEBUG_RIBBON?.showException?.(error, label); } catch (_) {}
   try { console.error('[ROK GAME ERROR]', label, error); } catch (_) {}
+}
+
+function reportDebugError(label = 'Juego', error = null) {
+  // Compatibilidad con los catch históricos: el reporter recibe (label, error),
+  // mientras reportGameException utiliza (error, label). Nunca debe lanzar otro
+  // error desde un catch ni ocultar la excepción original.
+  reportGameException(error, `DEBUG · ${label || 'Juego'}`);
+  return error;
 }
 
 function runGameStep(label, fn) {
@@ -10783,10 +11299,18 @@ function isTestMatchActive() {
 function configureTestBotPlayer(playerId = 2) {
   const player = state.players?.[playerId];
   if (!player) return false;
-  player.selectedSpellbookId = 'rok-test-bot';
-  player.spellbookName = 'Bot de prueba · Interceptar';
+  player.selectedSpellbookId = 'rok-test-bot-shirahadori';
+  player.spellbookName = 'Bot de prueba · Shirahadori';
   player.handTabs = [
-    [TEST_BOT_CARD_ID, TEST_BOT_TACTICA_CARD_ID, ...Array(10).fill(null)],
+    [
+      TEST_BOT_KAGERO_CARD_ID,
+      TEST_BOT_KAGERO_CARD_ID,
+      TEST_BOT_KAGERO_CARD_ID,
+      TEST_BOT_SHIRAHADORI_CARD_ID,
+      TEST_BOT_SHIRAHADORI_CARD_ID,
+      TEST_BOT_SHIRAHADORI_CARD_ID,
+      ...Array(6).fill(null),
+    ],
     Array(12).fill(null),
     Array(12).fill(null),
   ];
@@ -10794,11 +11318,16 @@ function configureTestBotPlayer(playerId = 2) {
   player.units = [];
   player.spawnMarkers = [];
   player.spellbookUseCooldowns = {};
-  player.testBotInterceptarPlan = {
-    minokageCastStarted: false,
-    tacticaApplied: false,
-    tacticaDestination: null,
+  player.spellbookCardStates = {};
+  player.spellbookCardInstances = {};
+  player.testBotShirahadoriPlan = {
+    openingStarted: false,
+    openingComplete: false,
+    kageroCastCount: 0,
+    shirahadoriAppliedCount: 0,
   };
+  // Limpia el escenario antiguo por si el estado se reutiliza durante desarrollo.
+  delete player.testBotInterceptarPlan;
   return true;
 }
 
@@ -10895,9 +11424,107 @@ function openLibraryBuilderScreen(options = {}) {
   renderLibraryBuilder();
 }
 
-function closeLibraryBuilderScreen() {
+function getLibraryBuilderComparableSnapshot() {
+  return JSON.stringify({
+    casterCardId: libraryBuilderState.casterCardId || null,
+    spellbookName: String(libraryBuilderState.spellbookName || '').trim(),
+    spellbookCards: normalizeSpellbookCardSlots(libraryBuilderState.spellbookCards),
+    elementDistribution: normalizeSpellbookElementDistribution(libraryBuilderState.elementDistribution),
+    elementDistributionConfigured: libraryBuilderState.elementDistributionConfigured === true,
+  });
+}
+
+function getSavedSpellbookComparableSnapshot(spellbook) {
+  const normalized = normalizeSavedSpellbook(spellbook);
+  if (!normalized) return null;
+  return JSON.stringify({
+    casterCardId: normalized.casterCardId || null,
+    spellbookName: String(normalized.name || '').trim(),
+    spellbookCards: normalizeSpellbookCardSlots(normalized.cards),
+    elementDistribution: normalizeSpellbookElementDistribution(normalized.elementDistribution),
+    elementDistributionConfigured: normalized.elementDistributionConfigured === true,
+  });
+}
+
+function hasUnsavedLibraryBuilderChanges() {
+  if (isCardCreatorModeActive()) return false;
+  if (libraryBuilderState.mode !== 'build' && libraryBuilderState.mode !== 'selectCaster') return false;
+  if (!libraryBuilderState.currentSpellbookId) return true;
+  const saved = getSavedSpellbookById(libraryBuilderState.currentSpellbookId);
+  if (!saved) return true;
+  if (libraryBuilderState.changingCaster) return true;
+  return getLibraryBuilderComparableSnapshot() !== getSavedSpellbookComparableSnapshot(saved);
+}
+
+function closeLibraryBuilderExitModal() {
+  libraryBuilderExitDestination = null;
+  if (els.libraryBuilderExitModal) els.libraryBuilderExitModal.setAttribute('aria-hidden', 'true');
+  if (els.libraryBuilderExitNotice) els.libraryBuilderExitNotice.textContent = '';
+}
+
+function leaveLibraryBuilderImmediately(destination = 'menu') {
+  const target = destination || 'menu';
+  libraryBuilderExitDestination = null;
+  libraryBuilderExitAfterSave = null;
+  if (els.libraryBuilderExitModal) els.libraryBuilderExitModal.setAttribute('aria-hidden', 'true');
+  closeCardInfoSpellbookTargetModal?.();
+  closeCardInfo?.();
+  closeSpellbookNameModal?.();
+  closeSpellbookElementModal?.();
+  closeSpellbookElementWarningModal?.();
+  closeCasterChangeModal?.();
+  clearLibraryBuilderDraft();
+  setLibraryBuilderIdle();
   hideBattleScoreDebugToggleButton();
-  showMainMenu();
+  if (target === 'spellbooks') openSpellbooksCollectionScreen();
+  else showMainMenu();
+}
+
+function requestLeaveLibraryBuilder(destination = 'menu') {
+  if (!hasUnsavedLibraryBuilderChanges()) {
+    leaveLibraryBuilderImmediately(destination);
+    return;
+  }
+  libraryBuilderExitDestination = destination || 'menu';
+  const canSave = libraryBuilderState.mode === 'build' && Boolean(getCurrentBuilderCaster());
+  if (els.libraryBuilderExitCopy) {
+    const verb = libraryBuilderState.currentSpellbookId ? 'editando' : 'creando';
+    els.libraryBuilderExitCopy.textContent = `Estás ${verb} “${libraryBuilderState.spellbookName || 'Nuevo Spellbook'}”. ¿Deseas guardar los cambios antes de salir?`;
+  }
+  if (els.libraryBuilderExitSaveBtn) {
+    els.libraryBuilderExitSaveBtn.disabled = !canSave;
+    els.libraryBuilderExitSaveBtn.title = canSave ? 'Guardar el Spellbook y salir.' : 'Selecciona primero un Kaster para poder guardar.';
+  }
+  if (els.libraryBuilderExitNotice) {
+    els.libraryBuilderExitNotice.textContent = canSave ? '' : 'Todavía no hay un Kaster seleccionado. Puedes cancelar o salir sin guardar.';
+  }
+  if (els.libraryBuilderExitModal) els.libraryBuilderExitModal.setAttribute('aria-hidden', 'false');
+}
+
+function confirmLibraryBuilderExitWithoutSaving() {
+  const destination = libraryBuilderExitDestination || 'menu';
+  leaveLibraryBuilderImmediately(destination);
+}
+
+function saveLibraryBuilderAndExit() {
+  const destination = libraryBuilderExitDestination || 'menu';
+  if (libraryBuilderState.mode !== 'build' || !getCurrentBuilderCaster()) {
+    if (els.libraryBuilderExitNotice) els.libraryBuilderExitNotice.textContent = 'Selecciona primero un Kaster para poder guardar.';
+    return;
+  }
+  libraryBuilderExitAfterSave = destination;
+  if (els.libraryBuilderExitModal) els.libraryBuilderExitModal.setAttribute('aria-hidden', 'true');
+  libraryBuilderExitDestination = null;
+  if (!requestSaveCurrentSpellbook()) {
+    libraryBuilderExitAfterSave = null;
+    libraryBuilderExitDestination = destination;
+    if (els.libraryBuilderExitModal) els.libraryBuilderExitModal.setAttribute('aria-hidden', 'false');
+    if (els.libraryBuilderExitNotice) els.libraryBuilderExitNotice.textContent = 'No se pudo iniciar el guardado. Revisa el aviso del constructor.';
+  }
+}
+
+function closeLibraryBuilderScreen() {
+  requestLeaveLibraryBuilder('menu');
 }
 
 function openSpellbooksCollectionScreen(message = '') {
@@ -11106,6 +11733,9 @@ function applySpellbookLoadoutToPlayer(playerId, rawLoadout) {
   player.elementDeck = [];
   player.elementDiscard = [];
   player.handTabs = spellbookCardsToHandTabs(loadout.cards);
+  player.spellbookUseCooldowns = {};
+  player.spellbookCardStates = {};
+  player.spellbookCardInstances = {};
   player.castQueue = [];
   player.units = [];
   player.spawnMarkers = [];
@@ -11697,19 +12327,25 @@ function closeSpellbookNameModal() {
   if (els.spellbookNameError) els.spellbookNameError.textContent = '';
 }
 
+function cancelSpellbookNameModal() {
+  libraryBuilderExitAfterSave = null;
+  closeSpellbookNameModal();
+}
+
 function requestSaveCurrentSpellbook() {
   if (libraryBuilderState.mode !== 'build' || !getCurrentBuilderCaster()) {
     showLibraryBuilderNotice('Primero crea un Spellbook y selecciona su Kaster.');
-    return;
+    return false;
   }
   if (isRokUserModeActive()) {
     const collectionIssue = getRokUserSpellbookCollectionIssue({ cards: libraryBuilderState.spellbookCards });
     if (collectionIssue) {
       showLibraryBuilderNotice(collectionIssue);
-      return;
+      return false;
     }
   }
   openSpellbookNameModal('save');
+  return true;
 }
 
 function confirmSpellbookNameModal() {
@@ -11761,6 +12397,11 @@ function closeSpellbookElementModal() {
   spellbookElementModalState = null;
   if (els.spellbookElementsModal) els.spellbookElementsModal.setAttribute('aria-hidden', 'true');
   if (els.spellbookElementsError) els.spellbookElementsError.textContent = '';
+}
+
+function cancelSpellbookElementModal() {
+  libraryBuilderExitAfterSave = null;
+  closeSpellbookElementModal();
 }
 
 function setSpellbookElementAmount(elementId, requestedAmount) {
@@ -11881,6 +12522,7 @@ function closeSpellbookElementWarningModal() {
 function returnToEditFromElementWarning() {
   const pending = spellbookElementWarningModalState;
   if (!pending) return;
+  libraryBuilderExitAfterSave = null;
   libraryBuilderState.elementDistribution = normalizeSpellbookElementDistribution(pending.distribution);
   libraryBuilderState.elementDistributionConfigured = true;
   closeSpellbookElementWarningModal();
@@ -11930,6 +12572,11 @@ function finalizeCurrentSpellbookSave(name, distribution, options = {}) {
   renderLibraryBuilder();
   const suffix = options.withWarnings ? ' con advertencias elementales' : '';
   showLibraryBuilderNotice(`Spellbook “${saved.name}” guardado${suffix} en este navegador.`);
+  if (libraryBuilderExitAfterSave) {
+    const destination = libraryBuilderExitAfterSave;
+    libraryBuilderExitAfterSave = null;
+    leaveLibraryBuilderImmediately(destination);
+  }
 }
 
 function showSpellbooksCollectionNotice(message) {
@@ -12922,7 +13569,7 @@ function cacheEls() {
     els.hudOverlayLayer = document.createElement('div');
     els.hudOverlayLayer.id = 'hudOverlayLayer';
     els.hudOverlayLayer.className = 'hud-overlay-layer';
-    document.body.appendChild(els.hudOverlayLayer);
+    getRokUiStage().appendChild(els.hudOverlayLayer);
   }
   els.unitsLayer = document.getElementById('unitsLayer');
   els.celestialLampLayer = document.getElementById('celestialLampLayer');
@@ -13071,6 +13718,7 @@ function cacheEls() {
   els.cardInfoCost = document.getElementById('cardInfoCost');
   els.cardInfoRestoreTime = document.getElementById('cardInfoRestoreTime');
   els.cardInfoUtilityFactors = document.getElementById('cardInfoUtilityFactors');
+  els.cardInfoSpellbookCooldown = document.getElementById('cardInfoSpellbookCooldown');
   els.cardInfoCooldownTray = document.getElementById('cardInfoCooldownTray');
   els.cardInfoPrimaryActionWrap = document.getElementById('cardInfoPrimaryActionWrap');
   els.cardInfoSpellbookQuantity = document.getElementById('cardInfoSpellbookQuantity');
@@ -13167,12 +13815,41 @@ function cacheEls() {
   els.mainMenuUserModeState = document.getElementById('mainMenuUserModeState');
   els.mainMenuBotBtn = document.getElementById('mainMenuBotBtn');
   els.mainMenuStoryBtn = document.getElementById('mainMenuStoryBtn');
+  els.mainMenuAdventureBtn = document.getElementById('mainMenuAdventureBtn');
   els.mainMenuOnlineBtn = document.getElementById('mainMenuOnlineBtn');
   els.mainMenuLibraryBtn = document.getElementById('mainMenuLibraryBtn');
   els.mainMenuSpellbooksBtn = document.getElementById('mainMenuSpellbooksBtn');
   els.mainMenuShopBtn = document.getElementById('mainMenuShopBtn');
   els.mainMenuCardCreatorBtn = document.getElementById('mainMenuCardCreatorBtn');
   els.mainMenuNotice = document.getElementById('mainMenuNotice');
+  els.adventureScreen = document.getElementById('adventureScreen');
+  els.adventureTitle = document.getElementById('adventureTitle');
+  els.adventureSubtitle = document.getElementById('adventureSubtitle');
+  els.adventureProgressChip = document.getElementById('adventureProgressChip');
+  els.adventureBackBtn = document.getElementById('adventureBackBtn');
+  els.adventureWorldView = document.getElementById('adventureWorldView');
+  els.adventureWaterView = document.getElementById('adventureWaterView');
+  els.adventureZoneList = document.getElementById('adventureZoneList');
+  els.adventureWorldMarker = document.getElementById('adventureWorldMarker');
+  els.adventureZoneElement = document.getElementById('adventureZoneElement');
+  els.adventureZoneName = document.getElementById('adventureZoneName');
+  els.adventureZoneStatus = document.getElementById('adventureZoneStatus');
+  els.adventureZoneDomain = document.getElementById('adventureZoneDomain');
+  els.adventureZoneDescription = document.getElementById('adventureZoneDescription');
+  els.adventureEnterZoneBtn = document.getElementById('adventureEnterZoneBtn');
+  els.adventureCasterList = document.getElementById('adventureCasterList');
+  els.adventureWaterMarker = document.getElementById('adventureWaterMarker');
+  els.adventureCasterPlaceholder = document.getElementById('adventureCasterPlaceholder');
+  els.adventureCasterImage = document.getElementById('adventureCasterImage');
+  els.adventureCasterDomain = document.getElementById('adventureCasterDomain');
+  els.adventureCasterName = document.getElementById('adventureCasterName');
+  els.adventureCasterQualities = document.getElementById('adventureCasterQualities');
+  els.adventureCasterDeckTitle = document.getElementById('adventureCasterDeckTitle');
+  els.adventureCasterDescription = document.getElementById('adventureCasterDescription');
+  els.adventureCasterRoles = document.getElementById('adventureCasterRoles');
+  els.adventureCasterStatus = document.getElementById('adventureCasterStatus');
+  els.adventureStartEncounterBtn = document.getElementById('adventureStartEncounterBtn');
+  els.adventureNotice = document.getElementById('adventureNotice');
   els.boosterStoreScreen = document.getElementById('boosterStoreScreen');
   els.boosterStoreTitle = document.getElementById('boosterStoreTitle');
   els.boosterStoreSubtitle = document.getElementById('boosterStoreSubtitle');
@@ -13288,6 +13965,19 @@ function cacheEls() {
   els.spellbookElementWarningList = document.getElementById('spellbookElementWarningList');
   els.spellbookElementWarningEditBtn = document.getElementById('spellbookElementWarningEditBtn');
   els.spellbookElementWarningSaveBtn = document.getElementById('spellbookElementWarningSaveBtn');
+  els.cardInfoSpellbookTargetModal = document.getElementById('cardInfoSpellbookTargetModal');
+  els.cardInfoSpellbookTargetCloseBtn = document.getElementById('cardInfoSpellbookTargetCloseBtn');
+  els.cardInfoSpellbookTargetCancelBtn = document.getElementById('cardInfoSpellbookTargetCancelBtn');
+  els.cardInfoSpellbookTargetCopy = document.getElementById('cardInfoSpellbookTargetCopy');
+  els.cardInfoSpellbookTargetList = document.getElementById('cardInfoSpellbookTargetList');
+  els.cardInfoSpellbookTargetNotice = document.getElementById('cardInfoSpellbookTargetNotice');
+  els.libraryBuilderExitModal = document.getElementById('libraryBuilderExitModal');
+  els.libraryBuilderExitCloseBtn = document.getElementById('libraryBuilderExitCloseBtn');
+  els.libraryBuilderExitCancelBtn = document.getElementById('libraryBuilderExitCancelBtn');
+  els.libraryBuilderExitDiscardBtn = document.getElementById('libraryBuilderExitDiscardBtn');
+  els.libraryBuilderExitSaveBtn = document.getElementById('libraryBuilderExitSaveBtn');
+  els.libraryBuilderExitCopy = document.getElementById('libraryBuilderExitCopy');
+  els.libraryBuilderExitNotice = document.getElementById('libraryBuilderExitNotice');
   if (els.selectedUnitCommandPanel && els.boardContent && els.selectedUnitCommandPanel.parentElement !== els.boardContent) {
     els.boardContent.appendChild(els.selectedUnitCommandPanel);
   }
@@ -13493,6 +14183,39 @@ function bindEvents() {
   });
   if (els.mainMenuBotBtn) els.mainMenuBotBtn.addEventListener('click', openBotMatchModeSelector);
   if (els.mainMenuStoryBtn) els.mainMenuStoryBtn.addEventListener('click', () => showMainMenuComingSoon('Modo Historia'));
+  if (els.mainMenuAdventureBtn) els.mainMenuAdventureBtn.addEventListener('click', openAdventureScreen);
+  if (els.adventureBackBtn) els.adventureBackBtn.addEventListener('click', handleAdventureBack);
+  if (els.adventureEnterZoneBtn) els.adventureEnterZoneBtn.addEventListener('click', enterSelectedAdventureZone);
+  if (els.adventureStartEncounterBtn) els.adventureStartEncounterBtn.addEventListener('click', prepareSelectedAdventureEncounter);
+  if (els.adventureZoneList) {
+    const previewZoneFromEvent = event => {
+      const option = event.target?.closest?.('[data-adventure-zone]');
+      if (option) selectAdventureWorldZone(option.dataset.adventureZone);
+    };
+    els.adventureZoneList.addEventListener('pointerover', previewZoneFromEvent);
+    els.adventureZoneList.addEventListener('focusin', previewZoneFromEvent);
+    els.adventureZoneList.addEventListener('click', event => {
+      const option = event.target?.closest?.('[data-adventure-zone]');
+      if (!option) return;
+      const zone = getAdventureWorldZone(option.dataset.adventureZone);
+      selectAdventureWorldZone(zone.id, { notifyLocked: !zone.available });
+      if (zone.available) enterSelectedAdventureZone();
+    });
+  }
+  if (els.adventureCasterList) {
+    const previewEncounterFromEvent = event => {
+      const option = event.target?.closest?.('[data-adventure-encounter]');
+      if (option) selectAdventureWaterEncounter(option.dataset.adventureEncounter);
+    };
+    els.adventureCasterList.addEventListener('pointerover', previewEncounterFromEvent);
+    els.adventureCasterList.addEventListener('focusin', previewEncounterFromEvent);
+    els.adventureCasterList.addEventListener('click', event => {
+      const option = event.target?.closest?.('[data-adventure-encounter]');
+      if (!option) return;
+      const encounter = getAdventureWaterEncounter(option.dataset.adventureEncounter);
+      selectAdventureWaterEncounter(encounter.id, { notifyLocked: !encounter.available });
+    });
+  }
   if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', () => window.ROK_ONLINE_PVP?.openLobby?.());
   if (els.mainMenuLibraryBtn) els.mainMenuLibraryBtn.addEventListener('click', () => openLibraryBuilderScreen({ mode: 'idle' }));
   if (els.mainMenuSpellbooksBtn) els.mainMenuSpellbooksBtn.addEventListener('click', () => openSpellbooksCollectionScreen());
@@ -13509,7 +14232,7 @@ function bindEvents() {
   if (els.matchSpellbookSelectCancelBtn) els.matchSpellbookSelectCancelBtn.addEventListener('click', closeMatchSpellbookSelector);
   if (els.matchSpellbookSelectConfirmBtn) els.matchSpellbookSelectConfirmBtn.addEventListener('click', confirmMatchSpellbookSelection);
   if (els.matchSpellbookSelectModal) els.matchSpellbookSelectModal.addEventListener('click', event => { if (event.target === els.matchSpellbookSelectModal) closeMatchSpellbookSelector(); });
-  if (els.libraryBuilderBackBtn) els.libraryBuilderBackBtn.addEventListener('click', closeLibraryBuilderScreen);
+  if (els.libraryBuilderBackBtn) els.libraryBuilderBackBtn.addEventListener('click', () => requestLeaveLibraryBuilder('menu'));
   if (els.libraryBuilderShopBtn) els.libraryBuilderShopBtn.addEventListener('click', () => openBoosterStoreScreen('library'));
   if (els.cardCreatorOrbItems) els.cardCreatorOrbItems.addEventListener('click', event => {
     const orb = event.target?.closest?.('[data-queue-id]');
@@ -13530,7 +14253,7 @@ function bindEvents() {
   if (els.libraryBuilderRemoveBtn) els.libraryBuilderRemoveBtn.addEventListener('click', removeSelectedSpellbookCard);
   if (els.libraryBuilderClearSelectionBtn) els.libraryBuilderClearSelectionBtn.addEventListener('click', clearLibraryBuilderSelection);
   if (els.libraryBuilderSaveBtn) els.libraryBuilderSaveBtn.addEventListener('click', requestSaveCurrentSpellbook);
-  if (els.libraryBuilderEditBtn) els.libraryBuilderEditBtn.addEventListener('click', () => openSpellbooksCollectionScreen());
+  if (els.libraryBuilderEditBtn) els.libraryBuilderEditBtn.addEventListener('click', () => requestLeaveLibraryBuilder('spellbooks'));
   if (els.libraryBuilderFilterBtn) els.libraryBuilderFilterBtn.addEventListener('click', () => setLibraryBuilderControlsOpen(!libraryBuilderState.libraryControlsOpen, 'search'));
   if (els.libraryBuilderSortBtn) els.libraryBuilderSortBtn.addEventListener('click', () => setLibraryBuilderControlsOpen(true, 'sort'));
   if (els.libraryBuilderFilterToolbarBtn) els.libraryBuilderFilterToolbarBtn.addEventListener('click', () => setLibraryBuilderControlsOpen(!libraryBuilderState.libraryControlsOpen, 'search'));
@@ -13561,17 +14284,25 @@ function bindEvents() {
   if (els.casterChangeCancelBtn) els.casterChangeCancelBtn.addEventListener('click', closeCasterChangeModal);
   if (els.casterChangeConfirmBtn) els.casterChangeConfirmBtn.addEventListener('click', beginLibraryBuilderCasterReplacement);
   if (els.casterChangeModal) els.casterChangeModal.addEventListener('click', event => { if (event.target === els.casterChangeModal) closeCasterChangeModal(); });
-  if (els.spellbookNameCloseBtn) els.spellbookNameCloseBtn.addEventListener('click', closeSpellbookNameModal);
-  if (els.spellbookNameCancelBtn) els.spellbookNameCancelBtn.addEventListener('click', closeSpellbookNameModal);
+  if (els.spellbookNameCloseBtn) els.spellbookNameCloseBtn.addEventListener('click', cancelSpellbookNameModal);
+  if (els.spellbookNameCancelBtn) els.spellbookNameCancelBtn.addEventListener('click', cancelSpellbookNameModal);
   if (els.spellbookNameConfirmBtn) els.spellbookNameConfirmBtn.addEventListener('click', confirmSpellbookNameModal);
-  if (els.spellbookNameModal) els.spellbookNameModal.addEventListener('click', event => { if (event.target === els.spellbookNameModal) closeSpellbookNameModal(); });
+  if (els.spellbookNameModal) els.spellbookNameModal.addEventListener('click', event => { if (event.target === els.spellbookNameModal) cancelSpellbookNameModal(); });
   if (els.spellbookNameInput) els.spellbookNameInput.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); confirmSpellbookNameModal(); } });
-  if (els.spellbookElementsCloseBtn) els.spellbookElementsCloseBtn.addEventListener('click', closeSpellbookElementModal);
-  if (els.spellbookElementsCancelBtn) els.spellbookElementsCancelBtn.addEventListener('click', closeSpellbookElementModal);
+  if (els.spellbookElementsCloseBtn) els.spellbookElementsCloseBtn.addEventListener('click', cancelSpellbookElementModal);
+  if (els.spellbookElementsCancelBtn) els.spellbookElementsCancelBtn.addEventListener('click', cancelSpellbookElementModal);
   if (els.spellbookElementsConfirmBtn) els.spellbookElementsConfirmBtn.addEventListener('click', confirmSpellbookElementsModal);
-  if (els.spellbookElementsModal) els.spellbookElementsModal.addEventListener('click', event => { if (event.target === els.spellbookElementsModal) closeSpellbookElementModal(); });
+  if (els.spellbookElementsModal) els.spellbookElementsModal.addEventListener('click', event => { if (event.target === els.spellbookElementsModal) cancelSpellbookElementModal(); });
   if (els.spellbookElementWarningEditBtn) els.spellbookElementWarningEditBtn.addEventListener('click', returnToEditFromElementWarning);
   if (els.spellbookElementWarningSaveBtn) els.spellbookElementWarningSaveBtn.addEventListener('click', saveSpellbookDespiteElementWarnings);
+  if (els.cardInfoSpellbookTargetCloseBtn) els.cardInfoSpellbookTargetCloseBtn.addEventListener('click', closeCardInfoSpellbookTargetModal);
+  if (els.cardInfoSpellbookTargetCancelBtn) els.cardInfoSpellbookTargetCancelBtn.addEventListener('click', closeCardInfoSpellbookTargetModal);
+  if (els.cardInfoSpellbookTargetModal) els.cardInfoSpellbookTargetModal.addEventListener('click', event => { if (event.target === els.cardInfoSpellbookTargetModal) closeCardInfoSpellbookTargetModal(); });
+  if (els.libraryBuilderExitCloseBtn) els.libraryBuilderExitCloseBtn.addEventListener('click', closeLibraryBuilderExitModal);
+  if (els.libraryBuilderExitCancelBtn) els.libraryBuilderExitCancelBtn.addEventListener('click', closeLibraryBuilderExitModal);
+  if (els.libraryBuilderExitDiscardBtn) els.libraryBuilderExitDiscardBtn.addEventListener('click', confirmLibraryBuilderExitWithoutSaving);
+  if (els.libraryBuilderExitSaveBtn) els.libraryBuilderExitSaveBtn.addEventListener('click', saveLibraryBuilderAndExit);
+  if (els.libraryBuilderExitModal) els.libraryBuilderExitModal.addEventListener('click', event => { if (event.target === els.libraryBuilderExitModal) closeLibraryBuilderExitModal(); });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && libraryBuilderState.libraryControlsOpen && document.body.classList.contains('rok-library-mode')) {
       setLibraryBuilderControlsOpen(false);
@@ -14013,6 +14744,20 @@ const MOVEMENT_TYPE_DB = {
 
 
 const POWER_DB = {
+  aprenderShirahadori: {
+    id: 'aprenderShirahadori',
+    label: 'Permite aprender Shirahadori',
+    name: 'Permite aprender Shirahadori',
+    icon: 'assets/ability-shirahadori.png',
+    activation: 'Habilidad',
+    category: 'Técnica · Aprendizaje · Permanente',
+    classification: { applicationModes: ['active'], applicationTags: ['technique', 'consumable'], natures: ['physical', 'virtual'], functionalCategories: ['defensive', 'learning', 'redirection'] },
+    focus: 'Aprendizaje permanente de Shirahadori',
+    tags: ['poder', 'habilidad', 'Shirahadori', 'aprendizaje', 'permanente', 'consumible', 'estasis de Spellbook'],
+    summary: 'Una invocación aliada que cumpla Guerrero/Asesino → Espada compatible → Cuerpo a cuerpo aprende Shirahadori permanentemente para esa copia. La carta se consume y Shirahadori añade +3 fases a la Estasis de Spellbook.',
+    description: 'Selecciona una invocación aliada activa con espacio de habilidad que cumpla la cadena Invocación → Guerrero o Asesino → Espada compatible → Cuerpo a cuerpo. La Espada debe ser real (principal, secundaria o equipada/capturada); el arma base nunca cuenta. Esa copia aprende Shirahadori y la conserva aunque se restaure, muera, vuelva al Spellbook y sea kasteada otra vez. La carta se consume al enseñar la habilidad y añade +3 fases a la Estasis de Spellbook.',
+  },
+
   sombraClanOda: {
     id: 'sombraClanOda',
     label: 'Sombra del clan Oda',
@@ -14128,8 +14873,8 @@ const POWER_DB = {
     channelPhases: 3,
     targetRange: 6,
     dashCells: 8,
-    summary: 'Fase activa: una vez por turno fija una invocación, Guardián o Kaster rival a 6 casillas, canaliza 3 transiciones y atraviesa hasta 8 casillas, dañando todo el corredor de radio 1 con Golpe crítico 3. Fase pasiva: sus ataques básicos pueden seleccionar invocaciones, Guardianes o el Kaster dentro de un aura de radio 3; Minokage salta hasta alcance 1, ejecuta Oscilación completa y luego se reposiciona.',
-    description: 'Shippū Ugachi tiene dos fases. Activa: al activarse consume inmediatamente el ataque básico del turno, fija una invocación, un Guardián o el Kaster rival dentro de 6 casillas y canaliza 3 transiciones globales. Al completarse la tercera, Minokage atraviesa de forma continua hasta 8 casillas en dirección a la posición actual del objetivo; las estructuras no lo detienen y la trayectoria termina al alcanzar el borde. Reciben un impacto el objetivo, las invocaciones, Guardianes y el Kaster enemigo ubicados en la trayectoria o a una casilla de ella. Cada impacto usa daño físico 2 y Golpe crítico 3. Minokage permanece en la casilla final. Pasiva: el alcance real del Yari continúa siendo 1, pero Minokage puede seleccionar invocaciones enemigas, Guardianes o el Kaster dentro de un aura de acción de radio 3. Salta hasta una casilla válida a alcance 1, ejecuta Oscilación completa en radio 1 y luego se reposiciona en otra casilla válida del mismo anillo de distancia desde el que inició el salto, sin restaurarse automáticamente.',
+    summary: 'Fase activa: una vez por turno fija una invocación, Guardián o Kaster rival a 6 casillas, canaliza 3 transiciones y atraviesa hasta 8 casillas, dañando todo el corredor de radio 1 con Golpe crítico 3. Fase pasiva: sus ataques básicos pueden seleccionar invocaciones o el Kaster dentro de un aura de radio 3; Minokage salta hasta alcance 1, ejecuta Oscilación completa y luego se reposiciona. Los Guardianes se enfrentan de forma normal y lo bloquean hasta ser destruidos.',
+    description: 'Shippū Ugachi tiene dos fases. Activa: al activarse consume inmediatamente el ataque básico del turno, fija una invocación, un Guardián o el Kaster rival dentro de 6 casillas y canaliza 3 transiciones globales. Al completarse la tercera, Minokage atraviesa de forma continua hasta 8 casillas en dirección a la posición actual del objetivo; las estructuras no lo detienen y la trayectoria termina al alcanzar el borde. Reciben un impacto el objetivo, las invocaciones, Guardianes y el Kaster enemigo ubicados en la trayectoria o a una casilla de ella. Cada impacto usa daño físico 2 y Golpe crítico 3. Minokage permanece en la casilla final. Después de resolver esta fase activa, una restauración adicional o forzada establece 6 fases de restauración; una restauración natural por una acción normal propia conserva sus 3 fases. Pasiva: el alcance real del Yari continúa siendo 1, pero Minokage puede seleccionar invocaciones enemigas o el Kaster dentro de un aura de acción de radio 3. Salta hasta una casilla válida a alcance 1, ejecuta Oscilación completa en radio 1 y luego se reposiciona en otra casilla válida del mismo anillo de distancia desde el que inició el salto, sin restaurarse automáticamente. Los Guardianes no activan este salto pasivo: deben alcanzarse con el alcance normal, bloquean a Minokage mientras sigan activos y al ser destruidos provocan su restauración natural de 3 fases.',
   },
 
   disparoEnergizado: {
@@ -14243,8 +14988,8 @@ const POWER_DB = {
     classification: { applicationModes: ['passive'], applicationTags: ['standard'], natures: ['physical'], functionalCategories: ['defensive', 'support', 'redirection'] },
     focus: 'Perfeccionamiento defensivo de Guerreros y Samuráis',
     tags: ['poder', 'habilidad definitiva', 'pasiva', 'física', 'defensiva', 'estándar', 'guerrero', 'samurái', 'desvío', 'Shirahadori'],
-    summary: 'Mientras O-sensei Ueshiba esté activo en arena, los Guerreros aliados no Samurái ganan Desvío 3 físico. Los Guerreros aliados que además sean Samurái obtienen Shirahadori en lugar de ese Desvío. Al restaurarse O-sensei, su tiempo base 2 aumenta +1 por cada Samurai que recibía Shirahadori mediante este poder.',
-    description: 'Poder pasivo físico-defensivo. Mientras O-sensei Ueshiba permanezca activo en la arena, cada Guerrero aliado que no pertenezca a la familia Samurái gana Desvío 3 de naturaleza física. Cada Guerrero aliado que además pertenezca a la familia Samurái recibe Shirahadori en lugar del Desvío concedido por este poder. Shirahadori solo existe mientras O-sensei está activo: desaparece cuando O-sensei entra en restauración. Al comenzar la restauración de O-sensei, se cuentan una sola vez los Samuráis activos que recibían Shirahadori mediante Habilidad definitiva; su restauración final será 2 fases más 1 fase por cada uno de esos Samuráis.',
+    summary: 'Mientras O-sensei Ueshiba esté activo en arena, los Guerreros aliados no Samurái ganan Desvío 3 físico. Los Guerreros Samurái solo reciben Shirahadori si además disponen de una Espada compatible de Cuerpo a cuerpo. Al restaurarse O-sensei, su tiempo base 2 aumenta +1 por cada Samurai que realmente recibía Shirahadori.',
+    description: 'Poder pasivo físico-defensivo. Mientras O-sensei Ueshiba permanezca activo en la arena, cada Guerrero aliado no Samurái gana Desvío 3 físico. Un Guerrero aliado Samurái recibe Shirahadori solo mientras también cumpla la cadena de usuario de la técnica: Espada explícitamente compatible y modo Cuerpo a cuerpo; el arma base nunca cuenta. Si pierde su última Espada compatible, Shirahadori queda bloqueada aunque O-sensei siga activo. Shirahadori desaparece cuando O-sensei entra en restauración. Al comenzar la restauración de O-sensei, se cuentan una sola vez los Samuráis activos que realmente recibían Shirahadori; su restauración final será 2 fases más 1 fase por cada uno.',
   },
 
   sukiruCharenji: {
@@ -14418,11 +15163,12 @@ const ABILITY_DB = {
     icon: 'assets/factors/factor-desvio.svg',
     activation: 'Disparador / PDA',
     pda: 4,
+    spellbookCooldown: 3,
     classification: { applicationModes: ['trigger'], applicationTags: ['pda', 'standard'], natures: ['physical'], functionalCategories: ['defensive', 'redirection', 'counterplay'] },
     focus: 'Redirección física durante combate',
     tags: ['habilidad', 'Shirahadori', 'disparador', 'PDA', 'física', 'defensiva', 'estándar', 'redirección', 'combate'],
-    summary: 'Mientras el usuario esté en combate y sea objetivo directo de un efecto físico, realiza 4 PDA. Al acertar, el efecto se redirige al rival con el que está combatiendo.',
-    description: 'Habilidad de Disparador/PDA · Física · Defensiva · Estándar. Solo puede activarse si la invocación usuaria está actualmente en combate con una invocación rival. Cuando esa usuaria sea seleccionada directamente como objetivo de daño, efecto o condición de naturaleza física —proveniente de ataque, hechizo, habilidad, poder o equipo— realiza 4 PDA antes de ser afectada. Si acierta, aparece SHIRAHADORI, se ejecuta el desvío y el efecto completo se redirige hacia la invocación rival con la que está combatiendo. La resolución redirigida no puede volver a activar Shirahadori durante esa misma cadena.',
+    summary: 'Mientras el usuario esté en combate y cumpla Invocación → Guerrero/Asesino → Espada compatible → Cuerpo a cuerpo, realiza 4 PDA al recibir un efecto físico. Una devolución de Shirahadori puede activar el Shirahadori rival y encadenar contraataques hasta que uno falle. El arma base nunca habilita Shirahadori.',
+    description: 'Habilidad de Disparador/PDA · Física · Defensiva · Estándar. Solo puede activarse si la invocación usuaria está en combate y cumple la cadena completa Invocación → Guerrero o Asesino → Espada compatible → Cuerpo a cuerpo. La Espada debe ser una arma real principal, secundaria o equipada/capturada; el arma base, como Golpe, queda excluida. Una espada pesada/no compatible tampoco habilita la técnica. Cuando sea objetivo directo de un efecto físico realiza 4 PDA antes del impacto. Si acierta, evita ese impacto y devuelve el efecto al rival con el que está combatiendo. Esa devolución cuenta como una nueva instancia física: si el rival también tiene Shirahadori válido, realiza sus propios 4 PDA y puede devolverla otra vez. La cadena continúa alternando comprobaciones hasta que una falla y recibe el impacto, o hasta que una devolución no puede alcanzar por Rango. En combate de Rango, si la Espada compatible no alcanza al agresor, la devolución falla por alcance pero el impacto original queda desviado. Cada objetivo calcula Shirahadori de forma independiente y nunca detiene la animación global de un ataque multiblanco.',
   },
 
   limitesSuperados: {
@@ -14640,6 +15386,129 @@ const SHIRAHADORI_ABILITY_ID = 'shirahadori';
 const SHIRAHADORI_ABILITY_CARD_ID = 'abilityShirahadori';
 const SHIRAHADORI_PDA = 4;
 
+const SHIRAHADORI_REQUIRED_WEAPON_TYPE = 'espada';
+const SHIRAHADORI_ALLOWED_QUALITIES = Object.freeze(['warrior', 'assassin']);
+const SHIRAHADORI_REQUIRED_COMBAT_MODE = 'melee';
+
+function isShirahadoriMeleeCombatMode(profile = null) {
+  const mode = String(profile?.combatMode || profile?.type || '').trim().toLowerCase();
+  return mode === SHIRAHADORI_REQUIRED_COMBAT_MODE || mode === 'close' || mode === 'closecombat';
+}
+
+function unitHasShirahadoriUserQuality(unit = null) {
+  return Boolean(unit && SHIRAHADORI_ALLOWED_QUALITIES.some(qualityId => unitHasCardQuality(unit, qualityId)));
+}
+
+function isShirahadoriCompatibleSwordProfile(profile = null) {
+  if (!profile) return false;
+  const weaponType = String(profile.weaponType || '').trim().toLowerCase();
+  if (weaponType !== SHIRAHADORI_REQUIRED_WEAPON_TYPE) return false;
+  if (!isShirahadoriMeleeCombatMode(profile)) return false;
+  // Compatibilidad explícita. Esto evita que una futura Montante, Nodachi,
+  // mandoble u otra espada pesada quede habilitada solo por llamarse "espada".
+  return profile.shirahadoriCompatible === true;
+}
+
+function createShirahadoriWeaponOption(profile = null, sourceType = '', sourceId = '') {
+  if (!isShirahadoriCompatibleSwordProfile(profile)) return null;
+  const weaponType = SHIRAHADORI_REQUIRED_WEAPON_TYPE;
+  return {
+    sourceType,
+    sourceId: sourceId || weaponType,
+    weaponType,
+    label: profile.label || getWeaponInfoProfile(weaponType)?.label || 'Espada',
+    profile: {
+      ...profile,
+      weaponType,
+      shirahadoriCompatible: true,
+      combatMode: SHIRAHADORI_REQUIRED_COMBAT_MODE,
+      type: SHIRAHADORI_REQUIRED_COMBAT_MODE,
+    },
+  };
+}
+
+function getShirahadoriCompatibleWeaponOptions(playerId, unit = null) {
+  if (!unit || unit.status === 'restoring' || Number(unit.hp ?? 1) <= 0) return [];
+  if (Number(getUnitOwnerPlayerId(unit)) !== Number(playerId)) return [];
+  if (!unitHasShirahadoriUserQuality(unit)) return [];
+  const card = CARD_LIBRARY[unit.cardId];
+  if (!card) return [];
+
+  const options = [];
+  const seen = new Set();
+  const addOption = (profile, sourceType, sourceId = '') => {
+    const option = createShirahadoriWeaponOption(profile, sourceType, sourceId);
+    if (!option) return;
+    const key = `${option.sourceType}:${String(option.sourceId || '').toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    options.push(option);
+  };
+
+  // ARMA PRINCIPAL REAL. Si fue desarmada/rota/deshabilitada, no existe para
+  // Shirahadori y jamás se sustituye implícitamente por el ataque base.
+  if (!isUnitBaseWeaponUnavailable(unit)) {
+    const primaryWeaponType = String(card.attackProfile?.weaponType || card.weaponType || '').trim();
+    const primaryProfile = card.attackProfile ? {
+      ...card.attackProfile,
+      weaponType: primaryWeaponType,
+      shirahadoriCompatible: card.attackProfile?.shirahadoriCompatible === true || card.shirahadoriCompatible === true,
+    } : null;
+    if (primaryProfile) addOption(primaryProfile, 'primary', primaryWeaponType || 'primary');
+  }
+
+  // ARMAS SECUNDARIAS REALES. Cualquier secundaria puede habilitar la técnica
+  // únicamente si su propio perfil dice Espada + Cuerpo a cuerpo + compatible.
+  getCardExtraWeapons(card).forEach(entry => {
+    if (!entry) return;
+    addOption(buildAttackProfileFromWeaponEntry(entry, card), 'secondary', entry.id || entry.weaponType || 'secondary');
+  });
+
+  // ARMA CAPTURADA/EQUIPADA. Se acepta bajo exactamente la misma regla, nunca
+  // por el simple hecho de ser una alternativa disponible.
+  const captured = getKurokagiCapturedWeaponProfile(unit);
+  if (captured) addOption(captured, 'captured', captured.weaponType || 'capturedWeapon');
+
+  // IMPORTANTE: baseAttackProfile NO se consulta aquí. Golpe/ataque base y
+  // cualquier otra arma base quedan fuera de Shirahadori por definición.
+  return options;
+}
+
+function getShirahadoriCounterWeaponOption(playerId, unit = null) {
+  const options = getShirahadoriCompatibleWeaponOptions(playerId, unit);
+  if (!options.length) return null;
+  const activeWeaponType = String(getWeaponTypeForAttackUnit(unit) || unit?.activeWeaponType || '').trim().toLowerCase();
+  const active = options.find(entry => String(entry.weaponType || '').trim().toLowerCase() === activeWeaponType);
+  if (active) return active;
+  const primary = options.find(entry => entry.sourceType === 'primary');
+  return primary || options[0];
+}
+
+function unitMeetsShirahadoriUserRequirements(playerId, unit = null) {
+  if (!unit || unit.status === 'restoring' || Number(unit.hp ?? 1) <= 0) return false;
+  if (Number(getUnitOwnerPlayerId(unit)) !== Number(playerId)) return false;
+  if (!unitHasShirahadoriUserQuality(unit)) return false;
+  return getShirahadoriCompatibleWeaponOptions(playerId, unit).length > 0;
+}
+
+function getShirahadoriRuntimeAvailability(playerId, unit = null) {
+  if (!unit) return { available: false, reason: 'Sin invocación vinculada.' };
+  if (unit.status === 'restoring' || Number(unit.hp ?? 1) <= 0) {
+    return { available: false, reason: 'Shirahadori está bloqueada mientras la invocación no esté activa en arena.' };
+  }
+  if (!unitHasShirahadoriUserQuality(unit)) {
+    return { available: false, reason: 'Shirahadori requiere una invocación con cualidad Guerrero o Asesino.' };
+  }
+  const weapons = getShirahadoriCompatibleWeaponOptions(playerId, unit);
+  if (!weapons.length) {
+    return {
+      available: false,
+      reason: 'Shirahadori está BLOQUEADA: requiere una Espada compatible de Cuerpo a cuerpo como arma principal, secundaria o equipada. El arma base nunca cuenta.',
+    };
+  }
+  return { available: true, reason: '', weapons };
+}
+
 function isOSenseiUnit(unit = null) {
   return Boolean(unit && unit.cardId === O_SENSEI_CARD_ID);
 }
@@ -14669,6 +15538,8 @@ function unitQualifiesForOSenseiShirahadori(unitOrCard = null) {
 function unitReceivesOSenseiShirahadori(unit = null, playerId = null) {
   if (!unit || unit.status === 'restoring' || Number(unit.hp ?? 1) <= 0) return false;
   if (!unitQualifiesForOSenseiShirahadori(unit)) return false;
+  const ownerId = getUnitOwnerIdSafe(unit, playerId);
+  if (ownerId == null || !unitMeetsShirahadoriUserRequirements(ownerId, unit)) return false;
   return Boolean(getActiveOSenseiSourceForUnit(unit, playerId));
 }
 
@@ -14686,6 +15557,7 @@ function countOSenseiGrantedShirahadoriUnits(playerId, sourceUnit = null) {
     && unit.status !== 'restoring'
     && Number(unit.hp ?? 1) > 0
     && unitQualifiesForOSenseiShirahadori(unit)
+    && unitMeetsShirahadoriUserRequirements(playerId, unit)
   )).length;
 }
 
@@ -14710,27 +15582,79 @@ function unitHasAbility(unit, abilityId) {
   const nativeAbility = Boolean(card && Array.isArray(card.abilities) && card.abilities.some(ability => ability?.id === abilityId));
   const temporaryAbility = Array.isArray(unit?.temporaryAbilities)
     && unit.temporaryAbilities.some(ability => (typeof ability === 'string' ? ability : ability?.id) === abilityId);
+  const learnedAbility = Array.isArray(unit?.learnedAbilities)
+    && unit.learnedAbilities.some(ability => (typeof ability === 'string' ? ability : ability?.id) === abilityId);
   const oSenseiAbility = abilityId === SHIRAHADORI_ABILITY_ID && unitReceivesOSenseiShirahadori(unit, unit?.owner);
-  return nativeAbility || temporaryAbility || oSenseiAbility;
+  return nativeAbility || temporaryAbility || learnedAbility || oSenseiAbility;
+}
+
+function normalizeLearnedAbilityEntry(entry, fallback = {}) {
+  const id = typeof entry === 'string' ? entry : entry?.id;
+  if (!id) return null;
+  const profile = getAbilityProfile(id);
+  return {
+    ...(typeof entry === 'object' ? entry : {}),
+    id,
+    sourceType: 'learnedAbility',
+    sourceCardId: (typeof entry === 'object' ? entry?.sourceCardId : '') || fallback.sourceCardId || '',
+    sourceName: (typeof entry === 'object' ? entry?.sourceName : '') || fallback.sourceName || profile?.label || id,
+    spellbookCooldown: Math.max(0, Number((typeof entry === 'object' ? entry?.spellbookCooldown : null) ?? profile?.spellbookCooldown ?? fallback.spellbookCooldown ?? 0)),
+  };
+}
+
+function normalizeLearnedAbilityEntries(entries = []) {
+  // v527 · Una habilidad aprendida existe una sola vez por copia física.
+  // Sanea estados antiguos/duplicados y evita que Shirahadori (o cualquier
+  // habilidad futura) acumule varias veces su contribución de Estasis.
+  const unique = new Map();
+  runtimeCollectionToArray(entries).forEach(rawEntry => {
+    const entry = normalizeLearnedAbilityEntry(rawEntry);
+    if (!entry?.id) return;
+    if (!unique.has(entry.id)) {
+      unique.set(entry.id, { ...entry });
+      return;
+    }
+    const previous = unique.get(entry.id);
+    unique.set(entry.id, {
+      ...previous,
+      ...entry,
+      learnedAt: previous?.learnedAt || entry?.learnedAt || 0,
+      spellbookCooldown: Math.max(0, Number(getAbilityProfile(entry.id)?.spellbookCooldown ?? previous?.spellbookCooldown ?? entry?.spellbookCooldown ?? 0)),
+    });
+  });
+  return [...unique.values()];
+}
+
+function getUnitLearnedAbilityEntries(unit) {
+  const learned = normalizeLearnedAbilityEntries(unit?.learnedAbilities);
+  // Reparación in situ: las copias heredadas de versiones anteriores dejan de
+  // conservar entradas duplicadas desde el primer acceso al estado runtime.
+  if (unit && Array.isArray(unit.learnedAbilities) && unit.learnedAbilities.length !== learned.length) {
+    unit.learnedAbilities = learned.map(entry => ({ ...entry }));
+  }
+  return learned;
+}
+
+function migrateLegacyAbilityCardEntries(unit) {
+  if (!unit) return 0;
+  const legacy = (Array.isArray(unit.temporaryAbilities) ? unit.temporaryAbilities : []).filter(entry => (
+    typeof entry === 'object' && entry?.sourceType === 'abilityCard' && entry?.sourceCardId
+  ));
+  if (!legacy.length) return 0;
+  unit.learnedAbilities = getUnitLearnedAbilityEntries(unit);
+  legacy.forEach(entry => {
+    if (unit.learnedAbilities.some(item => item.id === entry.id)) return;
+    const learned = normalizeLearnedAbilityEntry(entry, { sourceCardId: entry.sourceCardId, sourceName: entry.sourceName });
+    if (learned) unit.learnedAbilities.push(learned);
+  });
+  unit.temporaryAbilities = (unit.temporaryAbilities || []).filter(entry => !legacy.includes(entry));
+  return legacy.length;
 }
 
 function returnEquippedAbilityCardsForUnit(unit, reason = 'restauración') {
-  if (!unit || !Array.isArray(unit.temporaryAbilities)) return 0;
-  const equipped = unit.temporaryAbilities.filter(entry => (
-    typeof entry === 'object'
-    && entry?.sourceType === 'abilityCard'
-    && entry?.sourceCardId
-    && entry?.untilRestore
-  ));
-  if (!equipped.length) return 0;
-  const playerId = Number(getUnitOwnerPlayerId(unit));
-  equipped.forEach(entry => {
-    restoreSpellCardToSpellbook(playerId, entry.sourceCardId, entry.originTab ?? 0, entry.originSlot ?? 0);
-  });
-  unit.temporaryAbilities = unit.temporaryAbilities.filter(entry => !equipped.includes(entry));
-  const cardNames = equipped.map(entry => CARD_LIBRARY[entry.sourceCardId]?.name || entry.sourceCardId).join(', ');
-  log(`${cardNames} regresa${equipped.length === 1 ? '' : 'n'} al Spellbook por ${reason}.`);
-  return equipped.length;
+  const migrated = migrateLegacyAbilityCardEntries(unit);
+  if (migrated > 0) log(`Habilidad aprendida conservada por ${reason}; la carta consumida no regresa al Spellbook.`);
+  return 0;
 }
 
 function clearUntilRestoreEffects(unit) {
@@ -15941,6 +16865,7 @@ function getKurokagiCapturedWeaponProfile(unit) {
     id: 'capturedWeapon',
     label: entry.label || getWeaponInfoProfile(copiedWeaponType)?.label || 'Arma capturada',
     weaponType: copiedWeaponType,
+    shirahadoriCompatible: resolveProfileValue(entry.shirahadoriCompatible, sourceProfile?.shirahadoriCompatible, false) === true,
     copiedWeaponType,
     displayWeaponType: copiedWeaponType,
     type: combatMode,
@@ -16003,6 +16928,7 @@ function getRawEquippedWeaponProfileForCapture(unit) {
   return {
     label: info?.label || profile.label || weaponType,
     weaponType,
+    shirahadoriCompatible: profile.shirahadoriCompatible === true || (String(weaponType) === String(card.weaponType || card.attackProfile?.weaponType || '') && card.shirahadoriCompatible === true),
     type: profile.combatMode || profile.type || 'melee',
     combatMode: profile.combatMode || profile.type || 'melee',
     range: Math.max(1, Number(profile.range ?? 1)),
@@ -16026,6 +16952,16 @@ function canCaptureEquippedWeaponFromUnit(unit) {
 
 function getEffectiveAttackProfile(card, unit = null, playerId = null) {
   const capturedWeaponProfile = isKurokagiUsingCapturedWeapon(unit) ? getKurokagiCapturedWeaponProfile(unit) : null;
+  // v514 · Sanea estados runtime antiguos/mezclados. Si Kurokagi o Junkai
+  // conserva su arma base disponible, su modal y su ataque deben usar el arma
+  // canónica de la carta (Rango + Oscilación parcial), no un 'golpe' residual.
+  if (unit && card && !capturedWeaponProfile && !isUnitBaseWeaponUnavailable(unit) && !unit.disarmedFallbackMode) {
+    const mustKeepPrimaryChain = card.id === 'ninjaKurokagiButai3' || card.id === 'ninjaJunkaiButai2';
+    if (mustKeepPrimaryChain) {
+      if (card.id === 'ninjaKurokagiButai3') unit.kurokagiWeaponMode = 'primary';
+      unit.activeWeaponType = card.weaponType || card.attackProfile?.weaponType || unit.activeWeaponType;
+    }
+  }
   const activeWeaponType = capturedWeaponProfile?.weaponType || unit?.activeWeaponType || card?.weaponType || card?.attackProfile?.weaponType || card?.baseAttackProfile?.weaponType || 'golpe';
   const useBaseAttack = Boolean(unit && isUnitBaseWeaponUnavailable(unit)
     && !capturedWeaponProfile
@@ -16940,7 +17876,7 @@ function beginHattoriAbilitySelection(playerId, options = {}) {
     <div class="hattori-ability-unit-list"></div>
     <footer><button type="button" class="hattori-ability-cancel">Cancelar</button><button type="button" class="hattori-ability-confirm" disabled>Aplicar marca</button></footer>
   </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   const list = overlay.querySelector('.hattori-ability-unit-list');
   const confirm = overlay.querySelector('.hattori-ability-confirm');
   const refresh = () => {
@@ -17143,7 +18079,7 @@ function beginTokugawaAbilitySelection(playerId) {
     <div class="tokugawa-ability-unit-list"></div>
     <footer><button type="button" class="tokugawa-ability-cancel">Cancelar</button></footer>
   </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   const list = overlay.querySelector('.tokugawa-ability-unit-list');
   getTokugawaAbilityEligibleUnits(playerId).forEach(unit => {
     const card = CARD_LIBRARY[unit.cardId];
@@ -17430,7 +18366,7 @@ function openKurokagiWeaponSwitchMenu(playerId, unitId) {
     stopTargetMenuEvent(event);
     closeKurokagiWeaponModal();
   });
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   return true;
 }
 
@@ -17514,7 +18450,7 @@ function openKurokagiWeaponMenu(playerId, unitId) {
     stopTargetMenuEvent(event);
     closeKurokagiWeaponModal();
   });
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   return true;
 }
 
@@ -17523,8 +18459,15 @@ function isMinokageUnit(unit) {
   return Boolean(unit && unit.cardId === 'ninjaMinokageNoKurai');
 }
 
-function isMinokagePassiveTargetType(target) {
+function isMinokagePowerTargetType(target) {
   return ['invocation', 'guardian', 'caster'].includes(String(target?.type || ''));
+}
+
+function isMinokagePassiveTargetType(target) {
+  // La pasiva de salto básico solo se usa contra invocaciones o Kaster.
+  // Los Guardianes/estructuras deben bloquear a Minokage como a cualquier
+  // otra invocación y quedan fuera del salto remoto de radio 3.
+  return ['invocation', 'caster'].includes(String(target?.type || ''));
 }
 
 function getMinokagePassiveSelectableTargets(playerId, unit) {
@@ -17552,7 +18495,6 @@ function getMinokagePassiveSelectableTargets(playerId, unit) {
     entries.push({ ...target, row: pos.row, col: pos.col });
   };
   pushIfValid(buildTarget('caster', enemyId));
-  (state.players?.[enemyId]?.guardians || []).forEach(g => pushIfValid(buildTarget('guardian', enemyId, { guardianId: g.id })));
   (state.players?.[enemyId]?.units || []).forEach(u => pushIfValid(buildTarget('invocation', enemyId, { unitId: u.id })));
   return entries;
 }
@@ -17672,7 +18614,6 @@ function queueMinokageShippuCharge(playerId, unit, target) {
   unit.minokageChanneling = true;
   unit.minokageChannelRemaining = MINOKAGE_SHIPPU_CHANNEL_PHASES;
   unit.minokageChannelStartedAt = Date.now();
-  unit.minokageLongRestorePending = true;
   unit.movesLeft = 0;
   clearStructureAttackAnchor(unit);
   state.minokageCharges = Array.isArray(state.minokageCharges) ? state.minokageCharges : [];
@@ -17714,7 +18655,7 @@ async function resolveMinokagePowerTarget(playerId, unitId, target) {
 }
 
 function isMinokageChargeTargetValid(charge) {
-  if (!charge?.target || !isMinokagePassiveTargetType(charge.target)) return false;
+  if (!charge?.target || !isMinokagePowerTargetType(charge.target)) return false;
   const target = rebuildMinokageTargetFromSnapshot(charge.target);
   return Boolean(target && isTargetStillValid(target));
 }
@@ -18117,6 +19058,9 @@ async function playMinokageDashFx(playerId, unit, path, landing, targets) {
   movingToken.innerHTML = `<span class="minokage-dash-visual">${getMinokageYariSpinMarkup('dash')}<img src="${card.tokenImage || 'assets/minokage-no-kurai-token.png'}" alt="Minokage"></span>`;
   els.boardContent.appendChild(movingToken);
   ensureMinokageYariTrail(movingToken.querySelector('.minokage-yari-spin-system'));
+  // El salto final de Shippū Ugachi comparte exactamente el mismo trail de
+  // sombras del acercamiento y la Evasión para mantener coherencia visual.
+  const stopAfterimages = startMinokagePassiveTravelAfterimages(unit, movingToken);
 
   const motionPoints = getMinokageDashMotionPoints(unit, path, landing);
   const motion = buildMinokageDashKeyframes(motionPoints, boardRect, ascentMs, hoverMs, dashMs);
@@ -18128,17 +19072,8 @@ async function playMinokageDashFx(playerId, unit, path, landing, targets) {
     if (movingToken.isConnected) movingToken.classList.add('minokage-yari-overdrive');
   }, motion.dashStartMs);
 
-  const pathIndexByCell = new Map((path || []).map((cell, index) => [`${cell.row},${cell.col}`, index]));
-  const landingIndex = Math.max(1, pathIndexByCell.get(`${landing.row},${landing.col}`) ?? (path.length - 1));
-  (targets || []).forEach(target => {
-    const nearIndex = getMinokageNearestPathIndex(path, target.row, target.col);
-    const pathIndex = Math.max(0, Math.min(landingIndex, nearIndex >= 0 ? nearIndex : 0));
-    const travelRatio = pathIndex / landingIndex;
-    const delay = motion.dashStartMs + Math.round(travelRatio * motion.dashMs);
-    window.setTimeout(() => createMinokageBoardFx('minokage-impact-slash-fx', target.row, target.col, 420), delay);
-  });
-
   try { await flight.finished; } catch (_) { /* el render no debe bloquear la resolución */ }
+  stopAfterimages();
   safeRemove(movingToken);
   return motion.totalMs;
 }
@@ -18179,6 +19114,9 @@ async function resolveReadyMinokageCharges(readyCharges = []) {
     liveUnit.minokageChanneling = false;
     liveUnit.minokageChannelRemaining = 0;
     liveUnit.minokageChannelStartedAt = 0;
+    // Las 6 fases solo quedan armadas DESPUÉS de que Shippū Ugachi se resolvió.
+    // Una restauración natural causada por su propio ataque seguirá usando 3.
+    liveUnit.minokageLongRestorePending = true;
     liveUnit.movesLeft = 0;
     renderAll();
     for (const entry of planned) {
@@ -18220,8 +19158,10 @@ function getMinokageEvasionRepositionCell(playerId, defender, attacker) {
 function scheduleMinokageEvasionReposition(source, target) {
   if (target?.type !== 'invocation') return false;
   const defender = getUnitById(target.playerId, target.unitId);
-  const attacker = source?.unit ? getUnitById(source.playerId, source.unit.id) : null;
-  if (!isMinokageUnit(defender) || !attacker || defender.status === 'restoring' || defender.minokageChanneling || defender.minokageEvasionAnimating) return false;
+  const attacker = isCasterAttackSource(source)
+    ? state.players?.[source.playerId]?.caster
+    : (source?.unit ? (getUnitById(source.playerId, source.unit.id) || source.unit) : null);
+  if (!isMinokageUnit(defender) || !attacker || attacker.row == null || attacker.col == null || defender.status === 'restoring' || defender.minokageChanneling || defender.minokageEvasionAnimating) return false;
   const cell = getMinokageEvasionRepositionCell(target.playerId, defender, attacker);
   if (!cell) return false;
 
@@ -18719,10 +19659,16 @@ function positionLinkedSpellPopover(host, panel) {
   if (!host?.isConnected || !panel?.isConnected) return;
   const margin = 8;
   const gap = 10;
-  const hostRect = host.getBoundingClientRect();
-  const panelRect = panel.getBoundingClientRect();
-  const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-  const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  const hostViewportRect = host.getBoundingClientRect();
+  const panelViewportRect = panel.getBoundingClientRect();
+  const hostRect = window.ROK_LAYOUT_SCALE?.rectToLogical
+    ? window.ROK_LAYOUT_SCALE.rectToLogical(hostViewportRect)
+    : hostViewportRect;
+  const panelRect = window.ROK_LAYOUT_SCALE?.rectToLogical
+    ? window.ROK_LAYOUT_SCALE.rectToLogical(panelViewportRect)
+    : panelViewportRect;
+  const viewportWidth = Number(window.ROK_LAYOUT_SCALE?.designWidth || 1600);
+  const viewportHeight = Number(window.ROK_LAYOUT_SCALE?.designHeight || 900);
   const canOpenRight = hostRect.right + gap + panelRect.width <= viewportWidth - margin;
   const side = canOpenRight ? 'right' : 'left';
   const unclampedLeft = canOpenRight
@@ -18784,7 +19730,7 @@ function toggleLinkedSpellPopover(host, links = [], options = {}) {
 
   if (panel.children.length <= 1) return;
   host.classList.add('linked-spell-popover-open');
-  document.body.appendChild(panel);
+  appendRokUiNode(panel);
   activeLinkedSpellPopover = { host, panel };
   positionLinkedSpellPopover(host, panel);
 }
@@ -20766,6 +21712,12 @@ async function executeSelectedCasterAttack(source, target) {
     effectNature: profile?.damageNature,
     shirahadoriRedirected: false,
   });
+  if (shirahadori?.counterMiss) {
+    state.selectedMover = null;
+    clearCombatMenus();
+    renderAll();
+    return true;
+  }
   const effectiveTarget = shirahadori?.redirectedTarget || target;
   const effectiveTargetUnit = getUnitById(effectiveTarget.playerId, effectiveTarget.unitId);
   if (!effectiveTargetUnit || effectiveTargetUnit.status === 'restoring') return false;
@@ -21112,6 +22064,12 @@ function createCombatMiniModifierChip(modifier) {
   return chip;
 }
 
+const SHIRAHADORI_DETECTION_HOLD_MS = 340;
+const SHIRAHADORI_REDIRECT_TRAVEL_MS = 520;
+const SHIRAHADORI_IMPACT_HOLD_MS = 300;
+const SHIRAHADORI_CHAIN_GAP_MS = 280;
+const SHIRAHADORI_FAIL_HOLD_MS = 420;
+
 function createShirahadoriTriggerFx(playerId, unit) {
   emitOnlineVisualEvent('shirahadori-trigger', { source: snapshotOnlineFxUnit(playerId, unit) });
   if (!els?.boardContent || !unit) return null;
@@ -21127,7 +22085,7 @@ function createShirahadoriTriggerFx(playerId, unit) {
 }
 
 async function showShirahadoriRedirectFx(originalTarget, redirectedTarget, options = {}) {
-  if (!options.suppressOnlineFx) emitOnlineVisualEvent('shirahadori-redirect', { originalTarget: snapshotOnlineFxTarget(originalTarget), redirectedTarget: snapshotOnlineFxTarget(redirectedTarget), options: { projectile: Boolean(options.projectile) } });
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('shirahadori-redirect', { originalTarget: snapshotOnlineFxTarget(originalTarget), redirectedTarget: snapshotOnlineFxTarget(redirectedTarget), options: { projectile: Boolean(options.projectile), miss: Boolean(options.miss) } });
   if (!els?.boardContent || !originalTarget || !redirectedTarget) return;
   const from = getTargetFxPoint(originalTarget);
   const to = getTargetFxPoint(redirectedTarget);
@@ -21142,7 +22100,7 @@ async function showShirahadoriRedirectFx(originalTarget, redirectedTarget, optio
   guard.style.top = `${from.y}%`;
   els.boardContent.appendChild(guard);
 
-  await sleep(180);
+  await sleep(SHIRAHADORI_DETECTION_HOLD_MS);
 
   const redirected = document.createElement('span');
   redirected.className = `shirahadori-redirect-fx${options.projectile ? ' projectile' : ' physical-effect'}`;
@@ -21153,29 +22111,51 @@ async function showShirahadoriRedirectFx(originalTarget, redirectedTarget, optio
   redirected.style.setProperty('--shirahadori-angle', `${angle}deg`);
   els.boardContent.appendChild(redirected);
 
-  await sleep(420);
+  await sleep(SHIRAHADORI_REDIRECT_TRAVEL_MS);
 
-  const impact = document.createElement('span');
-  impact.className = 'shirahadori-redirect-impact-fx';
-  impact.style.left = `${to.x}%`;
-  impact.style.top = `${to.y}%`;
-  els.boardContent.appendChild(impact);
+  let impact = null;
+  if (!options.miss) {
+    impact = document.createElement('span');
+    impact.className = 'shirahadori-redirect-impact-fx';
+    impact.style.left = `${to.x}%`;
+    impact.style.top = `${to.y}%`;
+    els.boardContent.appendChild(impact);
+    playMinokageHitSlashBurstFx(redirectedTarget, { suppressOnlineFx: Boolean(options.suppressOnlineFx) });
+  } else {
+    showFloatingTextAt(redirectedTarget.row, redirectedTarget.col, 'FUERA DE RANGO', 'floating-combat');
+  }
 
-  await sleep(220);
+  await sleep(SHIRAHADORI_IMPACT_HOLD_MS);
   safeRemove(guard);
   safeRemove(redirected);
   safeRemove(impact);
 }
 
 async function maybeResolveShirahadoriRedirect(source, target, options = {}) {
-  if (!target || target.type !== 'invocation' || options.shirahadoriRedirected) return null;
+  // v525 · Cada devolución de Shirahadori es una nueva instancia física y puede
+  // ser respondida por Shirahadori otra vez. Ya no se bloquea solo porque el
+  // impacto entrante provenga de una devolución anterior.
+  if (!target || target.type !== 'invocation' || options.disableShirahadori === true) return null;
   if (getIncomingEffectNature(source, options.effectNature) !== 'physical') return null;
   if (source?.playerId == null || Number(source.playerId) === Number(target.playerId)) return null;
   const defender = getUnitById(target.playerId, target.unitId);
   if (!defender || defender.status === 'restoring' || !unitHasAbility(defender, SHIRAHADORI_ABILITY_ID)) return null;
-  const opponent = getEngagedOpponentForUnit(target.playerId, defender);
-  if (!opponent) return null;
-  if (!rollPda(SHIRAHADORI_PDA)) return null;
+  const runtimeAvailability = getShirahadoriRuntimeAvailability(target.playerId, defender);
+  if (!runtimeAvailability.available) return null;
+  const counterWeapon = getShirahadoriCounterWeaponOption(target.playerId, defender);
+  if (!counterWeapon) return null;
+  const overrideOpponent = options.combatOpponentOverride?.unit
+    ? { playerId: Number(options.combatOpponentOverride.playerId), unit: options.combatOpponentOverride.unit }
+    : null;
+  const opponent = overrideOpponent || getEngagedOpponentForUnit(target.playerId, defender);
+  if (!opponent?.unit || opponent.unit.status === 'restoring') return null;
+  if (!rollPda(SHIRAHADORI_PDA)) {
+    showFloatingTextAt(defender.row, defender.col, 'SHIRAHADORI FALLÓ', 'floating-combat');
+    log(`${CARD_LIBRARY[defender.cardId]?.name || 'Invocación'} intenta activar Shirahadori (${SHIRAHADORI_PDA} PDA), pero falla. El ataque continúa normalmente.`);
+    // Dar tiempo a leer el fallo antes de que el impacto pendiente conecte.
+    if (!options.nonBlockingFx) await sleep(SHIRAHADORI_FAIL_HOLD_MS);
+    return null;
+  }
 
   const redirectedTarget = {
     type: 'invocation',
@@ -21184,10 +22164,163 @@ async function maybeResolveShirahadoriRedirect(source, target, options = {}) {
     row: opponent.unit.row,
     col: opponent.unit.col,
   };
+  const engagementMode = String(options.combatModeOverride || defender.engagedWith?.combatMode || '').toLowerCase();
+  const defenderProfile = counterWeapon.profile;
+  const returnCanReach = canUnitDamageUnitWithProfile(target.playerId, defender, opponent.playerId, opponent.unit, defenderProfile);
+  const rangeReturnMiss = engagementMode === 'range' && !returnCanReach;
+
   createShirahadoriTriggerFx(target.playerId, defender);
+  if (rangeReturnMiss) {
+    log(`${CARD_LIBRARY[defender.cardId]?.name || 'Invocación'} activa Shirahadori (${SHIRAHADORI_PDA} PDA) y devuelve el ataque hacia ${CARD_LIBRARY[opponent.unit.cardId]?.name || 'su rival de combate'}, pero falla porque el rival está fuera de su alcance.`);
+    const fxPromise = showShirahadoriRedirectFx(target, redirectedTarget, { ...options, miss: true });
+    if (!options.nonBlockingFx) await fxPromise;
+    return { originalTarget: target, redirectedTarget, defender, redirectedUnit: opponent.unit, pda: SHIRAHADORI_PDA, counterMiss: true, cancelOriginal: true, engagementMode: 'range', counterWeapon };
+  }
+
   log(`${CARD_LIBRARY[defender.cardId]?.name || 'Invocación'} activa Shirahadori (${SHIRAHADORI_PDA} PDA) y redirige el efecto físico hacia ${CARD_LIBRARY[opponent.unit.cardId]?.name || 'su rival de combate'}.`);
-  await showShirahadoriRedirectFx(target, redirectedTarget, options);
-  return { originalTarget: target, redirectedTarget, defender, redirectedUnit: opponent.unit, pda: SHIRAHADORI_PDA };
+  const fxPromise = showShirahadoriRedirectFx(target, redirectedTarget, options);
+  if (!options.nonBlockingFx) await fxPromise;
+  return { originalTarget: target, redirectedTarget, defender, redirectedUnit: opponent.unit, pda: SHIRAHADORI_PDA, cancelOriginal: true, engagementMode, counterWeapon };
+}
+
+function buildShirahadoriReflectedSource(effectSource, reaction) {
+  if (!reaction?.defender) return effectSource;
+  // La devolución conserva la naturaleza/propiedades del efecto que se está
+  // reflejando, pero su emisor pasa a ser la invocación que ejecutó Shirahadori.
+  // Esto permite que la invocación contraria reconozca el contraataque como un
+  // nuevo impacto enemigo y pueda responder con su propio Shirahadori.
+  return {
+    ...(effectSource || {}),
+    playerId: Number(reaction.originalTarget?.playerId ?? getUnitOwnerPlayerId(reaction.defender)),
+    unit: reaction.defender,
+    shirahadoriReflection: true,
+  };
+}
+
+async function continueShirahadoriReactionChain(firstReaction, originalEffectSource, baseAmount, options = {}) {
+  if (!firstReaction) {
+    return {
+      triggered: false,
+      terminalMiss: false,
+      reflectionCount: 0,
+      finalSource: originalEffectSource,
+      finalTarget: options.originalTarget || null,
+      reactions: [],
+    };
+  }
+
+  const reactions = [firstReaction];
+  if (firstReaction.counterMiss) {
+    return {
+      triggered: true,
+      terminalMiss: true,
+      reflectionCount: 1,
+      finalSource: buildShirahadoriReflectedSource(originalEffectSource, firstReaction),
+      finalTarget: firstReaction.redirectedTarget,
+      reactions,
+      lastReaction: firstReaction,
+      amount: Number(baseAmount || 0),
+    };
+  }
+
+  let currentSource = buildShirahadoriReflectedSource(originalEffectSource, firstReaction);
+  let currentTarget = firstReaction.redirectedTarget;
+  let lastReaction = firstReaction;
+
+  // Separación visual entre un contraataque y la detección del siguiente.
+  // Evita que dos FX de Shirahadori se lean como un único destello desordenado.
+  await sleep(SHIRAHADORI_CHAIN_GAP_MS);
+
+  // Un límite de seguridad extremadamente alto evita un bloqueo del navegador
+  // ante un RNG patológico sin cambiar el comportamiento normal de la técnica.
+  const safetyLimit = 512;
+  for (let depth = 1; depth < safetyLimit; depth += 1) {
+    if (!currentTarget || currentTarget.type !== 'invocation') break;
+    const liveSourceUnit = currentSource?.unit
+      ? getUnitById(currentSource.playerId, currentSource.unit.id) || currentSource.unit
+      : null;
+    if (liveSourceUnit?.status === 'restoring') break;
+    const next = await maybeResolveShirahadoriRedirect(
+      liveSourceUnit ? { ...currentSource, unit: liveSourceUnit } : currentSource,
+      currentTarget,
+      {
+        ...options,
+        shirahadoriRedirected: false,
+        combatOpponentOverride: liveSourceUnit
+          ? { playerId: Number(currentSource.playerId), unit: liveSourceUnit }
+          : options.combatOpponentOverride,
+        chainDepth: depth,
+      }
+    );
+
+    if (!next) {
+      return {
+        triggered: true,
+        terminalMiss: false,
+        reflectionCount: reactions.length,
+        finalSource: currentSource,
+        finalTarget: currentTarget,
+        reactions,
+        lastReaction,
+        amount: Number(baseAmount || 0),
+      };
+    }
+
+    reactions.push(next);
+    lastReaction = next;
+    currentSource = buildShirahadoriReflectedSource(currentSource, next);
+    currentTarget = next.redirectedTarget;
+
+    if (!next.counterMiss) await sleep(SHIRAHADORI_CHAIN_GAP_MS);
+
+    if (next.counterMiss) {
+      return {
+        triggered: true,
+        terminalMiss: true,
+        reflectionCount: reactions.length,
+        finalSource: currentSource,
+        finalTarget: currentTarget,
+        reactions,
+        lastReaction: next,
+        amount: Number(baseAmount || 0),
+      };
+    }
+  }
+
+  log('Shirahadori: la cadena alcanzó el límite técnico de seguridad; se conserva el último impacto pendiente para evitar bloquear la partida.');
+  return {
+    triggered: true,
+    terminalMiss: false,
+    reflectionCount: reactions.length,
+    finalSource: currentSource,
+    finalTarget: currentTarget,
+    reactions,
+    lastReaction,
+    amount: Number(baseAmount || 0),
+    safetyLimitReached: true,
+  };
+}
+
+async function resolveShirahadoriReactionChain(source, target, baseAmount, options = {}) {
+  const firstReaction = await maybeResolveShirahadoriRedirect(source, target, {
+    ...options,
+    shirahadoriRedirected: false,
+  });
+  if (!firstReaction) {
+    return {
+      triggered: false,
+      terminalMiss: false,
+      reflectionCount: 0,
+      finalSource: source,
+      finalTarget: target,
+      reactions: [],
+      amount: Number(baseAmount || 0),
+    };
+  }
+  return continueShirahadoriReactionChain(firstReaction, source, baseAmount, {
+    ...options,
+    originalTarget: target,
+  });
 }
 
 function resolveAttackRoll(source, target, baseAmount, options = {}) {
@@ -22289,6 +23422,7 @@ async function captureKurokagiDroppedWeapon(source, candidate) {
   const capturedProfile = {
     label: rawCapturedProfile.label || getWeaponInfoProfile(capturedWeaponType)?.label || capturedWeaponType,
     weaponType: capturedWeaponType,
+    shirahadoriCompatible: chooseCapturedValue(rawCapturedProfile.shirahadoriCompatible, sourceWeaponProfile?.shirahadoriCompatible, false) === true,
     copiedWeaponType: capturedWeaponType,
     originalWeaponType: capturedWeaponType,
     type: capturedCombatMode,
@@ -22311,6 +23445,7 @@ async function captureKurokagiDroppedWeapon(source, candidate) {
   sourceUnit.kurokagiCapturedWeapon = {
     label: capturedProfile.label || getWeaponInfoProfile(capturedProfile.weaponType)?.label || 'Arma capturada',
     weaponType: capturedProfile.weaponType || 'golpe',
+    shirahadoriCompatible: capturedProfile.shirahadoriCompatible === true,
     copiedWeaponType: capturedProfile.weaponType || 'golpe',
     originalWeaponType: capturedProfile.weaponType || 'golpe',
     type: capturedProfile.combatMode || capturedProfile.type || 'melee',
@@ -22366,6 +23501,7 @@ async function resolveKurokagiDisarmCandidates(source, disarmEntries = []) {
     capturedProfile: {
       label: candidate.capturedProfile?.label || '',
       weaponType: candidate.capturedProfile?.weaponType || 'golpe',
+      shirahadoriCompatible: candidate.capturedProfile?.shirahadoriCompatible === true,
       copiedWeaponType: candidate.capturedProfile?.weaponType || 'golpe',
       originalWeaponType: candidate.capturedProfile?.weaponType || 'golpe',
       type: candidate.capturedProfile?.combatMode || candidate.capturedProfile?.type || 'melee',
@@ -22657,14 +23793,11 @@ function buildOscillationPartialAttackPlan(source, target, amount, profile) {
     : null;
 
   let resolvedTargetCount = 0;
-  let stopLineIndex = null;
-  let plannedParalysis = null;
 
   for (const sweptTarget of sweptTargets) {
     const lineKey = getOscillationSweepLineKey(sweptTarget.metrics);
     const lineIndex = lineIndexByKey.get(lineKey);
     if (!Number.isFinite(lineIndex)) continue;
-    if (stopLineIndex != null && lineIndex > stopLineIndex) continue;
 
     const isPrimaryImpact = resolvedTargetCount === 0;
     resolvedTargetCount += 1;
@@ -22679,7 +23812,7 @@ function buildOscillationPartialAttackPlan(source, target, amount, profile) {
       outcome,
       burnPlan: outcome.hit ? prepareBurnFromAttackPlan(source, sweptTarget, outcome) : null,
       kurokagiDisarm: null,
-      paralysisStop: false,
+      paralysisPlan: null,
     };
 
     if (outcome.hit && sweptTarget.type === 'invocation' && disarmFactor) {
@@ -22695,12 +23828,13 @@ function buildOscillationPartialAttackPlan(source, target, amount, profile) {
       }
     }
 
-    if (outcome.hit && sweptTarget.type === 'invocation' && paralysisFactor && !plannedParalysis) {
+    // v517 · Parálisis se planifica por objetivo, pero NO recorta el barrido aquí.
+    // Shirahadori puede negar ese impacto; solo el primer objetivo que realmente
+    // reciba Parálisis detendrá la animación en tiempo de resolución.
+    if (outcome.hit && sweptTarget.type === 'invocation' && paralysisFactor) {
       const preparedParalysis = prepareParalysisFromJunkai(source, sweptTarget, paralysisFactor);
       if (preparedParalysis) {
-        stopLineIndex = lineIndex;
-        event.paralysisStop = true;
-        plannedParalysis = {
+        event.paralysisPlan = {
           target: { ...sweptTarget },
           prepared: preparedParalysis,
           factorEntry: paralysisFactor,
@@ -22722,8 +23856,8 @@ function buildOscillationPartialAttackPlan(source, target, amount, profile) {
     range,
     geometry,
     eventsByLine,
-    stopLineIndex,
-    plannedParalysis,
+    stopLineIndex: null,
+    plannedParalysis: null,
     existingJunkaiLink,
   };
 }
@@ -22784,30 +23918,71 @@ async function performOscillationPartialSweep(source, target, amount, profile, r
   let stopReason = '';
   let pendingParalysis = null;
   const pendingKurokagiDisarms = [];
+  const pendingShirahadoriCounters = [];
+  let stopSweep = false;
 
+  outerSweep:
   for (const group of plan.geometry.groups) {
     if (!group?.impactCell) continue;
     await advanceOscillationPartialSweepFx(fxController, group.impactCell, { isTargetStep: false });
 
     const lineEvents = plan.eventsByLine.get(group.lineIndex) || [];
     for (const event of lineEvents) {
+      if (!event?.target || !isTargetStillValid(event.target)) continue;
+
+      // v518 · Shirahadori pertenece al IMPACTO de cada objetivo, no al flujo
+      // de la animación del atacante. Cada copia hace su PDA por separado. Si
+      // acierta, ese impacto se evita y el barrido continúa; la devolución de daño
+      // queda en cola y se aplica cuando la animación completa haya terminado.
+      if (event.target.type === 'invocation') {
+        const currentSourceUnit = getUnitById(source.playerId, source.unit.id) || source.unit;
+        const liveSource = { ...source, unit: currentSourceUnit, card: CARD_LIBRARY[currentSourceUnit?.cardId] || source.card };
+        const shirahadori = await maybeResolveShirahadoriRedirect(liveSource, event.target, {
+          projectile: true,
+          effectNature: profile?.damageNature,
+          shirahadoriRedirected: false,
+          combatOpponentOverride: { playerId: source.playerId, unit: currentSourceUnit },
+          combatModeOverride: 'range',
+          nonBlockingFx: true,
+        });
+        if (shirahadori) {
+          if (!shirahadori.counterMiss && shirahadori.redirectedTarget) {
+            // v525 · La primera defensa se calcula durante el barrido para proteger
+            // individualmente a esta copia, pero la cadena de contracontraataques
+            // se resuelve DESPUÉS de terminar la animación completa del atacante.
+            pendingShirahadoriCounters.push({
+              source: { ...liveSource },
+              firstReaction: shirahadori,
+              baseDamageAmount: event.baseDamageAmount,
+              effectNature: profile?.damageNature,
+              defenderUnitId: String(event.target.unitId || ''),
+            });
+          }
+          // Solo esta copia queda protegida. No recibe daño ni efectos secundarios
+          // de este impacto y nunca se detiene/cancela el barrido global.
+          continue;
+        }
+      }
+
       const result = applyOscillationPlannedTargetEvent(source, event, fxController?.variant);
       if (result.hit) await waitForAutonomousGameplayResume(source);
       if (result.skipped) continue;
       if (result.hit) {
         hitCount += 1;
         if (event.kurokagiDisarm) pendingKurokagiDisarms.push(event.kurokagiDisarm);
-        if (event.paralysisStop && plan.plannedParalysis) {
-          pendingParalysis = plan.plannedParalysis;
-          lockedTarget = { ...plan.plannedParalysis.target };
+        if (event.paralysisPlan && !pendingParalysis) {
+          pendingParalysis = event.paralysisPlan;
+          lockedTarget = { ...event.paralysisPlan.target };
           stopReason = 'paralysis';
+          stopSweep = true;
+          break;
         }
       } else {
         missCount += 1;
       }
     }
 
-    if (plan.stopLineIndex != null && group.lineIndex >= plan.stopLineIndex) {
+    if (stopSweep) {
       freezeOscillationPartialSweepFx(fxController, fxController?.activeNode);
       break;
     }
@@ -22836,7 +24011,41 @@ async function performOscillationPartialSweep(source, target, amount, profile, r
     }
   }
 
-  log(`${CARD_LIBRARY[source.unit.cardId]?.name || 'Invocación'} aplica ${reasonLabel}: ${hitCount} impacto${hitCount === 1 ? '' : 's'}, ${missCount} fallo${missCount === 1 ? '' : 's'}${kurokagiResult?.appliedCount ? `, ${kurokagiResult.appliedCount} arma${kurokagiResult.appliedCount === 1 ? '' : 's'} desarmada${kurokagiResult.appliedCount === 1 ? '' : 's'}` : ''}${lockedTarget ? '; barrido detenido por Parálisis' : ''}.`);
+  // Shirahadori se materializa DESPUÉS de cerrar completamente el ataque:
+  // barrido, daño normal, Desarmar y Parálisis. Así una devolución letal puede
+  // restaurar al agresor sin borrar ni cortar ninguna parte de su animación/efecto.
+  for (const counter of pendingShirahadoriCounters) {
+    if (!counter?.firstReaction || !counter?.source) continue;
+    const chain = await continueShirahadoriReactionChain(
+      counter.firstReaction,
+      counter.source,
+      counter.baseDamageAmount,
+      {
+        projectile: true,
+        effectNature: counter.effectNature,
+        combatModeOverride: 'range',
+      }
+    );
+    if (chain.terminalMiss || !chain.finalTarget) continue;
+    const liveReflectedTarget = chain.finalTarget.type === 'invocation'
+      ? getUnitById(chain.finalTarget.playerId, chain.finalTarget.unitId)
+      : null;
+    if (chain.finalTarget.type === 'invocation' && (!liveReflectedTarget || liveReflectedTarget.status === 'restoring')) continue;
+    const damageSource = chain.finalSource || counter.source;
+    const reflectedOutcome = resolveAttackRoll(damageSource, chain.finalTarget, counter.baseDamageAmount, {
+      ignoreEvasion: true,
+      ignoreDiversion: true,
+      ignoreProjectileDodge: true,
+      forcePrecisionHit: true,
+      shirahadoriRedirected: true,
+    });
+    if (!reflectedOutcome.hit) continue;
+    reflectedOutcome.shirahadoriChain = chain;
+    applyDamageToTarget({ ...damageSource, attackOutcome: reflectedOutcome, shirahadoriRedirected: true }, chain.finalTarget, reflectedOutcome.amount);
+    await waitForAutonomousGameplayResume(damageSource);
+  }
+
+  log(`${CARD_LIBRARY[source.unit.cardId]?.name || 'Invocación'} aplica ${reasonLabel}: ${hitCount} impacto${hitCount === 1 ? '' : 's'}, ${missCount} fallo${missCount === 1 ? '' : 's'}${pendingShirahadoriCounters.length ? `, ${pendingShirahadoriCounters.length} devolución${pendingShirahadoriCounters.length === 1 ? '' : 'es'} de Shirahadori` : ''}${kurokagiResult?.appliedCount ? `, ${kurokagiResult.appliedCount} arma${kurokagiResult.appliedCount === 1 ? '' : 's'} desarmada${kurokagiResult.appliedCount === 1 ? '' : 's'}` : ''}${lockedTarget ? '; barrido detenido por Parálisis' : ''}.`);
   return { resolved: true, lockedTarget, stopReason, hitCount, missCount, kurokagiResult };
 }
 
@@ -22844,6 +24053,15 @@ async function executeOscillationPartialAttack(source, target, amount, profile) 
   const sourceUnit = getUnitById(source.playerId, source.unit.id);
   if (!sourceUnit || sourceUnit.status === 'restoring') return true;
   const liveSource = { ...source, unit: sourceUnit };
+
+  // v517 · Oscilación parcial sigue registrando combate de Rango con el objetivo
+  // inicial, pero Shirahadori ya no se resuelve aquí ni puede abortar todo el
+  // ataque. Cada objetivo del barrido lo resuelve individualmente dentro del sweep.
+  if (target?.type === 'invocation') {
+    establishInvocationCombatState(liveSource, target);
+    renderUnits();
+    renderCombatHud();
+  }
 
   const firstSweep = await performOscillationPartialSweep(liveSource, target, amount, profile, 'Oscilación parcial');
   if (!firstSweep?.resolved) return false;
@@ -23097,25 +24315,44 @@ async function performDistanceAttackStrike(source, target, amount, profile, labe
   if (target?.type !== 'guardian') clearStructureAttackAnchor(source.unit);
   showFloatingTextAt(source.unit.row, source.unit.col, label);
   await showDistanceAttackFx(source, target);
-  const shirahadori = await maybeResolveShirahadoriRedirect(source, target, { projectile: true, effectNature: profile?.damageNature, shirahadoriRedirected: options.shirahadoriRedirected });
-  const effectiveTarget = shirahadori?.redirectedTarget || target;
-  const outcome = resolveAttackRoll(source, effectiveTarget, amount, shirahadori
+
+  const shirahadoriChain = await resolveShirahadoriReactionChain(source, target, amount, {
+    projectile: true,
+    effectNature: profile?.damageNature,
+  });
+  if (shirahadoriChain.terminalMiss) {
+    return {
+      hit: false,
+      outcome: { hit: false, amount: 0, critical: false, criticalMiss: false, shirahadoriCounterMiss: true },
+      shirahadori: shirahadoriChain.lastReaction || null,
+      shirahadoriChain,
+      target: shirahadoriChain.finalTarget,
+    };
+  }
+
+  const effectiveTarget = shirahadoriChain.finalTarget || target;
+  const damageSource = shirahadoriChain.triggered ? shirahadoriChain.finalSource : source;
+  const outcome = resolveAttackRoll(damageSource, effectiveTarget, amount, shirahadoriChain.triggered
     ? { ignoreEvasion: true, ignoreDiversion: true, ignoreProjectileDodge: true, forcePrecisionHit: true, ...options, shirahadoriRedirected: true }
     : { ignoreEvasion: true, ...options });
   if (!outcome.hit) {
     if (outcome.criticalMiss) await sleep(360);
-    return { hit: false, outcome, shirahadori };
+    return { hit: false, outcome, shirahadori: shirahadoriChain.lastReaction || null, shirahadoriChain };
   }
   if (outcome.criticalMiss) await sleep(360);
 
-  if (effectiveTarget.type === 'caster' && effectiveTarget.playerId === LOCAL_PLAYER_ID && source.playerId !== LOCAL_PLAYER_ID) {
-    await handleIncomingCasterAttack(source, effectiveTarget, outcome.amount, { profile, isDistanceAttack: true, allowCounter: false });
+  if (effectiveTarget.type === 'caster' && effectiveTarget.playerId === LOCAL_PLAYER_ID && damageSource.playerId !== LOCAL_PLAYER_ID) {
+    await handleIncomingCasterAttack(damageSource, effectiveTarget, outcome.amount, { profile, isDistanceAttack: true, allowCounter: false });
   } else {
-    applyDamageToTarget({ ...source, attackOutcome: outcome, shirahadoriRedirected: Boolean(shirahadori) }, effectiveTarget, outcome.amount);
-    await waitForAutonomousGameplayResume(source);
+    applyDamageToTarget({ ...damageSource, attackOutcome: outcome, shirahadoriRedirected: shirahadoriChain.triggered }, effectiveTarget, outcome.amount);
+    await waitForAutonomousGameplayResume(damageSource);
     applyBurnFromAttackIfNeeded(source, effectiveTarget, outcome);
   }
-  return { hit: true, outcome: { ...outcome, shirahadoriRedirected: Boolean(shirahadori), shirahadori }, target: effectiveTarget };
+  return {
+    hit: true,
+    outcome: { ...outcome, shirahadoriRedirected: shirahadoriChain.triggered, shirahadori: shirahadoriChain.lastReaction || null, shirahadoriChain },
+    target: effectiveTarget,
+  };
 }
 
 async function executeDistanceAttackDamage(source, target, amount, profile) {
@@ -23168,7 +24405,8 @@ function getOscillationCompleteTargets(source, range = 1) {
 async function playMinokageOscillationCompleteFx(source, targets, options = {}) {
   if (!options.suppressOnlineFx) emitOnlineVisualEvent('minokage-oscillation', { source: snapshotOnlineFxUnit(source?.playerId, source?.unit), targets: (targets || []).map(snapshotOnlineFxTarget).filter(Boolean) });
   createMinokageBoardFx('minokage-oscillation-complete-fx', source.unit.row, source.unit.col, 680);
-  (targets || []).forEach((target, index) => window.setTimeout(() => createMinokageBoardFx('minokage-impact-slash-fx', target.row, target.col, 540), 80 + index * 28));
+  // El antiguo impacto en X se elimina. El slash real se dispara únicamente
+  // cuando el daño efectivamente impacta, desde applyDamageToTarget/Caster.
   await sleep(430);
 }
 
@@ -23216,23 +24454,84 @@ function getMinokagePassiveRetreatCell(playerId, unit, target, preferredDistance
   return fallback[0] || null;
 }
 
+function getMinokageHitSlashAngles() {
+  const patterns = [
+    [-34, 26, 78],
+    [-58, 8, 51],
+    [-18, 42, 96],
+    [-72, -14, 33],
+  ];
+  const pattern = patterns[Math.floor(Math.random() * patterns.length)] || patterns[0];
+  const count = Math.random() < 0.48 ? 2 : 3;
+  return pattern.slice(0, count);
+}
+
+function playMinokageHitSlashBurstFx(target, options = {}) {
+  if (!els.boardContent || !target) return null;
+  const pos = getTargetBoardPosition(target) || (target.row != null && target.col != null ? { row: target.row, col: target.col } : null);
+  if (!pos) return null;
+  const angles = Array.isArray(options.angles) && options.angles.length
+    ? options.angles.map(Number).filter(Number.isFinite).slice(0, 3)
+    : getMinokageHitSlashAngles();
+  if (!options.suppressOnlineFx) {
+    emitOnlineVisualEvent('minokage-hit-slash', { row: Number(pos.row), col: Number(pos.col), angles });
+  }
+  const center = cellCenter(pos.row, pos.col);
+  const burst = document.createElement('span');
+  burst.className = 'minokage-hit-slash-burst-fx';
+  burst.style.left = `${center.x}%`;
+  burst.style.top = `${center.y}%`;
+  burst.setAttribute('aria-hidden', 'true');
+  angles.forEach((angle, index) => {
+    const slash = document.createElement('img');
+    slash.src = 'assets/fx/minokage-slash.png';
+    slash.alt = '';
+    slash.draggable = false;
+    slash.style.setProperty('--minokage-hit-angle', `${angle}deg`);
+    slash.style.setProperty('--minokage-hit-delay', `${index * 54}ms`);
+    slash.style.setProperty('--minokage-hit-offset-x', `${(index - 1) * 5}px`);
+    slash.style.setProperty('--minokage-hit-offset-y', `${index % 2 === 0 ? -3 : 4}px`);
+    burst.appendChild(slash);
+  });
+  els.boardContent.appendChild(burst);
+  window.setTimeout(() => safeRemove(burst), 620);
+  return burst;
+}
+
+function triggerMinokageHitSlashIfNeeded(source, target, amount) {
+  if (!isMinokageUnit(source?.unit) || Number(amount || 0) <= 0) return false;
+  playMinokageHitSlashBurstFx(target);
+  return true;
+}
+
 function createMinokageTravelAfterimageFromNode(unit, movingToken) {
-  if (!unit || !movingToken || !document.body.contains(movingToken)) return null;
+  if (!unit || !movingToken || !document.body.contains(movingToken) || !els.boardContent) return null;
   const visual = movingToken.querySelector('.minokage-dash-visual > img:last-child') || movingToken.querySelector('.minokage-dash-visual img:last-child');
   if (!visual) return null;
   const rect = visual.getBoundingClientRect();
-  if (!rect.width || !rect.height) return null;
+  const boardRect = els.boardContent.getBoundingClientRect();
+  if (!rect.width || !rect.height || !boardRect.width || !boardRect.height) return null;
+
+  // v505: la sombra debe vivir en el MISMO sistema de coordenadas que el token.
+  // Antes se calculaban píxeles de viewport y luego se insertaban en una capa
+  // dentro del stage escalado, aplicando la escala/offset por segunda vez y
+  // creando el efecto visual de un "segundo Minokage" separado del salto real.
+  const centerX = ((rect.left + (rect.width / 2) - boardRect.left) / boardRect.width) * 100;
+  const centerY = ((rect.top + (rect.height / 2) - boardRect.top) / boardRect.height) * 100;
+  const widthPct = (rect.width / boardRect.width) * 100;
+  const heightPct = (rect.height / boardRect.height) * 100;
+
   const fx = document.createElement('div');
   fx.className = 'minokage-passive-afterimage-fx';
   fx.setAttribute('aria-hidden', 'true');
-  fx.style.left = `${rect.left + (rect.width / 2)}px`;
-  fx.style.top = `${rect.top + (rect.height / 2)}px`;
-  fx.style.width = `${rect.width}px`;
-  fx.style.height = `${rect.height}px`;
-  fx.style.zIndex = String(1600 + Number(unit.row || 0));
+  fx.style.left = `${centerX}%`;
+  fx.style.top = `${centerY}%`;
+  fx.style.width = `${widthPct}%`;
+  fx.style.height = `${heightPct}%`;
+  fx.style.zIndex = String(470 + Number(unit.row || 0));
   const tokenSrc = visual.currentSrc || visual.src || (CARD_LIBRARY[unit.cardId]?.tokenImage || 'assets/minokage-no-kurai-token.png');
   fx.innerHTML = `<img src="${tokenSrc}" alt="">`;
-  getGlobalFxLayer().appendChild(fx);
+  els.boardContent.appendChild(fx);
   window.requestAnimationFrame(() => fx.classList.add('is-visible'));
   window.setTimeout(() => fx.classList.add('is-older'), 90);
   window.setTimeout(() => safeRemove(fx), 320);
@@ -23298,9 +24597,8 @@ async function playMinokagePassiveTravelFx(playerId, unit, destination, options 
   if (yariSystem) ensureMinokageYariTrail(yariSystem);
   const stopAfterimages = startMinokagePassiveTravelAfterimages(unit, movingToken);
   const frames = buildMinokagePassiveTravelKeyframes({ row: unit.row, col: unit.col }, destination, boardRect, Boolean(options.returning));
-  if (!options.returning) {
-    window.setTimeout(() => { if (movingToken.isConnected) movingToken.classList.add('minokage-yari-overdrive'); }, Math.max(90, Math.round(duration * 0.35)));
-  }
+  // Durante el salto básico el Yari gira lento. El giro rápido ocurre
+  // exclusivamente en el windup de impacto justo antes de aplicar el daño.
   const flight = movingToken.animate(frames, { duration, easing: 'linear', fill: 'forwards' });
   try { await flight.finished; } catch (_) { /* no bloquear resolución */ }
   stopAfterimages();
@@ -23350,7 +24648,15 @@ async function executeMinokagePassiveRemoteAttack(source, target, amount, profil
   live = getUnitById(source.playerId, unit.id);
   if (!live || live.status === 'restoring') return true;
   const retreatReference = { type: target.type, playerId: target.playerId, unitId: target.unitId, guardianId: target.guardianId, row: targetPos.row, col: targetPos.col };
-  const retreatCell = getMinokagePassiveRetreatCell(source.playerId, live, retreatReference, originDistance, [attackCell]);
+  let retreatCell = getMinokagePassiveRetreatCell(source.playerId, live, retreatReference, originDistance, [attackCell]);
+  if (!retreatCell && isInside(origin.row, origin.col) && !isMovementDestinationBlockedForPlayer(origin.row, origin.col, source.playerId)) {
+    retreatCell = { row: origin.row, col: origin.col };
+  }
+  if (!retreatCell) {
+    retreatCell = shuffleArray(getCellsInRadius(origin.row, origin.col, 1, true)
+      .filter(cell => isInside(cell.row, cell.col))
+      .filter(cell => !isMovementDestinationBlockedForPlayer(cell.row, cell.col, source.playerId)))[0] || null;
+  }
   if (retreatCell) {
     await playMinokagePassiveTravelFx(source.playerId, live, retreatCell, { returning: true, keepSourceHidden: true });
     live = getUnitById(source.playerId, unit.id);
@@ -23379,6 +24685,7 @@ async function executeOscillationCompleteAttack(source, target, amount, profile)
     return ka === primaryKey ? -1 : kb === primaryKey ? 1 : 0;
   });
   const planned = targets.map(entry => ({ target: entry, outcome: planAttackRoll(liveSource, entry, amount) }));
+  if (isMinokageUnit(sourceUnit)) await playMinokagePassiveWindupFx(sourceUnit, 360);
   await playMinokageOscillationCompleteFx(liveSource, targets);
   for (const entry of planned) {
     if (!isTargetStillValid(entry.target)) continue;
@@ -23398,6 +24705,19 @@ async function executeOscillationCompleteAttack(source, target, amount, profile)
     }
   }
   const after = getUnitById(source.playerId, source.unit.id);
+  if (after && after.status !== 'restoring' && isMinokageUnit(after) && target?.type === 'guardian') {
+    const guardian = state.players?.[target.playerId]?.guardians?.find(item => String(item.id) === String(target.guardianId));
+    if (guardian && guardian.active !== false && !guardian.destroying && Number(guardian.resistance ?? 0) > 0) {
+      // Minokage queda trabado con la estructura como cualquier otra invocación.
+      setStructureAttackAnchor(after, { ...target, row: guardian.row, col: guardian.col });
+      markGuardianAttackSpentThisResolution(after);
+      renderAll();
+      return true;
+    }
+    clearStructureAttackAnchor(after);
+    restoreInvocation(source.playerId, after, 'Guardián destruido');
+    return true;
+  }
   if (after && after.status !== 'restoring') restoreInvocation(source.playerId, after, 'ataque con Oscilación completa');
   return true;
 }
@@ -23545,38 +24865,39 @@ async function executeAttackDamage(source, target, amount) {
   }
 }
 
-async function enterInvocationCombat(source, target, options = {}) {
-  const attacker = getUnitById(source.playerId, source.unit.id);
-  const defender = getUnitById(target.playerId, target.unitId);
-  if (!attacker || !defender || attacker.status === 'restoring' || defender.status === 'restoring') return;
+function establishInvocationCombatState(source, target) {
+  const attacker = getUnitById(source?.playerId, source?.unit?.id);
+  const defender = getUnitById(target?.playerId, target?.unitId);
+  if (!attacker || !defender || attacker.status === 'restoring' || defender.status === 'restoring') return null;
 
   const attackerProfile = getUnitAttackProfile(source.playerId, attacker);
   const defenderProfile = getUnitAttackProfile(target.playerId, defender);
   const attackerCanDamage = canUnitDamageUnitWithProfile(source.playerId, attacker, target.playerId, defender, attackerProfile);
   const defenderCanRespond = canUnitDamageUnitWithProfile(target.playerId, defender, source.playerId, attacker, defenderProfile);
   const isRangeInitiatedCombat = isRangeAttackProfile(attackerProfile) && attackerCanDamage && !defenderCanRespond;
-  const engagementMeta = isRangeInitiatedCombat
-    ? {
-        combatMode: 'range',
-        initiatorPlayerId: source.playerId,
-        initiatorUnitId: attacker.id,
-        responderPlayerId: target.playerId,
-        responderUnitId: defender.id,
-      }
-    : {
-        combatMode: 'locked',
-        initiatorPlayerId: source.playerId,
-        initiatorUnitId: attacker.id,
-        responderPlayerId: target.playerId,
-        responderUnitId: defender.id,
-      };
+  const engagementMeta = {
+    combatMode: isRangeInitiatedCombat ? 'range' : 'locked',
+    initiatorPlayerId: source.playerId,
+    initiatorUnitId: attacker.id,
+    responderPlayerId: target.playerId,
+    responderUnitId: defender.id,
+  };
 
   clearStructureAttackAnchor(attacker);
   clearStructureAttackAnchor(defender);
+  clearUnitEngagement(source.playerId, attacker.id);
+  clearUnitEngagement(target.playerId, defender.id);
   attacker.engagedWith = { playerId: target.playerId, unitId: defender.id, ...engagementMeta };
   defender.engagedWith = { playerId: source.playerId, unitId: attacker.id, ...engagementMeta };
   attacker.movesLeft = 0;
   if (!isRangeInitiatedCombat) defender.movesLeft = 0;
+  return { attacker, defender, attackerProfile, defenderProfile, attackerCanDamage, defenderCanRespond, isRangeInitiatedCombat, engagementMeta };
+}
+
+async function enterInvocationCombat(source, target, options = {}) {
+  const combatState = establishInvocationCombatState(source, target);
+  if (!combatState) return;
+  const { attacker, defender, isRangeInitiatedCombat } = combatState;
 
   renderUnits();
   renderKaguyaChargeFxLayer();
@@ -23722,21 +25043,46 @@ async function performInvocationCombatStrike(attackerPlayerId, attackerUnit, def
   await sleep(300);
   await showWeaponAttackFx(sourceLike, targetLike, getWeaponTypeForAttackUnit(attackerUnit));
   await sleep(240);
-  const shirahadori = await maybeResolveShirahadoriRedirect(sourceLike, targetLike, { projectile: false, effectNature: effectiveProfile?.damageNature, shirahadoriRedirected: options.shirahadoriRedirected });
-  const effectiveTarget = shirahadori?.redirectedTarget || targetLike;
-  const effectiveDefender = shirahadori?.redirectedUnit || defenderUnit;
-  const outcome = resolveAttackRoll(sourceLike, effectiveTarget, dmg, shirahadori
+  const shirahadoriChain = await resolveShirahadoriReactionChain(sourceLike, targetLike, dmg, {
+    projectile: false,
+    effectNature: effectiveProfile?.damageNature,
+  });
+  if (shirahadoriChain.terminalMiss) {
+    if (hattoriDirectAttack) finalizeHattoriDirectMarkedAttack(attackerPlayerId, attackerUnit.id);
+    await sleep(520);
+    return {
+      hit: false,
+      amount: 0,
+      critical: false,
+      criticalMiss: false,
+      shirahadoriRedirected: true,
+      shirahadori: shirahadoriChain.lastReaction || null,
+      shirahadoriChain,
+      shirahadoriCounterMiss: true,
+    };
+  }
+  const effectiveTarget = shirahadoriChain.finalTarget || targetLike;
+  const effectiveDefender = effectiveTarget?.type === 'invocation'
+    ? getUnitById(effectiveTarget.playerId, effectiveTarget.unitId)
+    : null;
+  if (effectiveTarget?.type === 'invocation' && (!effectiveDefender || effectiveDefender.status === 'restoring')) {
+    if (hattoriDirectAttack) finalizeHattoriDirectMarkedAttack(attackerPlayerId, attackerUnit.id);
+    return { hit: false, skipped: true, amount: 0, shirahadoriChain };
+  }
+  const damageSource = shirahadoriChain.triggered ? shirahadoriChain.finalSource : sourceLike;
+  const outcome = resolveAttackRoll(damageSource, effectiveTarget, dmg, shirahadoriChain.triggered
     ? { ...options, ignoreDiversion: true, ignoreProjectileDodge: true, ignoreEvasion: true, forcePrecisionHit: true, shirahadoriRedirected: true }
     : options);
   if (outcome.criticalMiss) await sleep(680);
-  sourceLike.attackOutcome = outcome;
-  sourceLike.shirahadoriRedirected = Boolean(shirahadori);
+  damageSource.attackOutcome = outcome;
+  damageSource.shirahadoriRedirected = shirahadoriChain.triggered;
   if (outcome.hit) {
-    damageInvocationUnit(effectiveTarget.playerId, effectiveDefender, outcome.amount, outcome.critical ? 'golpe crítico redirigido por Shirahadori' : (shirahadori ? 'Shirahadori' : reason), sourceLike);
-    await waitForAutonomousGameplayResume(sourceLike);
+    damageInvocationUnit(effectiveTarget.playerId, effectiveDefender, outcome.amount, outcome.critical ? 'golpe crítico redirigido por Shirahadori' : (shirahadoriChain.triggered ? 'Shirahadori' : reason), damageSource);
+    await waitForAutonomousGameplayResume(damageSource);
   }
-  outcome.shirahadoriRedirected = Boolean(shirahadori);
-  outcome.shirahadori = shirahadori;
+  outcome.shirahadoriRedirected = shirahadoriChain.triggered;
+  outcome.shirahadori = shirahadoriChain.lastReaction || null;
+  outcome.shirahadoriChain = shirahadoriChain;
   if (hattoriDirectAttack) finalizeHattoriDirectMarkedAttack(attackerPlayerId, attackerUnit.id);
   await sleep(820);
   return outcome;
@@ -24304,6 +25650,7 @@ function damageInvocationUnit(playerId, unit, amount, reason = 'daño', source =
 }
 
 function applyDamageToTarget(source, target, amount) {
+  if (target.type !== 'caster') triggerMinokageHitSlashIfNeeded(source, target, amount);
   if (target.type === 'caster') {
     applyDamageToCaster(target.playerId, amount, `${CARD_LIBRARY[source.unit.cardId]?.name || 'Invocación'} ataca`, { sourcePlayerId: source.playerId, sourceUnit: source.unit, sourceCardId: source.unit?.cardId || source.card?.id || '' });
     return;
@@ -24322,7 +25669,11 @@ function applyDamageToTarget(source, target, amount) {
     renderUnits();
     log(`Guardián J${target.playerId} recibe ${actualDamage} daño real. RES ${guardian.resistance}.`);
     if (guardian.resistance <= 0) {
-      triggerStructureDestroySequence({ ...target, row: guardian.row, col: guardian.col }, guardian, source);
+      const minokageShippuSource = isMinokageUnit(source?.unit)
+        && (source?.card?.attackProfile?.factors || []).some(entry => entry?.source === 'shippuUgachi');
+      // La embestida activa atraviesa estructuras y no se restaura por destruir
+      // una en su corredor. Otros ataques conservan la restauración normal.
+      triggerStructureDestroySequence({ ...target, row: guardian.row, col: guardian.col }, guardian, minokageShippuSource ? null : source);
       log(`Guardián J${target.playerId} entra en destrucción.`);
     }
     return;
@@ -24364,10 +25715,14 @@ async function resolveStructureAnchorsForPlayer(playerId) {
       outcome = resolveAttackRoll({ playerId, unit, card: effectiveCard }, guardianTarget, dmg, { ignoreEvasion: true });
     } else {
       showFloatingTextAt(unit.row, unit.col, 'ATACANDO');
-      triggerUnitAttackLunge(playerId, unit, guardianTarget);
-      await sleep(300);
-      await showWeaponAttackFx({ playerId, unit, card: effectiveCard }, guardianTarget, getWeaponTypeForAttackUnit(unit));
-      await sleep(240);
+      if (isMinokageUnit(unit)) {
+        await playMinokagePassiveWindupFx(unit, 360);
+      } else {
+        triggerUnitAttackLunge(playerId, unit, guardianTarget);
+        await sleep(300);
+        await showWeaponAttackFx({ playerId, unit, card: effectiveCard }, guardianTarget, getWeaponTypeForAttackUnit(unit));
+        await sleep(240);
+      }
       outcome = resolveAttackRoll({ playerId, unit, card: effectiveCard }, guardianTarget, dmg);
     }
     if (outcome.criticalMiss) await sleep(680);
@@ -24709,7 +26064,10 @@ function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options
   returnEquippedAbilityCardsForUnit(unit, reason || 'la invocación dejó la arena');
   const player = state.players[playerId];
   const card = CARD_LIBRARY[unit.cardId];
+  migrateLegacyAbilityCardEntries(unit);
+  const spellbookCooldownBreakdown = getUnitSpellbookCooldownBreakdown(unit, card);
   const despliegueUseCooldownOnReturn = getDespliegueAnticipadoReturnCooldown(playerId, card);
+  const totalSpellbookCooldownOnReturn = spellbookCooldownBreakdown.total + despliegueUseCooldownOnReturn;
   endDespliegueAnticipadoLinksForTarget(playerId, unit?.id, reason);
   endGloriaLatenteLinksForTarget(playerId, unit?.id, reason);
   cancelMinokageChargesTargetingUnit(playerId, unit?.id, 'la invocación objetivo murió');
@@ -24720,7 +26078,7 @@ function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options
   const marker = player.spawnMarkers.find(m => m.id === unit.spawnId);
   const tab = marker?.originTab ?? unit.originTab ?? 0;
   const slot = marker?.originSlot ?? unit.originSlot ?? player.handTabs[tab]?.findIndex(v => !v) ?? 0;
-  const applyUseCooldownOnReturn = despliegueUseCooldownOnReturn > 0;
+  const applyUseCooldownOnReturn = totalSpellbookCooldownOnReturn > 0;
   // La devolución al Spellbook es estado de juego, no parte de la animación.
   // Se confirma inmediatamente para que el snapshot online nunca dependa de
   // un callback visual que puede terminar después de entregar el turno.
@@ -24731,7 +26089,15 @@ function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options
     returnedSlot = freeSlot >= 0 ? freeSlot : slot;
   }
   player.handTabs[tab][returnedSlot] = unit.cardId;
-  if (applyUseCooldownOnReturn) setSpellbookUseCooldown(playerId, tab, returnedSlot, unit.cardId, despliegueUseCooldownOnReturn);
+  const returnedPersistentState = buildInvocationPersistentStateFromUnit(unit);
+  const returnedInstanceId = setSpellbookCardInstanceId(playerId, tab, returnedSlot, unit.cardId, returnedPersistentState.instanceId || '');
+  returnedPersistentState.instanceId = returnedInstanceId;
+  setSpellbookCardPersistentState(playerId, tab, returnedSlot, unit.cardId, returnedPersistentState);
+  if (applyUseCooldownOnReturn) setSpellbookUseCooldown(playerId, tab, returnedSlot, unit.cardId, totalSpellbookCooldownOnReturn, {
+    instanceId: returnedInstanceId,
+    sourceType: 'invocationReturn',
+    breakdown: { base: spellbookCooldownBreakdown.base, learned: spellbookCooldownBreakdown.learned, despliegue: despliegueUseCooldownOnReturn },
+  });
 
   const revealReturnedCard = () => {
     if (playerId === LOCAL_PLAYER_ID) renderCards();
@@ -25830,17 +27196,10 @@ function showTargetChoiceHoverFoil(target) {
   clearYasuganaTargetHoverFoil();
   const node = getTargetUnitNode(target);
   if (!node) return false;
+  if (node.classList.contains('unit-selection-standard-ready') || node.classList.contains('unit-action-window-ready')) return true;
   const token = node.querySelector(':scope > .unit-token-img');
   if (!token) return false;
-  node.classList.add('yasugana-target-hover-foil');
-  const foil = document.createElement('img');
-  foil.className = 'move-pending-token-foil-img yasugana-target-hover-foil-img';
-  foil.src = token.currentSrc || token.src;
-  foil.alt = '';
-  foil.draggable = false;
-  foil.setAttribute('aria-hidden', 'true');
-  node.appendChild(foil);
-  return true;
+  return applyStandardArenaSelectionVisual(node, token.currentSrc || token.src, 'Objetivo seleccionable');
 }
 
 function showYasuganaTargetHoverFoil(playerId, unitId) {
@@ -26006,7 +27365,7 @@ function openYasuganaPowerModeMenu(playerId, unitId) {
     stopTargetMenuEvent(event);
     closeYasuganaPowerModal();
   });
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   return true;
 }
 
@@ -27056,6 +28415,9 @@ function resolveCast(playerId, item, options = {}) {
       spawnId: item.spawnId,
       originTab: item.originTab ?? 0,
       originSlot: item.originSlot ?? 0,
+      spellbookInstanceId: String(item?.persistentCardState?.instanceId || item?.spellbookInstanceId || ''),
+      learnedAbilities: normalizeLearnedAbilityEntries(item?.persistentCardState?.learnedAbilities),
+      temporaryAbilities: [],
       movesLeft: currentPhase().id === 'resolution' && state.activePlayer === playerId ? (card.stats.mov ?? TEST_INVOCATION_MOVE_SPEED) : 0,
       smokeBombsLeft: card.id === 'ninjaNaitoSutoka' ? Number(card.power?.startingBombs ?? 3) : 0,
       activeFactors: [],
@@ -27210,6 +28572,49 @@ async function resolvePostSummonQuickReactionOpportunity(playerId, unit) {
   return 'none';
 }
 
+function restoreFailedInvocationCardToSpellbook(playerId, item, card) {
+  const player = state.players?.[playerId];
+  const tabIndex = Number(item?.originTab);
+  const slotIndex = Number(item?.originSlot);
+  if (!player || !card || card.type !== 'invocation' || !Number.isInteger(tabIndex) || !Number.isInteger(slotIndex) || tabIndex < 0 || slotIndex < 0) return false;
+  player.handTabs = Array.isArray(player.handTabs) ? player.handTabs : [];
+  player.handTabs[tabIndex] = Array.isArray(player.handTabs[tabIndex]) ? player.handTabs[tabIndex] : [];
+  const tab = player.handTabs[tabIndex];
+  if (tab[slotIndex] === card.id) return false;
+  const destination = !tab[slotIndex] ? slotIndex : tab.findIndex(entry => !entry);
+  if (destination < 0) return false;
+  tab[destination] = card.id;
+  try { setSpellbookCardInstanceId(playerId, tabIndex, destination, card.id, item?.persistentCardState?.instanceId || item?.spellbookInstanceId || ''); } catch (_) {}
+  try { clearSpellbookUseCooldown(playerId, tabIndex, destination); } catch (_) {}
+  try { setSpellbookCardPersistentState(playerId, tabIndex, destination, card.id, item?.persistentCardState || null); } catch (_) {}
+  return true;
+}
+
+function stabilizeFailedInvocationEntry(playerId, item, reason = 'entrada fallida') {
+  const player = state.players?.[playerId];
+  const card = CARD_LIBRARY[item?.cardId];
+  if (!player || !card || card.type !== 'invocation') return false;
+  const spawnId = String(item?.spawnId || '');
+  if (!spawnId) return false;
+
+  // Si la unidad ya fue creada, el estado lógico es válido: conservamos unidad+nexo
+  // y forzamos un render en lugar de borrar una entrada que sí alcanzó la arena.
+  const liveUnit = (player.units || []).find(unit => String(unit?.spawnId || '') === spawnId);
+  if (liveUnit) {
+    try { renderAll(); } catch (renderError) { reportDebugError('stabilize-failed-entry-render', renderError); }
+    return false;
+  }
+
+  const beforeMarkers = (player.spawnMarkers || []).length;
+  player.spawnMarkers = (player.spawnMarkers || []).filter(marker => String(marker?.id || marker?.spawnId || '') !== spawnId);
+  player.castQueue = (player.castQueue || []).filter(entry => String(entry?.spawnId || '') !== spawnId);
+  const cardRestored = restoreFailedInvocationCardToSpellbook(playerId, item, card);
+  if ((player.castQueue || []).length === 0 && player.caster) player.caster.state = 'ready';
+  log(`${card.name} no pudo completar su entrada (${reason}). Se eliminó el nexo huérfano${cardRestored ? ' y la carta volvió al Spellbook' : ''}.`);
+  try { renderAll(); } catch (renderError) { reportDebugError('stabilize-failed-entry-render', renderError); }
+  return beforeMarkers !== (player.spawnMarkers || []).length || cardRestored;
+}
+
 async function resolveInvocationCastWithSummonSequence(playerId, item, options = {}) {
   const card = CARD_LIBRARY[item?.cardId];
   if (card?.id === CARGA_REAL_CARD_ID) {
@@ -27250,6 +28655,10 @@ async function resolveInvocationCastWithSummonSequence(playerId, item, options =
   }
   await playInvocationSummonCircleFxAtCell(playerId, item);
   const result = resolveCast(playerId, item, { ...options, queueNobunagaEntryFx: false });
+  if (!result) {
+    stabilizeFailedInvocationEntry(playerId, item, 'entrada rechazada por reglas o estado');
+    return null;
+  }
   renderAll();
   if (result?.type === 'invocation' && result.unit) {
     await playInvocationEntryDropFx(playerId, result.unit);
@@ -27281,7 +28690,14 @@ async function resolveInvocationCastWithSummonSequence(playerId, item, options =
 function animateImmediateInvocationFromSpellbook(playerId, item, fromPoint = null) {
   const card = CARD_LIBRARY[item.cardId];
   if (!card || !els.boardContent) {
-    return registerCastTravelResolution(resolveInvocationCastWithSummonSequence(playerId, item), 'immediate-invocation-no-board');
+    const fallbackResolution = Promise.resolve()
+      .then(() => resolveInvocationCastWithSummonSequence(playerId, item))
+      .catch(error => {
+        reportDebugError('immediate-invocation-no-board', error);
+        stabilizeFailedInvocationEntry(playerId, item, 'excepción durante entrada sin tablero renderizado');
+        return null;
+      });
+    return registerCastTravelResolution(fallbackResolution, 'immediate-invocation-no-board');
   }
   const elementId = item.elementId || getEffectiveCardElementId(card, playerId);
   const elementColor = getElementColorById(elementId, getPlayerElementColor(playerId));
@@ -27316,6 +28732,7 @@ function animateImmediateInvocationFromSpellbook(playerId, item, fromPoint = nul
         resolve(await resolveInvocationCastWithSummonSequence(playerId, item));
       } catch (error) {
         reportDebugError('immediate-invocation-cast', error);
+        stabilizeFailedInvocationEntry(playerId, item, 'excepción durante entrada instantánea');
         resolve(null);
       }
     }, 680);
@@ -27337,7 +28754,14 @@ function launchCastTravel(playerId, item) {
   const destY = boardRect.top + (pos.y / 100) * boardRect.height;
 
   if (!visualEl) {
-    return registerCastTravelResolution(resolveInvocationCastWithSummonSequence(playerId, item), 'cast-travel-no-visual');
+    const fallbackResolution = Promise.resolve()
+      .then(() => resolveInvocationCastWithSummonSequence(playerId, item))
+      .catch(error => {
+        reportDebugError('cast-travel-no-visual', error);
+        stabilizeFailedInvocationEntry(playerId, item, 'excepción durante entrada sin miniatura de viaje');
+        return null;
+      });
+    return registerCastTravelResolution(fallbackResolution, 'cast-travel-no-visual');
   }
 
   const fromRect = visualEl.getBoundingClientRect();
@@ -27370,6 +28794,7 @@ function launchCastTravel(playerId, item) {
         resolve(await resolveInvocationCastWithSummonSequence(playerId, item));
       } catch (error) {
         reportDebugError('cast-travel', error);
+        stabilizeFailedInvocationEntry(playerId, item, 'excepción durante viaje de kasteo');
         resolve(null);
       }
     }, 720);
@@ -27706,7 +29131,20 @@ function viewportPointFromBoardLocal(localPoint) {
 }
 
 function getGlobalFxLayer() {
-  return els.globalFxLayer || els.extractionFxLayer || document.body;
+  let layer = els.globalFxLayer || document.getElementById('globalFxLayer');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'globalFxLayer';
+    layer.className = 'global-fx-layer';
+    layer.setAttribute('aria-hidden', 'true');
+  }
+  // v514 · Regla única: cualquier FX que use coordenadas físicas del viewport
+  // vive directamente en body. Un ancestro transformado (rokAppStage) convierte
+  // position:fixed en coordenadas locales y desincroniza cadenas, partículas,
+  // recuperación de armas, retornos y demás efectos.
+  if (layer.parentElement !== document.body) document.body.appendChild(layer);
+  els.globalFxLayer = layer;
+  return layer;
 }
 
 function buildElementDeckList(playerId = LOCAL_PLAYER_ID) {
@@ -29246,12 +30684,137 @@ function getQuickReactionWindowElementsForPlayer(playerId = LOCAL_PLAYER_ID) {
   };
 }
 
+
+function quickReactionCandidatesIncludeNativeCasterAbility(candidates = []) {
+  return (Array.isArray(candidates) ? candidates : []).some(candidate => {
+    if (!(candidate?.type === 'casterAbility' || candidate?.selectionType === 'caster')) return false;
+    const card = CARD_LIBRARY[candidate?.cardId];
+    return card?.type === 'kaster';
+  });
+}
+
+function setCasterPureMeterActionReady(active = false) {
+  if (!els.casterPureMeter) return;
+  els.casterPureMeter.classList.toggle('caster-ability-action-ready', Boolean(active));
+  els.casterPureMeter.setAttribute('aria-label', active ? 'Elemento puro · habilidad de Kaster disponible' : 'Elemento puro');
+}
+
+
+function clearQuickReactionWindowDynamicPosition(playerId = LOCAL_PLAYER_ID) {
+  const parts = getQuickReactionWindowElementsForPlayer(playerId);
+  const root = parts?.root;
+  if (!root) return;
+  root.classList.remove(
+    'quick-reaction-window--dynamic-anchor',
+    'quick-reaction-window--dynamic-anchor-caster',
+    'quick-reaction-window--dynamic-anchor-unit',
+    'quick-reaction-window--dynamic-anchor-guardian'
+  );
+  delete root.dataset.quickReactionAnchorType;
+  delete root.dataset.quickReactionAnchorPlayer;
+  ['left', 'top', 'transform', 'z-index', 'width'].forEach(prop => root.style.removeProperty(prop));
+}
+
+function quickReactionCandidatesIncludeSutokaSmokeBomb(candidates = []) {
+  return (Array.isArray(candidates) ? candidates : []).some(candidate =>
+    (candidate?.actions || []).some(action => action?.id === 'sutokaSmokeBomb')
+  );
+}
+
+function getQuickReactionWindowAnchorTarget(playerId = LOCAL_PLAYER_ID, candidates = []) {
+  if (!Array.isArray(candidates) || !candidates.length) return null;
+  const normalized = candidates.map(candidate => ({
+    selectionType: String(candidate?.selectionType || candidate?.type || '').toLowerCase(),
+    unitId: candidate?.unitId != null ? String(candidate.unitId) : '',
+    guardianId: candidate?.guardianId != null ? String(candidate.guardianId) : '',
+  }));
+  const uniqueSelectionTypes = [...new Set(normalized.map(entry => entry.selectionType).filter(Boolean))];
+  const allCaster = uniqueSelectionTypes.length > 0 && uniqueSelectionTypes.every(type => type === 'caster' || type === 'casterability');
+  // v514 · La habilidad del Kaster usa la misma ventana normal que las demás
+  // acciones. No se vuelve a anclar junto al token del Kaster.
+  if (allCaster) return null;
+
+  // v528 · Bomba de humo es una ventana de acción normal. Nunca se ancla a
+  // la casilla de Naito Sutoka: ese anclaje podía colocar el aviso debajo del
+  // HUD rival cuando Sutoka estaba avanzado en la arena. La ventana conserva
+  // la posición estándar inferior-central y el flujo de activación no cambia.
+  if (quickReactionCandidatesIncludeSutokaSmokeBomb(candidates)) return null;
+
+  const invocationIds = [...new Set(normalized.filter(entry => entry.selectionType === 'invocation' && entry.unitId).map(entry => entry.unitId))];
+  const guardianIds = [...new Set(normalized.filter(entry => entry.selectionType === 'guardian' && entry.guardianId).map(entry => entry.guardianId))];
+
+  if (uniqueSelectionTypes.length === 1 && uniqueSelectionTypes[0] === 'invocation' && invocationIds.length === 1) {
+    const unit = getUnitById(playerId, invocationIds[0]);
+    const row = Number(unit?.row);
+    const col = Number(unit?.col);
+    if (Number.isFinite(row) && Number.isFinite(col)) return { type: 'unit', row, col };
+  }
+
+  if (uniqueSelectionTypes.length === 1 && uniqueSelectionTypes[0] === 'guardian' && guardianIds.length === 1) {
+    const guardian = state.players?.[playerId]?.guardians?.find(item => String(item?.id) === guardianIds[0]);
+    const row = Number(guardian?.row);
+    const col = Number(guardian?.col);
+    if (Number.isFinite(row) && Number.isFinite(col)) return { type: 'guardian', row, col };
+  }
+
+  return null;
+}
+
+function applyQuickReactionWindowDynamicPosition(playerId = LOCAL_PLAYER_ID, candidates = []) {
+  const parts = getQuickReactionWindowElementsForPlayer(playerId);
+  const root = parts?.root;
+  if (!root) return false;
+  clearQuickReactionWindowDynamicPosition(playerId);
+  const anchor = getQuickReactionWindowAnchorTarget(playerId, candidates);
+  if (!anchor) return false;
+  const pos = cellCenter(anchor.row, anchor.col);
+  if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return false;
+
+  const useOverlay = state.hudMode === 'overlay' && isBattleHudScreenActive();
+  const isLocal = Number(playerId) === Number(LOCAL_PLAYER_ID);
+  const defaultSide = isLocal ? 'left' : 'right';
+  const side = pos.x < 26 ? 'right' : pos.x > 74 ? 'left' : defaultSide;
+  const scaleVar = isLocal
+    ? (useOverlay ? 'var(--ally-action-window-overlay-scale)' : 'var(--ally-action-window-anchored-scale)')
+    : (useOverlay ? 'var(--rival-action-window-overlay-scale)' : 'var(--rival-action-window-anchored-scale)');
+  const shiftX = side === 'left' ? 'calc(-100% - 14px)' : '14px';
+  const shiftY = anchor.type === 'caster' ? '-54%' : '-50%';
+  const zIndex = isLocal ? 788 : 782;
+
+  root.style.setProperty('left', `${pos.x}%`, 'important');
+  root.style.setProperty('top', `${pos.y}%`, 'important');
+  root.style.setProperty('transform', `translate(${shiftX}, ${shiftY}) scale(${scaleVar})`, 'important');
+  root.style.setProperty('z-index', String(zIndex), 'important');
+  root.classList.add('quick-reaction-window--dynamic-anchor', `quick-reaction-window--dynamic-anchor-${anchor.type}`);
+  root.dataset.quickReactionAnchorType = anchor.type;
+  root.dataset.quickReactionAnchorPlayer = String(playerId);
+  return true;
+}
+
+function refreshVisibleQuickReactionWindowAnchors() {
+  const store = getQuickReactionWindowStore?.();
+  const localPlayerId = LOCAL_PLAYER_ID;
+  const rivalPlayerId = getOpponentId(localPlayerId);
+  [localPlayerId, rivalPlayerId].forEach(playerId => {
+    const parts = getQuickReactionWindowElementsForPlayer(playerId);
+    if (!parts?.root?.classList?.contains('visible')) {
+      clearQuickReactionWindowDynamicPosition(playerId);
+      return;
+    }
+    const candidates = store?.candidatesByPlayer?.[playerId]
+      || (Number(store?.playerId) === Number(playerId) ? store?.candidates : [])
+      || [];
+    applyQuickReactionWindowDynamicPosition(playerId, candidates);
+  });
+}
+
 function hideQuickReactionWindowForPlayer(playerId = LOCAL_PLAYER_ID) {
   const parts = getQuickReactionWindowElementsForPlayer(playerId);
   if (parts.root) {
     parts.root.classList.remove('visible', 'locked', 'quick-reaction-window--gloria-latente');
     parts.root.setAttribute('aria-hidden', 'true');
   }
+  clearQuickReactionWindowDynamicPosition(playerId);
   if (parts.fill) {
     parts.fill.style.animation = 'none';
     void parts.fill.offsetWidth;
@@ -29260,6 +30823,7 @@ function hideQuickReactionWindowForPlayer(playerId = LOCAL_PLAYER_ID) {
   if (Number(playerId) === Number(LOCAL_PLAYER_ID)) {
     hideQuickReactionInputShield();
     clearQuickReactionCardIndicators();
+    setCasterPureMeterActionReady(false);
   }
   releaseQuickReactionStateIfIdle(`hide-player:${playerId}`);
   if (Number(playerId) === Number(LOCAL_PLAYER_ID)) syncLocalQuickReactionGameplayPause();
@@ -29339,12 +30903,17 @@ function scheduleQuickReactionWindowAutoHide(playerId = LOCAL_PLAYER_ID, phaseKe
 }
 
 function showQuickReactionWindowForCandidates(candidates, playerId = LOCAL_PLAYER_ID, options = {}) {
+  try { applyHudModeLayout?.(); } catch (_) {}
+  try { syncHudOverlayLayerToBoard?.(); } catch (_) {}
   const parts = getQuickReactionWindowElementsForPlayer(playerId);
   if (!parts.root || !Array.isArray(candidates) || !candidates.length) return false;
 
   const phaseKey = getQuickReactionPhaseKey(playerId);
   const store = getQuickReactionWindowStore();
   cacheQuickReactionCandidatesForPlayer(playerId, candidates);
+  if (Number(playerId) === Number(LOCAL_PLAYER_ID)) {
+    setCasterPureMeterActionReady(quickReactionCandidatesIncludeNativeCasterAbility(candidates));
+  }
 
   const shouldPrompt = options.force === true || store.lastPromptPhaseByPlayer[playerId] !== phaseKey;
   if (!shouldPrompt) return false;
@@ -29376,6 +30945,7 @@ function showQuickReactionWindowForCandidates(candidates, playerId = LOCAL_PLAYE
           : (count > 1 ? `Clic izquierdo o Enter para abrir · clic derecho para descartar · ${count} acciones` : 'Clic izquierdo o Enter para abrir · clic derecho para descartar'))
       : (count > 1 ? `${count} acciones rivales disponibles` : 'El rival puede activar una acción');
   }
+  applyQuickReactionWindowDynamicPosition(playerId, candidates);
   const promptDuration = Math.max(120, Number(options.duration ?? QUICK_REACTION_WINDOW_MS) || QUICK_REACTION_WINDOW_MS);
   if (parts.fill) {
     parts.fill.style.animation = 'none';
@@ -29599,7 +31169,10 @@ function renderQuickReactionTargetButtons(actions, candidate, action, targetBox)
 
 function positionQuickReactionModalOverBoard() {
   if (!els.quickReactionModal || !els.board) return;
-  const rect = els.board.getBoundingClientRect();
+  const viewportRect = els.board.getBoundingClientRect();
+  const rect = window.ROK_LAYOUT_SCALE?.rectToLogical
+    ? window.ROK_LAYOUT_SCALE.rectToLogical(viewportRect)
+    : viewportRect;
   els.quickReactionModal.style.setProperty('--quick-reaction-modal-board-left', `${Math.round(rect.left)}px`);
   els.quickReactionModal.style.setProperty('--quick-reaction-modal-board-top', `${Math.round(rect.top)}px`);
   els.quickReactionModal.style.setProperty('--quick-reaction-modal-board-width', `${Math.round(rect.width)}px`);
@@ -30076,7 +31649,10 @@ function captureQuickReactionWindow() {
 
 function positionOpponentActionNoticeOverBoard() {
   if (!els.opponentActionNotice || !els.board) return;
-  const rect = els.board.getBoundingClientRect();
+  const viewportRect = els.board.getBoundingClientRect();
+  const rect = window.ROK_LAYOUT_SCALE?.rectToLogical
+    ? window.ROK_LAYOUT_SCALE.rectToLogical(viewportRect)
+    : viewportRect;
   els.opponentActionNotice.style.setProperty('--opponent-action-notice-board-left', `${Math.round(rect.left)}px`);
   els.opponentActionNotice.style.setProperty('--opponent-action-notice-board-top', `${Math.round(rect.top)}px`);
   els.opponentActionNotice.style.setProperty('--opponent-action-notice-board-width', `${Math.round(rect.width)}px`);
@@ -31034,40 +32610,32 @@ function resetCardInfoSpellbookQuantity({ clearFeedback = true } = {}) {
 
 function getCardInfoSpellbookAddStatus(cardOrId) {
   const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
-  const copyStatus = getBuilderCardCopyStatus(card);
-  const domainStatus = getBuilderCardDomainStatus(card);
-  const compatibility = getBuilderCardCompatibility(card);
-  const emptySlots = Math.max(0, SPELLBOOK_MAX_CARDS - libraryBuilderState.spellbookCards.filter(Boolean).length);
-  const remainingCopies = Math.max(0, Number(copyStatus.remaining || 0));
-  const maxSelectable = Math.max(0, Math.min(remainingCopies, emptySlots));
+  const typeId = getCardTypeId(card);
+  const limit = getSpellbookCardCopyLimit(card);
+  const collectionLimited = Boolean(isRokUserModeActive() && card && typeId !== 'kaster');
+  const ownedCopies = collectionLimited ? getRokUserOwnedCopies(card) : Number.POSITIVE_INFINITY;
+  const maxSelectable = Math.max(0, Math.min(SPELLBOOK_BASE_COPY_LIMIT, limit, collectionLimited ? ownedCopies : SPELLBOOK_BASE_COPY_LIMIT));
   return {
     card,
-    copyStatus,
-    domainStatus,
-    compatibility,
-    emptySlots,
-    remainingCopies,
+    limit,
+    ownedCopies,
+    collectionLimited,
+    remainingCopies: maxSelectable,
     maxSelectable,
-    canUseBuilder: libraryBuilderState.mode === 'build',
+    canUseBuilder: true,
     available: Boolean(card)
-      && libraryBuilderState.mode === 'build'
+      && typeId !== 'kaster'
       && !card.upcoming
       && !card.spellbookLocked
-      && compatibility.compatible
-      && domainStatus.canAdd
-      && remainingCopies > 0
-      && emptySlots > 0,
+      && maxSelectable > 0,
   };
 }
 
 function getCardInfoSpellbookBlockedMessage(status) {
   if (!status?.card) return 'LA CARTA YA NO ESTÁ DISPONIBLE.';
-  if (!status.canUseBuilder) return 'SELECCIONA PRIMERO UN KASTER Y ABRE UN SPELLBOOK.';
   if (status.card.upcoming || status.card.spellbookLocked) return 'ESTA CARTA TODAVÍA NO ESTÁ DISPONIBLE PARA EL SPELLBOOK.';
-  if (!status.compatibility.compatible) return status.compatibility.reason || 'ESTA CARTA NO ES COMPATIBLE CON EL KASTER ACTUAL.';
-  if (!status.domainStatus.canAdd) return status.domainStatus.reason || 'ALCANZASTE EL LÍMITE DE DOMINIOS DEL SPELLBOOK.';
-  if (status.remainingCopies <= 0) return String(status.copyStatus?.reason || 'ALCANZASTE EL LÍMITE MÁXIMO DE COPIAS PERMITIDO PARA ESTA CARTA.').toUpperCase();
-  if (status.emptySlots <= 0) return 'LÍMITE DEL SPELLBOOK ALCANZADO.';
+  if (status.collectionLimited && status.ownedCopies <= 0) return `NO POSEES NINGUNA COPIA DE ${String(status.card.name || status.card.id).toUpperCase()} EN TU COLECCIÓN.`;
+  if (status.maxSelectable <= 0) return 'NO HAY COPIAS DISPONIBLES PARA AÑADIR.';
   return '';
 }
 
@@ -31090,13 +32658,8 @@ function adjustCardInfoSpellbookQuantity(delta) {
     updateCardInfoAction();
     return;
   }
-  if (cardInfoSpellbookAddQuantity >= status.remainingCopies) {
-    showCardInfoSpellbookFeedback(String(status.copyStatus?.reason || 'ALCANZASTE EL LÍMITE MÁXIMO DE COPIAS PERMITIDO PARA ESTA CARTA.').toUpperCase(), 'warning');
-    updateCardInfoAction();
-    return;
-  }
-  if (cardInfoSpellbookAddQuantity >= status.emptySlots) {
-    showCardInfoSpellbookFeedback('LÍMITE DEL SPELLBOOK ALCANZADO.', 'warning');
+  if (cardInfoSpellbookAddQuantity >= status.maxSelectable) {
+    showCardInfoSpellbookFeedback(`MÁXIMO SELECCIONABLE: ${status.maxSelectable} COPIA${status.maxSelectable === 1 ? '' : 'S'}.`, 'warning');
     updateCardInfoAction();
     return;
   }
@@ -31105,33 +32668,217 @@ function adjustCardInfoSpellbookQuantity(delta) {
   updateCardInfoAction();
 }
 
-function addCardCopiesFromInfoModal(cardOrId, requestedQuantity) {
-  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
-  const quantity = Math.max(0, Math.floor(Number(requestedQuantity) || 0));
-  const status = getCardInfoSpellbookAddStatus(card);
-  if (!quantity) return { added: 0, reason: 'SELECCIONA AL MENOS UNA COPIA CON EL BOTÓN +.' };
-  if (!status.available) return { added: 0, reason: getCardInfoSpellbookBlockedMessage(status) };
-  if (quantity > status.remainingCopies) {
-    return { added: 0, reason: 'ALCANZASTE EL LÍMITE MÁXIMO DE COPIAS PERMITIDO PARA ESTA CARTA.' };
+function getCardInfoSpellbookTargetCandidates() {
+  loadSpellbookStorage();
+  const targets = [];
+  if (libraryBuilderState.mode === 'build' && libraryBuilderState.casterCardId) {
+    targets.push({
+      key: '__current_builder__',
+      isCurrentBuilder: true,
+      id: libraryBuilderState.currentSpellbookId || null,
+      name: libraryBuilderState.spellbookName || 'Spellbook actual',
+      casterCardId: libraryBuilderState.casterCardId,
+      cards: normalizeSpellbookCardSlots(libraryBuilderState.spellbookCards),
+    });
   }
-  if (quantity > status.emptySlots) return { added: 0, reason: 'LÍMITE DEL SPELLBOOK ALCANZADO.' };
+  savedSpellbooks.forEach(spellbook => {
+    if (libraryBuilderState.mode === 'build' && libraryBuilderState.currentSpellbookId && spellbook.id === libraryBuilderState.currentSpellbookId) return;
+    targets.push({
+      key: spellbook.id,
+      isCurrentBuilder: false,
+      id: spellbook.id,
+      name: spellbook.name,
+      casterCardId: spellbook.casterCardId,
+      cards: normalizeSpellbookCardSlots(spellbook.cards),
+      spellbook,
+    });
+  });
+  return targets;
+}
 
+function getCardInfoSpellbookTargetStatus(target, cardOrId, quantity = cardInfoSpellbookAddQuantity) {
+  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
+  const requested = Math.max(0, Math.floor(Number(quantity) || 0));
+  if (!target || !card) return { available: false, maxAdd: 0, reason: 'Spellbook no disponible.' };
+  const cards = normalizeSpellbookCardSlots(target.cards);
+  const compatibility = getBuilderCardCompatibility(card, target.casterCardId, cards);
+  if (!compatibility.compatible) return { available: false, maxAdd: 0, reason: compatibility.reason || 'Carta incompatible con este Kaster.' };
+  const domainStatus = getBuilderCardDomainStatus(card, target.casterCardId, cards);
+  if (!domainStatus.canAdd) return { available: false, maxAdd: 0, reason: domainStatus.reason || 'Límite de dominios alcanzado.' };
+  const copyStatus = getSpellbookCardCopyStatusFor(card, cards);
+  const emptySlots = Math.max(0, SPELLBOOK_MAX_CARDS - cards.filter(Boolean).length);
+  const maxAdd = Math.max(0, Math.min(copyStatus.remaining, emptySlots));
+  if (maxAdd <= 0) {
+    return {
+      available: false,
+      maxAdd,
+      reason: emptySlots <= 0 ? `El Spellbook alcanzó el límite de ${SPELLBOOK_MAX_CARDS} cartas.` : copyStatus.reason,
+      copyStatus,
+      emptySlots,
+    };
+  }
+  if (requested <= 0) return { available: false, maxAdd, reason: 'Selecciona al menos una copia.', copyStatus, emptySlots };
+  if (requested > maxAdd) {
+    return {
+      available: false,
+      maxAdd,
+      reason: `Solo puedes añadir ${maxAdd} copia${maxAdd === 1 ? '' : 's'} de esta carta a este Spellbook.`,
+      copyStatus,
+      emptySlots,
+    };
+  }
+  return { available: true, maxAdd, reason: '', copyStatus, emptySlots };
+}
+
+function closeCardInfoSpellbookTargetModal() {
+  cardInfoSpellbookTargetState = null;
+  if (els.cardInfoSpellbookTargetModal) els.cardInfoSpellbookTargetModal.setAttribute('aria-hidden', 'true');
+  if (els.cardInfoSpellbookTargetNotice) els.cardInfoSpellbookTargetNotice.textContent = '';
+  if (els.cardInfoSpellbookTargetList) els.cardInfoSpellbookTargetList.innerHTML = '';
+}
+
+function renderCardInfoSpellbookTargetModal() {
+  const pending = cardInfoSpellbookTargetState;
+  if (!pending || !els.cardInfoSpellbookTargetList) return;
+  const card = CARD_LIBRARY[pending.cardId];
+  if (!card) {
+    closeCardInfoSpellbookTargetModal();
+    return;
+  }
+  const targets = getCardInfoSpellbookTargetCandidates();
+  els.cardInfoSpellbookTargetList.innerHTML = '';
+  if (els.cardInfoSpellbookTargetCopy) {
+    els.cardInfoSpellbookTargetCopy.textContent = `Añadir ${pending.quantity} copia${pending.quantity === 1 ? '' : 's'} de ${card.name || 'esta carta'}. Selecciona el Spellbook de destino.`;
+  }
+  if (!targets.length) {
+    const empty = document.createElement('div');
+    empty.className = 'card-info-spellbook-target-empty';
+    empty.textContent = 'No tienes Spellbooks disponibles. Crea y guarda un Spellbook para poder añadir esta carta.';
+    els.cardInfoSpellbookTargetList.appendChild(empty);
+    return;
+  }
+  targets.forEach(target => {
+    const caster = CARD_LIBRARY[target.casterCardId];
+    const status = getCardInfoSpellbookTargetStatus(target, card, pending.quantity);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'card-info-spellbook-target-option';
+    button.disabled = !status.available;
+    button.classList.toggle('unavailable', !status.available);
+    button.dataset.spellbookTargetKey = target.key;
+
+    const image = document.createElement('img');
+    image.className = 'card-info-spellbook-target-caster';
+    image.src = caster?.tokenImage || caster?.artImage || 'assets/caster-hanzo.png';
+    image.alt = caster?.name || 'Kaster';
+
+    const main = document.createElement('span');
+    main.className = 'card-info-spellbook-target-main';
+    const name = document.createElement('strong');
+    name.textContent = target.isCurrentBuilder ? `${target.name} · actual` : target.name;
+    const details = document.createElement('span');
+    const count = target.cards.filter(Boolean).length;
+    details.textContent = `${caster?.shortName || caster?.name || 'Kaster'} · ${count}/${SPELLBOOK_MAX_CARDS} cartas`;
+    main.append(name, details);
+    if (!status.available) {
+      const reason = document.createElement('small');
+      reason.textContent = status.reason || 'No disponible para esta carta.';
+      main.appendChild(reason);
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'card-info-spellbook-target-badge';
+    badge.textContent = status.available ? 'AÑADIR' : 'BLOQUEADO';
+    button.append(image, main, badge);
+    if (status.available) button.addEventListener('click', () => commitCardInfoSpellbookTarget(target.key));
+    els.cardInfoSpellbookTargetList.appendChild(button);
+  });
+}
+
+function openCardInfoSpellbookTargetModal(cardOrId, quantity) {
+  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
+  const requested = Math.max(0, Math.floor(Number(quantity) || 0));
+  if (!card || requested <= 0) {
+    showCardInfoSpellbookFeedback('SELECCIONA AL MENOS UNA COPIA CON EL BOTÓN +.', 'warning');
+    return false;
+  }
+  cardInfoSpellbookTargetState = { cardId: card.id, quantity: requested };
+  if (els.cardInfoSpellbookTargetNotice) els.cardInfoSpellbookTargetNotice.textContent = '';
+  renderCardInfoSpellbookTargetModal();
+  if (els.cardInfoSpellbookTargetModal) els.cardInfoSpellbookTargetModal.setAttribute('aria-hidden', 'false');
+  return true;
+}
+
+function commitCardInfoSpellbookTarget(targetKey) {
+  const pending = cardInfoSpellbookTargetState;
+  if (!pending) return;
+  const card = CARD_LIBRARY[pending.cardId];
+  const target = getCardInfoSpellbookTargetCandidates().find(entry => entry.key === targetKey);
+  if (!card || !target) {
+    if (els.cardInfoSpellbookTargetNotice) els.cardInfoSpellbookTargetNotice.textContent = 'El Spellbook seleccionado ya no está disponible.';
+    renderCardInfoSpellbookTargetModal();
+    return;
+  }
+  const status = getCardInfoSpellbookTargetStatus(target, card, pending.quantity);
+  if (!status.available) {
+    if (els.cardInfoSpellbookTargetNotice) els.cardInfoSpellbookTargetNotice.textContent = status.reason || 'No se pudo añadir la carta.';
+    renderCardInfoSpellbookTargetModal();
+    return;
+  }
+
+  const cards = target.isCurrentBuilder
+    ? libraryBuilderState.spellbookCards
+    : normalizeSpellbookCardSlots(target.spellbook?.cards);
   const addedIndexes = [];
-  for (let copy = 0; copy < quantity; copy += 1) {
-    const emptyIndex = libraryBuilderState.spellbookCards.findIndex(value => !value);
-    if (emptyIndex < 0 || emptyIndex >= SPELLBOOK_MAX_CARDS) break;
-    libraryBuilderState.spellbookCards[emptyIndex] = card.id;
+  for (let i = 0; i < pending.quantity; i += 1) {
+    const emptyIndex = cards.findIndex(value => !value);
+    if (emptyIndex < 0) break;
+    cards[emptyIndex] = card.id;
     addedIndexes.push(emptyIndex);
   }
-  if (!addedIndexes.length) return { added: 0, reason: 'LÍMITE DEL SPELLBOOK ALCANZADO.' };
+  if (addedIndexes.length !== pending.quantity) {
+    if (els.cardInfoSpellbookTargetNotice) els.cardInfoSpellbookTargetNotice.textContent = 'No había suficientes espacios libres en el Spellbook.';
+    renderCardInfoSpellbookTargetModal();
+    return;
+  }
 
-  const lastIndex = addedIndexes[addedIndexes.length - 1];
-  libraryBuilderState.page = Math.floor(lastIndex / libraryBuilderState.pageSize);
-  libraryBuilderState.selectedLibraryCardId = card.id;
-  libraryBuilderState.selectedSpellbookIndex = lastIndex;
-  persistLibraryBuilderDraft();
-  renderLibraryBuilder();
-  return { added: addedIndexes.length, indexes: addedIndexes };
+  if (target.isCurrentBuilder) {
+    const lastIndex = addedIndexes[addedIndexes.length - 1];
+    libraryBuilderState.page = Math.floor(lastIndex / libraryBuilderState.pageSize);
+    libraryBuilderState.selectedLibraryCardId = card.id;
+    libraryBuilderState.selectedSpellbookIndex = lastIndex;
+    persistLibraryBuilderDraft();
+    renderLibraryBuilder();
+  } else {
+    const savedIndex = savedSpellbooks.findIndex(entry => entry.id === target.id);
+    if (savedIndex < 0) {
+      if (els.cardInfoSpellbookTargetNotice) els.cardInfoSpellbookTargetNotice.textContent = 'El Spellbook seleccionado ya no existe.';
+      renderCardInfoSpellbookTargetModal();
+      return;
+    }
+    savedSpellbooks[savedIndex] = normalizeSavedSpellbook({
+      ...savedSpellbooks[savedIndex],
+      cards,
+      updatedAt: Date.now(),
+    });
+    if (!persistSpellbookStorage()) {
+      if (els.cardInfoSpellbookTargetNotice) els.cardInfoSpellbookTargetNotice.textContent = 'El navegador bloqueó el guardado del Spellbook.';
+      return;
+    }
+  }
+
+  const added = addedIndexes.length;
+  const destinationName = target.name || 'Spellbook';
+  closeCardInfoSpellbookTargetModal();
+  resetCardInfoSpellbookQuantity({ clearFeedback: false });
+  updateCardInfoAction();
+  const success = added === 1
+    ? `CARTA AÑADIDA A “${destinationName.toUpperCase()}”.`
+    : `${added} CARTAS AÑADIDAS A “${destinationName.toUpperCase()}”.`;
+  showCardInfoSpellbookFeedback(success, 'success', 3400);
+  showLibraryBuilderNotice(added === 1
+    ? `${card.name || 'Carta'} añadida a “${destinationName}”.`
+    : `${added} copias de ${card.name || 'la carta'} añadidas a “${destinationName}”.`);
 }
 
 function updateCardInfoAction() {
@@ -31146,6 +32893,11 @@ function updateCardInfoAction() {
     && !isLibraryCasterInfo
     && state.infoCard.origin === 'library'
   );
+  const cardInfoActionsRow = els.cardInfoKastBtn?.closest('.card-info-actions');
+
+  // v502 · El layout del selector de Kaster se marca en la FILA REAL de acciones.
+  // Así no depende de clases contextuales del overlay ni de wrappers heredados.
+  cardInfoActionsRow?.classList.toggle('library-caster-action-layout', isLibraryCasterInfo);
 
   els.cardInfoOverlay?.classList.toggle('library-builder-card-choice', isLibraryBuilderContext || isCardCreatorContext);
   els.cardInfoOverlay?.classList.toggle('card-creator-card-choice', isCardCreatorContext);
@@ -31270,11 +33022,14 @@ function updateCardInfoAction() {
       els.cardInfoSpellbookMinusBtn.title = cardInfoSpellbookAddQuantity > 0 ? 'Restar una copia' : 'No hay copias seleccionadas';
     }
     if (els.cardInfoSpellbookPlusBtn) {
-      els.cardInfoSpellbookPlusBtn.disabled = false;
+      const canIncrease = addStatus.available && cardInfoSpellbookAddQuantity < addStatus.maxSelectable;
+      els.cardInfoSpellbookPlusBtn.disabled = !canIncrease;
       els.cardInfoSpellbookPlusBtn.title = addStatus.available
-        ? `Seleccionar otra copia · ${addStatus.remainingCopies} disponible${addStatus.remainingCopies === 1 ? '' : 's'} por límite de carta`
+        ? (canIncrease
+          ? `Seleccionar otra copia · máximo ${addStatus.maxSelectable}`
+          : `Máximo seleccionado: ${addStatus.maxSelectable}`)
         : getCardInfoSpellbookBlockedMessage(addStatus);
-      els.cardInfoSpellbookPlusBtn.setAttribute('aria-disabled', addStatus.available && cardInfoSpellbookAddQuantity < addStatus.maxSelectable ? 'false' : 'true');
+      els.cardInfoSpellbookPlusBtn.setAttribute('aria-disabled', canIncrease ? 'false' : 'true');
     }
 
     const canCommit = addStatus.available
@@ -31283,10 +33038,7 @@ function updateCardInfoAction() {
     els.cardInfoKastBtn.disabled = !canCommit;
     els.cardInfoKastBtn.textContent = 'Agregar al Spellbook';
     if (canCommit) {
-      const copyText = addStatus.copyStatus.hasForcedLimits
-        ? `Límites forzados ${addStatus.copyStatus.count}/${addStatus.copyStatus.limit}`
-        : `Copias ${addStatus.copyStatus.count}/${addStatus.copyStatus.limit}`;
-      els.cardInfoKastBtn.title = `Agregar ${cardInfoSpellbookAddQuantity} copia${cardInfoSpellbookAddQuantity === 1 ? '' : 's'} de ${card.name || 'esta carta'} · ${copyText}`;
+      els.cardInfoKastBtn.title = `Elegir el Spellbook de destino para ${cardInfoSpellbookAddQuantity} copia${cardInfoSpellbookAddQuantity === 1 ? '' : 's'} de ${card.name || 'esta carta'}.`;
     } else if (cardInfoSpellbookAddQuantity <= 0 && addStatus.available) {
       els.cardInfoKastBtn.title = 'Usa los controles − y + para elegir cuántas copias agregar.';
     } else {
@@ -31310,9 +33062,9 @@ function updateCardInfoAction() {
     const inSlot = localPlayer().handTabs?.[Number(infoTab)]?.[Number(infoSlot)] === card.id;
     const enabled = isLocalTurn && canPhase && inSlot && availability.available;
     els.cardInfoKastBtn.disabled = !enabled;
-    els.cardInfoKastBtn.textContent = 'Equipar habilidad';
+    els.cardInfoKastBtn.textContent = 'Aprender habilidad';
     els.cardInfoKastBtn.title = enabled
-      ? 'Selecciona una invocación Guerrero o Asesino para equiparle Shirahadori.'
+      ? 'Selecciona una invocación Guerrero o Asesino con una Espada compatible de Cuerpo a cuerpo para que aprenda Shirahadori.'
       : (!isLocalTurn
         ? 'Solo puedes equipar la habilidad durante tu turno.'
         : (!canPhase ? 'Solo disponible en la fase de Kasteo.' : availability.message));
@@ -31366,7 +33118,7 @@ function updateCardInfoAction() {
   } else if (!canKasterZone) {
     els.cardInfoKastBtn.title = 'El Kaster no puede kastear en la zona enemiga';
   } else if (useCooldown > 0) {
-    els.cardInfoKastBtn.title = `Carta bloqueada por Despliegue anticipado: ${useCooldown} fase${useCooldown === 1 ? '' : 's'} restante${useCooldown === 1 ? '' : 's'}`;
+    els.cardInfoKastBtn.title = `Carta en Estasis de Spellbook: ${useCooldown} fase${useCooldown === 1 ? '' : 's'} restante${useCooldown === 1 ? '' : 's'}`;
   } else if (!specialAvailability.available) {
     els.cardInfoKastBtn.title = specialAvailability.message;
   } else {
@@ -31624,7 +33376,12 @@ function renderCardAbilityPowerPanel(card) {
     if (ability) {
       const info = getAbilityProfile(ability.id);
       const cooldownHtml = renderCardModalCooldownBadge(card, 'ability', info.id, ability);
-      return `<button type="button" class="ability-slot filled" data-info-kind="ability" data-info-id="${info.id}"><img src="${info.icon}" alt="${info.label}"><span class="ability-slot-name">${info.label}</span>${cooldownHtml}</button>`;
+      const runtimeBlocked = Boolean(ability.runtimeBlocked);
+      const blockedReason = String(ability.runtimeBlockedReason || '').trim();
+      const blockedStateHtml = runtimeBlocked && info.id !== SHIRAHADORI_ABILITY_ID
+        ? '<span class="ability-slot-runtime-state">BLOQUEADA</span>'
+        : '';
+      return `<button type="button" class="ability-slot filled${runtimeBlocked ? ' ability-slot-runtime-blocked' : ''}" data-info-kind="ability" data-info-id="${info.id}"${blockedReason ? ` title="${escapeHtml(blockedReason)}"` : ''}><img src="${info.icon}" alt="${info.label}"><span class="ability-slot-name">${info.label}</span>${blockedStateHtml}${cooldownHtml}</button>`;
     }
     return `<span class="ability-slot empty">Habilidad libre</span>`;
   }).join('');
@@ -31639,7 +33396,10 @@ function renderCardAbilityPowerPanel(card) {
   const smokeCount = card?.id === 'ninjaNaitoSutoka' ? card?.__runtime?.smokeBombsLeft : null;
   const smokeResourceHtml = smokeCount != null ? `<div class="power-resource-strip"><button type="button" class="power-resource-chip" data-info-kind="weapon" data-info-id="smokeBomb" title="Bombas de humo disponibles: ${smokeCount}"><img src="${SMOKE_BOMB_ICON_ASSET}" alt="Bomba de humo"><span>Bomba de humo</span><strong>${smokeCount}</strong></button></div>` : '';
   const sideHtml = `<div class="ability-power-side">${powerHtml}${smokeResourceHtml}</div>`;
-  els.cardInfoExtraPanel.innerHTML = `<div class="ability-power-grid"><div class="ability-slots">${slots}</div>${sideHtml}</div>`;
+  const isAbilityCard = getCardTypeId(card) === 'ability';
+  els.cardInfoExtraPanel.innerHTML = isAbilityCard
+    ? `<div class="ability-power-grid ability-card-power-grid">${sideHtml}</div>`
+    : `<div class="ability-power-grid"><div class="ability-slots">${slots}</div>${sideHtml}</div>`;
   bindInlineInfoButtons(els.cardInfoExtraPanel, card);
 }
 
@@ -31687,6 +33447,31 @@ function renderCastTimeChip(card) {
 function renderRestoreTimeChip(card) {
   const restoreTime = Math.max(0, Number(card?.stats?.restore ?? 0));
   return `<button type="button" class="card-info-value-chip card-info-svg-value-chip" data-info-kind="restoreTime" data-info-id="restore" title="Tiempo de restauración: ${restoreTime} fase${restoreTime === 1 ? '' : 's'}"><span class="card-info-svg-icon" aria-hidden="true">${RESTORE_ICON_INLINE_SVG}</span><span>${restoreTime}</span></button>`;
+}
+
+function getDisplayedSpellbookCooldown(card) {
+  if (!card) return { base: 0, learned: 0, total: 0, mode: 'none' };
+  if (getCardTypeId(card) === 'ability') {
+    const value = Math.max(0, Number(card.spellbookCooldown ?? card?.spellRules?.effect?.spellbookCooldownBonus ?? 0));
+    return { base: 0, learned: value, total: value, mode: 'grants' };
+  }
+  if (getCardTypeId(card) !== 'invocation') return { base: 0, learned: 0, total: 0, mode: 'none' };
+  const runtime = card?.__runtime?.spellbookCooldown;
+  if (runtime && typeof runtime === 'object') {
+    return { base: Math.max(0, Number(runtime.base || 0)), learned: Math.max(0, Number(runtime.learned || 0)), total: Math.max(0, Number(runtime.total || 0)), mode: 'invocation' };
+  }
+  const base = getInvocationBaseSpellbookCooldown(card);
+  return { base, learned: 0, total: base, mode: 'invocation' };
+}
+
+function renderSpellbookCooldownChip(card) {
+  const info = getDisplayedSpellbookCooldown(card);
+  if (info.total <= 0) return '';
+  const title = info.mode === 'grants'
+    ? `Estasis de Spellbook transmitida: +${info.total} fase${info.total === 1 ? '' : 's'}`
+    : `Estasis de Spellbook: ${info.total} fase${info.total === 1 ? '' : 's'}${info.learned > 0 ? ` · Base ${info.base} + habilidades ${info.learned}` : ''}`;
+  const prefix = info.mode === 'grants' ? '+' : '';
+  return `<span class="card-info-value-chip card-info-spellbook-cooldown-chip" title="${title}"><img src="${SPELLBOOK_COOLDOWN_ICON_ASSET}" alt="Estasis de Spellbook"><span>${prefix}${info.total}</span></span>`;
 }
 
 function renderMovementTypeChip(card) {
@@ -33285,7 +35070,7 @@ function ensureKouutenRecastModal() {
         <button type="button" class="kouuten-recast-cancel">Cancelar</button>
       </div>
     </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   overlay.addEventListener('pointerdown', event => {
     if (event.target === overlay) cancelKouutenRecastDecision();
   });
@@ -34853,31 +36638,220 @@ async function playRemoteCargaRealFx(payload = {}) {
   }
 }
 
-function getSpellbookCooldownKey(tab, slot) {
+const SPELLBOOK_COOLDOWN_ICON_ASSET = 'assets/icons/factor-enfriamiento-spellbook.svg';
+
+function getInvocationBaseSpellbookCooldown(card) {
+  if (!card || getCardTypeId(card) !== 'invocation') return 0;
+  const cost = Math.max(0, Math.floor(Number(getCardTotalCost(card)) || 0));
+  if (cost <= 0) return 5;
+  if (cost === 1) return 3;
+  if (cost === 2) return 1;
+  return 0;
+}
+
+function getAbilitySpellbookCooldownContribution(entry) {
+  const normalized = normalizeLearnedAbilityEntry(entry);
+  if (!normalized) return 0;
+  // La contribución es por ID de habilidad, no por cantidad de cartas que
+  // alguna vez intentaron enseñar esa habilidad a la misma copia.
+  const canonical = getAbilityProfile(normalized.id)?.spellbookCooldown;
+  return Math.max(0, Number(canonical ?? normalized.spellbookCooldown ?? 0));
+}
+
+function getLearnedAbilitiesSpellbookCooldownTotal(entries = []) {
+  const seen = new Set();
+  return (Array.isArray(entries) ? entries : []).reduce((sum, entry) => {
+    const normalized = normalizeLearnedAbilityEntry(entry);
+    if (!normalized || seen.has(normalized.id)) return sum;
+    seen.add(normalized.id);
+    return sum + getAbilitySpellbookCooldownContribution(normalized);
+  }, 0);
+}
+
+function getUnitSpellbookCooldownBreakdown(unit, card = CARD_LIBRARY[unit?.cardId]) {
+  migrateLegacyAbilityCardEntries(unit);
+  const base = getInvocationBaseSpellbookCooldown(card);
+  const learned = getLearnedAbilitiesSpellbookCooldownTotal(getUnitLearnedAbilityEntries(unit));
+  return { base, learned, total: base + learned };
+}
+
+function ensureSpellbookCardStateMap(playerId) {
+  const player = state.players?.[playerId];
+  if (!player) return null;
+  player.spellbookCardStates = player.spellbookCardStates && typeof player.spellbookCardStates === 'object' ? player.spellbookCardStates : {};
+  return player.spellbookCardStates;
+}
+
+function ensureSpellbookCardInstanceMap(playerId) {
+  const player = state.players?.[playerId];
+  if (!player) return null;
+  player.spellbookCardInstances = player.spellbookCardInstances && typeof player.spellbookCardInstances === 'object'
+    ? player.spellbookCardInstances
+    : {};
+  return player.spellbookCardInstances;
+}
+
+function createSpellbookCardInstanceId(playerId, cardId = '') {
+  return `sbcopy_p${Number(playerId) || 0}_${String(cardId || 'card')}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function getSpellbookSlotKey(tab, slot) {
   return `${Math.max(0, Number(tab) || 0)}:${Math.max(0, Number(slot) || 0)}`;
 }
 
+function getSpellbookCardInstanceId(playerId, tab, slot, cardId = '', options = {}) {
+  const map = ensureSpellbookCardInstanceMap(playerId);
+  const player = state.players?.[playerId];
+  if (!map || !player) return '';
+  const slotKey = getSpellbookSlotKey(tab, slot);
+  const liveCardId = cardId || player.handTabs?.[Number(tab)]?.[Number(slot)] || '';
+  const current = map[slotKey];
+  if (current && typeof current === 'object') {
+    if (!liveCardId || !current.cardId || String(current.cardId) === String(liveCardId)) return String(current.instanceId || '');
+  } else if (typeof current === 'string' && current) {
+    return current;
+  }
+  if (options.create === false || !liveCardId) return '';
+  const instanceId = createSpellbookCardInstanceId(playerId, liveCardId);
+  map[slotKey] = { instanceId, cardId: liveCardId };
+  return instanceId;
+}
+
+function setSpellbookCardInstanceId(playerId, tab, slot, cardId, instanceId = '') {
+  const map = ensureSpellbookCardInstanceMap(playerId);
+  if (!map) return '';
+  const slotKey = getSpellbookSlotKey(tab, slot);
+  const resolved = String(instanceId || createSpellbookCardInstanceId(playerId, cardId));
+  map[slotKey] = { instanceId: resolved, cardId: cardId || '' };
+  return resolved;
+}
+
+function takeSpellbookCardInstanceId(playerId, tab, slot, cardId = '') {
+  const map = ensureSpellbookCardInstanceMap(playerId);
+  if (!map) return '';
+  const slotKey = getSpellbookSlotKey(tab, slot);
+  const instanceId = getSpellbookCardInstanceId(playerId, tab, slot, cardId, { create: true });
+  delete map[slotKey];
+  return instanceId;
+}
+
+function getSpellbookCardStateKey(instanceId = '') {
+  return instanceId ? `copy:${instanceId}` : '';
+}
+
+function getSpellbookCardPersistentState(playerId, tab, slot, cardId = '') {
+  const map = ensureSpellbookCardStateMap(playerId);
+  if (!map) return null;
+  const instanceId = getSpellbookCardInstanceId(playerId, tab, slot, cardId, { create: true });
+  const copyKey = getSpellbookCardStateKey(instanceId);
+  let entry = copyKey ? map[copyKey] : null;
+  const legacyKey = getSpellbookSlotKey(tab, slot);
+  if (!entry && map[legacyKey]) {
+    entry = map[legacyKey];
+    if (copyKey) {
+      map[copyKey] = { ...entry, instanceId };
+      delete map[legacyKey];
+    }
+  }
+  if (!entry || (cardId && entry.cardId && String(entry.cardId) !== String(cardId))) return null;
+  return {
+    ...entry,
+    instanceId: entry.instanceId || instanceId,
+    learnedAbilities: normalizeLearnedAbilityEntries(entry.learnedAbilities),
+  };
+}
+
+function takeSpellbookCardPersistentState(playerId, tab, slot, cardId = '') {
+  const map = ensureSpellbookCardStateMap(playerId);
+  if (!map) return null;
+  const instanceId = getSpellbookCardInstanceId(playerId, tab, slot, cardId, { create: true });
+  const entry = getSpellbookCardPersistentState(playerId, tab, slot, cardId);
+  const copyKey = getSpellbookCardStateKey(instanceId);
+  if (copyKey) delete map[copyKey];
+  delete map[getSpellbookSlotKey(tab, slot)];
+  takeSpellbookCardInstanceId(playerId, tab, slot, cardId);
+  return {
+    ...(entry || {}),
+    cardId: entry?.cardId || cardId || '',
+    instanceId,
+    learnedAbilities: normalizeLearnedAbilityEntries(entry?.learnedAbilities),
+  };
+}
+
+function setSpellbookCardPersistentState(playerId, tab, slot, cardId, persistentState = null) {
+  const map = ensureSpellbookCardStateMap(playerId);
+  if (!map) return;
+  const instanceId = setSpellbookCardInstanceId(playerId, tab, slot, cardId, persistentState?.instanceId || '');
+  const copyKey = getSpellbookCardStateKey(instanceId);
+  const learnedAbilities = normalizeLearnedAbilityEntries(persistentState?.learnedAbilities);
+  delete map[getSpellbookSlotKey(tab, slot)];
+  if (!learnedAbilities.length) {
+    if (copyKey) delete map[copyKey];
+    return;
+  }
+  map[copyKey] = { cardId, instanceId, learnedAbilities };
+}
+
+function buildInvocationPersistentStateFromUnit(unit) {
+  return {
+    cardId: unit?.cardId || '',
+    instanceId: unit?.spellbookInstanceId || '',
+    learnedAbilities: getUnitLearnedAbilityEntries(unit),
+  };
+}
+
+function getSpellbookCooldownKey(tab, slot, playerId = null, cardId = '') {
+  if (playerId != null) {
+    const instanceId = getSpellbookCardInstanceId(playerId, tab, slot, cardId, { create: true });
+    if (instanceId) return `copy:${instanceId}`;
+  }
+  return getSpellbookSlotKey(tab, slot);
+}
+
 function getSpellbookUseCooldown(playerId, tab, slot) {
-  const map = state.players?.[playerId]?.spellbookUseCooldowns || {};
-  const entry = map[getSpellbookCooldownKey(tab, slot)];
+  const player = state.players?.[playerId];
+  const map = player?.spellbookUseCooldowns || {};
+  const cardId = player?.handTabs?.[Number(tab)]?.[Number(slot)] || '';
+  const key = getSpellbookCooldownKey(tab, slot, playerId, cardId);
+  let entry = map[key];
+  const legacyKey = getSpellbookSlotKey(tab, slot);
+  if (!entry && key !== legacyKey && map[legacyKey]) {
+    entry = map[legacyKey];
+    map[key] = entry;
+    delete map[legacyKey];
+  }
   return Math.max(0, Number(entry?.remaining ?? entry ?? 0));
 }
 
-function setSpellbookUseCooldown(playerId, tab, slot, cardId, phases = DESPLIEGUE_ANTICIPADO_USE_COOLDOWN_PER_LINK) {
+function setSpellbookUseCooldown(playerId, tab, slot, cardId, phases = DESPLIEGUE_ANTICIPADO_USE_COOLDOWN_PER_LINK, meta = {}) {
   const player = state.players?.[playerId];
   if (!player) return;
   player.spellbookUseCooldowns = player.spellbookUseCooldowns && typeof player.spellbookUseCooldowns === 'object'
     ? player.spellbookUseCooldowns
     : {};
   const remaining = Math.max(0, Math.floor(Number(phases) || 0));
-  const key = getSpellbookCooldownKey(tab, slot);
+  const instanceId = setSpellbookCardInstanceId(playerId, tab, slot, cardId, meta.instanceId || '');
+  const key = `copy:${instanceId}`;
+  delete player.spellbookUseCooldowns[getSpellbookSlotKey(tab, slot)];
   if (!remaining) delete player.spellbookUseCooldowns[key];
-  else player.spellbookUseCooldowns[key] = { cardId, remaining, sourceSpellId: DESPLIEGUE_ANTICIPADO_CARD_ID };
+  else player.spellbookUseCooldowns[key] = {
+    cardId,
+    instanceId,
+    remaining,
+    sourceSpellId: meta.sourceSpellId || '',
+    sourceType: meta.sourceType || 'spellbookCooldown',
+    breakdown: meta.breakdown || null,
+  };
 }
 
 function clearSpellbookUseCooldown(playerId, tab, slot) {
-  const map = state.players?.[playerId]?.spellbookUseCooldowns;
-  if (map && typeof map === 'object') delete map[getSpellbookCooldownKey(tab, slot)];
+  const player = state.players?.[playerId];
+  const map = player?.spellbookUseCooldowns;
+  if (!map || typeof map !== 'object') return;
+  const cardId = player?.handTabs?.[Number(tab)]?.[Number(slot)] || '';
+  const instanceId = getSpellbookCardInstanceId(playerId, tab, slot, cardId, { create: false });
+  if (instanceId) delete map[`copy:${instanceId}`];
+  delete map[getSpellbookSlotKey(tab, slot)];
 }
 
 function advanceSpellbookUseCooldownsOnePhaseStep() {
@@ -34890,7 +36864,7 @@ function advanceSpellbookUseCooldownsOnePhaseStep() {
       const remaining = Math.max(0, Number(entry?.remaining ?? entry ?? 0) - 1);
       if (remaining <= 0) delete map[key];
       else if (entry && typeof entry === 'object') entry.remaining = remaining;
-      else map[key] = { remaining, cardId: '', sourceSpellId: DESPLIEGUE_ANTICIPADO_CARD_ID };
+      else map[key] = { remaining, cardId: '', sourceSpellId: '', sourceType: 'spellbookCooldown' };
     });
   }
 }
@@ -35147,7 +37121,7 @@ function renderTacticaGuerraSelectionModal() {
       <button type="button" class="tactica-guerra-selection-confirm" ${selected.length && canPayTacticaGuerraCostMap(playerId, costMap) ? '' : 'disabled'}>Kastear</button>
     </footer>
   </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
 
   const list = overlay.querySelector('.tactica-guerra-selection-list');
   candidates.forEach(unit => {
@@ -35422,8 +37396,12 @@ async function resolveTacticaGuerraPlan() {
   }
 
   const caster = state.players?.[playerId]?.caster || {};
+  const persistentCardState = card.type === 'invocation'
+    ? takeSpellbookCardPersistentState(LOCAL_PLAYER_ID, pending.tab, pending.slotIndex, card.id)
+    : null;
   const castItem = {
     cardId: card.id,
+    persistentCardState,
     elementId: getEffectiveCardElementId(card, playerId),
     remaining: 2,
     row: Number(caster.row ?? 0),
@@ -35691,7 +37669,7 @@ function renderEmboscadaRivalSelectionModal() {
       <button type="button" class="tactica-guerra-selection-confirm" ${selectedRivalId ? '' : 'disabled'}>Continuar</button>
     </footer>
   </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
 
   const list = overlay.querySelector('.tactica-guerra-selection-list');
   rivals.forEach(unit => {
@@ -35799,7 +37777,7 @@ function renderEmboscadaAlliedSelectionModal() {
       <button type="button" class="tactica-guerra-selection-confirm" ${selected.length && selected.length <= waterCount ? '' : 'disabled'}>Colocar nexos</button>
     </footer>
   </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
 
   const list = overlay.querySelector('.tactica-guerra-selection-list');
   allies.forEach(unit => {
@@ -36250,7 +38228,7 @@ function renderInterceptarAlliedSelectionModal() {
       <button type="button" class="tactica-guerra-selection-cancel">Cancelar</button>
     </footer>
   </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   const list = overlay.querySelector('.tactica-guerra-selection-list');
   candidates.forEach(unit => {
     const button = createInterceptarCandidateButton(playerId, unit, { roleLabel: 'ALIADA', detailLabel: 'Seleccionar' });
@@ -36317,7 +38295,7 @@ function renderInterceptarRivalSelectionModal() {
       <button type="button" class="tactica-guerra-selection-cancel">Cancelar</button>
     </footer>
   </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   const list = overlay.querySelector('.tactica-guerra-selection-list');
   candidates.forEach(unit => {
     const destination = getInterceptarDestinationCell(playerId, allied, unit);
@@ -36580,25 +38558,24 @@ function restoreSpellCardToSpellbook(playerId, cardId, originTab = 0, originSlot
 }
 
 function getAbilityCardEquippedEntries(unit) {
-  return Array.isArray(unit?.temporaryAbilities)
+  const learned = getUnitLearnedAbilityEntries(unit);
+  const temporary = Array.isArray(unit?.temporaryAbilities)
     ? unit.temporaryAbilities.filter(entry => typeof entry === 'object' && entry?.sourceType === 'abilityCard' && entry?.sourceCardId)
     : [];
+  return [...learned, ...temporary];
 }
 
 function getUnitAbilitySlotStatus(unit) {
   const card = CARD_LIBRARY[unit?.cardId];
   const capacity = Math.max(0, Math.floor(Number(card?.abilitySlots) || 0));
   const nativeCount = Array.isArray(card?.abilities) ? card.abilities.filter(Boolean).length : 0;
-  const equippedCount = getAbilityCardEquippedEntries(unit).length;
-  const used = Math.max(0, nativeCount + equippedCount);
+  const learnedCount = getAbilityCardEquippedEntries(unit).length;
+  const used = Math.max(0, nativeCount + learnedCount);
   return { capacity, used, free: Math.max(0, capacity - used) };
 }
 
 function isEligibleShirahadoriAbilityUser(playerId, unit) {
-  if (!unit || unit.status === 'restoring' || Number(unit.hp ?? 1) <= 0) return false;
-  if (Number(getUnitOwnerPlayerId(unit)) !== Number(playerId)) return false;
-  const allowedQuality = unitHasCardQuality(unit, 'warrior') || unitHasCardQuality(unit, 'assassin');
-  if (!allowedQuality) return false;
+  if (!unitMeetsShirahadoriUserRequirements(playerId, unit)) return false;
   if (unitHasAbility(unit, SHIRAHADORI_ABILITY_ID)) return false;
   return getUnitAbilitySlotStatus(unit).free > 0;
 }
@@ -36613,7 +38590,7 @@ function getShirahadoriAbilityCastAvailability(playerId) {
     return {
       available: false,
       targets,
-      message: 'Shirahadori requiere una invocación aliada activa Guerrero o Asesino, sin Shirahadori y con un espacio de habilidad disponible.',
+      message: 'Shirahadori requiere una invocación aliada activa que cumpla Invocación → Guerrero o Asesino → Espada compatible → Cuerpo a cuerpo, sin Shirahadori y con un espacio de habilidad disponible. El arma base nunca cuenta.',
     };
   }
   return { available: true, targets, message: '' };
@@ -36646,7 +38623,7 @@ function beginShirahadoriAbilityTargeting(playerId, cardId, originTab, originSlo
     originTab: Math.max(0, Number(originTab) || 0),
     originSlot: Math.max(0, Number(originSlot) || 0),
   };
-  log('Shirahadori: selecciona una invocación aliada Guerrero o Asesino resaltada.');
+  log('Shirahadori: selecciona una invocación que cumpla Guerrero/Asesino → Espada compatible → Cuerpo a cuerpo. El arma base nunca habilita la técnica.');
   renderAll();
   return true;
 }
@@ -36656,7 +38633,7 @@ function resolveShirahadoriAbilityTarget(playerId, unitId) {
   if (!pending || pending.kind !== 'shirahadoriAbilityTarget' || Number(pending.playerId) !== Number(playerId)) return false;
   const target = getUnitById(playerId, unitId);
   if (!isEligibleShirahadoriAbilityUser(playerId, target)) {
-    log('Shirahadori solo puede equiparse a una invocación Guerrero o Asesino válida con un espacio de habilidad libre.');
+    log('Shirahadori solo puede aprenderla una invocación válida con espacio de habilidad que cumpla Guerrero/Asesino → Espada compatible → Cuerpo a cuerpo. El arma base queda excluida.');
     renderAll();
     return false;
   }
@@ -36672,20 +38649,22 @@ function resolveShirahadoriAbilityTarget(playerId, unitId) {
   }
 
   player.handTabs[tab][slot] = null;
-  target.temporaryAbilities = Array.isArray(target.temporaryAbilities) ? target.temporaryAbilities : [];
-  target.temporaryAbilities.push({
-    id: SHIRAHADORI_ABILITY_ID,
-    sourceType: 'abilityCard',
-    sourceCardId: cardId,
-    sourceName: 'Shirahadori',
-    originTab: tab,
-    originSlot: slot,
-    untilRestore: true,
-  });
+  clearSpellbookUseCooldown(playerId, tab, slot);
+  target.learnedAbilities = normalizeLearnedAbilityEntries([
+    ...getUnitLearnedAbilityEntries(target),
+    {
+      id: SHIRAHADORI_ABILITY_ID,
+      sourceType: 'learnedAbility',
+      sourceCardId: cardId,
+      sourceName: 'Shirahadori',
+      spellbookCooldown: 3,
+      learnedAt: Date.now(),
+    },
+  ]);
   state.pendingPowerAction = null;
   const targetName = CARD_LIBRARY[target.cardId]?.name || 'la invocación';
   showFloatingTextAt(target.row, target.col, 'SHIRAHADORI', 'floating-combat buff');
-  log(`Shirahadori se equipa a ${targetName}. La invocación obtiene la habilidad hasta su próxima restauración.`);
+  log(`${targetName} aprende Shirahadori permanentemente. La carta se consume y añade +3 a su Estasis de Spellbook.`);
   renderAll();
   return true;
 }
@@ -37383,6 +39362,8 @@ function renderSpellRuleRestrictionIcons(kind, rule) {
   const domainChips = [];
   const typeChips = [];
   const qualityChips = [];
+  const weaponChips = [];
+  const combatModeChips = [];
   const mandatory = rule.mandatory || {};
   const mandatoryElements = Array.isArray(mandatory.elements) ? mandatory.elements : [];
   const mandatoryCardTypes = Array.isArray(mandatory.cardTypes) ? mandatory.cardTypes : [];
@@ -37425,16 +39406,28 @@ function renderSpellRuleRestrictionIcons(kind, rule) {
       if (quality) qualityChips.push(`<button type="button" class="card-info-spell-restriction-chip card-info-icon-chip optional" data-info-kind="quality" data-info-id="${quality.id}" title="${roleLabel}: ${quality.label}"><img src="${quality.icon}" alt="${quality.label}"></button>`);
     });
   }
+  if (Array.isArray(rule.weapons)) {
+    rule.weapons.forEach(weaponId => {
+      const weapon = getWeaponInfoProfile(weaponId);
+      if (weapon) weaponChips.push(`<button type="button" class="card-info-spell-restriction-chip card-info-icon-chip mandatory" data-info-kind="weapon" data-info-id="${weapon.id}" title="Arma requerida: ${weapon.label}"><img src="${weapon.icon}" alt="${weapon.label}"></button>`);
+    });
+  }
+  if (Array.isArray(rule.combatModes)) {
+    rule.combatModes.forEach(modeId => {
+      const mode = COMBAT_MODE_DB[modeId];
+      if (mode) combatModeChips.push(`<button type="button" class="card-info-spell-restriction-chip card-info-icon-chip mandatory" data-info-kind="combatMode" data-info-id="${mode.id}" title="Modo de combate requerido: ${mode.label}"><img src="${mode.icon}" alt="${mode.label}"></button>`);
+    });
+  }
 
   if (rule.displayHierarchy === true && typeChips.length) {
     const secondary = [...domainChips, ...qualityChips];
+    const hierarchyGroups = [typeChips, secondary, weaponChips, combatModeChips].filter(group => group.length);
     return `<span class="card-info-spell-channel-value card-info-spell-channel-icons card-info-spell-channel-hierarchy" title="${rule.description || getSpellRuleStandardLabel(kind, rule)}">
-      <span class="card-info-spell-restriction-group card-info-spell-restriction-group-base">${typeChips.join('')}</span>
-      ${secondary.length ? `<span class="card-info-spell-restriction-chain-arrow" aria-hidden="true">→</span><span class="card-info-spell-restriction-group card-info-spell-restriction-group-qualities">${secondary.join('')}</span>` : ''}
+      ${hierarchyGroups.map((group, index) => `${index ? '<span class="card-info-spell-restriction-chain-arrow" aria-hidden="true">→</span>' : ''}<span class="card-info-spell-restriction-group ${index === 0 ? 'card-info-spell-restriction-group-base' : 'card-info-spell-restriction-group-qualities'}">${group.join('')}</span>`).join('')}
     </span>`;
   }
 
-  const chips = [...domainChips, ...typeChips, ...qualityChips];
+  const chips = [...domainChips, ...typeChips, ...qualityChips, ...weaponChips, ...combatModeChips];
   return `<span class="card-info-spell-channel-value card-info-spell-channel-icons" title="${rule.description || getSpellRuleStandardLabel(kind, rule)}">${chips.join('') || getSpellRuleStandardLabel(kind, rule)}</span>`;
 }
 
@@ -37495,6 +39488,10 @@ function renderSpellInfoRows(card) {
     bindInlineInfoButtons(els.cardInfoCastTime, card);
   }
   if (els.cardInfoRestoreTime) els.cardInfoRestoreTime.innerHTML = '';
+  if (els.cardInfoSpellbookCooldown) {
+    const cooldownChip = renderSpellbookCooldownChip(card);
+    els.cardInfoSpellbookCooldown.innerHTML = cooldownChip ? `<div class="card-info-chip-stack">${cooldownChip}</div>` : '';
+  }
   if (els.cardInfoUtilityFactors) {
     const spellFactors = getCardAllFactors(card);
     const spellFactorChips = spellFactors.map(factorEntry => renderFactorChip(factorEntry, card)).join('');
@@ -37594,6 +39591,29 @@ function getCardVisualRarity(card) {
     label: forcedId ? (CARD_RARITY_LABELS[id] || 'Ordinaria') : (scoreRarity?.rarityLabel || CARD_RARITY_LABELS[id] || 'Ordinaria'),
     asset: CARD_RARITY_ICON_ASSETS[id] || CARD_RARITY_ICON_ASSETS.ordinary,
   };
+}
+
+function renderCardInfoDomainBadge(card) {
+  if (!els.cardInfoPreview || !card) return;
+  const main = els.cardInfoPreview.closest('.card-info-main');
+
+  // Limpia cualquier dominio anterior, tanto del preview antiguo como del host flotante.
+  els.cardInfoPreview.querySelectorAll(':scope > .card-domain-zone').forEach(node => node.remove());
+  main?.querySelectorAll(':scope > .card-info-domain-floating').forEach(node => node.remove());
+
+  const domain = createCardDomainElement(card);
+  if (!domain) return;
+
+  // En partida el dominio mantiene exactamente la posición histórica visual,
+  // pero deja de pertenecer al contenedor de la miniatura para que éste no lo recorte.
+  if (document.body.classList.contains('rok-battle-mode') && main) {
+    domain.classList.add('card-info-domain-floating');
+    main.appendChild(domain);
+    return;
+  }
+
+  // Biblioteca/otros contextos conservan la estructura previa.
+  els.cardInfoPreview.appendChild(domain);
 }
 
 function renderCardInfoRarityBadge(card) {
@@ -37749,7 +39769,17 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
   els.cardInfoOverlay?.classList.remove('guardian-info-open');
   const baseCard = CARD_LIBRARY[cardId];
   if (!baseCard || !els.cardInfoOverlay) return;
-  const card = buildCardInfoViewModel(baseCard, meta);
+  let card;
+  if (meta?.source === 'castQueue') {
+    const queuePlayerId = Number(meta?.playerId ?? LOCAL_PLAYER_ID);
+    const queuedItem = findQueuedItemBySpawn(queuePlayerId, meta?.spawnId || '');
+    card = buildCastQueuePersistentCardInfoViewModel(baseCard, queuePlayerId, queuedItem);
+  } else {
+    card = buildCardInfoViewModel(baseCard, meta);
+    if (card === baseCard && tab != null && slotIndex != null && Number.isInteger(Number(tab)) && Number.isInteger(Number(slotIndex)) && Number(tab) >= 0 && Number(slotIndex) >= 0) {
+      card = buildSpellbookPersistentCardInfoViewModel(card, LOCAL_PLAYER_ID, Number(tab), Number(slotIndex));
+    }
+  }
   const isSpell = isSpellCard(card);
   const isAbility = getCardTypeId(card) === 'ability';
   const isSpellLikeSupportCard = isSpell || isAbility;
@@ -37759,7 +39789,7 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
   applyCardInfoTheme(card, meta);
   els.cardInfoPreview.innerHTML = '';
   els.cardInfoPreview.appendChild(createCardElement(card));
-  els.cardInfoPreview.appendChild(createCardDomainElement(card));
+  renderCardInfoDomainBadge(card);
   renderCardInfoOriginBadge(card);
   renderCardInfoRarityBadge(card);
   bindCardInfoName(card);
@@ -37839,6 +39869,10 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
     els.cardInfoRestoreTime.innerHTML = restoreTimeChip ? `<div class="card-info-chip-stack">${restoreTimeChip}</div>` : '';
     bindInlineInfoButtons(els.cardInfoRestoreTime, card);
   }
+  if (els.cardInfoSpellbookCooldown) {
+    const cooldownChip = renderSpellbookCooldownChip(card);
+    els.cardInfoSpellbookCooldown.innerHTML = cooldownChip ? `<div class="card-info-chip-stack">${cooldownChip}</div>` : '';
+  }
   if (els.cardInfoUtilityFactors) {
     const utilityFactorChips = getCardUtilityFactors(card).map(factorEntry => renderFactorChip(factorEntry, card)).join('');
     els.cardInfoUtilityFactors.innerHTML = utilityFactorChips ? `<div class="card-info-chip-stack card-info-chip-stack-factors">${utilityFactorChips}</div>` : '';
@@ -37875,7 +39909,7 @@ function openKasterInfo(playerId) {
   state.infoCard = { source: 'kaster', playerId, cardId: entityCard.id };
   els.cardInfoPreview.innerHTML = '';
   els.cardInfoPreview.appendChild(createCardElement(entityCard, { elementIdOverride: elementId, hideCost: true }));
-  els.cardInfoPreview.appendChild(createCardDomainElement(entityCard));
+  renderCardInfoDomainBadge(entityCard);
   renderCardInfoOriginBadge(entityCard);
   renderCardInfoRarityBadge(entityCard);
   bindCardInfoName(entityCard);
@@ -37922,6 +39956,7 @@ function openKasterInfo(playerId) {
     els.cardInfoRestoreTime.innerHTML = `<div class="card-info-chip-stack"><button type="button" class="card-info-text-chip" data-info-kind="casterPureElement" data-info-id="maximum" data-player-id="${playerId}">Máximo ${caster.pureMax}</button></div>`;
     bindInlineInfoButtons(els.cardInfoRestoreTime, entityCard);
   }
+  if (els.cardInfoSpellbookCooldown) els.cardInfoSpellbookCooldown.innerHTML = '';
   if (els.cardInfoUtilityFactors) els.cardInfoUtilityFactors.innerHTML = '';
   if (els.cardInfoMoveType) {
     els.cardInfoMoveType.innerHTML = `<div class="card-info-chip-stack">${renderMovementTypeChip(entityCard)}</div>`;
@@ -37963,7 +39998,7 @@ function openGuardianInfo(playerId, guardianId) {
   els.cardInfoOverlay.classList.add('guardian-info-open');
   els.cardInfoPreview.innerHTML = '';
   els.cardInfoPreview.appendChild(createCardElement(entityCard, { elementIdOverride: elementId, hideCost: true }));
-  els.cardInfoPreview.appendChild(createCardDomainElement(entityCard));
+  renderCardInfoDomainBadge(entityCard);
   bindCardInfoName(entityCard);
   setCardInfoType('structure', 'Estructura defensiva');
   if (els.cardInfoMetaIcons) els.cardInfoMetaIcons.innerHTML = '';
@@ -37998,6 +40033,7 @@ function openGuardianInfo(playerId, guardianId) {
   if (els.cardInfoDefense) els.cardInfoDefense.innerHTML = '';
   if (els.cardInfoCastTime) els.cardInfoCastTime.innerHTML = '';
   if (els.cardInfoRestoreTime) els.cardInfoRestoreTime.innerHTML = '';
+  if (els.cardInfoSpellbookCooldown) els.cardInfoSpellbookCooldown.innerHTML = '';
   if (els.cardInfoUtilityFactors) els.cardInfoUtilityFactors.innerHTML = '';
   if (els.cardInfoMove) els.cardInfoMove.innerHTML = '';
   if (els.cardInfoBiotype) els.cardInfoBiotype.innerHTML = '';
@@ -38011,6 +40047,7 @@ function openGuardianInfo(playerId, guardianId) {
 
 function closeCardInfo() {
   if (!els.cardInfoOverlay) return;
+  closeCardInfoSpellbookTargetModal?.();
   resetCardInfoSpellbookQuantity();
   resetCardCreatorPendingCreationCost?.();
   if (els.cardInfoCreatorCreateBtn) {
@@ -38098,21 +40135,14 @@ function startKastFromInfo() {
         return;
       }
       libraryBuilderState.selectedLibraryCardId = card.id;
-      const result = addCardCopiesFromInfoModal(card, cardInfoSpellbookAddQuantity);
-      if (result.added > 0) {
-        resetCardInfoSpellbookQuantity({ clearFeedback: false });
+      const addStatus = getCardInfoSpellbookAddStatus(card);
+      const quantity = Math.max(0, Math.min(cardInfoSpellbookAddQuantity, addStatus.maxSelectable));
+      if (!addStatus.available || quantity <= 0) {
+        showCardInfoSpellbookFeedback(quantity <= 0 ? 'SELECCIONA AL MENOS UNA COPIA CON EL BOTÓN +.' : getCardInfoSpellbookBlockedMessage(addStatus), 'warning');
         updateCardInfoAction();
-        const successMessage = result.added === 1
-          ? 'CARTA AGREGADA AL SPELLBOOK.'
-          : 'CARTAS AGREGADAS AL SPELLBOOK.';
-        showCardInfoSpellbookFeedback(successMessage, 'success', 3000);
-        showLibraryBuilderNotice(result.added === 1
-          ? `${card.name || 'Carta'} agregada al Spellbook.`
-          : `${result.added} copias de ${card.name || 'la carta'} agregadas al Spellbook.`);
-      } else {
-        showCardInfoSpellbookFeedback(result.reason || 'NO SE PUDIERON AGREGAR LAS CARTAS.', 'warning');
-        updateCardInfoAction();
+        return;
       }
+      openCardInfoSpellbookTargetModal(card, quantity);
       return;
     }
   }
@@ -38143,7 +40173,7 @@ function startKastFromInfo() {
   if (card.id === SHIRAHADORI_ABILITY_CARD_ID) {
     const isLocalTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
     if (!isLocalTurn || currentPhase().id !== 'casting') {
-      log('Shirahadori solo puede equiparse durante tu fase de Kasteo.');
+      log('Shirahadori solo puede enseñarse durante tu fase de Kasteo.');
       updateCardInfoAction();
       return;
     }
@@ -38159,7 +40189,7 @@ function startKastFromInfo() {
   }
   const activeUseCooldown = getSpellbookUseCooldown(LOCAL_PLAYER_ID, infoTab, infoSlot);
   if (activeUseCooldown > 0) {
-    log(`${card.name} está bloqueada por Despliegue anticipado durante ${activeUseCooldown} fase${activeUseCooldown === 1 ? '' : 's'} más.`);
+    log(`${card.name} está en Estasis de Spellbook durante ${activeUseCooldown} fase${activeUseCooldown === 1 ? '' : 's'} más.`);
     updateCardInfoAction();
     return;
   }
@@ -38477,6 +40507,33 @@ function cancelCapturedQuickReactionAction() {
 }
 
 function handleContextMenu(event) {
+  // v517 · Clic derecho vuelve a ser el cancelador universal de ventanas/acciones
+  // capturadas antes de caer en la lógica histórica que dibuja opciones de movimiento.
+  if (isOffTurnCasterRepositionActiveForPlayer(LOCAL_PLAYER_ID)) {
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    event.stopImmediatePropagation?.();
+    finishOffTurnCasterReposition('cancelled');
+    hideQuickReactionCancelHint();
+    renderAll();
+    return;
+  }
+  if (state.pendingPowerAction?.kind === 'smokeBomb') {
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    event.stopImmediatePropagation?.();
+    const pendingSmoke = state.pendingPowerAction;
+    completeSmokeBombFlow(pendingSmoke, 'cancelled');
+    hideQuickReactionCancelHint();
+    renderAll();
+    return;
+  }
+  if (isQuickReactionPostCaptureActive() && cancelCapturedQuickReactionAction()) {
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    event.stopImmediatePropagation?.();
+    return;
+  }
   if (isKaguyaChargedShotTargetingPending()) {
     event.preventDefault?.();
     event.stopPropagation?.();
@@ -38484,32 +40541,118 @@ function handleContextMenu(event) {
     cancelKaguyaChargedShotTargeting('Disparo energizado cancelado.');
     return;
   }
-  if (state.pendingPowerAction?.kind === 'minokageShippuUgachi') {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-    event.stopImmediatePropagation?.();
-    cancelMinokagePowerTargeting('Shippū Ugachi cancelado.');
+  if (['minokageShippuUgachi', 'kaguyaChargedShot', 'kurayamiMark'].includes(state.pendingPowerAction?.kind)) {
+    // v512 · Los objetivos que son fichas se seleccionan directamente sobre el token.
+    // La lectura visual estándar es siempre foil + punto amarillo; no se dibujan
+    // estrellas, rombos, flechas ni otros glifos de casilla por encima del objetivo.
     return;
   }
-  if (cancelCapturedQuickReactionAction()) {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-    event.stopImmediatePropagation?.();
+
+  if ((state.pendingPowerAction?.kind === 'yasuganaBlindness' || state.pendingPowerAction?.kind === 'yasuganaVigilia') && state.pendingPowerAction?.selectionMode === 'board') {
     return;
   }
-  if (dismissLocalQuickReactionPrompt('right-click-dismissed')) {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-    event.stopImmediatePropagation?.();
+
+  if (state.pendingPowerAction?.kind === 'gioshoninSupply') {
+    const pending = state.pendingPowerAction;
+    const sourceUnit = getUnitById(pending.playerId, pending.unitId);
+    if (!sourceUnit || sourceUnit.status === 'restoring' || !unitCanActivateGioshoninSupply(pending.playerId, sourceUnit)) {
+      state.pendingPowerAction = null;
+      hideGioshoninSupplyModal();
+      clearCombatMenus();
+      return;
+    }
+
+    const auraCells = [];
+    for (let row = 0; row < 18; row++) {
+      for (let col = 0; col < 9; col++) {
+        if (!isInside(row, col)) continue;
+        if (ringDistance(sourceUnit.row, sourceUnit.col, row, col) <= 2) auraCells.push({ row, col });
+      }
+    }
+    auraCells.forEach(cell => {
+      const pos = cellCenter(cell.row, cell.col);
+      const size = getBoardCellSizePercent(cell.row);
+      const aura = document.createElement('div');
+      aura.className = 'move-option gioshonin-supply-aura-cell';
+      aura.style.left = `${pos.x}%`;
+      aura.style.top = `${pos.y}%`;
+      aura.style.width = `${size.width}%`;
+      aura.style.height = `${size.height}%`;
+      aura.setAttribute('aria-hidden', 'true');
+      els.moveOptionsLayer.appendChild(aura);
+    });
+
     return;
   }
-  if (!isOffTurnCasterRepositionActiveForPlayer(LOCAL_PLAYER_ID)) return;
-  event.preventDefault?.();
-  event.stopPropagation?.();
-  event.stopImmediatePropagation?.();
-  finishOffTurnCasterReposition('dismissed');
-  log('Movimiento extra del Kaster omitido. Continúa la partida.');
-  renderAll();
+
+  if (state.pendingPowerAction?.kind === 'smokeBomb') {
+    const unit = getUnitById(state.pendingPowerAction.playerId, state.pendingPowerAction.unitId);
+    const power = getPowerDefinitionForUnit(state.pendingPowerAction.playerId, unit);
+    const options = unit && power ? getCellsInRadius(unit.row, unit.col, Number(power.throwRange ?? 3), true) : [];
+    options.forEach(opt => {
+      const pos = cellCenter(opt.row, opt.col);
+      const size = getBoardCellSizePercent(opt.row);
+      const div = document.createElement('button');
+      div.type = 'button';
+      div.className = 'move-option move-option-power';
+      div.style.left = `${pos.x}%`;
+      div.style.top = `${pos.y}%`;
+      div.style.width = `${size.width}%`;
+      div.style.height = `${size.height}%`;
+      div.title = `Lanzar bomba de humo en ${coordLabel(opt.row, opt.col)}`;
+      div.dataset.smokeBombTarget = 'true';
+      div.addEventListener('click', (event) => {
+        event.stopPropagation();
+        resolveSmokeBombAt(opt.row, opt.col);
+      });
+      els.moveOptionsLayer.appendChild(div);
+    });
+    return;
+  }
+
+  const semiOptions = getSemiAutoReachableMoveOptions();
+  if (semiOptions.length) {
+    semiOptions.forEach(opt => {
+      const pos = cellCenter(opt.row, opt.col);
+      const size = getBoardCellSizePercent(opt.row);
+      const div = document.createElement('button');
+      div.type = 'button';
+      div.className = `move-option move-option-semiauto${opt.dist === 1 ? ' move-option-semiauto-step' : ''}`;
+      div.style.left = `${pos.x}%`;
+      div.style.top = `${pos.y}%`;
+      div.style.width = `${size.width}%`;
+      div.style.height = `${size.height}%`;
+      div.title = `Casilla alcanzable: ${coordLabel(opt.row, opt.col)} · ${opt.dist} paso${opt.dist === 1 ? '' : 's'}`;
+      div.innerHTML = `<span class="move-option-semiauto-dot">${opt.dist}</span>`;
+      div.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        await executeSemiAutoMovementTo(opt.row, opt.col);
+      });
+      els.moveOptionsLayer.appendChild(div);
+    });
+    return;
+  }
+
+  const options = getSelectedMoverOptions();
+  options.forEach(opt => {
+    const pos = cellCenter(opt.row, opt.col);
+    const arrow = MOVE_ARROW_BY_DELTA[`${opt.dr},${opt.dc}`];
+    const size = getBoardCellSizePercent(opt.row);
+    const div = document.createElement('button');
+    div.type = 'button';
+    div.className = 'move-option';
+    div.style.left = `${pos.x}%`;
+    div.style.top = `${pos.y}%`;
+    div.style.width = `${size.width}%`;
+    div.style.height = `${size.height}%`;
+    div.title = `Mover a ${coordLabel(opt.row, opt.col)}`;
+    div.innerHTML = `<img src="${arrow}" alt="Mover a ${coordLabel(opt.row, opt.col)}">`;
+    div.addEventListener('click', (event) => {
+      event.stopPropagation();
+      tryMoveSelectedTo(opt.row, opt.col);
+    });
+    els.moveOptionsLayer.appendChild(div);
+  });
 }
 
 function selectCardSlot(slotIndex) {
@@ -38592,7 +40735,7 @@ function handleCellClick(row, col) {
     else if (state.pendingPowerAction.kind === 'kaguyaChargedShot') cancelKaguyaChargedShotTargeting('Disparo energizado cancelado: selecciona una unidad, Guardián o Kaster rival.');
     else if (state.pendingPowerAction.kind === 'minokageShippuUgachi') cancelMinokagePowerTargeting('Shippū Ugachi cancelado.');
     else if (state.pendingPowerAction.kind === 'despliegueAnticipadoTarget') log('Despliegue anticipado: selecciona una invocación Caudillo aliada resaltada.');
-    else if (state.pendingPowerAction.kind === 'shirahadoriAbilityTarget') log('Shirahadori: selecciona una invocación aliada Guerrero o Asesino resaltada.');
+    else if (state.pendingPowerAction.kind === 'shirahadoriAbilityTarget') log('Shirahadori: selecciona una invocación aliada Guerrero o Asesino con Espada compatible de Cuerpo a cuerpo resaltada.');
     else if (state.pendingPowerAction.kind === 'gloriaLatenteTarget') log('Gloria latente: selecciona una invocación aliada Guerrero, Caudillo, Caballero o Héroe.');
     return;
   }
@@ -38689,8 +40832,14 @@ function completeCastPaymentAndQueue(randomSelection = null) {
   markTurnActionCommitted(LOCAL_PLAYER_ID, 'cast');
   const elementId = getEffectiveCardElementId(card, LOCAL_PLAYER_ID);
   const spawnId = `spawn_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  // v506 · El estado aprendido pertenece a ESTA copia. Al salir del Spellbook
+  // debe viajar con la misma carta por toda la zona de kasteo hasta crear la unidad.
+  const persistentCardState = card.type === 'invocation'
+    ? takeSpellbookCardPersistentState(LOCAL_PLAYER_ID, pending.tab, pending.slotIndex, card.id)
+    : null;
   const castItem = {
     cardId: card.id,
+    persistentCardState,
     elementId,
     remaining: getEffectiveCastPhasesForCard(card),
     row: state.pendingPlacement.row,
@@ -39129,6 +41278,17 @@ function checkRiskZoneAttack(playerId, unit) {
   return true;
 }
 
+function isMinokageNaturalOwnRestoreReason(reason = '') {
+  const text = String(reason || '').toLowerCase();
+  // Restauraciones producidas por una acción normal propia de Minokage usan 3.
+  // Cualquier restauración adicional/forzada después de resolver Shippū usa 6.
+  return text.includes('guardián destruido')
+    || text.includes('ataque al kaster')
+    || text.includes('ataque con oscilación completa')
+    || text.includes('ataque a distancia')
+    || text.includes('zona de riesgo');
+}
+
 function restoreInvocation(playerId, unit, reason = 'restauración') {
   endDespliegueAnticipadoLinksForTarget(playerId, unit?.id, reason);
   const intentionalBukiRestore = /^Buki Utsushi(?:$|\s| sin captura)/i.test(String(reason || ''));
@@ -39198,7 +41358,9 @@ function restoreInvocation(playerId, unit, reason = 'restauración') {
   clearUntilRestoreEffects(unit);
   const gloriaRestoreOverride = gloriaStacks > 0 ? 0 : null;
   const minokageRestoreOverride = isMinokageUnit(unit)
-    ? (unit.minokageLongRestorePending ? MINOKAGE_POWER_RESTORE_PHASES : MINOKAGE_NORMAL_RESTORE_PHASES)
+    ? ((unit.minokageLongRestorePending && !isMinokageNaturalOwnRestoreReason(reason))
+      ? MINOKAGE_POWER_RESTORE_PHASES
+      : MINOKAGE_NORMAL_RESTORE_PHASES)
     : null;
   const baseRestoreTime = gloriaRestoreOverride != null
     ? gloriaRestoreOverride
@@ -39329,6 +41491,10 @@ function pulseCasterEnemySideFeedback(playerId) {
 }
 
 function applyDamageToCaster(playerId, amount, reason = '', options = {}) {
+  if (isMinokageUnit(options?.sourceUnit) && Number(amount || 0) > 0) {
+    const casterTarget = buildTarget('caster', playerId) || { type: 'caster', playerId, row: state.players?.[playerId]?.caster?.row, col: state.players?.[playerId]?.caster?.col };
+    playMinokageHitSlashBurstFx(casterTarget);
+  }
   const caster = ensureCasterRuntime(playerId) || state.players[playerId].caster;
   const before = Math.max(0, Number(caster.life ?? caster.maxLife ?? 0));
   const incoming = Math.max(0, Number(amount) || 0);
@@ -39421,7 +41587,7 @@ function showMatchResultOverlay(winnerPlayerId, defeatedPlayerId) {
     <div class="match-result-score"><span>Hattori ${Number(state.matchWins?.[1] || 0)}</span><b>VS</b><span>Tokugawa ${Number(state.matchWins?.[2] || 0)}</span></div>
     <div class="match-result-actions"><button type="button" data-match-action="rematch">Jugar otra partida</button><button type="button" data-match-action="menu">Salir al menú</button></div>
   </div>`;
-  document.body.appendChild(overlay);
+  appendRokUiNode(overlay);
   overlay.querySelector('[data-match-action="rematch"]')?.addEventListener('click', () => resetBattleForRematch(true));
   overlay.querySelector('[data-match-action="menu"]')?.addEventListener('click', exitMatchToMainMenu);
 }
@@ -39825,11 +41991,12 @@ function chooseAiCastCell(playerId, candidate = null) {
   return chooseAiForwardPressureCastCell(playerId);
 }
 
-async function aiConfirmCast(playerId, candidate, cell) {
+async function aiConfirmCast(playerId, candidate, cell, options = {}) {
   await waitForGlobalGameplayResume();
   const player = state.players[playerId];
   const card = candidate.card;
-  if (!canCommitTurnAction(playerId, 'cast')) {
+  const testBotForced = options.testBotForced === true && isTestMatchActive() && Number(playerId) === 2;
+  if (!testBotForced && !canCommitTurnAction(playerId, 'cast')) {
     explainBlockedByCommittedTurnAction(playerId, 'cast');
     return false;
   }
@@ -39869,12 +42036,16 @@ async function aiConfirmCast(playerId, candidate, cell) {
     log(`IA J${playerId}: no puede pagar ${card.name}. ${status.message || ''}`.trim());
     return false;
   }
-  markTurnActionCommitted(playerId, 'cast');
+  if (!testBotForced) markTurnActionCommitted(playerId, 'cast');
   const elementId = getEffectiveCardElementId(card, playerId);
   const spawnId = `spawn_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   const effectiveCastPhases = getEffectiveCastPhasesForCard(card, playerId);
+  const persistentCardState = card.type === 'invocation'
+    ? takeSpellbookCardPersistentState(playerId, candidate.tab, candidate.slot, card.id)
+    : null;
   const castItem = {
     cardId: card.id,
+    persistentCardState,
     elementId,
     remaining: effectiveCastPhases,
     row: cell.row,
@@ -39896,6 +42067,7 @@ async function aiConfirmCast(playerId, candidate, cell) {
     player.spawnMarkers = player.spawnMarkers || [];
     player.spawnMarkers.push({ id: spawnId, cardId: card.id, elementId, row: cell.row, col: cell.col, owner: playerId, originTab: candidate.tab, originSlot: candidate.slot, immediateCast: true });
     player.handTabs[candidate.tab][candidate.slot] = null;
+    clearSpellbookUseCooldown(playerId, candidate.tab, candidate.slot);
     await resolveInvocationCastWithSummonSequence(playerId, castItem);
     log(isHideyoshiWarColleaguesInstantReady(card, playerId)
       ? `IA J${playerId}: ${card.name} entra de inmediato por Colegas de guerra.`
@@ -39925,6 +42097,81 @@ function findTestBotCardSlot(playerId, cardId) {
     if (slot >= 0) return { tab, slot };
   }
   return null;
+}
+
+
+function getTestBotActiveKageros(playerId = 2) {
+  return (state.players?.[playerId]?.units || [])
+    .filter(unit => unit && unit.status !== 'restoring' && unit.cardId === TEST_BOT_KAGERO_CARD_ID)
+    .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')));
+}
+
+async function executeTestBotShirahadoriOpening(playerId = 2) {
+  if (!isTestMatchActive() || Number(playerId) !== 2 || currentPhase().id !== 'casting') return false;
+  const player = state.players?.[playerId];
+  const runtime = player?.testBotShirahadoriPlan;
+  if (!player || !runtime || runtime.openingComplete) return false;
+
+  runtime.openingStarted = true;
+  log('Bot de prueba: inicia apertura Shirahadori · 3 Kagero + 3 Shirahadori en el mismo primer turno.');
+
+  // 1) Despliega las tres copias de Kagero. En modo de prueba esta secuencia
+  // ignora exclusivamente el límite de una acción de Kasteo por turno; el resto
+  // de validaciones (casilla, límite de invocaciones, costo y entrada real) se conserva.
+  let safety = 6;
+  while (getTestBotActiveKageros(playerId).length < TEST_BOT_SHIRAHADORI_TARGET_COUNT && safety-- > 0) {
+    const slot = findTestBotCardSlot(playerId, TEST_BOT_KAGERO_CARD_ID);
+    if (!slot) break;
+    const candidate = getAiCastCandidates(playerId, { onlyCardId: TEST_BOT_KAGERO_CARD_ID })
+      .find(entry => Number(entry.tab) === Number(slot.tab) && Number(entry.slot) === Number(slot.slot));
+    if (!candidate) break;
+    const cell = chooseAiCastCell(playerId, candidate);
+    if (!cell || !isCasterInOwnSide(playerId)) break;
+    const casted = await aiConfirmCast(playerId, candidate, cell, { testBotForced: true });
+    if (!casted) break;
+    runtime.kageroCastCount = getTestBotActiveKageros(playerId).length;
+    renderAll();
+    await sleep(420);
+  }
+
+  const kageros = getTestBotActiveKageros(playerId).slice(0, TEST_BOT_SHIRAHADORI_TARGET_COUNT);
+  if (kageros.length < TEST_BOT_SHIRAHADORI_TARGET_COUNT) {
+    log(`Bot de prueba: solo pudo desplegar ${kageros.length}/3 Kagero; reintentará la apertura en su siguiente fase de Kasteo.`);
+    renderAll();
+    return true;
+  }
+
+  // 2) Enseña Shirahadori una vez a cada Kagero. Se usa la misma resolución
+  // real de la carta que utiliza el jugador: consume la copia del Spellbook y
+  // registra la habilidad aprendida permanentemente en esa copia de Kagero.
+  for (const target of kageros) {
+    if (unitHasAbility(target, SHIRAHADORI_ABILITY_ID)) continue;
+    const slot = findTestBotCardSlot(playerId, TEST_BOT_SHIRAHADORI_CARD_ID);
+    if (!slot) break;
+    if (!beginShirahadoriAbilityTargeting(playerId, TEST_BOT_SHIRAHADORI_CARD_ID, slot.tab, slot.slot)) break;
+    const learned = resolveShirahadoriAbilityTarget(playerId, target.id);
+    if (!learned) {
+      cancelShirahadoriAbilityTargeting('Bot de prueba: no pudo completar la selección de Shirahadori.');
+      break;
+    }
+    runtime.shirahadoriAppliedCount = kageros.filter(unit => unitHasAbility(unit, SHIRAHADORI_ABILITY_ID)).length;
+    await sleep(360);
+  }
+
+  const learnedCount = kageros.filter(unit => unitHasAbility(unit, SHIRAHADORI_ABILITY_ID)).length;
+  runtime.kageroCastCount = kageros.length;
+  runtime.shirahadoriAppliedCount = learnedCount;
+  runtime.openingComplete = kageros.length === TEST_BOT_SHIRAHADORI_TARGET_COUNT
+    && learnedCount === TEST_BOT_SHIRAHADORI_TARGET_COUNT;
+
+  if (runtime.openingComplete) {
+    log('Bot de prueba: apertura completada · las 3 Kagero tienen Shirahadori y las 3 cartas de habilidad fueron consumidas.');
+  } else {
+    log(`Bot de prueba: apertura parcial · Kagero ${kageros.length}/3 · Shirahadori ${learnedCount}/3.`);
+  }
+  renderAll();
+  await sleep(520);
+  return true;
 }
 
 function chooseTestBotTacticaFrontlineDestination(playerId, unit) {
@@ -40001,6 +42248,11 @@ async function runEnemyCastingPhase(playerId) {
   renderPhaseUI();
   await sleep(780);
   try {
+    if (isTestMatchActive() && Number(playerId) === 2) {
+      const handledTestOpening = await executeTestBotShirahadoriOpening(playerId);
+      if (handledTestOpening) return;
+    }
+
     let castedAny = false;
     let safety = 4;
 
@@ -40909,7 +43161,7 @@ function ensureHudOverlayLayer() {
   const layer = document.createElement('div');
   layer.id = 'hudOverlayLayer';
   layer.className = 'hud-overlay-layer';
-  document.body.appendChild(layer);
+  getRokUiStage().appendChild(layer);
   els.hudOverlayLayer = layer;
   return layer;
 }
@@ -40928,7 +43180,10 @@ function syncHudOverlayLayerToBoard() {
   const active = state.hudMode === 'overlay' && isBattleHudScreenActive();
   layer.classList.toggle('active', !!active);
   if (!active || !els.board) return;
-  const rect = els.board.getBoundingClientRect();
+  const viewportRect = els.board.getBoundingClientRect();
+  const rect = window.ROK_LAYOUT_SCALE?.rectToLogical
+    ? window.ROK_LAYOUT_SCALE.rectToLogical(viewportRect)
+    : viewportRect;
   layer.style.left = `${Math.round(rect.left)}px`;
   layer.style.top = `${Math.round(rect.top)}px`;
   layer.style.width = `${Math.round(rect.width)}px`;
@@ -40963,6 +43218,7 @@ function applyHudModeLayout() {
   }
   refreshHudFloatingMenus();
   updateHudOverlayZoomState();
+  refreshVisibleQuickReactionWindowAnchors();
 }
 
 function updateHudOverlayZoomState() {
@@ -41126,7 +43382,7 @@ function renderDespliegueAnticipadoTargetingGuide() {
     return;
   }
   if (isShirahadoriAbility && !getEligibleShirahadoriAbilityUsers(Number(pending.playerId)).length) {
-    cancelShirahadoriAbilityTargeting('Shirahadori se canceló porque ya no hay un Guerrero o Asesino válido con espacio de habilidad.');
+    cancelShirahadoriAbilityTargeting('Shirahadori se canceló porque ya no hay un Guerrero o Asesino con Espada compatible de Cuerpo a cuerpo y espacio de habilidad.');
     return;
   }
   if (isTacticaDestination && !getTacticaGuerraCurrentUnit(pending)) {
@@ -41430,6 +43686,20 @@ function setupSpellbookCardDrag(cardNode, cardId, tabIndex, slotIndex) {
   cardNode.querySelectorAll('img').forEach(img => { img.draggable = false; });
 
   cardNode.addEventListener('dragstart', event => {
+    if (cardId === SHIRAHADORI_ABILITY_CARD_ID) {
+      const availability = getShirahadoriAbilityCastAvailability(LOCAL_PLAYER_ID);
+      if (!availability.available) {
+        event.preventDefault();
+        log(availability.message);
+        return;
+      }
+    }
+    const useCooldown = getSpellbookUseCooldown(LOCAL_PLAYER_ID, tabIndex, slotIndex);
+    if (useCooldown > 0) {
+      event.preventDefault();
+      log(`${CARD_LIBRARY[cardId]?.name || 'Esta carta'} está en Estasis de Spellbook durante ${useCooldown} fase${useCooldown === 1 ? '' : 's'} más.`);
+      return;
+    }
     if (!event.dataTransfer) return;
     spellbookCardDragState.active = true;
     spellbookCardDragState.cardId = cardId;
@@ -41500,6 +43770,35 @@ function renderCards() {
       const card = CARD_LIBRARY[cardId];
       const cardNode = createCardElement(card);
       cardNode.dataset.cardId = cardId;
+      if (card?.id === SHIRAHADORI_ABILITY_CARD_ID) {
+        const shirahadoriAvailability = getShirahadoriAbilityCastAvailability(LOCAL_PLAYER_ID);
+        const disabledWithoutUser = !shirahadoriAvailability.available;
+        const shirahadoriCooldown = getSpellbookUseCooldown(LOCAL_PLAYER_ID, state.activeTab, i);
+        const readyToUse = !disabledWithoutUser
+          && Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)
+          && currentPhase().id === 'casting'
+          && shirahadoriCooldown <= 0;
+
+        slot.classList.toggle('shirahadori-no-valid-user', disabledWithoutUser);
+        slot.classList.toggle('shirahadori-spell-ready', readyToUse);
+        cardNode.classList.toggle('shirahadori-no-valid-user-card', disabledWithoutUser);
+        cardNode.classList.toggle('shirahadori-spell-ready-card', readyToUse);
+        cardNode.setAttribute('aria-disabled', disabledWithoutUser ? 'true' : 'false');
+
+        if (disabledWithoutUser) {
+          cardNode.dataset.shirahadoriDisabled = 'true';
+          slot.title = shirahadoriAvailability.message;
+        } else {
+          delete cardNode.dataset.shirahadoriDisabled;
+          if (readyToUse) {
+            slot.title = 'Shirahadori listo para usar.';
+            const readyDot = document.createElement('span');
+            readyDot.className = 'spellbook-action-ready-indicator shirahadori-action-ready-indicator';
+            readyDot.title = 'Shirahadori listo para usar';
+            slot.appendChild(readyDot);
+          }
+        }
+      }
       setupSpellbookCardDrag(cardNode, cardId, state.activeTab, i);
       if (isHideyoshiWarColleaguesInstantReady(card)) cardNode.classList.add('war-colleagues-ready');
       if ([DESPLIEGUE_ANTICIPADO_CARD_ID, GLORIA_LATENTE_CARD_ID, TACTICA_GUERRA_CARD_ID, INTERCEPTAR_CARD_ID, EMBOSCADA_CARD_ID].includes(card.id)) {
@@ -41546,8 +43845,13 @@ function renderCards() {
         slot.classList.add('spellbook-use-cooldown');
         const cooldownOverlay = document.createElement('div');
         cooldownOverlay.className = 'spellbook-use-cooldown-overlay';
-        cooldownOverlay.title = `Bloqueo de uso: ${useCooldown} fase${useCooldown === 1 ? '' : 's'}`;
-        cooldownOverlay.innerHTML = `<span class="spellbook-use-cooldown-card"><img src="assets/spell-despliegue-anticipado.png" alt="Despliegue anticipado"></span><strong>${useCooldown}</strong>`;
+        const cooldownEntry = localPlayer()?.spellbookUseCooldowns?.[getSpellbookCooldownKey(state.activeTab, i)] || null;
+        const breakdown = cooldownEntry?.breakdown || null;
+        const detail = breakdown
+          ? ` · Base ${Math.max(0, Number(breakdown.base || 0))} + habilidades ${Math.max(0, Number(breakdown.learned || 0))}${Math.max(0, Number(breakdown.despliegue || 0)) > 0 ? ` + otros ${Math.max(0, Number(breakdown.despliegue || 0))}` : ''}`
+          : '';
+        cooldownOverlay.title = `Estasis de Spellbook: ${useCooldown} fase${useCooldown === 1 ? '' : 's'} restante${useCooldown === 1 ? '' : 's'}${detail}`;
+        cooldownOverlay.innerHTML = `<span class="spellbook-use-cooldown-card"><img src="${SPELLBOOK_COOLDOWN_ICON_ASSET}" alt="Estasis de Spellbook"></span><strong>${useCooldown}</strong>`;
         slot.appendChild(cooldownOverlay);
       }
       if (getCardTypeId(card) === 'invocation' || getCardTypeId(card) === 'spell') {
@@ -42025,6 +44329,29 @@ function renderCastQueue() {
     status.className = 'cast-status';
     status.innerHTML = `<span class="cast-icon-badge big cooldown-time-badge">${CAST_ENTRY_ICON_INLINE_SVG}<span class="cast-corner-number">${isActiveCast ? item.remaining : 'Q'}</span></span>`;
     div.appendChild(status);
+
+    // v506 · La ficha de kasteo siempre puede inspeccionarse, incluso durante
+    // la animación inicial. El modal usa el persistentCardState de esta copia,
+    // así se puede comprobar Shirahadori y cualquier habilidad aprendida antes
+    // de que la invocación termine de entrar a la arena.
+    div.classList.add('cast-item-info-clickable');
+    div.tabIndex = 0;
+    div.setAttribute('role', 'button');
+    div.setAttribute('aria-label', `Ver información de ${card?.name || 'carta'} en zona de kasteo`);
+    const openQueuedInfo = event => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      openCardInfo(card.id, null, null, {
+        source: 'castQueue',
+        playerId: LOCAL_PLAYER_ID,
+        spawnId: item.spawnId || '',
+      });
+    };
+    div.addEventListener('click', openQueuedInfo);
+    div.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      openQueuedInfo(event);
+    });
 
     const introExpired = Boolean(item.introEndsAt && Date.now() >= item.introEndsAt);
     if (introExpired) {
@@ -42509,6 +44836,7 @@ function renderMoveOptions() {
     els.moveOptionsLayer.appendChild(div);
   });
 }
+
 
 function renderSmokeZones() {
   if (!els.smokeZonesLayer) return;
@@ -43051,6 +45379,120 @@ function getQuickReactionVisualCandidate(playerId, type, unitId = null, guardian
   }) || null;
 }
 
+function arenaSelectionTargetMatchesRenderedUnit(target, playerId, type, unitId = null, guardianId = null) {
+  if (!target || playerId == null) return false;
+  const targetPlayerId = Number(target.playerId ?? target.owner ?? target.ownerId);
+  if (Number.isFinite(targetPlayerId) && targetPlayerId !== Number(playerId)) return false;
+  const targetType = String(target.type || 'invocation').toLowerCase();
+  if (type === 'caster') return targetType === 'caster';
+  if (type === 'guardian') {
+    return targetType === 'guardian'
+      && String(target.guardianId ?? target.id ?? '') === String(guardianId ?? '');
+  }
+  if (type === 'invocation') {
+    return targetType === 'invocation'
+      && String(target.unitId ?? target.id ?? '') === String(unitId ?? '');
+  }
+  return false;
+}
+
+function getStandardArenaSelectionInfo(playerId, type, unitId = null, guardianId = null) {
+  const pending = state.pendingPowerAction;
+  if (!pending || playerId == null) return null;
+  const sourcePlayerId = Number(pending.playerId);
+  const renderedPlayerId = Number(playerId);
+  const unit = type === 'invocation' && unitId != null ? getUnitById(renderedPlayerId, unitId) : null;
+  const matchesAnyTarget = targets => (Array.isArray(targets) ? targets : []).some(target =>
+    arenaSelectionTargetMatchesRenderedUnit(target, renderedPlayerId, type, unitId, guardianId));
+  const matchesAnyUnit = units => type === 'invocation' && !!unit && (Array.isArray(units) ? units : []).some(candidate =>
+    Number(candidate?.owner ?? sourcePlayerId) === renderedPlayerId && String(candidate?.id ?? '') === String(unitId ?? ''));
+
+  switch (pending.kind) {
+    case 'despliegueAnticipadoTarget':
+      if (renderedPlayerId === sourcePlayerId && matchesAnyUnit(getEligibleDespliegueAnticipadoTargets(sourcePlayerId))) return { title: 'Objetivo seleccionable' };
+      break;
+    case 'gloriaLatenteTarget':
+      if (renderedPlayerId === sourcePlayerId && matchesAnyUnit(getSelectableGloriaLatenteTargets(sourcePlayerId))) return { title: 'Objetivo seleccionable' };
+      break;
+    case 'shirahadoriAbilityTarget':
+      if (renderedPlayerId === sourcePlayerId && matchesAnyUnit(getEligibleShirahadoriAbilityUsers(sourcePlayerId))) return { title: 'Puede aprender Shirahadori' };
+      break;
+    case 'minokageShippuUgachi': {
+      const sourceUnit = getUnitById(sourcePlayerId, pending.unitId);
+      if (sourceUnit && matchesAnyTarget(getMinokagePowerTargets(sourcePlayerId, sourceUnit))) return { title: 'Objetivo de Shippū Ugachi' };
+      break;
+    }
+    case 'kaguyaChargedShot': {
+      const sourceUnit = getUnitById(sourcePlayerId, pending.unitId);
+      if (sourceUnit && matchesAnyTarget(getKaguyaChargedShotTargets(sourcePlayerId, sourceUnit))) return { title: 'Objetivo de Disparo energizado' };
+      break;
+    }
+    case 'kurayamiMark': {
+      const sourceUnit = getUnitById(sourcePlayerId, pending.unitId);
+      if (renderedPlayerId === Number(getOpponentId(sourcePlayerId)) && matchesAnyUnit(getKurayamiPowerTargets(sourcePlayerId, sourceUnit))) return { title: 'Objetivo seleccionable' };
+      break;
+    }
+    case 'yasuganaBlindness':
+    case 'yasuganaVigilia': {
+      const sourceUnit = getUnitById(sourcePlayerId, pending.unitId);
+      const targets = pending.kind === 'yasuganaBlindness'
+        ? getYasuganaBlindnessTargets(sourcePlayerId, sourceUnit)
+        : getYasuganaVigiliaTargets(sourcePlayerId, sourceUnit);
+      if (matchesAnyUnit(targets)) return { title: pending.kind === 'yasuganaBlindness' ? 'Objetivo de Ceguera' : 'Puede aprender Vigilia' };
+      break;
+    }
+    case 'gioshoninSupply': {
+      const sourceUnit = getUnitById(sourcePlayerId, pending.unitId);
+      if (renderedPlayerId === sourcePlayerId && matchesAnyUnit(getAffordableGioshoninSupplyTargets(sourcePlayerId, sourceUnit))) return { title: 'Objetivo de Mercancía de guerra' };
+      break;
+    }
+    case 'tacticaGuerraSelection':
+      if (renderedPlayerId === sourcePlayerId && matchesAnyUnit(getEligibleTacticaGuerraTargets(sourcePlayerId, { quickOnly: pending.quickDefense === true, requirePayable: false }))) return { title: 'Seleccionable para Táctica de guerra' };
+      break;
+    case 'emboscadaRivalSelection':
+      if (renderedPlayerId === Number(getEnemyPlayerId(sourcePlayerId)) && matchesAnyUnit(getEmboscadaRivalCandidates(sourcePlayerId))) return { title: 'Objetivo de Emboscada' };
+      break;
+    case 'emboscadaAlliedSelection':
+      if (renderedPlayerId === sourcePlayerId && matchesAnyUnit(getEmboscadaAlliedCandidates(sourcePlayerId))) return { title: 'Seleccionable para Emboscada' };
+      break;
+    case 'interceptarAlliedSelection': {
+      const targets = getInterceptarAlliedCandidates(sourcePlayerId).filter(ally => getInterceptarRivalCandidates(sourcePlayerId, ally).length > 0);
+      if (renderedPlayerId === sourcePlayerId && matchesAnyUnit(targets)) return { title: 'Seleccionable para Interceptar' };
+      break;
+    }
+    case 'interceptarRivalSelection': {
+      const allied = getUnitById(sourcePlayerId, pending.selectedAlliedUnitId);
+      if (renderedPlayerId === Number(getEnemyPlayerId(sourcePlayerId)) && matchesAnyUnit(getInterceptarRivalCandidates(sourcePlayerId, allied))) return { title: 'Objetivo de Interceptar' };
+      break;
+    }
+    default:
+      break;
+  }
+  return null;
+}
+
+function applyStandardArenaSelectionVisual(div, src, title = 'Seleccionable') {
+  if (!div || !src) return false;
+  div.classList.add('unit-selection-standard-ready');
+  if (!div.querySelector(':scope > .unit-selection-standard-foil-img')) {
+    const foil = document.createElement('img');
+    foil.className = 'action-window-token-foil-img unit-selection-standard-foil-img';
+    foil.src = src;
+    foil.alt = '';
+    foil.draggable = false;
+    foil.setAttribute('aria-hidden', 'true');
+    div.appendChild(foil);
+  }
+  const protectedLayer = div.querySelector('.unit-protected-icons-layer') || div;
+  if (!protectedLayer.querySelector(':scope > .unit-selection-standard-ready-indicator')) {
+    const dot = document.createElement('span');
+    dot.className = 'unit-action-ready-indicator unit-selection-standard-ready-indicator';
+    dot.title = title;
+    protectedLayer.appendChild(dot);
+  }
+  return true;
+}
+
 function renderUnit(row, col, type, src, label, playerId = null, spawnId = null, glowColor = '#ffffff', unitId = null, guardianId = null) {
   const div = document.createElement('div');
   div.className = `unit ${type}`;
@@ -43175,87 +45617,11 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
     const burnFxNode = createBurnFxNode(guardianState);
     if (burnFxNode) protectedLayer.appendChild(burnFxNode);
   }
-  if (type === 'invocation' && unitState && ['despliegueAnticipadoTarget', 'gloriaLatenteTarget', 'shirahadoriAbilityTarget'].includes(state.pendingPowerAction?.kind)) {
-    const pending = state.pendingPowerAction;
-    const selectable = Number(playerId) === Number(pending.playerId)
-      && (pending.kind === 'despliegueAnticipadoTarget'
-        ? getEligibleDespliegueAnticipadoTargets(Number(pending.playerId)).some(candidate => String(candidate.id) === String(unitState.id))
-        : pending.kind === 'gloriaLatenteTarget'
-          ? getSelectableGloriaLatenteTargets(Number(pending.playerId)).some(candidate => String(candidate.id) === String(unitState.id))
-          : pending.kind === 'shirahadoriAbilityTarget'
-            ? getEligibleShirahadoriAbilityUsers(Number(pending.playerId)).some(candidate => String(candidate.id) === String(unitState.id))
-            : getEligibleTacticaGuerraTargets(Number(pending.playerId), { quickOnly: pending.quickDefense === true, requirePayable: true }).some(candidate => String(candidate.id) === String(unitState.id)));
-    if (selectable) {
-      div.classList.add('despliegue-target-selectable-foil');
-      const targetFoil = document.createElement('img');
-      targetFoil.className = 'action-window-token-foil-img despliegue-target-selectable-foil-img';
-      targetFoil.src = src;
-      targetFoil.alt = '';
-      targetFoil.draggable = false;
-      targetFoil.setAttribute('aria-hidden', 'true');
-      div.appendChild(targetFoil);
-      const readyDot = document.createElement('span');
-      readyDot.className = 'unit-action-ready-indicator despliegue-target-ready-indicator';
-      readyDot.title = pending.kind === 'despliegueAnticipadoTarget'
-        ? 'Caudillo seleccionable'
-        : pending.kind === 'shirahadoriAbilityTarget'
-          ? 'Guerrero o Asesino seleccionable'
-          : 'Objetivo seleccionable';
-      (div.querySelector('.unit-protected-icons-layer') || div).appendChild(readyDot);
-    }
-  }
+  const standardSelectionInfo = getStandardArenaSelectionInfo(playerId, type, unitId, guardianId);
+  if (standardSelectionInfo) applyStandardArenaSelectionVisual(div, src, standardSelectionInfo.title);
   if (actionWindowCandidate) {
     div.classList.add('unit-action-window-ready');
-    const actionFoil = document.createElement('img');
-    actionFoil.className = 'action-window-token-foil-img';
-    actionFoil.src = src;
-    actionFoil.alt = '';
-    actionFoil.draggable = false;
-    actionFoil.setAttribute('aria-hidden', 'true');
-    div.appendChild(actionFoil);
-    const actionIndicator = document.createElement('span');
-    actionIndicator.className = 'unit-action-ready-indicator';
-    actionIndicator.title = 'Acción disponible';
-    (div.querySelector('.unit-protected-icons-layer') || div).appendChild(actionIndicator);
-  }
-  if (state.pendingPowerAction?.kind === 'kaguyaChargedShot') {
-    const pending = state.pendingPowerAction;
-    const sourceUnit = getUnitById(Number(pending.playerId), pending.unitId);
-    const validTargets = getKaguyaChargedShotTargets(Number(pending.playerId), sourceUnit);
-    const selectable = Number(playerId) === Number(getOpponentId(Number(pending.playerId)))
-      && validTargets.some(candidate => {
-        if (candidate.type !== type) return false;
-        if (type === 'invocation') return String(candidate.unitId || '') === String(unitId || '');
-        if (type === 'guardian') return String(candidate.guardianId || '') === String(guardianId || '');
-        return type === 'caster';
-      });
-    if (selectable) {
-      div.classList.add('kurayami-target-selectable-foil', 'kaguya-target-selectable-foil');
-      const targetFoil = document.createElement('img');
-      targetFoil.className = 'kurayami-target-selectable-foil-img kaguya-target-selectable-foil-img';
-      targetFoil.src = src;
-      targetFoil.alt = '';
-      targetFoil.draggable = false;
-      targetFoil.setAttribute('aria-hidden', 'true');
-      div.appendChild(targetFoil);
-    }
-  }
-  if (type === 'invocation' && unitId && state.pendingPowerAction?.kind === 'kurayamiMark') {
-    const pending = state.pendingPowerAction;
-    const sourceUnit = getUnitById(Number(pending.playerId), pending.unitId);
-    const validTargets = getKurayamiPowerTargets(Number(pending.playerId), sourceUnit);
-    const selectable = Number(playerId) === Number(getOpponentId(Number(pending.playerId)))
-      && validTargets.some(candidate => String(candidate.id) === String(unitId));
-    if (selectable) {
-      div.classList.add('kurayami-target-selectable-foil');
-      const targetFoil = document.createElement('img');
-      targetFoil.className = 'kurayami-target-selectable-foil-img';
-      targetFoil.src = src;
-      targetFoil.alt = '';
-      targetFoil.draggable = false;
-      targetFoil.setAttribute('aria-hidden', 'true');
-      div.appendChild(targetFoil);
-    }
+    applyStandardArenaSelectionVisual(div, src, 'Acción disponible');
   }
   if (type === 'invocation' && unitState && isKurayamiUnit(unitState) && unitState.kurayamiChanneling) {
     const channelFx = document.createElement('span');
@@ -43550,6 +45916,21 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
         && validTargets.some(candidate => String(candidate.id) === String(unitId));
       if (isValidTarget) {
         resolveKurayamiPowerTarget(sourcePlayerId, pendingKurayami.unitId, playerId, unitId);
+        return;
+      }
+    }
+
+    // Mercancía de guerra también usa la lectura estándar de selección sobre la ficha.
+    const pendingGioshonin = state.pendingPowerAction;
+    if (type === 'invocation' && unitId && pendingGioshonin?.kind === 'gioshoninSupply') {
+      const sourcePlayerId = Number(pendingGioshonin.playerId);
+      const sourceUnit = getUnitById(sourcePlayerId, pendingGioshonin.unitId);
+      const valid = Number(playerId) === sourcePlayerId
+        && getAffordableGioshoninSupplyTargets(sourcePlayerId, sourceUnit).some(candidate => String(candidate.id) === String(unitId));
+      if (valid) {
+        pendingGioshonin.targetUnitId = unitId;
+        renderGioshoninSupplyModal();
+        renderAll();
         return;
       }
     }
@@ -44766,7 +47147,7 @@ function ensureBattleScoreDebugPanel() {
   panel.id = 'battleScoreDebugPanel';
   panel.className = 'battle-score-debug-panel';
   panel.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(panel);
+  appendRokUiNode(panel);
   return panel;
 }
 
@@ -44863,21 +47244,25 @@ function getTransitionColorForPlayer(playerId) {
 
 function getTransitionAnchorPoint() {
   const line = document.querySelector('.battle-center-line');
-  let centerX = window.innerWidth / 2;
-  let centerY = window.innerHeight / 2;
+  const designWidth = Number(window.ROK_LAYOUT_SCALE?.designWidth || 1600);
+  const designHeight = Number(window.ROK_LAYOUT_SCALE?.designHeight || 900);
+  let centerX = designWidth / 2;
+  let centerY = designHeight / 2;
   if (line) {
-    const rect = line.getBoundingClientRect();
+    const viewportRect = line.getBoundingClientRect();
+    const rect = window.ROK_LAYOUT_SCALE?.rectToLogical
+      ? window.ROK_LAYOUT_SCALE.rectToLogical(viewportRect)
+      : viewportRect;
     centerX = rect.left + rect.width / 2;
     centerY = rect.top + rect.height / 2;
   }
 
-  // Una sola coordenada segura para TODA la secuencia. Antes cada flyer
-  // recalculaba su posición y algunos avisos remotos terminaban en pinned-top.
-  const horizontalMargin = Math.min(250, Math.max(170, window.innerWidth * 0.18));
+  // Una sola coordenada segura dentro del lienzo lógico para TODA la secuencia.
+  const horizontalMargin = Math.min(250, Math.max(170, designWidth * 0.18));
   const verticalMargin = 72;
   return {
-    x: Math.min(window.innerWidth - horizontalMargin, Math.max(horizontalMargin, centerX)),
-    y: Math.min(window.innerHeight - verticalMargin, Math.max(verticalMargin, centerY)),
+    x: Math.min(designWidth - horizontalMargin, Math.max(horizontalMargin, centerX)),
+    y: Math.min(designHeight - verticalMargin, Math.max(verticalMargin, centerY)),
   };
 }
 
