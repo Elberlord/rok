@@ -42597,3 +42597,370 @@ body.rok-adventure-mode .adventure-screen,
   object-fit: fill;
   object-position: center;
 }
+
+
+/* ========================================================================== 
+   R.O.K Lite v530 · Cancelación universal en HUD de fases
+   - Sustituye el aviso flotante sobre la arena.
+   - Mouse: clic derecho conserva la cancelación.
+   - Táctil/móvil: botón Cancelar la acción ejecuta la misma ruta.
+   ========================================================================== */
+.quick-reaction-cancel-hint {
+  display: none !important;
+}
+
+.phase-rail-bottom-controls .cancel-action-button {
+  display: none;
+  min-height: 42px;
+  margin: 0;
+  border-color: rgba(218, 118, 94, .62);
+  background: linear-gradient(180deg, rgba(64, 24, 22, .96), rgba(29, 11, 13, .96));
+  color: rgba(255, 231, 218, .96);
+  box-shadow: inset 0 0 14px rgba(255, 122, 88, .06), 0 6px 14px rgba(0,0,0,.34);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.phase-rail-bottom-controls .cancel-action-button.visible:not([hidden]) {
+  display: block;
+  animation: cancelActionHudIn .18s ease-out both;
+}
+
+.phase-rail-bottom-controls .cancel-action-button:hover,
+.phase-rail-bottom-controls .cancel-action-button:focus-visible {
+  border-color: rgba(255, 170, 132, .92);
+  color: #fff5ee;
+  box-shadow: inset 0 0 16px rgba(255, 142, 100, .08), 0 0 13px rgba(236, 105, 75, .28), 0 7px 16px rgba(0,0,0,.4);
+}
+
+.phase-rail-bottom-controls .cancel-action-button:active {
+  transform: translateY(1px);
+}
+
+@keyframes cancelActionHudIn {
+  from { opacity: 0; transform: translateY(4px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+
+/* ========================================================================== 
+   R.O.K Lite v531 · Zona de kasteo en coordenadas lógicas base
+   - La escala universal ya redimensiona todo #rokAppStage como una sola unidad.
+   - La zona de kasteo no debe volver a recalcular sus hijos con porcentajes/clamp.
+   - Recupera el slot lógico 100x138 y las coordenadas calibradas previas.
+   ========================================================================== */
+body.rok-battle-mode .cast-panel .cast-queue {
+  /* El contenedor puede hacer scroll, pero no deforma los slots de la cola. */
+  align-items: center !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-queue > .cast-item {
+  width: 100px !important;
+  height: 138px !important;
+  min-width: 100px !important;
+  min-height: 138px !important;
+  max-width: 100px !important;
+  max-height: 138px !important;
+  flex: 0 0 138px !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Invocaciones: recuperar tamaño y centro lógico originales. */
+body.rok-battle-mode .cast-panel .cast-item > .cast-token-image {
+  position: absolute !important;
+  left: 50% !important;
+  top: 48% !important;
+  width: 58px !important;
+  height: 74px !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: translate(-50%, -50%) !important;
+  transform-origin: center center !important;
+  object-fit: contain !important;
+  margin: 0 !important;
+  z-index: 1 !important;
+}
+
+/* Hechizos: recuperar el cuadrado compuesto y su centro lógico originales. */
+body.rok-battle-mode .cast-panel .cast-item > .cast-spell-composite-mini,
+body.rok-battle-mode .cast-panel .cast-item > .cast-spell-art-mini {
+  position: absolute !important;
+  left: 50% !important;
+  top: 47% !important;
+  width: 54px !important;
+  height: 54px !important;
+  aspect-ratio: 1 / 1 !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: translate(-50%, -50%) !important;
+  transform-origin: center center !important;
+  margin: 0 !important;
+  z-index: 1 !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-item > .cast-spell-composite-mini .spell-mini-bg,
+body.rok-battle-mode .cast-panel .cast-item > .cast-spell-composite-mini .spell-mini-skin {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+
+/* Reloj/contador: vuelve a obedecer las coordenadas de calibración que ya
+   existían arriba del CSS, en vez de recalcularse como % del slot reducido. */
+body.rok-battle-mode .cast-panel .cast-item > .cast-status,
+body.rok-battle-mode .cast-panel .cast-item.cast-active > .cast-status,
+body.rok-battle-mode .cast-panel .cast-item.cast-waiting > .cast-status {
+  position: absolute !important;
+  right: var(--player-cast-status-right) !important;
+  bottom: var(--player-cast-status-bottom) !important;
+  left: auto !important;
+  top: auto !important;
+  transform: translateY(var(--player-cast-status-y)) scale(var(--player-cast-status-scale)) !important;
+  transform-origin: right bottom !important;
+  margin: 0 !important;
+  z-index: 40 !important;
+}
+
+/* Las etiquetas ACTIVO/COLA también conservan sus coordenadas lógicas base. */
+body.rok-battle-mode .cast-panel .cast-item.cast-active::after {
+  left: 50% !important;
+  bottom: var(--player-cast-active-label-bottom) !important;
+  transform: translate(calc(-50% + var(--player-cast-active-label-x)), var(--player-cast-active-label-y)) scale(var(--player-cast-active-label-scale)) !important;
+  transform-origin: center center !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-item.cast-waiting::after {
+  left: 50% !important;
+  bottom: var(--player-cast-waiting-label-bottom) !important;
+  transform: translate(calc(-50% + var(--player-cast-waiting-label-x)), var(--player-cast-waiting-label-y)) scale(var(--player-cast-waiting-label-scale)) !important;
+  transform-origin: center center !important;
+}
+
+/* ========================================================================== 
+   R.O.K Lite v534 · RESTAURACIÓN CANÓNICA DE LA ZONA DE KASTEO
+   Referencia: composición anterior al redimensionamiento interno.
+   La aplicación completa ya vive en un lienzo lógico 1600x900 y #rokAppStage
+   se encarga de escalarlo. Por eso esta columna NO vuelve a comprimirse con
+   clamp()/porcentajes ni crea un scroll propio que altere la composición.
+   ========================================================================== */
+
+/* El carril vuelve al ancho lógico con el que se calibró originalmente. */
+body.rok-battle-mode {
+  --rok-cast-rail-w: 150px !important;
+}
+
+/* Recupera el contenedor original: 10px de padding, 10px de separación y
+   contenido visible. Evita que el panel recorte etiquetas/reloj. */
+body.rok-battle-mode .cast-panel {
+  padding: 10px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+body.rok-battle-mode .cast-panel h3 {
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  font-size: 15px !important;
+  line-height: normal !important;
+  white-space: nowrap !important;
+}
+
+/* La cola vuelve a ser un lienzo vertical normal. Se elimina el scrollbar
+   introducido por la versión responsive: el escalado ocurre fuera del panel. */
+body.rok-battle-mode .cast-panel .cast-queue {
+  width: 100% !important;
+  min-height: 280px !important;
+  display: flex !important;
+  flex: 0 1 auto !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: var(--player-cast-token-distance-y) !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  scrollbar-width: none !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-queue::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-queue > .cast-item + .cast-item {
+  margin-top: var(--player-cast-token-overlap-y) !important;
+}
+
+/* Slot lógico original. Se anulan tanto el clamp responsive como el parche
+   porcentual posterior para que todos los hijos partan de la misma geometría. */
+body.rok-battle-mode .cast-panel .cast-queue > .cast-item {
+  --cast-visual-center-x: 50%;
+  --cast-visual-center-y: 48%;
+  width: 100px !important;
+  height: 138px !important;
+  min-width: 100px !important;
+  min-height: 138px !important;
+  max-width: 100px !important;
+  max-height: 138px !important;
+  flex: 0 0 138px !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+/* Miniatura de invocación: tamaño y centro canónicos. */
+body.rok-battle-mode .cast-panel .cast-item > .cast-token-image {
+  position: absolute !important;
+  width: 58px !important;
+  height: 74px !important;
+  min-width: 58px !important;
+  min-height: 74px !important;
+  max-width: 58px !important;
+  max-height: 74px !important;
+  left: 50% !important;
+  top: 48% !important;
+  transform: translate(-50%, -50%) !important;
+  transform-origin: center center !important;
+  object-fit: contain !important;
+  margin: 0 !important;
+  z-index: 1 !important;
+}
+
+/* Hechizos: composición cuadrada original 54x54. */
+body.rok-battle-mode .cast-panel .cast-item > .cast-spell-composite-mini,
+body.rok-battle-mode .cast-panel .cast-item > .cast-spell-art-mini,
+body.rok-battle-mode .cast-panel .cast-item > .cast-card-mini.cast-card-mini-spell {
+  position: absolute !important;
+  width: 54px !important;
+  height: 54px !important;
+  min-width: 54px !important;
+  min-height: 54px !important;
+  max-width: 54px !important;
+  max-height: 54px !important;
+  left: 50% !important;
+  top: 47% !important;
+  transform: translate(-50%, -50%) !important;
+  transform-origin: center center !important;
+  margin: 0 !important;
+  z-index: 1 !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-item > .cast-spell-composite-mini .spell-mini-bg,
+body.rok-battle-mode .cast-panel .cast-item > .cast-spell-composite-mini .spell-mini-skin {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+
+/* Reloj/tempo. El grupo mantiene las coordenadas de calibración históricas,
+   pero recupera de manera explícita el tamaño original del badge y del SVG. */
+body.rok-battle-mode .cast-panel .cast-item > .cast-status,
+body.rok-battle-mode .cast-panel .cast-item.cast-active > .cast-status,
+body.rok-battle-mode .cast-panel .cast-item.cast-waiting > .cast-status {
+  position: absolute !important;
+  right: var(--player-cast-status-right) !important;
+  bottom: var(--player-cast-status-bottom) !important;
+  left: auto !important;
+  top: auto !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  transform: translateY(var(--player-cast-status-y)) scale(var(--player-cast-status-scale)) !important;
+  transform-origin: right bottom !important;
+  margin: 0 !important;
+  z-index: 40 !important;
+  overflow: visible !important;
+  pointer-events: none !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-status .cast-icon-badge.big,
+body.rok-battle-mode .cast-panel .cast-status .cooldown-time-badge {
+  position: relative !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+  overflow: visible !important;
+  z-index: 41 !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-status .cooldown-time-badge svg {
+  width: var(--player-cast-entry-icon-size) !important;
+  height: var(--player-cast-entry-icon-size) !important;
+  min-width: var(--player-cast-entry-icon-size) !important;
+  min-height: var(--player-cast-entry-icon-size) !important;
+  max-width: var(--player-cast-entry-icon-size) !important;
+  max-height: var(--player-cast-entry-icon-size) !important;
+  transform: translate(var(--player-cast-entry-icon-x), var(--player-cast-entry-icon-y)) !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-status .cooldown-time-badge .cast-corner-number {
+  position: absolute !important;
+  right: var(--player-cast-entry-number-x) !important;
+  bottom: var(--player-cast-entry-number-y) !important;
+  width: var(--player-cast-entry-number-size) !important;
+  height: var(--player-cast-entry-number-size) !important;
+  min-width: var(--player-cast-entry-number-size) !important;
+  min-height: var(--player-cast-entry-number-size) !important;
+  max-width: var(--player-cast-entry-number-size) !important;
+  max-height: var(--player-cast-entry-number-size) !important;
+  font-size: var(--player-cast-entry-number-font-size) !important;
+  transform: none !important;
+  z-index: 42 !important;
+}
+
+/* ACTIVO/COLA conservan las coordenadas calibradas, pero pasan por encima de
+   la miniatura. Esto evita que el token tape el rótulo al escalar el stage. */
+body.rok-battle-mode .cast-panel .cast-item.cast-active::after,
+body.rok-battle-mode .cast-panel .cast-item.cast-waiting::after {
+  position: absolute !important;
+  white-space: nowrap !important;
+  z-index: 60 !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-item.cast-active::after {
+  left: 50% !important;
+  bottom: var(--player-cast-active-label-bottom) !important;
+  transform: translate(calc(-50% + var(--player-cast-active-label-x)), var(--player-cast-active-label-y)) scale(var(--player-cast-active-label-scale)) !important;
+  transform-origin: center center !important;
+  padding: var(--player-cast-active-label-pad-y) var(--player-cast-active-label-pad-x) !important;
+  font-size: var(--player-cast-active-label-font-size) !important;
+}
+
+body.rok-battle-mode .cast-panel .cast-item.cast-waiting::after {
+  left: 50% !important;
+  bottom: var(--player-cast-waiting-label-bottom) !important;
+  transform: translate(calc(-50% + var(--player-cast-waiting-label-x)), var(--player-cast-waiting-label-y)) scale(var(--player-cast-waiting-label-scale)) !important;
+  transform-origin: center center !important;
+  padding: var(--player-cast-waiting-label-pad-y) var(--player-cast-waiting-label-pad-x) !important;
+  font-size: var(--player-cast-waiting-label-font-size) !important;
+}
+
+body.rok-battle-mode .cast-panel .small-note {
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}

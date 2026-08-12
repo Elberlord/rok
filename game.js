@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.269';
+const GAME_VERSION = 'v5.5.270';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -271,6 +271,11 @@ async function playOnlineVisualEvent(event = {}) {
 window.ROK_ONLINE_FX = { play: playOnlineVisualEvent };
 
 const PATCH_NOTES = [
+  'v534: Restaura la composición canónica de la zona de kasteo sobre el lienzo lógico 1600x900: carril de 150 px, slots 100x138, miniaturas 58x74/54x54, reloj y contador en tamaño original, ACTIVO/COLA por encima del token y cola sin scrollbar interno.',
+  'v533: Unifica la geometría de FX heredados con el sistema lógico 1600x900: Minokage (Shippū Ugachi, pasiva y Evasión), proyectiles a distancia, Shirahadori, cadena persistente de Parálisis de Junkai, caída/recuperación de armas, recompensas del Guardián y extracción elemental dejan de mezclar píxeles físicos del viewport con coordenadas internas de boardContent.',
+  'v532: Corrige la trayectoria de los cuervos de Genyutsu, Shinigami Karasu de Yasugana Hattori: los anclajes de salida y objetivo se convierten de coordenadas físicas del viewport a coordenadas lógicas de #rokAppStage antes de dibujar el proyectil, evitando que la animación salga corrida al redimensionar.',
+  'v531: Corrige la zona de kasteo tras la escala universal: restaura el slot lógico 100x138 y las coordenadas base de token, hechizo, reloj/contador y etiquetas ACTIVO/COLA. Los hijos dejan de recalcularse por porcentajes del slot reducido y ahora escalan únicamente con #rokAppStage.',
+  'v530: Sustituye el aviso flotante de clic derecho por un botón Cancelar la acción dentro del HUD de fases, justo sobre Movimiento asistido. El clic derecho en PC y el botón táctil/móvil ejecutan la misma cancelación sin quedar detrás del HUD rival.',
   'v516: Repara la regresión estructural introducida en v512 que eliminó accidentalmente 160 funciones del flujo principal (kasteo, restauración, render general, HUD overlay, mini HUD rival y controles de arena). Restituye el bloque funcional sin retirar los cambios posteriores de v513/v514.',
   'v505: Minokage: corrige el trail de sombras desalineado por mezcla de coordenadas viewport/stage, aplica el mismo trail al dash final de Shippū, sustituye la X de impacto por 2–3 slashes del nuevo asset, mantiene el giro lento durante acercamiento y rápido al impacto, fuerza el retiro con fallback, excluye Guardianes del salto pasivo y vuelve a trabarlo con estructuras; restauración natural 3 y restauración forzada posterior al poder 6.',
   'v504: Biblioteca: permite elegir copias de una carta antes de tener un Spellbook activo y, al confirmar, abre un selector de Spellbook de destino que valida compatibilidad, dominios, copias y espacio. Constructor: al salir con cambios sin guardar pregunta si deseas Guardar y salir, Salir sin guardar o Cancelar.',
@@ -13557,6 +13562,7 @@ function cacheEls() {
   els.phaseBoxes = document.getElementById('phaseBoxes');
   els.turnBanner = document.getElementById('turnBanner');
   els.nextPhaseBtn = document.getElementById('nextPhaseBtn');
+  els.cancelActionBtn = document.getElementById('cancelActionBtn');
   els.enemyGrid = document.getElementById('enemyGrid');
   els.allyGrid = document.getElementById('allyGrid');
   els.spawnMarkersLayer = document.getElementById('spawnMarkersLayer');
@@ -14065,6 +14071,16 @@ function bindEvents() {
     });
   }
   els.nextPhaseBtn.addEventListener('click', () => nextPhase(false));
+  if (els.cancelActionBtn) {
+    els.cancelActionBtn.addEventListener('pointerdown', event => {
+      event.stopPropagation();
+    });
+    els.cancelActionBtn.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!cancelCurrentCancelableAction()) hideQuickReactionCancelHint();
+    });
+  }
   document.querySelectorAll('.deck-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       state.activeTab = Number(btn.dataset.tab);
@@ -19039,7 +19055,7 @@ async function playMinokageDashFx(playerId, unit, path, landing, targets) {
   if (!els.boardContent || !path.length) return 0;
 
   const from = cellCenter(unit.row, unit.col);
-  const boardRect = els.boardContent.getBoundingClientRect();
+  const boardRect = getBoardLogicalSize();
   const pathLength = Math.max(1, path.length);
   // El vuelo anterior tardaba cerca de 0.9–1.4 s. La carrera aérea real dura
   // aproximadamente un tercio de ese tiempo; el ascenso conserva una lectura
@@ -22090,8 +22106,8 @@ async function showShirahadoriRedirectFx(originalTarget, redirectedTarget, optio
   const from = getTargetFxPoint(originalTarget);
   const to = getTargetFxPoint(redirectedTarget);
   if (!from || !to) return;
-  const dxPx = to.px - from.px;
-  const dyPx = to.py - from.py;
+  const dxPx = Number(to.lpx ?? 0) - Number(from.lpx ?? 0);
+  const dyPx = Number(to.lpy ?? 0) - Number(from.lpy ?? 0);
   const angle = Math.atan2(dyPx, dxPx) * 180 / Math.PI;
 
   const guard = document.createElement('span');
@@ -23106,7 +23122,7 @@ function renderParalysisLinksLayer() {
   if (!layer) return;
   pruneInvalidJunkaiParalysisLinks();
   layer.innerHTML = '';
-  const boardRect = els.boardContent.getBoundingClientRect();
+  const boardRect = getBoardLogicalSize();
   if (!boardRect.width || !boardRect.height) return;
 
   for (const targetPlayerId of [1, 2]) {
@@ -24147,11 +24163,18 @@ function getBoardPercentPointFromClient(clientX, clientY) {
   if (!els.boardContent) return null;
   const rect = els.boardContent.getBoundingClientRect();
   if (!rect.width || !rect.height) return null;
+  const logical = getBoardLogicalSize();
+  const xPct = ((clientX - rect.left) / rect.width) * 100;
+  const yPct = ((clientY - rect.top) / rect.height) * 100;
   return {
-    x: ((clientX - rect.left) / rect.width) * 100,
-    y: ((clientY - rect.top) / rect.height) * 100,
+    x: xPct,
+    y: yPct,
+    // px/py se conservan como coordenadas físicas por compatibilidad con FX globales.
     px: clientX - rect.left,
     py: clientY - rect.top,
+    // lpx/lpy son píxeles lógicos de boardContent y deben usarse en hijos del tablero.
+    lpx: (xPct / 100) * logical.width,
+    lpy: (yPct / 100) * logical.height,
   };
 }
 
@@ -24165,7 +24188,15 @@ function getUnitFxPoint(playerId, unitId, fallbackPosition = null) {
   if (fallbackPosition) {
     const fallback = cellCenter(fallbackPosition.row, fallbackPosition.col);
     const boardRect = els.boardContent?.getBoundingClientRect?.();
-    return { x: fallback.x, y: fallback.y, px: (fallback.x / 100) * (boardRect?.width || 0), py: (fallback.y / 100) * (boardRect?.height || 0) };
+    const logical = getBoardLogicalSize();
+    return {
+      x: fallback.x,
+      y: fallback.y,
+      px: (fallback.x / 100) * (boardRect?.width || 0),
+      py: (fallback.y / 100) * (boardRect?.height || 0),
+      lpx: (fallback.x / 100) * logical.width,
+      lpy: (fallback.y / 100) * logical.height,
+    };
   }
   return null;
 }
@@ -24180,7 +24211,15 @@ function getTargetFxPoint(target) {
   if (!pos) return null;
   const fallback = cellCenter(pos.row, pos.col);
   const boardRect = els.boardContent?.getBoundingClientRect?.();
-  return { x: fallback.x, y: fallback.y, px: (fallback.x / 100) * (boardRect?.width || 0), py: (fallback.y / 100) * (boardRect?.height || 0) };
+  const logical = getBoardLogicalSize();
+  return {
+    x: fallback.x,
+    y: fallback.y,
+    px: (fallback.x / 100) * (boardRect?.width || 0),
+    py: (fallback.y / 100) * (boardRect?.height || 0),
+    lpx: (fallback.x / 100) * logical.width,
+    lpy: (fallback.y / 100) * logical.height,
+  };
 }
 
 function spawnBurnProjectileTrailParticles(from, to, angle) {
@@ -24216,8 +24255,8 @@ async function showDistanceAttackFx(source, target) {
   const from = getUnitFxPoint(source.playerId, source.unit.id, source.unit);
   const to = getTargetFxPoint(target);
   if (!from || !to) return;
-  const dxPx = to.px - from.px;
-  const dyPx = to.py - from.py;
+  const dxPx = Number(to.lpx ?? 0) - Number(from.lpx ?? 0);
+  const dyPx = Number(to.lpy ?? 0) - Number(from.lpy ?? 0);
   const angle = Math.atan2(dyPx, dxPx) * 180 / Math.PI;
 
   const charge = document.createElement('span');
@@ -24580,7 +24619,7 @@ async function playMinokagePassiveTravelFx(playerId, unit, destination, options 
   if (!options.suppressOnlineFx) emitOnlineVisualEvent('minokage-travel', { source: snapshotOnlineFxUnit(playerId, unit), destination: { row: Number(destination?.row ?? unit?.row ?? 0), col: Number(destination?.col ?? unit?.col ?? 0) }, options: { returning: Boolean(options.returning), evasion: Boolean(options.evasion), showYari: options.showYari !== false, keepSourceHidden: Boolean(options.keepSourceHidden) } });
   if (!els.boardContent || !unit || !destination) return 0;
   const from = cellCenter(unit.row, unit.col);
-  const boardRect = els.boardContent.getBoundingClientRect();
+  const boardRect = getBoardLogicalSize();
   const distance = Math.max(1, ringDistance(unit.row, unit.col, destination.row, destination.col));
   const duration = Math.max(560, Math.min(1040, 360 + distance * 150));
   const card = CARD_LIBRARY[unit.cardId] || {};
@@ -27155,11 +27194,15 @@ function getTargetUnitNode(target) {
 function getUnitTokenAnchorPoint(node, verticalRatio = 0.24) {
   if (!node || !els.boardContent) return null;
   const token = node.querySelector(':scope > .unit-token-img') || node;
-  const boardRect = els.boardContent.getBoundingClientRect();
-  const rect = token.getBoundingClientRect();
+  const localRect = viewportRectToBoardLocal(token.getBoundingClientRect());
+  if (!localRect) return null;
+
+  // v533 · El anclaje se convierte directamente desde viewport a la caja lógica
+  // real de boardContent. Así se absorben tanto la escala universal 1600x900
+  // como el zoom/pan propio de la arena antes de insertar el FX dentro del tablero.
   return {
-    x: rect.left - boardRect.left + rect.width * 0.5,
-    y: rect.top - boardRect.top + rect.height * verticalRatio,
+    x: localRect.left + localRect.width * 0.5,
+    y: localRect.top + localRect.height * verticalRatio,
   };
 }
 
@@ -29125,9 +29168,39 @@ function getResourceDisplayIndexAfterAdding(playerId, elementId) {
   return Math.max(0, ordered.findIndex(item => item.uid === candidate.uid));
 }
 
-function viewportPointFromBoardLocal(localPoint) {
+function getBoardLogicalSize() {
+  const board = els.boardContent;
+  return {
+    width: Math.max(1, Number(board?.clientWidth || board?.offsetWidth || 1)),
+    height: Math.max(1, Number(board?.clientHeight || board?.offsetHeight || 1)),
+  };
+}
+
+function viewportRectToBoardLocal(rect) {
+  if (!els.boardContent || !rect) return null;
   const boardRect = els.boardContent.getBoundingClientRect();
-  return { x: boardRect.left + localPoint.x, y: boardRect.top + localPoint.y };
+  const logical = getBoardLogicalSize();
+  if (!boardRect.width || !boardRect.height) return null;
+  const scaleX = boardRect.width / logical.width;
+  const scaleY = boardRect.height / logical.height;
+  return {
+    left: (rect.left - boardRect.left) / (scaleX || 1),
+    top: (rect.top - boardRect.top) / (scaleY || 1),
+    width: rect.width / (scaleX || 1),
+    height: rect.height / (scaleY || 1),
+  };
+}
+
+function viewportPointFromBoardLocal(localPoint) {
+  if (!els.boardContent || !localPoint) return { x: 0, y: 0 };
+  const boardRect = els.boardContent.getBoundingClientRect();
+  const logical = getBoardLogicalSize();
+  const scaleX = boardRect.width / logical.width;
+  const scaleY = boardRect.height / logical.height;
+  return {
+    x: boardRect.left + (Number(localPoint.x || 0) * (scaleX || 1)),
+    y: boardRect.top + (Number(localPoint.y || 0) * (scaleY || 1)),
+  };
 }
 
 function getGlobalFxLayer() {
@@ -29568,6 +29641,7 @@ function blockPlayerInputWhileOpponentAction(event) {
     if (localQuickReactionUiOpen) return;
   }
   if (target?.closest?.('#opponentActionNotice')) return;
+  if (target?.closest?.('#cancelActionBtn') && isCancelableActionActive()) return;
   // Los paneles de información no alteran la simulación. Deben poder abrirse,
   // cerrarse y navegarse incluso mientras la IA conserva el bloqueo de su
   // acción. Esto incluye el desplegable de hechizos vinculados y el modal de
@@ -29934,17 +30008,11 @@ function clearQuickReactionCardIndicators() {
 }
 
 function ensureQuickReactionCancelHint() {
-  let hint = document.getElementById('quickReactionCancelHint');
-  if (!hint) {
-    hint = document.createElement('div');
-    hint.id = 'quickReactionCancelHint';
-    hint.className = 'quick-reaction-cancel-hint';
-    hint.setAttribute('aria-hidden', 'true');
-    hint.innerHTML = '<span class="quick-reaction-cancel-hint-foil" aria-hidden="true"></span><strong>Clic derecho</strong><span>para cancelar la acción</span>';
-    if (els.boardContent) els.boardContent.appendChild(hint);
-    else document.body.appendChild(hint);
-  }
-  return hint;
+  // v530 · Compatibilidad con llamadas históricas: el antiguo aviso flotante
+  // ya no se monta sobre la arena. El control vive en el HUD de fases.
+  const legacyHint = document.getElementById('quickReactionCancelHint');
+  if (legacyHint && legacyHint !== els.cancelActionBtn) legacyHint.remove();
+  return els.cancelActionBtn || document.getElementById('cancelActionBtn');
 }
 
 function isQuickReactionPostCaptureActive() {
@@ -29961,18 +30029,32 @@ function isQuickReactionPostCaptureActive() {
   return dockVisible || modalVisible || manualPending;
 }
 
+function isCancelableActionActive() {
+  if (!isBattleHudScreenActive()) return false;
+  if (isOffTurnCasterRepositionActiveForPlayer(LOCAL_PLAYER_ID)) return true;
+  if (state.pendingPowerAction?.kind === 'smokeBomb') return true;
+  if (isQuickReactionPostCaptureActive()) return true;
+  if (isKaguyaChargedShotTargetingPending()) return true;
+  return false;
+}
+
 function renderQuickReactionCancelHint() {
-  const hint = ensureQuickReactionCancelHint();
-  const visible = isQuickReactionPostCaptureActive();
-  hint.classList.toggle('visible', visible);
-  hint.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  const button = ensureQuickReactionCancelHint();
+  if (!button) return;
+  const visible = isCancelableActionActive();
+  button.hidden = !visible;
+  button.classList.toggle('visible', visible);
+  button.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  button.disabled = !visible;
 }
 
 function hideQuickReactionCancelHint() {
-  const hint = document.getElementById('quickReactionCancelHint');
-  if (!hint) return;
-  hint.classList.remove('visible');
-  hint.setAttribute('aria-hidden', 'true');
+  const button = els.cancelActionBtn || document.getElementById('cancelActionBtn');
+  if (!button) return;
+  button.hidden = true;
+  button.classList.remove('visible');
+  button.setAttribute('aria-hidden', 'true');
+  button.disabled = true;
 }
 
 function ensureQuickReactionCommandDock() {
@@ -31520,6 +31602,7 @@ function isLocalQuickReactionPromptCapturable() {
 
 function captureQuickReactionWindowFromGlobalLeftClick(event) {
   if (!event) return;
+  if (event.target?.closest?.('#cancelActionBtn')) return;
   if (event.target?.closest?.('.quick-reaction-card-indicator')) return;
   const isTouchGesture = event.type === 'touchend' || String(event.pointerType || '').toLowerCase() === 'touch';
   const button = Number(event.button);
@@ -32080,28 +32163,30 @@ function createExtractionCardFx(cardDef) {
 }
 
 function getExtractionCenterPoint() {
-  const boardRect = els.boardContent.getBoundingClientRect();
+  const logical = getBoardLogicalSize();
   const line = document.querySelector('.battle-center-line');
   if (line) {
-    const rect = line.getBoundingClientRect();
-    return {
-      x: rect.left + rect.width / 2 - boardRect.left,
-      y: rect.top + rect.height / 2 - boardRect.top,
-    };
+    const localRect = viewportRectToBoardLocal(line.getBoundingClientRect());
+    if (localRect) {
+      return {
+        x: localRect.left + localRect.width / 2,
+        y: localRect.top + localRect.height / 2,
+      };
+    }
   }
-  return { x: boardRect.width * 0.5, y: boardRect.height * 0.5 };
+  return { x: logical.width * 0.5, y: logical.height * 0.5 };
 }
 
 function getExtractionSourcePoint(playerId) {
-  const rect = els.boardContent.getBoundingClientRect();
+  const logical = getBoardLogicalSize();
 
-  // Calibrado con la textura que enviaste:
+  // Calibrado con la textura que enviaste, siempre en la caja lógica del tablero:
   // J1 nace encima de la fuente inferior izquierda.
   // J2 nace encima de la fuente superior derecha.
   if (playerId === 1) {
-    return { x: rect.width * 0.145, y: rect.height * 0.862 };
+    return { x: logical.width * 0.145, y: logical.height * 0.862 };
   }
-  return { x: rect.width * 0.858, y: rect.height * 0.138 };
+  return { x: logical.width * 0.858, y: logical.height * 0.138 };
 }
 
 function getResourceTargetPoint(playerId, elementId = null, orbOffset = 0) {
@@ -40475,17 +40560,17 @@ function cancelCapturedQuickReactionAction() {
   const kind = String(state.pendingPowerAction?.kind || '');
   let cancelled = false;
 
-  if (isEmboscadaTargetingKind(kind)) cancelled = cancelEmboscadaTargeting('Emboscada cancelada con clic derecho.');
-  else if (['tacticaGuerraSelection', 'tacticaGuerraDestination'].includes(kind)) cancelled = cancelTacticaGuerraTargeting('Táctica de guerra cancelada con clic derecho.');
-  else if (['interceptarAlliedSelection', 'interceptarRivalSelection'].includes(kind)) cancelled = cancelInterceptarTargeting('Interceptar cancelado con clic derecho.');
-  else if (kind === 'gloriaLatenteTarget') cancelled = cancelGloriaLatenteTargeting('Gloria latente cancelada con clic derecho.');
-  else if (kind === 'kurayamiMark') cancelled = cancelKurayamiPowerTargeting('Shizukesa no Shi-in cancelado con clic derecho.');
-  else if (kind === 'gioshoninSupply') cancelled = cancelGioshoninSupplyTargeting('Mercancía de guerra cancelada con clic derecho.');
-  else if (kind === 'yasuganaBlindness' || kind === 'yasuganaVigilia') cancelled = cancelYasuganaPowerTargeting('Poder de Yasugana cancelado con clic derecho.');
-  else if (kind === 'cargaRealLocation') cancelled = cancelCargaRealLocationTargeting('Carga Real cancelada con clic derecho.');
-  else if (kind === 'kouutenLocation' || kind === 'kouutenRecastLocation') cancelled = cancelKouutenLocationTargeting('Kouuten cancelado con clic derecho.');
-  else if (kind === 'gurenGanLocation') cancelled = cancelGurenGanLocationTargeting('Guren Gan cancelado con clic derecho.');
-  else if (kind === 'despliegueAnticipadoTarget') cancelled = cancelDespliegueAnticipadoTargeting('Despliegue anticipado cancelado con clic derecho.');
+  if (isEmboscadaTargetingKind(kind)) cancelled = cancelEmboscadaTargeting('Emboscada cancelada.');
+  else if (['tacticaGuerraSelection', 'tacticaGuerraDestination'].includes(kind)) cancelled = cancelTacticaGuerraTargeting('Táctica de guerra cancelada.');
+  else if (['interceptarAlliedSelection', 'interceptarRivalSelection'].includes(kind)) cancelled = cancelInterceptarTargeting('Interceptar cancelado.');
+  else if (kind === 'gloriaLatenteTarget') cancelled = cancelGloriaLatenteTargeting('Gloria latente cancelada.');
+  else if (kind === 'kurayamiMark') cancelled = cancelKurayamiPowerTargeting('Shizukesa no Shi-in cancelado.');
+  else if (kind === 'gioshoninSupply') cancelled = cancelGioshoninSupplyTargeting('Mercancía de guerra cancelada.');
+  else if (kind === 'yasuganaBlindness' || kind === 'yasuganaVigilia') cancelled = cancelYasuganaPowerTargeting('Poder de Yasugana cancelado.');
+  else if (kind === 'cargaRealLocation') cancelled = cancelCargaRealLocationTargeting('Carga Real cancelada.');
+  else if (kind === 'kouutenLocation' || kind === 'kouutenRecastLocation') cancelled = cancelKouutenLocationTargeting('Kouuten cancelado.');
+  else if (kind === 'gurenGanLocation') cancelled = cancelGurenGanLocationTargeting('Guren Gan cancelado.');
+  else if (kind === 'despliegueAnticipadoTarget') cancelled = cancelDespliegueAnticipadoTargeting('Despliegue anticipado cancelado.');
 
   if (!cancelled) {
     const dockVisible = Boolean(document.getElementById('quickReactionCommandDock')?.classList?.contains('visible'));
@@ -40506,39 +40591,38 @@ function cancelCapturedQuickReactionAction() {
   return cancelled;
 }
 
-function handleContextMenu(event) {
-  // v517 · Clic derecho vuelve a ser el cancelador universal de ventanas/acciones
-  // capturadas antes de caer en la lógica histórica que dibuja opciones de movimiento.
+function cancelCurrentCancelableAction() {
   if (isOffTurnCasterRepositionActiveForPlayer(LOCAL_PLAYER_ID)) {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-    event.stopImmediatePropagation?.();
     finishOffTurnCasterReposition('cancelled');
     hideQuickReactionCancelHint();
     renderAll();
-    return;
+    return true;
   }
   if (state.pendingPowerAction?.kind === 'smokeBomb') {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-    event.stopImmediatePropagation?.();
     const pendingSmoke = state.pendingPowerAction;
     completeSmokeBombFlow(pendingSmoke, 'cancelled');
     hideQuickReactionCancelHint();
     renderAll();
-    return;
+    return true;
   }
-  if (isQuickReactionPostCaptureActive() && cancelCapturedQuickReactionAction()) {
-    event.preventDefault?.();
-    event.stopPropagation?.();
-    event.stopImmediatePropagation?.();
-    return;
-  }
+  if (isQuickReactionPostCaptureActive() && cancelCapturedQuickReactionAction()) return true;
   if (isKaguyaChargedShotTargetingPending()) {
+    cancelKaguyaChargedShotTargeting('Disparo energizado cancelado.');
+    hideQuickReactionCancelHint();
+    renderAll();
+    return true;
+  }
+  return false;
+}
+
+function handleContextMenu(event) {
+  // v517 · Clic derecho vuelve a ser el cancelador universal de ventanas/acciones
+  // capturadas antes de caer en la lógica histórica que dibuja opciones de movimiento.
+  if (isCancelableActionActive()) {
     event.preventDefault?.();
     event.stopPropagation?.();
     event.stopImmediatePropagation?.();
-    cancelKaguyaChargedShotTargeting('Disparo energizado cancelado.');
+    cancelCurrentCancelableAction();
     return;
   }
   if (['minokageShippuUgachi', 'kaguyaChargedShot', 'kurayamiMark'].includes(state.pendingPowerAction?.kind)) {
