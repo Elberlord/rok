@@ -11340,8 +11340,8 @@ function getAdventureDomainProfile(entry = {}) {
     return {
       elementLabel: 'Rayo',
       attributeLabel: 'Energía',
-      elementArt: 'assets/domain/domain-element-lightning-adventure.svg',
-      attributeArt: 'assets/domain/domain-attribute-energy-adventure.svg'
+      elementArt: 'assets/domain/domain-element-lightning-adventure.png',
+      attributeArt: 'assets/domain/domain-attribute-energy-adventure.png'
     };
   }
   return DOMAIN_ART_DB.agua;
