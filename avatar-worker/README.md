@@ -11,7 +11,7 @@ Flujo:
 4. El worker usa la foto como referencia de identidad y genera el arte del Kaster.
 5. El PNG resultante se guarda en `casterAvatarResults/{uid}/{jobId}/caster.png`.
 6. El job se marca `completed` con `resultUrl`.
-7. El usuario decide si quiere usar ese resultado como avatar de cuenta.
+7. El usuario decide si quiere usar ese resultado como avatar de cuenta y representación visual de su Kaster en la partida.
 8. Tras una generación real exitosa, el worker elimina la foto fuente.
 
 ## Despliegue
@@ -27,3 +27,11 @@ Hay dos modos de prueba de cableado:
 - Worker: establece `ROK_AVATAR_MOCK=1` en un entorno de prueba. El worker copia la fuente al resultado. No llama a OpenAI.
 
 No uses los modos mock como experiencia de producción.
+
+## Diagnóstico de estados
+
+- `Subiendo... %`: Firebase Storage todavía está recibiendo la foto.
+- `Solicitud enviada / esperando`: la foto ya está arriba y el job existe en RTDB.
+- Si permanece más de ~30 s en `queued`, revisa que `processCasterAvatarJob` esté desplegado y que tenga `OPENAI_API_KEY`.
+- `processing`: el worker ya tomó el job y está generando.
+- `completed`: el resultado ya está disponible para perfil y Kaster en partida.
