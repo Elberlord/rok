@@ -1,0 +1,56 @@
+name: ROK Caster Avatar Worker
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  process-avatar-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install worker dependencies
+        run: npm install --no-save openai firebase-admin
+
+      - name: Process avatar queue
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_DATABASE_URL: https://risin96ames-default-rtdb.firebaseio.com
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: node .github/scripts/process-avatar-jobs.mjs
+
+      - name: Commit generated avatars
+        run: |
+          if git diff --quiet -- rock_html_base/assets/user-kasters; then
+            echo "No generated avatars to commit."
+            exit 0
+          fi
+          git config user.name "ROK Avatar Worker"
+          git config user.email "rok-avatar-worker@users.noreply.github.com"
+          git add rock_html_base/assets/user-kasters
+          git commit -m "Generate ROK caster avatar"
+          git push
+
+      - name: Publish completed URLs
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_DATABASE_URL: https://risin96ames-default-rtdb.firebaseio.com
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: node .github/scripts/finalize-avatar-jobs.mjs

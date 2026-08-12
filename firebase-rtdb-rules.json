@@ -158,6 +158,21 @@
           },
           "$other": {
             ".validate": false
+          },
+          "sourceImageData": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "sourceImageMime": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "sourceImageWidth": {
+            ".validate": "!newData.exists() || newData.isNumber()"
+          },
+          "sourceImageHeight": {
+            ".validate": "!newData.exists() || newData.isNumber()"
+          },
+          "sourceImageBytes": {
+            ".validate": "!newData.exists() || newData.isNumber()"
           }
         }
       }
