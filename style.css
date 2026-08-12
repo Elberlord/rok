@@ -42964,3 +42964,19 @@ body.rok-battle-mode .cast-panel .small-note {
   flex: 0 0 auto !important;
   overflow: visible !important;
 }
+
+
+/* =========================================================
+   ROK v536 · OCULTO PRIVADO EN PVP ONLINE
+   El propietario mantiene una lectura semitransparente de su propia ficha.
+   El rival no recibe este nodo: game.js omite por completo su render.
+   ========================================================= */
+.unit.invocation.unit-online-hidden-owner-visible > .unit-token-img {
+  opacity: .44;
+  filter:
+    saturate(.72)
+    contrast(.92)
+    drop-shadow(0 0 8px rgba(132, 96, 255, .48))
+    drop-shadow(0 8px 8px rgba(0, 0, 0, .45)) !important;
+  transition: opacity 160ms ease, filter 160ms ease;
+}

@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.270';
+const GAME_VERSION = 'v5.5.271';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -109,12 +109,16 @@ function snapshotOnlineFxUnit(playerId, unit) {
     cardId: unit.cardId || null,
     row: Number(unit.row ?? 0),
     col: Number(unit.col ?? 0),
+    hidden: Boolean(unitHasActiveFactor(unit, 'hidden')),
   };
 }
 
 function snapshotOnlineFxTarget(target) {
   if (!target) return null;
   const pos = typeof getTargetBoardPosition === 'function' ? getTargetBoardPosition(target) : null;
+  const targetUnit = target.type === 'invocation' && target.playerId && target.unitId
+    ? getUnitById(target.playerId, target.unitId)
+    : null;
   return {
     type: target.type || 'cell',
     playerId: Number(target.playerId || 0),
@@ -122,6 +126,7 @@ function snapshotOnlineFxTarget(target) {
     guardianId: target.guardianId || null,
     row: Number(target.row ?? pos?.row ?? 0),
     col: Number(target.col ?? pos?.col ?? 0),
+    hidden: Boolean(targetUnit && unitHasActiveFactor(targetUnit, 'hidden')),
   };
 }
 
@@ -147,26 +152,32 @@ async function playOnlineVisualEvent(event = {}) {
 
   switch (String(event.type || '')) {
     case 'floating-text':
+      if (getFullyConcealedOnlineEnemyAtCell(payload.row, payload.col)) break;
       await replay(() => showFloatingTextAt(payload.row, payload.col, payload.text, payload.className || 'floating-combat'));
       break;
     case 'floating-damage':
+      if (getFullyConcealedOnlineEnemyAtCell(payload.row, payload.col)) break;
       await replay(() => showFloatingDamageAt(payload.row, payload.col, payload.amount));
       break;
     case 'critical-damage':
+      if (getFullyConcealedOnlineEnemyAtCell(payload.row, payload.col)) break;
       await replay(() => showCriticalDamageChipAt(payload.row, payload.col, payload.amount));
       break;
     case 'unit-lunge': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload)) break;
       const unit = getUnitById(payload.playerId, payload.unitId) || onlineFxVirtualUnit(payload);
       await replay(() => triggerUnitAttackLunge(payload.playerId, unit, payload.target || null));
       break;
     }
     case 'distance-attack': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
       await replay(() => showDistanceAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null));
       break;
     }
     case 'weapon-attack': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
       await replay(() => showWeaponAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null, payload.weaponType || 'golpe'));
@@ -182,34 +193,41 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => playRemoteCargaRealFx(payload));
       break;
     case 'minokage-dash': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => playMinokageDashFx(Number(payload.source?.playerId || 0), unit, payload.path || [], payload.landing || { row: unit.row, col: unit.col }, payload.targets || []));
       break;
     }
     case 'minokage-travel': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => playMinokagePassiveTravelFx(Number(payload.source?.playerId || 0), unit, payload.destination || { row: unit.row, col: unit.col }, { ...(payload.options || {}), suppressOnlineFx: true }));
       break;
     }
     case 'minokage-windup': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => playMinokagePassiveWindupFx(unit, Number(payload.duration || 420), { suppressOnlineFx: true }));
       break;
     }
     case 'minokage-hit-slash':
+      if (getFullyConcealedOnlineEnemyAtCell(payload.row, payload.col)) break;
       await replay(() => playMinokageHitSlashBurstFx({ row: Number(payload.row || 0), col: Number(payload.col || 0) }, { angles: payload.angles || [], suppressOnlineFx: true }));
       break;
     case 'restore-travel': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => animateRestoreInvocationToSpawn(Number(payload.source?.playerId || 0), unit, payload.destination || null, null, { fromRow: payload.source?.row, fromCol: payload.source?.col, suppressOnlineFx: true }));
       break;
     }
     case 'return-spellbook': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => animateReturnInvocationToSpellbook(Number(payload.source?.playerId || 0), unit, Number(payload.tab || 0), Number(payload.slot || 0), null, { ...(payload.options || {}), suppressOnlineFx: true }));
       break;
     }
     case 'tokugawa-nexus': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => animateTokugawaNexusTransfer(Number(payload.source?.playerId || 0), unit, payload.from, payload.to, { suppressOnlineFx: true }));
       break;
@@ -218,11 +236,13 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => playTacticaGuerraResolutionFx(payload.title, payload.subtitle, { suppressOnlineFx: true }));
       break;
     case 'tactica-water': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => playTacticaGuerraWaterRestoreFx(unit, Number(payload.delayMs || 0), { suppressOnlineFx: true }));
       break;
     }
     case 'shirahadori-trigger': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => createShirahadoriTriggerFx(Number(payload.source?.playerId || 0), unit));
       break;
@@ -231,6 +251,7 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => showShirahadoriRedirectFx(payload.originalTarget || null, payload.redirectedTarget || null, { ...(payload.options || {}), suppressOnlineFx: true }));
       break;
     case 'minokage-oscillation': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
       await replay(() => playMinokageOscillationCompleteFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.targets || [], { suppressOnlineFx: true }));
@@ -252,6 +273,7 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => playInvocationSummonCircleFxAtCell(Number(payload.playerId || 0), payload.item || {}));
       break;
     case 'invocation-entry': {
+      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       // La ficha puede llegar por snapshot unos milisegundos después del evento.
       // Darle una oportunidad breve evita perder la animación de entrada.
@@ -271,6 +293,8 @@ async function playOnlineVisualEvent(event = {}) {
 window.ROK_ONLINE_FX = { play: playOnlineVisualEvent };
 
 const PATCH_NOTES = [
+  'v536: PvP online respeta Oculto como sigilo real: el propietario sigue viendo su invocación semitransparente, pero el rival no renderiza su token, badge, estadísticas, auras ni FX posicionales mientras Oculto permanezca activo.',
+  'v535: Agrega dos Spellbooks básicos de prueba persistentes en Mis Spellbooks: Deck básico Hattori (27/30) y Deck básico Tokugawa (30/30), con Fuente elemental configurada y uso habilitado aunque Modo Usuario no posea todavía todas sus copias.',
   'v534: Restaura la composición canónica de la zona de kasteo sobre el lienzo lógico 1600x900: carril de 150 px, slots 100x138, miniaturas 58x74/54x54, reloj y contador en tamaño original, ACTIVO/COLA por encima del token y cola sin scrollbar interno.',
   'v533: Unifica la geometría de FX heredados con el sistema lógico 1600x900: Minokage (Shippū Ugachi, pasiva y Evasión), proyectiles a distancia, Shirahadori, cadena persistente de Parálisis de Junkai, caída/recuperación de armas, recompensas del Guardián y extracción elemental dejan de mezclar píxeles físicos del viewport con coordenadas internas de boardContent.',
   'v532: Corrige la trayectoria de los cuervos de Genyutsu, Shinigami Karasu de Yasugana Hattori: los anclajes de salida y objetivo se convierten de coordenadas físicas del viewport a coordenadas lógicas de #rokAppStage antes de dibujar el proyectil, evitando que la animación salga corrida al redimensionar.',
@@ -6231,6 +6255,43 @@ const CARD_LIBRARY = {
 let LOCAL_PLAYER_ID = 1;
 let ROK_ONLINE_MATCH_ACTIVE = false;
 function isOnlineMatchActive() { return Boolean(ROK_ONLINE_MATCH_ACTIVE); }
+
+// v536 · Oculto en PvP online es información privada del propietario.
+// El dueño conserva la ficha semitransparente y sus indicadores locales, pero el
+// navegador rival no debe crear ningún nodo ni FX posicional que delate la casilla.
+function shouldFullyConcealOnlineUnitForLocalViewer(ownerPlayerId, unit) {
+  const ownerId = Number(ownerPlayerId || 0);
+  const viewerId = Number(LOCAL_PLAYER_ID || 0);
+  return Boolean(
+    ROK_ONLINE_MATCH_ACTIVE
+    && viewerId > 0
+    && ownerId > 0
+    && ownerId !== viewerId
+    && unit
+    && unit.status !== 'restoring'
+    && unitHasActiveFactor(unit, 'hidden')
+  );
+}
+
+function getFullyConcealedOnlineEnemyAtCell(row, col) {
+  if (!ROK_ONLINE_MATCH_ACTIVE || !LOCAL_PLAYER_ID) return null;
+  const enemyId = getOpponentId(LOCAL_PLAYER_ID);
+  return (state.players?.[enemyId]?.units || []).find(unit =>
+    shouldFullyConcealOnlineUnitForLocalViewer(enemyId, unit)
+    && Number(unit.row) === Number(row)
+    && Number(unit.col) === Number(col)
+  ) || null;
+}
+
+function isOnlineFxUnitConcealedFromLocalViewer(unitSnapshot = null) {
+  if (!unitSnapshot || !ROK_ONLINE_MATCH_ACTIVE || !LOCAL_PLAYER_ID) return false;
+  const ownerId = Number(unitSnapshot.playerId || 0);
+  if (!ownerId || ownerId === Number(LOCAL_PLAYER_ID)) return false;
+  if (unitSnapshot.hidden === true) return true;
+  const live = unitSnapshot.unitId ? getUnitById(ownerId, unitSnapshot.unitId) : null;
+  if (live) return shouldFullyConcealOnlineUnitForLocalViewer(ownerId, live);
+  return Boolean(getFullyConcealedOnlineEnemyAtCell(unitSnapshot.row, unitSnapshot.col));
+}
 const MAX_INVOCATIONS_PER_PLAYER = 5;
 
 
@@ -8541,6 +8602,73 @@ const SPELLBOOK_FORCED_LIMITS_TRAIT_ID = 'limitesForzados';
 const SPELLBOOK_LEGACY_ADAPTATION_TRAIT_ID = 'adaptacion';
 const SPELLBOOK_ELEMENT_MAX_TOTAL = 60;
 
+// v535 · Spellbooks básicos de prueba. Se insertan una sola vez por navegador
+// para que aparezcan en Mis Spellbooks sin borrar ni reemplazar los Spellbooks
+// que el usuario ya tenga guardados.
+const BASIC_TEST_SPELLBOOK_MIGRATION_KEY = 'rokLite.basicTestSpellbooks.v535';
+const BASIC_TEST_SPELLBOOK_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: 'rok-basic-hattori-v1',
+    name: 'Deck básico Hattori',
+    casterCardId: 'kasterHanzoDark',
+    // La lista dictada contenía “Juntambu”, nombre que no existe como ID propio
+    // en v534. Se conserva el total 27/30 interpretándolo como una segunda copia
+    // de Junkai butai #1, que sí existe en el catálogo actual.
+    cards: Object.freeze([
+      'ninjaKurayami',
+      'ninjaMinokageNoKurai',
+      'ninjaIchikawaGoemon',
+      'ninjaJunkaiButai1',
+      'ninjaKurokagiButai3',
+      'ninjaJunkaiButai1',
+      'ninjaJunkaiButai2',
+      'ninjaSaqueadorNovato',
+      'ninjaYasuganaHattori',
+      'abilityShirahadori', 'abilityShirahadori',
+      'spellEmboscada', 'spellEmboscada',
+      'spellInterceptar', 'spellInterceptar',
+      'spellKageNoMichi', 'spellKageNoMichi',
+      'spellNagayoru', 'spellNagayoru',
+      'spellTacticaGuerra', 'spellTacticaGuerra',
+      'naitoSutoka', 'naitoSutoka',
+      'ninjaOjoDeBuho', 'ninjaOjoDeBuho',
+      'gioshoninMercaderErrante',
+      'ninjaNaitoSutoka',
+    ]),
+    elementDistribution: Object.freeze({ oscuridad: 42, agua: 18 }),
+    elementDistributionConfigured: true,
+    testPreset: true,
+  }),
+  Object.freeze({
+    id: 'rok-basic-tokugawa-v1',
+    name: 'Deck básico Tokugawa',
+    casterCardId: 'kasterTokugawaLight',
+    cards: Object.freeze([
+      'samuraiTakedaShingen',
+      'samuraiKaguya', 'samuraiKaguya',
+      'samuraiNobunagaOda',
+      'samuraiKarunobuTaicho', 'samuraiKarunobuTaicho',
+      'samuraiShinraHitokiri',
+      'samuraiShiroNoBushi',
+      'samuraiBushiHonorable',
+      'samuraiOSenseiUeshiba',
+      'samuraiRegenteKishimoto',
+      'miyamotoMusashi',
+      'samuraiBushiIniciado', 'samuraiBushiIniciado', 'samuraiBushiIniciado', 'samuraiBushiIniciado',
+      'spellCargaReal', 'spellCargaReal',
+      'abilityShirahadori', 'abilityShirahadori',
+      'spellDespliegueAnticipado', 'spellDespliegueAnticipado',
+      'spellKouuten', 'spellKouuten',
+      'spellGurenGan', 'spellGurenGan',
+      'spellTentorou', 'spellTentorou',
+      'spellGloriaLatente', 'spellGloriaLatente',
+    ]),
+    elementDistribution: Object.freeze({ fuego: 40, luz: 20 }),
+    elementDistributionConfigured: true,
+    testPreset: true,
+  }),
+]);
+
 const CARD_TRAIT_DB = {
   limitesforzados: {
     id: SPELLBOOK_FORCED_LIMITS_TRAIT_ID,
@@ -10803,6 +10931,7 @@ function handleBoosterStoreContentClick(event) {
 }
 
 function getRokUserSpellbookCollectionIssue(spellbook) {
+  if (spellbook?.testPreset === true) return '';
   if (!isRokUserModeActive()) return '';
   const counts = new Map();
   (spellbook?.cards || []).filter(Boolean).forEach(cardId => counts.set(cardId, (counts.get(cardId) || 0) + 1));
@@ -11655,6 +11784,7 @@ function normalizeSavedSpellbook(raw) {
     cards: normalizeSpellbookCardSlots(raw.cards),
     elementDistribution: normalizeSpellbookElementDistribution(raw.elementDistribution),
     elementDistributionConfigured: raw.elementDistributionConfigured === true || getSpellbookElementTotal(raw.elementDistribution) > 0,
+    testPreset: raw.testPreset === true,
     createdAt: Number(raw.createdAt) || Date.now(),
     updatedAt: Number(raw.updatedAt) || Date.now(),
     schemaVersion: SPELLBOOK_SCHEMA_VERSION,
@@ -11694,6 +11824,7 @@ function serializeSpellbookMatchLoadout(spellbook) {
     cards: normalizeSpellbookCardSlots(normalized.cards),
     elementDistribution: normalizeSpellbookElementDistribution(normalized.elementDistribution),
     elementDistributionConfigured: normalized.elementDistributionConfigured === true,
+    testPreset: normalized.testPreset === true,
     schemaVersion: SPELLBOOK_SCHEMA_VERSION,
   };
 }
@@ -11925,10 +12056,37 @@ window.ROK_SPELLBOOK_MATCH = {
   getLoadoutIssue: loadout => getSpellbookMatchIssue(loadout),
 };
 
+function ensureBasicTestSpellbooks() {
+  if (safeLocalStorageGet(BASIC_TEST_SPELLBOOK_MIGRATION_KEY) === '1') return;
+
+  const existingIds = new Set(savedSpellbooks.map(entry => entry?.id).filter(Boolean));
+  const now = Date.now();
+  let added = 0;
+
+  BASIC_TEST_SPELLBOOK_DEFINITIONS.forEach((definition, index) => {
+    if (existingIds.has(definition.id)) return;
+    const normalized = normalizeSavedSpellbook({
+      ...definition,
+      cards: [...definition.cards],
+      elementDistribution: { ...definition.elementDistribution },
+      createdAt: now - index,
+      updatedAt: now - index,
+    });
+    if (!normalized) return;
+    savedSpellbooks.push(normalized);
+    existingIds.add(normalized.id);
+    added += 1;
+  });
+
+  const persisted = added > 0 ? persistSpellbookStorage() : true;
+  if (persisted) safeLocalStorageSet(BASIC_TEST_SPELLBOOK_MIGRATION_KEY, '1');
+}
+
 function loadSpellbookStorage() {
   const raw = safeLocalStorageGet(SPELLBOOK_STORAGE_KEY);
   if (!raw) {
     savedSpellbooks = [];
+    ensureBasicTestSpellbooks();
     return;
   }
   try {
@@ -11941,6 +12099,7 @@ function loadSpellbookStorage() {
     console.warn('[ROK Spellbooks] Datos guardados inválidos; se conservará una colección vacía.', error);
     savedSpellbooks = [];
   }
+  ensureBasicTestSpellbooks();
 }
 
 function persistSpellbookStorage() {
@@ -23133,6 +23292,8 @@ function renderParalysisLinksLayer() {
       const sourcePlayerId = getParalysisSourcePlayerId(targetUnit, entry);
       const sourceUnit = getUnitById(sourcePlayerId, entry.sourceUnitId);
       if (!sourceUnit) continue;
+      if (shouldFullyConcealOnlineUnitForLocalViewer(targetPlayerId, targetUnit)) continue;
+      if (shouldFullyConcealOnlineUnitForLocalViewer(sourcePlayerId, sourceUnit)) continue;
 
       const start = cellCenter(sourceUnit.row, sourceUnit.col);
       const end = cellCenter(targetUnit.row, targetUnit.col);
@@ -37371,7 +37532,7 @@ async function playTacticaGuerraResolutionFx(title = 'TÁCTICA DE GUERRA', subti
 }
 
 function playTacticaGuerraWaterRestoreFx(unit, delayMs = 0, options = {}) {
-  if (!options.suppressOnlineFx) emitOnlineVisualEvent('tactica-water', { source: snapshotOnlineFxUnit(0, unit), delayMs: Number(delayMs || 0) });
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('tactica-water', { source: snapshotOnlineFxUnit(getOwnerPlayerIdForUnit(unit) || 0, unit), delayMs: Number(delayMs || 0) });
   if (!unit) return;
   setTimeout(() => {
     const point = getCellViewportCenter(unit.row, unit.col);
@@ -42759,7 +42920,19 @@ function renderCombatHud() {
     hud.removeAttribute('style');
   }
 
-  const pairs = [...getActiveCombatPairs(), ...getGuardianCombatGroups()];
+  const pairs = [...getActiveCombatPairs(), ...getGuardianCombatGroups()]
+    .map(pair => {
+      if (pair?.kind === 'guardian') {
+        const visibleTargets = (pair.targets || []).filter(target =>
+          !shouldFullyConcealOnlineUnitForLocalViewer(target.playerId, target.unit)
+        );
+        return visibleTargets.length ? { ...pair, targets: visibleTargets } : null;
+      }
+      if (shouldFullyConcealOnlineUnitForLocalViewer(pair?.a?.playerId, pair?.a?.unit)) return null;
+      if (shouldFullyConcealOnlineUnitForLocalViewer(pair?.b?.playerId, pair?.b?.unit)) return null;
+      return pair;
+    })
+    .filter(Boolean);
   hud.innerHTML = '';
   hud.classList.toggle('visible', pairs.length > 0);
   pairs.forEach(pair => hud.appendChild(createCombatPairNode(pair)));
@@ -44151,6 +44324,7 @@ function renderArenaEffectTrackers() {
     const units = state.players?.[playerId]?.units || [];
     units.forEach(unit => {
       if (!unit || unit.status === 'restoring' || unit.cardId !== 'ninjaNaitoSutoka' || !Number.isFinite(Number(unit.smokeBombsLeft))) return;
+      if (shouldFullyConcealOnlineUnitForLocalViewer(playerId, unit)) return;
       const item = document.createElement('button');
       item.type = 'button';
       item.className = `arena-effect-tracker arena-effect-consumable-stock player-${playerId}`;
@@ -45186,6 +45360,7 @@ function renderMinokageAuras() {
   for (const playerId of [1, 2]) {
     for (const unit of state.players?.[playerId]?.units || []) {
       if (!isMinokageUnit(unit) || unit.status === 'restoring') continue;
+      if (shouldFullyConcealOnlineUnitForLocalViewer(playerId, unit)) continue;
       const remoteTargets = getMinokagePassiveSelectableTargets(playerId, unit).filter(entry => ringDistance(unit.row, unit.col, entry.row, entry.col) > 1);
       if (!remoteTargets.length) continue;
       const key = `${playerId}:${unit.id}`;
@@ -45223,6 +45398,7 @@ function renderGuardianChannelFx() {
     Object.entries(channels).forEach(([targetKey, entry]) => {
       const unit = getUnitById(entry.playerId, entry.unitId);
       if (!unit || unit.status === 'restoring' || !isCellInsideGuardianAura(guardian, unit.row, unit.col)) return;
+      if (shouldFullyConcealOnlineUnitForLocalViewer(entry.playerId, unit)) return;
       const key = `${playerId}:${guardian.id}:${targetKey}`;
       activeKeys.add(key);
       let beam = els.guardianChannelFxLayer.querySelector(`[data-guardian-channel-key="${key}"]`);
@@ -45299,6 +45475,7 @@ function renderMinokageChannelFxLayer() {
   charges.forEach(charge => {
     const unit = getUnitById(charge.playerId, charge.unitId);
     if (!unit || unit.status === 'restoring' || !unit.minokageChanneling) return;
+    if (shouldFullyConcealOnlineUnitForLocalViewer(charge.playerId, unit)) return;
     if (!isMinokageChargeTargetValid(charge)) {
       clearMinokageChargeRuntime(charge, 'el objetivo murió, fue destruido o salió de la arena', true);
       return;
@@ -45382,6 +45559,7 @@ function renderUnits() {
     guardians.filter(g => g.active !== false || g.destroying).forEach((g, index) => renderUnit(g.row, g.col, 'guardian', getGuardianAssetForPlayer(playerId), `Guardián ${index + 1} · RES ${g.resistance ?? 5}`, playerId, null, getOwnerColor(playerId), null, g.id));
     units.forEach(unit => {
       if (unit.restoreAnimating) return;
+      if (shouldFullyConcealOnlineUnitForLocalViewer(playerId, unit)) return;
       const card = CARD_LIBRARY[unit.cardId];
       const element = getElementById(getUnitElementId(playerId, unit));
       renderUnit(unit.row, unit.col, 'invocation', card.tokenImage, card.name, playerId, unit.spawnId, element?.color || '#ffffff', unit.id);
@@ -45409,6 +45587,7 @@ function renderKaguyaChargeFxLayer() {
     const player = state.players?.[playerId];
     const units = Array.isArray(player?.units) ? player.units : [];
     units.forEach(unit => {
+      if (shouldFullyConcealOnlineUnitForLocalViewer(playerId, unit)) return;
       const visual = getKaguyaChargeVisualState(unit);
       if (!visual?.active || unit.status === 'restoring' || unit.restoreAnimating) return;
       const key = `p${playerId}_${unit.id}`;
@@ -45609,6 +45788,18 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
   if (type === 'invocation' && unitState && (unitHasCamuflajeHidden(unitState) || unitHasSaqueadorSigiloHidden(unitState))) {
     div.classList.add('unit-camuflaje-hidden');
     div.style.setProperty('--camuflaje-opacity', String(unitState.saqueadorSigiloOpacity || unitState.camuflajeOpacity || 0.5));
+  }
+  if (
+    type === 'invocation'
+    && unitState
+    && ROK_ONLINE_MATCH_ACTIVE
+    && Number(playerId) === Number(LOCAL_PLAYER_ID)
+    && unitHasActiveFactor(unitState, 'hidden')
+    && !unitHasCamuflajeHidden(unitState)
+    && !unitHasSaqueadorSigiloHidden(unitState)
+    && !(isKurayamiUnit(unitState) && unitHasActiveFactor(unitState, 'hidden'))
+  ) {
+    div.classList.add('unit-online-hidden-owner-visible');
   }
   if (type === 'invocation' && unitState && (Number(unitState.camuflajeFxUntil || 0) > Date.now() || Number(unitState.saqueadorSigiloFxUntil || 0) > Date.now())) {
     div.classList.add('unit-camuflaje-activating');
