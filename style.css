@@ -42740,52 +42740,70 @@ body.rok-adventure-mode .adventure-screen,
 
 .adventure-caster-domain-panel {
   position: absolute;
-  right: 14px;
-  top: 14px;
-  width: 154px;
-  z-index: 4;
-  display: grid;
-  gap: 8px;
-  justify-items: stretch;
+  right: 10px;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 88px;
+  pointer-events: none;
 }
 
-.adventure-domain-card {
-  display: grid;
-  gap: 3px;
-  padding: 10px 11px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--domain-tint, #58d9ff) 28%, rgba(255,255,255,.12));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--domain-tint, #58d9ff) 10%, rgba(10,18,24,.96)), rgba(6,12,17,.88));
-  box-shadow: inset 0 0 15px color-mix(in srgb, var(--domain-tint, #58d9ff) 9%, transparent), 0 10px 18px rgba(0,0,0,.22);
+.adventure-domain-emblem {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  overflow: visible;
+  filter: drop-shadow(0 5px 8px rgba(0,0,0,.66));
 }
 
-.adventure-domain-card.small {
-  padding: 8px 10px;
-  border-radius: 12px;
+.adventure-domain-emblem.primary {
+  width: 82px;
+  height: 76px;
 }
 
-.adventure-domain-card small {
-  color: rgba(241, 220, 179, .88);
-  font: 700 9px/1 Cinzel, Georgia, serif;
-  letter-spacing: .12em;
-  text-transform: uppercase;
+.adventure-domain-emblem.secondary {
+  width: 58px;
+  height: 54px;
+  margin-top: -7px;
 }
 
-.adventure-domain-card b {
-  color: color-mix(in srgb, var(--domain-tint, #58d9ff) 65%, white);
-  font: 700 12px/1.14 Cinzel, Georgia, serif;
-  letter-spacing: .03em;
+.adventure-domain-layer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 
-.adventure-domain-card span {
-  color: rgba(215,227,232,.76);
-  font-size: 10px;
-  line-height: 1.18;
+.adventure-domain-bg {
+  width: 57%;
+  height: 57%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  border: 1px solid rgba(255,255,255,.42);
+  border-radius: 50%;
+  background: rgba(0,0,0,.82);
+  box-shadow: 0 0 9px rgba(255,255,255,.18), inset 0 0 12px rgba(255,255,255,.08);
 }
 
-.adventure-domain-card-stack {
-  display: grid;
-  gap: 6px;
+.adventure-domain-element {
+  width: 100%;
+  height: 100%;
+  transform: translate(-54%, -57%);
+  z-index: 2;
+}
+
+.adventure-domain-attribute {
+  width: 46%;
+  height: 46%;
+  transform: translate(-50%, -39%);
+  z-index: 3;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,.58));
 }
 
 .adventure-caster-placeholder {
@@ -42855,6 +42873,17 @@ body.rok-adventure-mode .adventure-screen,
   color: var(--quality-tint, #9feaff);
   font: 700 11px/1 Cinzel, Georgia, serif;
   box-shadow: 0 0 8px color-mix(in srgb, var(--quality-tint, #58d9ff) 25%, transparent);
+}
+
+.adventure-quality-icon img {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+  display: block;
+}
+
+.adventure-quality-icon > span {
+  line-height: 1;
 }
 
 .adventure-caster-info {
@@ -43010,7 +43039,8 @@ body.rok-adventure-mode .adventure-screen,
     width: 160px;
   }
   .adventure-caster-domain-panel {
-    width: 146px;
+    width: 82px;
+    right: 8px;
   }
 }
 

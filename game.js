@@ -11293,36 +11293,68 @@ function getAdventureWaterEncounter(id) {
 }
 
 const ADVENTURE_QUALITY_META = {
-  'Hechicero': { glyph: '✦', tint: '#63e2ff' },
-  'Telépata': { glyph: 'Ψ', tint: '#c0a8ff' },
-  'Sabio': { glyph: '◈', tint: '#f1d676' },
-  'Guardián': { glyph: '🛡', tint: '#84d8ff' },
-  'Guerrero': { glyph: '⚔', tint: '#74c9ff' },
-  'Caudillo': { glyph: '♛', tint: '#d9bf74' },
-  'Gélido': { glyph: '❄', tint: '#95e9ff' },
-  'Sanador': { glyph: '✚', tint: '#7fdcc6' },
-  'Sobrenatural': { glyph: '✧', tint: '#e8dc7b' },
-  'Maestro': { glyph: '▲', tint: '#e4c98a' },
-  'Científico': { glyph: '⚙', tint: '#85d4ff' }
+  'Hechicero': { icon: 'assets/qualities/adventure-hechicero.png', tint: '#63e2ff' },
+  'Telépata': { icon: 'assets/qualities/adventure-telepata.svg', tint: '#c0a8ff' },
+  'Sabio': { icon: 'assets/qualities/adventure-sabio.svg', tint: '#f1d676' },
+  'Guardián': { icon: 'assets/qualities/adventure-guardian.png', tint: '#84d8ff' },
+  'Guerrero': { icon: 'assets/qualities/adventure-guerrero.png', tint: '#74c9ff' },
+  'Caudillo': { icon: 'assets/qualities/adventure-caudillo.png', tint: '#d9bf74' },
+  'Gélido': { icon: 'assets/qualities/adventure-gelido.png', tint: '#95e9ff' },
+  'Sanador': { icon: 'assets/qualities/adventure-sanador.svg', tint: '#7fdcc6' },
+  'Sobrenatural': { icon: 'assets/qualities/adventure-sobrenatural.svg', tint: '#e8dc7b' },
+  'Maestro': { icon: 'assets/qualities/adventure-maestro.svg', tint: '#e4c98a' },
+  'Científico': { icon: 'assets/qualities/adventure-cientifico.svg', tint: '#85d4ff' }
 };
 
 function getAdventureQualityMeta(name = '') {
   const label = String(name || '').trim();
   if (ADVENTURE_QUALITY_META[label]) return ADVENTURE_QUALITY_META[label];
-  return {
-    glyph: label ? label.charAt(0).toUpperCase() : '?',
-    tint: '#8fb7c4'
-  };
+  return { icon: '', tint: '#8fb7c4' };
+}
+
+function renderAdventureQualityIcon(name = '') {
+  const meta = getAdventureQualityMeta(name);
+  const fallback = String(name || '?').trim().charAt(0).toUpperCase() || '?';
+  return `<span class="adventure-quality-icon" style="--quality-tint:${meta.tint}">${meta.icon ? `<img src="${meta.icon}" alt="">` : `<span>${fallback}</span>`}</span>`;
 }
 
 function renderAdventureQualityTag(name = '') {
-  const meta = getAdventureQualityMeta(name);
-  return `<span class="adventure-quality-tag"><span class="adventure-quality-icon" style="--quality-tint:${meta.tint}">${meta.glyph}</span><span>${name}</span></span>`;
+  return `<span class="adventure-quality-tag">${renderAdventureQualityIcon(name)}<span>${name}</span></span>`;
 }
 
 function renderAdventureRolePill(role = {}) {
-  const meta = getAdventureQualityMeta(role.name);
-  return `<div class="adventure-role-pill"><div class="adventure-role-pill-head"><span class="adventure-quality-icon" style="--quality-tint:${meta.tint}">${meta.glyph}</span><b>${role.name || 'Rol'}</b></div>${role.text || ''}</div>`;
+  return `<div class="adventure-role-pill"><div class="adventure-role-pill-head">${renderAdventureQualityIcon(role.name)}<b>${role.name || 'Rol'}</b></div>${role.text || ''}</div>`;
+}
+
+const ADVENTURE_DOMAIN_ID_BY_LABEL = {
+  Agua: 'agua',
+  Luz: 'luz',
+  Oscuridad: 'oscuridad',
+  Rayo: 'rayo'
+};
+
+function getAdventureDomainProfile(entry = {}) {
+  const id = ADVENTURE_DOMAIN_ID_BY_LABEL[String(entry.element || '').trim()] || '';
+  if (id && DOMAIN_ART_DB[id]) return DOMAIN_ART_DB[id];
+  if (id === 'rayo') {
+    return {
+      elementLabel: 'Rayo',
+      attributeLabel: 'Energía',
+      elementArt: 'assets/domain/domain-element-lightning-adventure.svg',
+      attributeArt: 'assets/domain/domain-attribute-energy-adventure.svg'
+    };
+  }
+  return DOMAIN_ART_DB.agua;
+}
+
+function renderAdventureDomainEmblem(entry = {}, primary = false) {
+  const profile = getAdventureDomainProfile(entry);
+  const sizeClass = primary ? 'primary' : 'secondary';
+  return `<span class="adventure-domain-emblem ${sizeClass}" title="Dominio: ${profile.elementLabel} · Atributo: ${profile.attributeLabel}" aria-label="Dominio ${profile.elementLabel}, ${profile.attributeLabel}">
+    <span class="adventure-domain-layer adventure-domain-bg" aria-hidden="true"></span>
+    <img class="adventure-domain-layer adventure-domain-element" src="${profile.elementArt}" alt="Elemento ${profile.elementLabel}">
+    <img class="adventure-domain-layer adventure-domain-attribute" src="${profile.attributeArt}" alt="Atributo ${profile.attributeLabel}">
+  </span>`;
 }
 
 function renderAdventureCasterDomainPanel(encounter, ready) {
@@ -11331,10 +11363,9 @@ function renderAdventureCasterDomainPanel(encounter, ready) {
     els.adventureCasterDomainPanel.innerHTML = '';
     return;
   }
-  const [primary, ...rest] = encounter.domains;
-  const renderCard = (entry, small = false) => `<div class="adventure-domain-card${small ? ' small' : ''}" style="--domain-tint:${entry.tint || '#58d9ff'}"><small>${entry.element || ''}</small><b>${entry.domain || ''}</b><span>Dominio activo</span></div>`;
-  const restHtml = rest.length ? `<div class="adventure-domain-card-stack">${rest.map(item => renderCard(item, true)).join('')}</div>` : '';
-  els.adventureCasterDomainPanel.innerHTML = renderCard(primary, false) + restHtml;
+  els.adventureCasterDomainPanel.innerHTML = encounter.domains
+    .map((entry, index) => renderAdventureDomainEmblem(entry, index === 0))
+    .join('');
 }
 
 function renderAdventureCasterStats(encounter, ready) {
@@ -11502,7 +11533,11 @@ function setAdventureView(view = 'world') {
     ? 'Selecciona un enfrentamiento para conocer al Kaster rival y localizar su arena.'
     : 'Explora el continente y elige la región donde comenzará tu travesía.';
   if (els.adventureProgressChip) els.adventureProgressChip.textContent = water ? 'ETAPA 2 · AGUA' : 'ETAPA 1 · REGIONES';
-  if (els.adventureBackBtn) els.adventureBackBtn.textContent = water ? 'Regiones' : 'Volver';
+  if (els.adventureBackBtn) {
+    els.adventureBackBtn.textContent = 'Regiones';
+    els.adventureBackBtn.hidden = !water;
+  }
+  if (els.adventureHomeBtn) els.adventureHomeBtn.hidden = false;
   if (water) selectAdventureWaterEncounter(adventureState.encounterId);
   else selectAdventureWorldZone(adventureState.worldZoneId);
 }
@@ -14163,6 +14198,7 @@ function cacheEls() {
   els.adventureSubtitle = document.getElementById('adventureSubtitle');
   els.adventureProgressChip = document.getElementById('adventureProgressChip');
   els.adventureBackBtn = document.getElementById('adventureBackBtn');
+  els.adventureHomeBtn = document.getElementById('adventureHomeBtn');
   els.adventureWorldView = document.getElementById('adventureWorldView');
   els.adventureWaterView = document.getElementById('adventureWaterView');
   els.adventureZoneList = document.getElementById('adventureZoneList');
@@ -14534,6 +14570,7 @@ function bindEvents() {
   if (els.mainMenuStoryBtn) els.mainMenuStoryBtn.addEventListener('click', () => showMainMenuComingSoon('Modo Historia'));
   if (els.mainMenuAdventureBtn) els.mainMenuAdventureBtn.addEventListener('click', openAdventureScreen);
   if (els.adventureBackBtn) els.adventureBackBtn.addEventListener('click', handleAdventureBack);
+  if (els.adventureHomeBtn) els.adventureHomeBtn.addEventListener('click', closeAdventureScreen);
   if (els.adventureEnterZoneBtn) els.adventureEnterZoneBtn.addEventListener('click', enterSelectedAdventureZone);
   if (els.adventureStartEncounterBtn) els.adventureStartEncounterBtn.addEventListener('click', prepareSelectedAdventureEncounter);
   if (els.adventureZoneList) {

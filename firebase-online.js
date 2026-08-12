@@ -166,6 +166,7 @@
   let casterAvatarJobUnsubscribe = null;
   let casterAvatarCurrentJobId = '';
   let casterAvatarCurrentResultUrl = '';
+  let socialProfileRemoteBlocked = false;
 
   const PROFILE_AVATARS = Object.freeze([
     { id: 'shinra', label: 'Shinra Hitokiri', src: 'assets/shinra-hitokiri-token.png' },
@@ -184,8 +185,11 @@
   }
 
   function isPermissionDeniedError(error) {
-    const code = String(error?.code || error?.message || '').toLowerCase();
-    return code.includes('permission-denied') || code.includes('permission denied');
+    const code = `${String(error?.code || '')} ${String(error?.message || '')}`.toLowerCase();
+    return code.includes('permission-denied')
+      || code.includes('permission_denied')
+      || code.includes('permission denied')
+      || code.includes('database/permission-denied');
   }
 
   function buildLocalScopedKey(prefix) {
@@ -2650,9 +2654,7 @@
         setCasterAvatarJobStatus('Avatar aplicado al perfil local de prueba.', 'ok');
         return true;
       }
-      const api = await loadFirebase();
-      await api.update(api.ref(db, `socialProfiles/${uid}`), updates);
-      socialProfileCache = { ...profile, ...updates, uid };
+      socialProfileCache = await applySocialProfilePatch(updates);
       await renderProfileCenter(socialProfileCache);
       setProfileCenterTab('avatar');
       setProfileCenterStatus('Tu Kaster generado ahora es el avatar activo de tu cuenta.', 'ok');
@@ -2791,11 +2793,9 @@
   async function selectProfileAvatar(avatarId) {
     const normalized = normalizeProfileAvatarId(avatarId);
     try {
-      const api = await loadFirebase();
       const profile = await ensureSocialProfile();
       if (normalized === CUSTOM_PROFILE_AVATAR_ID && !profile.casterAvatarUrl) throw new Error('Todavía no tienes un avatar de Kaster generado.');
-      await api.update(api.ref(db, `socialProfiles/${uid}`), { avatarId: normalized, updatedAt: Date.now() });
-      socialProfileCache = { ...profile, avatarId: normalized, uid };
+      socialProfileCache = await applySocialProfilePatch({ avatarId: normalized, updatedAt: Date.now() });
       await renderProfileCenter(socialProfileCache);
       setProfileCenterTab('avatar');
       setProfileCenterStatus(`Avatar actualizado: ${getProfileAvatar(normalized, socialProfileCache).label}.`, 'ok');
@@ -2814,10 +2814,9 @@
     }
     try {
       const api = await loadFirebase();
-      const profile = await ensureSocialProfile();
-      await api.update(api.ref(db, `socialProfiles/${uid}`), { displayName, updatedAt: Date.now() });
+      await ensureSocialProfile();
+      socialProfileCache = await applySocialProfilePatch({ displayName, updatedAt: Date.now() });
       if (auth?.currentUser && !auth.currentUser.isAnonymous) await api.authModule.updateProfile(auth.currentUser, { displayName });
-      socialProfileCache = { ...profile, displayName, uid };
       if (socialUi.displayNameInput) socialUi.displayNameInput.value = displayName;
       await renderProfileCenter(socialProfileCache);
       setProfileCenterTab('account');
@@ -2937,7 +2936,43 @@
     throw new Error('No se pudo generar un código de amigo único.');
   }
 
+  async function applySocialProfilePatch(patch = {}) {
+    const current = socialProfileCache || buildLocalSocialProfile({ uid });
+    const next = { ...current, ...patch, uid, updatedAt: Number(patch.updatedAt || Date.now()) };
+
+    if (isCasterAvatarMockMode() || socialProfileRemoteBlocked) {
+      socialProfileCache = next;
+      persistLocalSocialProfile(next);
+      updateAccountIdentityUi(auth?.currentUser || null, next);
+      return { ...next, remote: false };
+    }
+
+    try {
+      const api = await loadFirebase();
+      await api.update(api.ref(db, `socialProfiles/${uid}`), patch);
+      socialProfileCache = next;
+      persistLocalSocialProfile(next);
+      updateAccountIdentityUi(auth?.currentUser || null, next);
+      return { ...next, remote: true };
+    } catch (error) {
+      if (!isPermissionDeniedError(error)) throw error;
+      socialProfileRemoteBlocked = true;
+      socialProfileCache = next;
+      persistLocalSocialProfile(next);
+      updateAccountIdentityUi(auth?.currentUser || null, next);
+      return { ...next, remote: false };
+    }
+  }
+
   async function ensureSocialProfile() {
+    if (socialProfileRemoteBlocked) {
+      const localProfile = buildLocalSocialProfile({ uid });
+      socialProfileCache = { ...localProfile, uid };
+      persistLocalSocialProfile(socialProfileCache);
+      updateAccountIdentityUi(auth?.currentUser || null, socialProfileCache);
+      return socialProfileCache;
+    }
+
     try {
       const api = await loadFirebase();
       const profileRef = api.ref(db, `socialProfiles/${uid}`);
@@ -2948,24 +2983,41 @@
       const displayName = normalizeSocialDisplayName(existing.displayName)
         || normalizeSocialDisplayName(auth?.currentUser?.displayName)
         || `Kaster ${friendCode.slice(-4)}`;
+      const casterAvatarUrl = String(existing.casterAvatarUrl || '');
       const profile = {
         friendCode,
         displayName,
         avatarId: normalizeProfileAvatarId(existing.avatarId),
-        casterAvatarUrl: String(existing.casterAvatarUrl || ''),
+        casterAvatarUrl,
         level: normalizeAccountLevel(existing.level),
         xp: normalizeAccountXp(existing.xp),
         createdAt: Number(existing.createdAt || Date.now()),
         updatedAt: Date.now(),
       };
       if (profile.avatarId === CUSTOM_PROFILE_AVATAR_ID && !profile.casterAvatarUrl) profile.avatarId = DEFAULT_PROFILE_AVATAR_ID;
-      await api.set(profileRef, profile);
+
+      // Compatibilidad con las reglas antiguas de R.O.K: no enviamos el campo
+      // casterAvatarUrl hasta que realmente exista. Así el perfil normal no
+      // dispara PERMISSION_DENIED antes de desplegar las reglas nuevas.
+      const remoteProfile = {
+        friendCode: profile.friendCode,
+        displayName: profile.displayName,
+        avatarId: profile.avatarId,
+        level: profile.level,
+        xp: profile.xp,
+        createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt,
+      };
+      if (profile.casterAvatarUrl) remoteProfile.casterAvatarUrl = profile.casterAvatarUrl;
+
+      await api.set(profileRef, remoteProfile);
       socialProfileCache = { ...profile, uid };
       persistLocalSocialProfile(socialProfileCache);
       updateAccountIdentityUi(auth?.currentUser || null, socialProfileCache);
       return socialProfileCache;
     } catch (error) {
       if (isCasterAvatarMockMode() || isPermissionDeniedError(error)) {
+        if (isPermissionDeniedError(error)) socialProfileRemoteBlocked = true;
         const profile = buildLocalSocialProfile({ uid });
         socialProfileCache = { ...profile, uid };
         persistLocalSocialProfile(socialProfileCache);
@@ -3143,12 +3195,11 @@
     setSocialBusy(true);
     try {
       const api = await loadFirebase();
-      const profile = await ensureSocialProfile();
-      await api.update(api.ref(db, `socialProfiles/${uid}`), { displayName, updatedAt: Date.now() });
+      await ensureSocialProfile();
+      socialProfileCache = await applySocialProfilePatch({ displayName, updatedAt: Date.now() });
       if (auth?.currentUser && !auth.currentUser.isAnonymous) {
         await api.authModule.updateProfile(auth.currentUser, { displayName });
       }
-      socialProfileCache = { ...profile, displayName, uid };
       if (socialUi.displayNameInput) socialUi.displayNameInput.value = displayName;
       updateAccountIdentityUi(auth?.currentUser || null, socialProfileCache);
       setSocialStatus(`Nombre actualizado a ${displayName}.`, 'ok');
