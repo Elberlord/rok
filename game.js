@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.271';
+const GAME_VERSION = 'v5.5.270';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -109,16 +109,12 @@ function snapshotOnlineFxUnit(playerId, unit) {
     cardId: unit.cardId || null,
     row: Number(unit.row ?? 0),
     col: Number(unit.col ?? 0),
-    hidden: Boolean(unitHasActiveFactor(unit, 'hidden')),
   };
 }
 
 function snapshotOnlineFxTarget(target) {
   if (!target) return null;
   const pos = typeof getTargetBoardPosition === 'function' ? getTargetBoardPosition(target) : null;
-  const targetUnit = target.type === 'invocation' && target.playerId && target.unitId
-    ? getUnitById(target.playerId, target.unitId)
-    : null;
   return {
     type: target.type || 'cell',
     playerId: Number(target.playerId || 0),
@@ -126,7 +122,6 @@ function snapshotOnlineFxTarget(target) {
     guardianId: target.guardianId || null,
     row: Number(target.row ?? pos?.row ?? 0),
     col: Number(target.col ?? pos?.col ?? 0),
-    hidden: Boolean(targetUnit && unitHasActiveFactor(targetUnit, 'hidden')),
   };
 }
 
@@ -152,32 +147,26 @@ async function playOnlineVisualEvent(event = {}) {
 
   switch (String(event.type || '')) {
     case 'floating-text':
-      if (getFullyConcealedOnlineEnemyAtCell(payload.row, payload.col)) break;
       await replay(() => showFloatingTextAt(payload.row, payload.col, payload.text, payload.className || 'floating-combat'));
       break;
     case 'floating-damage':
-      if (getFullyConcealedOnlineEnemyAtCell(payload.row, payload.col)) break;
       await replay(() => showFloatingDamageAt(payload.row, payload.col, payload.amount));
       break;
     case 'critical-damage':
-      if (getFullyConcealedOnlineEnemyAtCell(payload.row, payload.col)) break;
       await replay(() => showCriticalDamageChipAt(payload.row, payload.col, payload.amount));
       break;
     case 'unit-lunge': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload)) break;
       const unit = getUnitById(payload.playerId, payload.unitId) || onlineFxVirtualUnit(payload);
       await replay(() => triggerUnitAttackLunge(payload.playerId, unit, payload.target || null));
       break;
     }
     case 'distance-attack': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
       await replay(() => showDistanceAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null));
       break;
     }
     case 'weapon-attack': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
       await replay(() => showWeaponAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null, payload.weaponType || 'golpe'));
@@ -193,41 +182,34 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => playRemoteCargaRealFx(payload));
       break;
     case 'minokage-dash': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => playMinokageDashFx(Number(payload.source?.playerId || 0), unit, payload.path || [], payload.landing || { row: unit.row, col: unit.col }, payload.targets || []));
       break;
     }
     case 'minokage-travel': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => playMinokagePassiveTravelFx(Number(payload.source?.playerId || 0), unit, payload.destination || { row: unit.row, col: unit.col }, { ...(payload.options || {}), suppressOnlineFx: true }));
       break;
     }
     case 'minokage-windup': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => playMinokagePassiveWindupFx(unit, Number(payload.duration || 420), { suppressOnlineFx: true }));
       break;
     }
     case 'minokage-hit-slash':
-      if (getFullyConcealedOnlineEnemyAtCell(payload.row, payload.col)) break;
       await replay(() => playMinokageHitSlashBurstFx({ row: Number(payload.row || 0), col: Number(payload.col || 0) }, { angles: payload.angles || [], suppressOnlineFx: true }));
       break;
     case 'restore-travel': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => animateRestoreInvocationToSpawn(Number(payload.source?.playerId || 0), unit, payload.destination || null, null, { fromRow: payload.source?.row, fromCol: payload.source?.col, suppressOnlineFx: true }));
       break;
     }
     case 'return-spellbook': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => animateReturnInvocationToSpellbook(Number(payload.source?.playerId || 0), unit, Number(payload.tab || 0), Number(payload.slot || 0), null, { ...(payload.options || {}), suppressOnlineFx: true }));
       break;
     }
     case 'tokugawa-nexus': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => animateTokugawaNexusTransfer(Number(payload.source?.playerId || 0), unit, payload.from, payload.to, { suppressOnlineFx: true }));
       break;
@@ -236,13 +218,11 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => playTacticaGuerraResolutionFx(payload.title, payload.subtitle, { suppressOnlineFx: true }));
       break;
     case 'tactica-water': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => playTacticaGuerraWaterRestoreFx(unit, Number(payload.delayMs || 0), { suppressOnlineFx: true }));
       break;
     }
     case 'shirahadori-trigger': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       await replay(() => createShirahadoriTriggerFx(Number(payload.source?.playerId || 0), unit));
       break;
@@ -251,7 +231,6 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => showShirahadoriRedirectFx(payload.originalTarget || null, payload.redirectedTarget || null, { ...(payload.options || {}), suppressOnlineFx: true }));
       break;
     case 'minokage-oscillation': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
       await replay(() => playMinokageOscillationCompleteFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.targets || [], { suppressOnlineFx: true }));
@@ -273,7 +252,6 @@ async function playOnlineVisualEvent(event = {}) {
       await replay(() => playInvocationSummonCircleFxAtCell(Number(payload.playerId || 0), payload.item || {}));
       break;
     case 'invocation-entry': {
-      if (isOnlineFxUnitConcealedFromLocalViewer(payload.source)) break;
       const unit = onlineFxVirtualUnit(payload.source || {});
       // La ficha puede llegar por snapshot unos milisegundos después del evento.
       // Darle una oportunidad breve evita perder la animación de entrada.
@@ -293,8 +271,6 @@ async function playOnlineVisualEvent(event = {}) {
 window.ROK_ONLINE_FX = { play: playOnlineVisualEvent };
 
 const PATCH_NOTES = [
-  'v536: PvP online respeta Oculto como sigilo real: el propietario sigue viendo su invocación semitransparente, pero el rival no renderiza su token, badge, estadísticas, auras ni FX posicionales mientras Oculto permanezca activo.',
-  'v535: Agrega dos Spellbooks básicos de prueba persistentes en Mis Spellbooks: Deck básico Hattori (27/30) y Deck básico Tokugawa (30/30), con Fuente elemental configurada y uso habilitado aunque Modo Usuario no posea todavía todas sus copias.',
   'v534: Restaura la composición canónica de la zona de kasteo sobre el lienzo lógico 1600x900: carril de 150 px, slots 100x138, miniaturas 58x74/54x54, reloj y contador en tamaño original, ACTIVO/COLA por encima del token y cola sin scrollbar interno.',
   'v533: Unifica la geometría de FX heredados con el sistema lógico 1600x900: Minokage (Shippū Ugachi, pasiva y Evasión), proyectiles a distancia, Shirahadori, cadena persistente de Parálisis de Junkai, caída/recuperación de armas, recompensas del Guardián y extracción elemental dejan de mezclar píxeles físicos del viewport con coordenadas internas de boardContent.',
   'v532: Corrige la trayectoria de los cuervos de Genyutsu, Shinigami Karasu de Yasugana Hattori: los anclajes de salida y objetivo se convierten de coordenadas físicas del viewport a coordenadas lógicas de #rokAppStage antes de dibujar el proyectil, evitando que la animación salga corrida al redimensionar.',
@@ -6255,43 +6231,6 @@ const CARD_LIBRARY = {
 let LOCAL_PLAYER_ID = 1;
 let ROK_ONLINE_MATCH_ACTIVE = false;
 function isOnlineMatchActive() { return Boolean(ROK_ONLINE_MATCH_ACTIVE); }
-
-// v536 · Oculto en PvP online es información privada del propietario.
-// El dueño conserva la ficha semitransparente y sus indicadores locales, pero el
-// navegador rival no debe crear ningún nodo ni FX posicional que delate la casilla.
-function shouldFullyConcealOnlineUnitForLocalViewer(ownerPlayerId, unit) {
-  const ownerId = Number(ownerPlayerId || 0);
-  const viewerId = Number(LOCAL_PLAYER_ID || 0);
-  return Boolean(
-    ROK_ONLINE_MATCH_ACTIVE
-    && viewerId > 0
-    && ownerId > 0
-    && ownerId !== viewerId
-    && unit
-    && unit.status !== 'restoring'
-    && unitHasActiveFactor(unit, 'hidden')
-  );
-}
-
-function getFullyConcealedOnlineEnemyAtCell(row, col) {
-  if (!ROK_ONLINE_MATCH_ACTIVE || !LOCAL_PLAYER_ID) return null;
-  const enemyId = getOpponentId(LOCAL_PLAYER_ID);
-  return (state.players?.[enemyId]?.units || []).find(unit =>
-    shouldFullyConcealOnlineUnitForLocalViewer(enemyId, unit)
-    && Number(unit.row) === Number(row)
-    && Number(unit.col) === Number(col)
-  ) || null;
-}
-
-function isOnlineFxUnitConcealedFromLocalViewer(unitSnapshot = null) {
-  if (!unitSnapshot || !ROK_ONLINE_MATCH_ACTIVE || !LOCAL_PLAYER_ID) return false;
-  const ownerId = Number(unitSnapshot.playerId || 0);
-  if (!ownerId || ownerId === Number(LOCAL_PLAYER_ID)) return false;
-  if (unitSnapshot.hidden === true) return true;
-  const live = unitSnapshot.unitId ? getUnitById(ownerId, unitSnapshot.unitId) : null;
-  if (live) return shouldFullyConcealOnlineUnitForLocalViewer(ownerId, live);
-  return Boolean(getFullyConcealedOnlineEnemyAtCell(unitSnapshot.row, unitSnapshot.col));
-}
 const MAX_INVOCATIONS_PER_PLAYER = 5;
 
 
@@ -8602,73 +8541,6 @@ const SPELLBOOK_FORCED_LIMITS_TRAIT_ID = 'limitesForzados';
 const SPELLBOOK_LEGACY_ADAPTATION_TRAIT_ID = 'adaptacion';
 const SPELLBOOK_ELEMENT_MAX_TOTAL = 60;
 
-// v535 · Spellbooks básicos de prueba. Se insertan una sola vez por navegador
-// para que aparezcan en Mis Spellbooks sin borrar ni reemplazar los Spellbooks
-// que el usuario ya tenga guardados.
-const BASIC_TEST_SPELLBOOK_MIGRATION_KEY = 'rokLite.basicTestSpellbooks.v535';
-const BASIC_TEST_SPELLBOOK_DEFINITIONS = Object.freeze([
-  Object.freeze({
-    id: 'rok-basic-hattori-v1',
-    name: 'Deck básico Hattori',
-    casterCardId: 'kasterHanzoDark',
-    // La lista dictada contenía “Juntambu”, nombre que no existe como ID propio
-    // en v534. Se conserva el total 27/30 interpretándolo como una segunda copia
-    // de Junkai butai #1, que sí existe en el catálogo actual.
-    cards: Object.freeze([
-      'ninjaKurayami',
-      'ninjaMinokageNoKurai',
-      'ninjaIchikawaGoemon',
-      'ninjaJunkaiButai1',
-      'ninjaKurokagiButai3',
-      'ninjaJunkaiButai1',
-      'ninjaJunkaiButai2',
-      'ninjaSaqueadorNovato',
-      'ninjaYasuganaHattori',
-      'abilityShirahadori', 'abilityShirahadori',
-      'spellEmboscada', 'spellEmboscada',
-      'spellInterceptar', 'spellInterceptar',
-      'spellKageNoMichi', 'spellKageNoMichi',
-      'spellNagayoru', 'spellNagayoru',
-      'spellTacticaGuerra', 'spellTacticaGuerra',
-      'naitoSutoka', 'naitoSutoka',
-      'ninjaOjoDeBuho', 'ninjaOjoDeBuho',
-      'gioshoninMercaderErrante',
-      'ninjaNaitoSutoka',
-    ]),
-    elementDistribution: Object.freeze({ oscuridad: 42, agua: 18 }),
-    elementDistributionConfigured: true,
-    testPreset: true,
-  }),
-  Object.freeze({
-    id: 'rok-basic-tokugawa-v1',
-    name: 'Deck básico Tokugawa',
-    casterCardId: 'kasterTokugawaLight',
-    cards: Object.freeze([
-      'samuraiTakedaShingen',
-      'samuraiKaguya', 'samuraiKaguya',
-      'samuraiNobunagaOda',
-      'samuraiKarunobuTaicho', 'samuraiKarunobuTaicho',
-      'samuraiShinraHitokiri',
-      'samuraiShiroNoBushi',
-      'samuraiBushiHonorable',
-      'samuraiOSenseiUeshiba',
-      'samuraiRegenteKishimoto',
-      'miyamotoMusashi',
-      'samuraiBushiIniciado', 'samuraiBushiIniciado', 'samuraiBushiIniciado', 'samuraiBushiIniciado',
-      'spellCargaReal', 'spellCargaReal',
-      'abilityShirahadori', 'abilityShirahadori',
-      'spellDespliegueAnticipado', 'spellDespliegueAnticipado',
-      'spellKouuten', 'spellKouuten',
-      'spellGurenGan', 'spellGurenGan',
-      'spellTentorou', 'spellTentorou',
-      'spellGloriaLatente', 'spellGloriaLatente',
-    ]),
-    elementDistribution: Object.freeze({ fuego: 40, luz: 20 }),
-    elementDistributionConfigured: true,
-    testPreset: true,
-  }),
-]);
-
 const CARD_TRAIT_DB = {
   limitesforzados: {
     id: SPELLBOOK_FORCED_LIMITS_TRAIT_ID,
@@ -10931,7 +10803,6 @@ function handleBoosterStoreContentClick(event) {
 }
 
 function getRokUserSpellbookCollectionIssue(spellbook) {
-  if (spellbook?.testPreset === true) return '';
   if (!isRokUserModeActive()) return '';
   const counts = new Map();
   (spellbook?.cards || []).filter(Boolean).forEach(cardId => counts.set(cardId, (counts.get(cardId) || 0) + 1));
@@ -11039,6 +10910,8 @@ const ADVENTURE_WORLD_ZONES = [
     domain: 'Conocimiento',
     available: true,
     accent: '#58d9ff',
+    accentFrom: '#37dfff',
+    accentTo: '#0d6b67',
     marker: { x: 86.6, y: 49.6 },
     description: 'Una región dedicada al dominio del Conocimiento. Sus Kasters controlan el avance de la partida mediante ralentización, Silencio, manipulación del kasteo y del consumo elemental. Sus Spellbooks suelen adaptar la arena a entornos acuáticos y recurren principalmente al daño mágico o elemental para imponer un juego defensivo, analítico y meticuloso.'
   },
@@ -11047,7 +10920,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Fuego',
     domain: 'Destrucción',
     available: false,
-    accent: '#ff6b3d',
+    accent: '#ff7a36',
+    accentFrom: '#d83a2f',
+    accentTo: '#ff8b26',
     marker: { x: 52.4, y: 48.8 },
     description: 'El dominio de la Destrucción concentra ataques potentes, explosiones, Quemadura y presión directa. Sus Spellbooks buscan mantener una ofensiva constante, romper defensas y resolver la partida antes de que el rival pueda estabilizar su estrategia.'
   },
@@ -11056,7 +10931,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Tierra',
     domain: 'Vida',
     available: false,
-    accent: '#7fc96a',
+    accent: '#6e8f45',
+    accentFrom: '#5b7433',
+    accentTo: '#6c4932',
     marker: { x: 19.5, y: 48.2 },
     description: 'La Vida se especializa en sustentabilidad elemental, sobreproducción de recursos e invocaciones terrestres muy resistentes. La experiencia gira alrededor de fortalecer el campo y mantener una presencia difícil de eliminar durante combates prolongados.'
   },
@@ -11065,7 +10942,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Rayo',
     domain: 'Energía',
     available: false,
-    accent: '#a985ff',
+    accent: '#e9dd67',
+    accentFrom: '#f4de2d',
+    accentTo: '#b9f1ff',
     marker: { x: 50.4, y: 80.1 },
     description: 'La Energía favorece ataques rápidos y precisos, velocidad superior y efectos de área capaces de paralizar, confundir o debilitar temporalmente. Es una región de ritmo dinámico, presión continua y aprovechamiento inmediato de las aperturas del rival.'
   },
@@ -11074,7 +10953,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Muerte',
     domain: 'Corrupción',
     available: false,
-    accent: '#87908a',
+    accent: '#be2f81',
+    accentFrom: '#cf2f97',
+    accentTo: '#0d0d12',
     marker: { x: 40.8, y: 47.7 },
     description: 'La Corrupción utiliza daño progresivo, resurrección, propagación de efectos negativos y robo de vida. Sus enfrentamientos exigen administrar riesgos elevados mientras el campo se llena de amenazas que pueden regresar o seguir debilitando al rival con el paso de las fases.'
   },
@@ -11083,7 +10964,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Luz',
     domain: 'Revelación',
     available: false,
-    accent: '#ffe09a',
+    accent: '#efd97c',
+    accentFrom: '#d8af32',
+    accentTo: '#ffffff',
     marker: { x: 31.1, y: 20.4 },
     description: 'Revelación combina información táctica, purificación, curación y estructuras defensivas. Sus poderosas invocaciones voladoras recompensan la supervivencia hasta etapas avanzadas, donde la región puede transformar una defensa sólida en una ofensiva dominante.'
   },
@@ -11092,7 +10975,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Oscuridad',
     domain: 'Misterio',
     available: false,
-    accent: '#8d6de8',
+    accent: '#7b4cd3',
+    accentFrom: '#6a3fc8',
+    accentTo: '#08070c',
     marker: { x: 27.6, y: 62.7 },
     description: 'Misterio gira alrededor del sigilo, las trampas, la ocultación y el engaño. Sus invocaciones suelen tener mucho daño y poca vida, por lo que sobreviven mediante efectos que les permiten desaparecer, reaparecer y alterar la toma de decisiones del rival.'
   },
@@ -11101,7 +10986,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Viento',
     domain: 'Libertad',
     available: false,
-    accent: '#d5f3ff',
+    accent: '#cbf6d2',
+    accentFrom: '#f8ffff',
+    accentTo: '#70be76',
     marker: { x: 53.0, y: 15.5 },
     description: 'Libertad domina la movilidad y la ofensiva aérea. Los Kasters de Viento despliegan invocaciones rápidas, ágiles y difíciles de fijar, capaces de ignorar obstáculos terrestres y convertir el posicionamiento en su principal ventaja táctica.'
   },
@@ -11110,7 +10997,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Sonido',
     domain: 'Vibración',
     available: false,
-    accent: '#e09a55',
+    accent: '#e7c5d6',
+    accentFrom: '#d9dadd',
+    accentTo: '#f0b8cb',
     marker: { x: 35.3, y: 75.7 },
     description: 'Vibración usa el sonido para desorientar, debilitar y manipular emocionalmente a las invocaciones rivales. Sus propias unidades no dependen de grandes estadísticas: sobreviven explotando control mental, Confusión y potenciaciones temporales.'
   },
@@ -11120,6 +11009,8 @@ const ADVENTURE_WORLD_ZONES = [
     domain: 'Territorio central',
     available: false,
     accent: '#c59661',
+    accentFrom: '#c59661',
+    accentTo: '#c59661',
     marker: { x: 73.7, y: 39.4 },
     description: 'El gran desierto corresponde al país de Ehlie y funciona como territorio central del continente. No constituye una región elemental seleccionable dentro de esta primera etapa de Aventura.'
   }
@@ -11127,56 +11018,269 @@ const ADVENTURE_WORLD_ZONES = [
 
 const ADVENTURE_WATER_ENCOUNTERS = [
   {
-    id: 'enigma-first-apprentice',
-    label: 'Primera aprendiz de Enigma',
+    id: 'enigma-apprentice',
+    label: 'Aprendiz de Enigma',
     subtitle: 'Control mágico adaptable',
     available: true,
     marker: { x: 58.5, y: 58.0 },
-    image: 'assets/adventure/casters/enigma-first-apprentice.png',
+    image: 'assets/adventure/casters/enigma-apprentice.png',
     domain: 'Agua · Conocimiento',
+    domains: [
+      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
+    ],
+    imageScale: 1.78,
+    imageShiftX: '-10%',
+    imageShiftY: '15%',
     deckTitle: 'Control mágico adaptable',
-    qualities: ['Hechicero', 'Telépata', 'Sabio'],
-    description: 'Su Spellbook mono elemental de Agua está construido alrededor de Hechiceros, Telépatas y Sabios. No busca imponerse mediante fuerza bruta: combina interferencia mágica, manipulación mental y conocimiento aplicado para limitar tus opciones, alterar el kasteo y adaptar sus respuestas a la estrategia que presentes.',
+    qualities: ['Telépata', 'Sabio', 'Hechicero'],
+    description: 'Su Spellbook de Agua está construido alrededor de Telépatas, Sabios y Hechiceros. No busca imponerse por fuerza bruta: analiza tu plan, interfiere tus kasteos, altera tiempos y convierte tus mejores jugadas en decisiones arriesgadas.',
+    stats: {
+      sections: [
+        {
+          title: 'Base',
+          items: [
+            { label: 'Ataque', value: 1, max: 10, display: '1', fillFrom: '#64ddff', fillTo: '#88f7ff' },
+            { label: 'Vida', value: 12, max: 20, display: '12', fillFrom: '#4bd3ff', fillTo: '#5ac4a2' },
+            { label: 'Alcance', value: 4, max: 8, display: '4', fillFrom: '#8ad0ff', fillTo: '#b4f3ff' },
+            { label: 'Movilidad', value: 2, max: 6, display: '2', fillFrom: '#8fd7ff', fillTo: '#c6f4ff' },
+            { label: 'Esc. especial', value: 1, max: 4, display: '1', fillFrom: '#c9e7ff', fillTo: '#89c7ff' },
+            { label: 'Esc. completo', value: 0, max: 1, display: '0', fillFrom: '#d4ddff', fillTo: '#9bc4ff' }
+          ]
+        },
+        {
+          title: 'Elemento puro',
+          items: [
+            { label: 'EP por ciclo', value: 1, max: 5, display: '+1', fillFrom: '#5ef0de', fillTo: '#57bd8c' },
+            { label: 'EP máximo', value: 6, max: 10, display: '6', fillFrom: '#4fd8d6', fillTo: '#58bca8' }
+          ]
+        }
+      ],
+      profile: [
+        { label: 'Especialidad', value: 'Interferencia arcana y mental' },
+        { label: 'Tempo', value: 'Medio · táctico' },
+        { label: 'Pico', value: 'Juego medio' },
+        { label: 'Aporte', value: 'Silencio, alteración de kasteos y respuestas flexibles.' }
+      ]
+    },
     roles: [
-      { name: 'Hechicero', text: 'Presión mágica, Silencio, inmunidad mágica temporal y Purificar para retirar factores progresivos.' },
       { name: 'Telépata', text: 'Control mental, Sugestión e interferencia directa sobre los kasteos y las invocaciones rivales.' },
-      { name: 'Sabio', text: 'Acelera la capacidad de juego, altera tiempos de kasteo/enfriamiento y amplía las opciones de movilidad.' }
+      { name: 'Sabio', text: 'Acelera la capacidad de juego, altera tiempos de kasteo/enfriamiento y amplía las opciones tácticas.' },
+      { name: 'Hechicero', text: 'Presión mágica, Silencio e inmunidad mágica temporal cuando la situación lo requiere.' }
     ]
   },
   {
-    id: 'water-encounter-2',
-    label: 'Encuentro II',
-    subtitle: 'Kaster por definir',
-    available: false,
-    marker: { x: 58.0, y: 15.7 }
+    id: 'kaelor-rompiente',
+    label: 'Kaelor de la Rompiente',
+    subtitle: 'Formación de rompiente',
+    available: true,
+    marker: { x: 58.0, y: 15.7 },
+    image: 'assets/adventure/casters/kaelor-rompiente.png',
+    domain: 'Agua · Conocimiento',
+    domains: [
+      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
+    ],
+    imageScale: 1.72,
+    imageShiftX: '-12%',
+    imageShiftY: '15%',
+    deckTitle: 'Formación defensiva y ofensiva',
+    qualities: ['Guardián', 'Guerrero', 'Caudillo'],
+    description: 'Kaelor dirige una formación de Agua enfocada al control físico del frente. Sus Guardianes protegen, sus Guerreros sostienen la presión y sus Caudillos reorganizan nexos y líneas para convertir una defensa cerrada en una contraofensiva disciplinada.',
+    stats: {
+      sections: [
+        {
+          title: 'Base',
+          items: [
+            { label: 'Ataque', value: 3, max: 10, display: '3', fillFrom: '#69d7ff', fillTo: '#90f6ff' },
+            { label: 'Vida', value: 16, max: 20, display: '16', fillFrom: '#54cbff', fillTo: '#5ed3b3' },
+            { label: 'Alcance', value: 2, max: 8, display: '2', fillFrom: '#8fd7ff', fillTo: '#cbefff' },
+            { label: 'Movilidad', value: 2, max: 6, display: '2', fillFrom: '#9bdcff', fillTo: '#c6f4ff' },
+            { label: 'Esc. especial', value: 2, max: 4, display: '2', fillFrom: '#d6ecff', fillTo: '#8ec6ff' },
+            { label: 'Esc. completo', value: 1, max: 1, display: '1', fillFrom: '#dfe6ff', fillTo: '#a6c1ff' }
+          ]
+        },
+        {
+          title: 'Elemento puro',
+          items: [
+            { label: 'EP por ciclo', value: 1, max: 5, display: '+1', fillFrom: '#68f0df', fillTo: '#5cbc97' },
+            { label: 'EP máximo', value: 7, max: 10, display: '7', fillFrom: '#50d7d6', fillTo: '#58bca8' }
+          ]
+        }
+      ],
+      profile: [
+        { label: 'Especialidad', value: 'Cobertura y formación táctica' },
+        { label: 'Tempo', value: 'Early · mid' },
+        { label: 'Pico', value: 'Juego temprano / medio' },
+        { label: 'Aporte', value: 'Interposición, coordinación y control del frente.' }
+      ]
+    },
+    roles: [
+      { name: 'Guardián', text: 'Protege posiciones clave, cubre aliados y dificulta el avance rival.' },
+      { name: 'Guerrero', text: 'Sostiene la presión frontal con un perfil equilibrado de ataque y aguante.' },
+      { name: 'Caudillo', text: 'Reorganiza unidades, ajusta nexos y mantiene cohesionada la formación.' }
+    ]
   },
   {
-    id: 'water-encounter-3',
-    label: 'Encuentro III',
-    subtitle: 'Kaster por definir',
-    available: false,
-    marker: { x: 49.4, y: 34.5 }
+    id: 'sahrkel-oraculo-abisal',
+    label: "Sahr'kel, Oráculo Abisal",
+    subtitle: 'Geoformación acuática',
+    available: true,
+    marker: { x: 49.4, y: 34.5 },
+    image: 'assets/adventure/casters/sahrkel-oraculo-abisal.png',
+    domain: 'Agua · Conocimiento',
+    domains: [
+      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
+    ],
+    imageScale: 1.56,
+    imageShiftX: '-9%',
+    imageShiftY: '12%',
+    deckTitle: 'Bioma acuático progresivo',
+    qualities: ['Gélido', 'Hechicero', 'Sanador'],
+    description: "Sahr'kel no domina el Agua solo como hechizo, sino como ecosistema. Convierte la arena en bioma acuático, favorece criaturas acuáticas y anfibias, y mezcla frío, Posma y sanación para pelear cada vez mejor dentro de su propio entorno.",
+    stats: {
+      sections: [
+        {
+          title: 'Base',
+          items: [
+            { label: 'Ataque', value: 2, max: 10, display: '2', fillFrom: '#64ddff', fillTo: '#88f7ff' },
+            { label: 'Vida', value: 14, max: 20, display: '14', fillFrom: '#4bd3ff', fillTo: '#5ac4a2' },
+            { label: 'Alcance', value: 4, max: 8, display: '4', fillFrom: '#8ad0ff', fillTo: '#b4f3ff' },
+            { label: 'Movilidad', value: 2, max: 6, display: '2', fillFrom: '#8fd7ff', fillTo: '#c6f4ff' },
+            { label: 'Esc. especial', value: 1, max: 4, display: '1', fillFrom: '#c9e7ff', fillTo: '#89c7ff' },
+            { label: 'Esc. completo', value: 0, max: 1, display: '0', fillFrom: '#d4ddff', fillTo: '#9bc4ff' }
+          ]
+        },
+        {
+          title: 'Elemento puro',
+          items: [
+            { label: 'EP por ciclo', value: 2, max: 5, display: '+2', fillFrom: '#5ef0de', fillTo: '#57bd8c' },
+            { label: 'EP máximo', value: 8, max: 10, display: '8', fillFrom: '#4fd8d6', fillTo: '#58bca8' }
+          ]
+        }
+      ],
+      profile: [
+        { label: 'Especialidad', value: 'Geoformación de bioma acuático' },
+        { label: 'Tempo', value: 'Medio · progresivo' },
+        { label: 'Pico', value: 'Juego medio / tardío' },
+        { label: 'Aporte', value: 'Zonas acuáticas, criaturas anfibias y desgaste por frío.' }
+      ]
+    },
+    roles: [
+      { name: 'Gélido', text: 'Ralentiza, genera Posma y transforma el terreno en una amenaza progresiva.' },
+      { name: 'Hechicero', text: 'Convierte el control del bioma en presión mágica y manipulación elemental.' },
+      { name: 'Sanador', text: 'Mantiene a las criaturas acuáticas activas mientras el rival se desgasta.' }
+    ]
   },
   {
-    id: 'water-encounter-4',
-    label: 'Encuentro IV',
-    subtitle: 'Kaster por definir',
-    available: false,
-    marker: { x: 52.0, y: 74.0 }
+    id: 'ilyan-marea-electrica',
+    label: 'Ilyan de la Marea Eléctrica',
+    subtitle: 'Control y ataque rápido',
+    available: true,
+    marker: { x: 52.0, y: 74.0 },
+    image: 'assets/adventure/casters/ilyan-marea-electrica.png',
+    domain: 'Agua · Conocimiento + Rayo · Energía',
+    domains: [
+      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' },
+      { element: 'Rayo', domain: 'Energía', tint: '#f2da42' }
+    ],
+    imageScale: 1.82,
+    imageShiftX: '-11%',
+    imageShiftY: '15%',
+    deckTitle: 'Sinergia elemental de choque',
+    qualities: ['Sobrenatural', 'Hechicero', 'Guerrero'],
+    description: 'Ilyan representa la unión elemental de Agua y Rayo. El Agua abre el espacio táctico ralentizando o condicionando; el Rayo lo explota con descargas rápidas, aturdimientos y ataques que castigan antes de que el rival pueda reorganizarse.',
+    stats: {
+      sections: [
+        {
+          title: 'Base',
+          items: [
+            { label: 'Ataque', value: 3, max: 10, display: '3', fillFrom: '#70dcff', fillTo: '#f4e66e' },
+            { label: 'Vida', value: 15, max: 20, display: '15', fillFrom: '#4bd3ff', fillTo: '#b7d66a' },
+            { label: 'Alcance', value: 3, max: 8, display: '3', fillFrom: '#9fd8ff', fillTo: '#fff1a0' },
+            { label: 'Movilidad', value: 3, max: 6, display: '3', fillFrom: '#a2e1ff', fillTo: '#fff4b2' },
+            { label: 'Esc. especial', value: 2, max: 4, display: '2', fillFrom: '#dfefff', fillTo: '#f7e686' },
+            { label: 'Esc. completo', value: 0, max: 1, display: '0', fillFrom: '#e5e8ff', fillTo: '#ffe68d' }
+          ]
+        },
+        {
+          title: 'Elemento puro',
+          items: [
+            { label: 'EP por ciclo', value: 2, max: 5, display: '+2', fillFrom: '#71f0df', fillTo: '#d7d25c' },
+            { label: 'EP máximo', value: 9, max: 10, display: '9', fillFrom: '#54dad6', fillTo: '#e7d152' }
+          ]
+        }
+      ],
+      profile: [
+        { label: 'Especialidad', value: 'Control hídrico + descarga veloz' },
+        { label: 'Tempo', value: 'Rápido · reactivo' },
+        { label: 'Pico', value: 'Juego medio' },
+        { label: 'Aporte', value: 'Aberturas breves, daño explosivo y presión inmediata.' }
+      ]
+    },
+    roles: [
+      { name: 'Sobrenatural', text: 'Permite interacciones anómalas entre Agua y Rayo que rompen la expectativa rival.' },
+      { name: 'Hechicero', text: 'Convierte la sinergia elemental en descargas, control y presión mágica.' },
+      { name: 'Guerrero', text: 'Aprovecha las aberturas creadas por el control elemental para cerrar el combate.' }
+    ]
   },
   {
-    id: 'water-encounter-5',
-    label: 'Encuentro V',
-    subtitle: 'Kaster por definir',
-    available: false,
-    marker: { x: 54.2, y: 89.2 }
+    id: 'aurek-sabio-belico',
+    label: 'Aurek Vhal, Sabio Bélico',
+    subtitle: 'Guerra de información',
+    available: true,
+    marker: { x: 54.2, y: 89.2 },
+    image: 'assets/adventure/casters/aurek-sabio-belico.png',
+    domain: 'Agua · Conocimiento + Luz · Revelación + Oscuridad · Misterio',
+    domains: [
+      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' },
+      { element: 'Luz', domain: 'Revelación', tint: '#e7ca62' },
+      { element: 'Oscuridad', domain: 'Misterio', tint: '#8b63f1' }
+    ],
+    imageScale: 1.70,
+    imageShiftX: '-10%',
+    imageShiftY: '14%',
+    deckTitle: 'Ingeniería táctica y trampas',
+    qualities: ['Maestro', 'Científico', 'Sabio'],
+    description: 'Aurek no pelea como un elemental puro. Usa Agua, Luz y Oscuridad como doctrinas tácticas: analiza el campo, revela lo que necesita conocer, oculta lo que no quiere mostrar y convierte equipos, trampas y habilidades enseñadas en la base de su control estratégico.',
+    stats: {
+      sections: [
+        {
+          title: 'Base',
+          items: [
+            { label: 'Ataque', value: 2, max: 10, display: '2', fillFrom: '#64ddff', fillTo: '#e1d06a' },
+            { label: 'Vida', value: 17, max: 20, display: '17', fillFrom: '#4bd3ff', fillTo: '#8b63f1' },
+            { label: 'Alcance', value: 5, max: 8, display: '5', fillFrom: '#8ad0ff', fillTo: '#d9c4ff' },
+            { label: 'Movilidad', value: 2, max: 6, display: '2', fillFrom: '#8fd7ff', fillTo: '#c9b6ff' },
+            { label: 'Esc. especial', value: 3, max: 4, display: '3', fillFrom: '#c9e7ff', fillTo: '#b79bff' },
+            { label: 'Esc. completo', value: 1, max: 1, display: '1', fillFrom: '#d4ddff', fillTo: '#cab2ff' }
+          ]
+        },
+        {
+          title: 'Elemento puro',
+          items: [
+            { label: 'EP por ciclo', value: 2, max: 5, display: '+2', fillFrom: '#5ef0de', fillTo: '#c7b65f' },
+            { label: 'EP máximo', value: 10, max: 10, display: '10', fillFrom: '#4fd8d6', fillTo: '#9568ff' }
+          ]
+        }
+      ],
+      profile: [
+        { label: 'Especialidad', value: 'Guerra de información' },
+        { label: 'Tempo', value: 'Adaptativo · progresivo' },
+        { label: 'Pico', value: 'Juego tardío' },
+        { label: 'Aporte', value: 'Equipos, trampas y enseñanza de habilidades.' }
+      ]
+    },
+    roles: [
+      { name: 'Maestro', text: 'Perfecciona técnicas, mejora habilidades enseñadas y eleva la eficiencia de sus piezas clave.' },
+      { name: 'Científico', text: 'Despliega equipos, instala trampas y enseña habilidades a Kasters e invocaciones.' },
+      { name: 'Sabio', text: 'Coordina el ritmo de la partida, optimiza recursos y adapta el plan táctico a tu Spellbook.' }
+    ]
   }
 ];
 
 const adventureState = {
   view: 'world',
   worldZoneId: 'water',
-  encounterId: 'enigma-first-apprentice',
+  encounterId: 'enigma-apprentice',
   noticeTimer: null
 };
 
@@ -11186,6 +11290,95 @@ function getAdventureWorldZone(id) {
 
 function getAdventureWaterEncounter(id) {
   return ADVENTURE_WATER_ENCOUNTERS.find(encounter => encounter.id === id) || ADVENTURE_WATER_ENCOUNTERS[0];
+}
+
+const ADVENTURE_QUALITY_META = {
+  'Hechicero': { glyph: '✦', tint: '#63e2ff' },
+  'Telépata': { glyph: 'Ψ', tint: '#c0a8ff' },
+  'Sabio': { glyph: '◈', tint: '#f1d676' },
+  'Guardián': { glyph: '🛡', tint: '#84d8ff' },
+  'Guerrero': { glyph: '⚔', tint: '#74c9ff' },
+  'Caudillo': { glyph: '♛', tint: '#d9bf74' },
+  'Gélido': { glyph: '❄', tint: '#95e9ff' },
+  'Sanador': { glyph: '✚', tint: '#7fdcc6' },
+  'Sobrenatural': { glyph: '✧', tint: '#e8dc7b' },
+  'Maestro': { glyph: '▲', tint: '#e4c98a' },
+  'Científico': { glyph: '⚙', tint: '#85d4ff' }
+};
+
+function getAdventureQualityMeta(name = '') {
+  const label = String(name || '').trim();
+  if (ADVENTURE_QUALITY_META[label]) return ADVENTURE_QUALITY_META[label];
+  return {
+    glyph: label ? label.charAt(0).toUpperCase() : '?',
+    tint: '#8fb7c4'
+  };
+}
+
+function renderAdventureQualityTag(name = '') {
+  const meta = getAdventureQualityMeta(name);
+  return `<span class="adventure-quality-tag"><span class="adventure-quality-icon" style="--quality-tint:${meta.tint}">${meta.glyph}</span><span>${name}</span></span>`;
+}
+
+function renderAdventureRolePill(role = {}) {
+  const meta = getAdventureQualityMeta(role.name);
+  return `<div class="adventure-role-pill"><div class="adventure-role-pill-head"><span class="adventure-quality-icon" style="--quality-tint:${meta.tint}">${meta.glyph}</span><b>${role.name || 'Rol'}</b></div>${role.text || ''}</div>`;
+}
+
+function renderAdventureCasterDomainPanel(encounter, ready) {
+  if (!els.adventureCasterDomainPanel) return;
+  if (!ready || !encounter || !Array.isArray(encounter.domains) || !encounter.domains.length) {
+    els.adventureCasterDomainPanel.innerHTML = '';
+    return;
+  }
+  const [primary, ...rest] = encounter.domains;
+  const renderCard = (entry, small = false) => `<div class="adventure-domain-card${small ? ' small' : ''}" style="--domain-tint:${entry.tint || '#58d9ff'}"><small>${entry.element || ''}</small><b>${entry.domain || ''}</b><span>Dominio activo</span></div>`;
+  const restHtml = rest.length ? `<div class="adventure-domain-card-stack">${rest.map(item => renderCard(item, true)).join('')}</div>` : '';
+  els.adventureCasterDomainPanel.innerHTML = renderCard(primary, false) + restHtml;
+}
+
+function renderAdventureCasterStats(encounter, ready) {
+  if (!els.adventureCasterStats) return;
+  if (!ready || !encounter || !encounter.stats) {
+    els.adventureCasterStats.innerHTML = `<div class="adventure-stats-kicker">Estadísticas</div><div class="adventure-caster-profile"><div class="adventure-caster-profile-line"><b>En desarrollo</b><span>Las estadísticas del Kaster aparecerán aquí cuando el encuentro quede definido.</span></div></div>`;
+    return;
+  }
+  const stats = encounter.stats || {};
+  const sections = Array.isArray(stats.sections) ? stats.sections : [];
+  const profile = Array.isArray(stats.profile) ? stats.profile : [];
+  const sectionsHtml = sections.map(section => {
+    const itemsHtml = (section.items || []).map(item => {
+      const max = Math.max(1, Number(item.max) || 1);
+      const value = Math.max(0, Number(item.value) || 0);
+      const ratio = Math.max(0, Math.min(100, (value / max) * 100));
+      const display = item.display != null ? item.display : String(value);
+      return `<div class="adventure-stat-row"><div class="adventure-stat-line"><span>${item.label || ''}</span><span class="adventure-stat-value">${display}</span></div><div class="adventure-stat-bar"><div class="adventure-stat-fill" style="--stat-ratio:${ratio}%;--stat-fill-from:${item.fillFrom || '#55d7ff'};--stat-fill-to:${item.fillTo || '#8cf7ff'}"></div></div></div>`;
+    }).join('');
+    return `<div class="adventure-stats-section"><div class="adventure-stats-section-title">${section.title || ''}</div>${itemsHtml}</div>`;
+  }).join('');
+  const profileHtml = profile.length ? `<div class="adventure-caster-profile">${profile.map(line => `<div class="adventure-caster-profile-line"><b>${line.label || ''}</b><span>${line.value || ''}</span></div>`).join('')}</div>` : '';
+  els.adventureCasterStats.innerHTML = `<div class="adventure-stats-kicker">Ficha del Kaster</div>${sectionsHtml}${profileHtml}`;
+}
+
+function updateAdventureWaterMapFocus(point) {
+  if (!els.adventureWaterMapCanvas) {
+    setAdventureMarkerPosition(els.adventureWaterMarker, point);
+    return;
+  }
+  const px = Math.max(0, Math.min(1, (Number(point && point.x) || 50) / 100));
+  const py = Math.max(0, Math.min(1, (Number(point && point.y) || 50) / 100));
+  const zoom = 1.68;
+  const focusX = 0.55;
+  const focusY = 0.50;
+  const clampMin = 1 - zoom;
+  const offsetX = Math.min(0, Math.max(clampMin, focusX - (px * zoom)));
+  const offsetY = Math.min(0, Math.max(clampMin, focusY - (py * zoom)));
+  const markerX = (offsetX + (px * zoom)) * 100;
+  const markerY = (offsetY + (py * zoom)) * 100;
+  els.adventureWaterMapCanvas.style.setProperty('--water-map-zoom', String(zoom));
+  els.adventureWaterMapCanvas.style.setProperty('--water-map-offset-x', `${offsetX * 100}%`);
+  els.adventureWaterMapCanvas.style.setProperty('--water-map-offset-y', `${offsetY * 100}%`);
+  setAdventureMarkerPosition(els.adventureWaterMarker, { x: markerX, y: markerY });
 }
 
 function setAdventureMarkerPosition(markerEl, point) {
@@ -11211,7 +11404,7 @@ function renderAdventureZoneList() {
   if (!els.adventureZoneList) return;
   els.adventureZoneList.innerHTML = ADVENTURE_WORLD_ZONES.map(zone => {
     const selected = zone.id === adventureState.worldZoneId;
-    return `<button class="adventure-option ${zone.available ? 'available' : 'locked'}${selected ? ' selected' : ''}" type="button" role="option" aria-selected="${selected ? 'true' : 'false'}" data-adventure-zone="${zone.id}" style="--option-accent:${zone.accent}">
+    return `<button class="adventure-option ${zone.available ? 'available' : 'locked'}${selected ? ' selected' : ''}" type="button" role="option" aria-selected="${selected ? 'true' : 'false'}" data-adventure-zone="${zone.id}" style="--option-accent:${zone.accent};--option-accent-from:${zone.accentFrom || zone.accent};--option-accent-to:${zone.accentTo || zone.accent}">
       <span class="adventure-option-main"><span class="adventure-option-name">${zone.element}</span><span class="adventure-option-badge">${zone.available ? 'DISPONIBLE' : 'BLOQUEADA'}</span></span>
       <small>${zone.domain}</small>
     </button>`;
@@ -11254,29 +11447,37 @@ function selectAdventureWaterEncounter(encounterId, options = {}) {
   const encounter = getAdventureWaterEncounter(encounterId);
   adventureState.encounterId = encounter.id;
   renderAdventureCasterList();
-  setAdventureMarkerPosition(els.adventureWaterMarker, encounter.marker);
+  updateAdventureWaterMapFocus(encounter.marker);
 
   const ready = encounter.available === true;
   if (els.adventureCasterImage) {
     els.adventureCasterImage.hidden = !ready;
     if (ready && encounter.image) els.adventureCasterImage.src = encounter.image;
     els.adventureCasterImage.alt = ready ? encounter.label : '';
+    const visual = els.adventureCasterImage.parentElement;
+    if (visual) {
+      visual.style.setProperty('--caster-art-scale', String(encounter.imageScale || 1.72));
+      visual.style.setProperty('--caster-art-shift-x', encounter.imageShiftX || '-8%');
+      visual.style.setProperty('--caster-art-shift-y', encounter.imageShiftY || '14%');
+    }
   }
   if (els.adventureCasterPlaceholder) els.adventureCasterPlaceholder.hidden = ready;
+  renderAdventureCasterDomainPanel(encounter, ready);
   if (els.adventureCasterDomain) els.adventureCasterDomain.textContent = ready ? encounter.domain : 'AGUA · CONOCIMIENTO';
   if (els.adventureCasterName) els.adventureCasterName.textContent = encounter.label;
   if (els.adventureCasterQualities) {
     els.adventureCasterQualities.innerHTML = ready
-      ? (encounter.qualities || []).map(name => `<span class="adventure-quality-tag">${name}</span>`).join('')
-      : '<span class="adventure-quality-tag">POR DEFINIR</span>';
+      ? (encounter.qualities || []).map(name => renderAdventureQualityTag(name)).join('')
+      : renderAdventureQualityTag('Por definir');
   }
+  renderAdventureCasterStats(encounter, ready);
   if (els.adventureCasterDeckTitle) els.adventureCasterDeckTitle.textContent = ready ? encounter.deckTitle : 'Encuentro en desarrollo';
   if (els.adventureCasterDescription) els.adventureCasterDescription.textContent = ready
     ? encounter.description
     : 'Este punto de combate queda reservado para uno de los próximos Kasters de la región de Agua. Su identidad, Spellbook y arena temática se añadirán cuando queden definidos.';
   if (els.adventureCasterRoles) {
     els.adventureCasterRoles.innerHTML = ready
-      ? (encounter.roles || []).map(role => `<div class="adventure-role-pill"><b>${role.name}</b>${role.text}</div>`).join('')
+      ? (encounter.roles || []).map(role => renderAdventureRolePill(role)).join('')
       : '';
   }
   if (els.adventureCasterStatus) {
@@ -11317,7 +11518,7 @@ function openAdventureScreen() {
   if (els.spellbooksCollectionScreen) els.spellbooksCollectionScreen.setAttribute('aria-hidden', 'true');
   if (els.adventureScreen) els.adventureScreen.setAttribute('aria-hidden', 'false');
   adventureState.worldZoneId = 'water';
-  adventureState.encounterId = 'enigma-first-apprentice';
+  adventureState.encounterId = 'enigma-apprentice';
   setAdventureView('world');
   renderAdventureZoneList();
   renderAdventureCasterList();
@@ -11784,7 +11985,6 @@ function normalizeSavedSpellbook(raw) {
     cards: normalizeSpellbookCardSlots(raw.cards),
     elementDistribution: normalizeSpellbookElementDistribution(raw.elementDistribution),
     elementDistributionConfigured: raw.elementDistributionConfigured === true || getSpellbookElementTotal(raw.elementDistribution) > 0,
-    testPreset: raw.testPreset === true,
     createdAt: Number(raw.createdAt) || Date.now(),
     updatedAt: Number(raw.updatedAt) || Date.now(),
     schemaVersion: SPELLBOOK_SCHEMA_VERSION,
@@ -11824,7 +12024,6 @@ function serializeSpellbookMatchLoadout(spellbook) {
     cards: normalizeSpellbookCardSlots(normalized.cards),
     elementDistribution: normalizeSpellbookElementDistribution(normalized.elementDistribution),
     elementDistributionConfigured: normalized.elementDistributionConfigured === true,
-    testPreset: normalized.testPreset === true,
     schemaVersion: SPELLBOOK_SCHEMA_VERSION,
   };
 }
@@ -12056,37 +12255,10 @@ window.ROK_SPELLBOOK_MATCH = {
   getLoadoutIssue: loadout => getSpellbookMatchIssue(loadout),
 };
 
-function ensureBasicTestSpellbooks() {
-  if (safeLocalStorageGet(BASIC_TEST_SPELLBOOK_MIGRATION_KEY) === '1') return;
-
-  const existingIds = new Set(savedSpellbooks.map(entry => entry?.id).filter(Boolean));
-  const now = Date.now();
-  let added = 0;
-
-  BASIC_TEST_SPELLBOOK_DEFINITIONS.forEach((definition, index) => {
-    if (existingIds.has(definition.id)) return;
-    const normalized = normalizeSavedSpellbook({
-      ...definition,
-      cards: [...definition.cards],
-      elementDistribution: { ...definition.elementDistribution },
-      createdAt: now - index,
-      updatedAt: now - index,
-    });
-    if (!normalized) return;
-    savedSpellbooks.push(normalized);
-    existingIds.add(normalized.id);
-    added += 1;
-  });
-
-  const persisted = added > 0 ? persistSpellbookStorage() : true;
-  if (persisted) safeLocalStorageSet(BASIC_TEST_SPELLBOOK_MIGRATION_KEY, '1');
-}
-
 function loadSpellbookStorage() {
   const raw = safeLocalStorageGet(SPELLBOOK_STORAGE_KEY);
   if (!raw) {
     savedSpellbooks = [];
-    ensureBasicTestSpellbooks();
     return;
   }
   try {
@@ -12099,7 +12271,6 @@ function loadSpellbookStorage() {
     console.warn('[ROK Spellbooks] Datos guardados inválidos; se conservará una colección vacía.', error);
     savedSpellbooks = [];
   }
-  ensureBasicTestSpellbooks();
 }
 
 function persistSpellbookStorage() {
@@ -14003,7 +14174,10 @@ function cacheEls() {
   els.adventureZoneDescription = document.getElementById('adventureZoneDescription');
   els.adventureEnterZoneBtn = document.getElementById('adventureEnterZoneBtn');
   els.adventureCasterList = document.getElementById('adventureCasterList');
+  els.adventureWaterMapCanvas = document.getElementById('adventureWaterMapCanvas');
   els.adventureWaterMarker = document.getElementById('adventureWaterMarker');
+  els.adventureCasterStats = document.getElementById('adventureCasterStats');
+  els.adventureCasterDomainPanel = document.getElementById('adventureCasterDomainPanel');
   els.adventureCasterPlaceholder = document.getElementById('adventureCasterPlaceholder');
   els.adventureCasterImage = document.getElementById('adventureCasterImage');
   els.adventureCasterDomain = document.getElementById('adventureCasterDomain');
@@ -23292,8 +23466,6 @@ function renderParalysisLinksLayer() {
       const sourcePlayerId = getParalysisSourcePlayerId(targetUnit, entry);
       const sourceUnit = getUnitById(sourcePlayerId, entry.sourceUnitId);
       if (!sourceUnit) continue;
-      if (shouldFullyConcealOnlineUnitForLocalViewer(targetPlayerId, targetUnit)) continue;
-      if (shouldFullyConcealOnlineUnitForLocalViewer(sourcePlayerId, sourceUnit)) continue;
 
       const start = cellCenter(sourceUnit.row, sourceUnit.col);
       const end = cellCenter(targetUnit.row, targetUnit.col);
@@ -37532,7 +37704,7 @@ async function playTacticaGuerraResolutionFx(title = 'TÁCTICA DE GUERRA', subti
 }
 
 function playTacticaGuerraWaterRestoreFx(unit, delayMs = 0, options = {}) {
-  if (!options.suppressOnlineFx) emitOnlineVisualEvent('tactica-water', { source: snapshotOnlineFxUnit(getOwnerPlayerIdForUnit(unit) || 0, unit), delayMs: Number(delayMs || 0) });
+  if (!options.suppressOnlineFx) emitOnlineVisualEvent('tactica-water', { source: snapshotOnlineFxUnit(0, unit), delayMs: Number(delayMs || 0) });
   if (!unit) return;
   setTimeout(() => {
     const point = getCellViewportCenter(unit.row, unit.col);
@@ -42920,19 +43092,7 @@ function renderCombatHud() {
     hud.removeAttribute('style');
   }
 
-  const pairs = [...getActiveCombatPairs(), ...getGuardianCombatGroups()]
-    .map(pair => {
-      if (pair?.kind === 'guardian') {
-        const visibleTargets = (pair.targets || []).filter(target =>
-          !shouldFullyConcealOnlineUnitForLocalViewer(target.playerId, target.unit)
-        );
-        return visibleTargets.length ? { ...pair, targets: visibleTargets } : null;
-      }
-      if (shouldFullyConcealOnlineUnitForLocalViewer(pair?.a?.playerId, pair?.a?.unit)) return null;
-      if (shouldFullyConcealOnlineUnitForLocalViewer(pair?.b?.playerId, pair?.b?.unit)) return null;
-      return pair;
-    })
-    .filter(Boolean);
+  const pairs = [...getActiveCombatPairs(), ...getGuardianCombatGroups()];
   hud.innerHTML = '';
   hud.classList.toggle('visible', pairs.length > 0);
   pairs.forEach(pair => hud.appendChild(createCombatPairNode(pair)));
@@ -44324,7 +44484,6 @@ function renderArenaEffectTrackers() {
     const units = state.players?.[playerId]?.units || [];
     units.forEach(unit => {
       if (!unit || unit.status === 'restoring' || unit.cardId !== 'ninjaNaitoSutoka' || !Number.isFinite(Number(unit.smokeBombsLeft))) return;
-      if (shouldFullyConcealOnlineUnitForLocalViewer(playerId, unit)) return;
       const item = document.createElement('button');
       item.type = 'button';
       item.className = `arena-effect-tracker arena-effect-consumable-stock player-${playerId}`;
@@ -45360,7 +45519,6 @@ function renderMinokageAuras() {
   for (const playerId of [1, 2]) {
     for (const unit of state.players?.[playerId]?.units || []) {
       if (!isMinokageUnit(unit) || unit.status === 'restoring') continue;
-      if (shouldFullyConcealOnlineUnitForLocalViewer(playerId, unit)) continue;
       const remoteTargets = getMinokagePassiveSelectableTargets(playerId, unit).filter(entry => ringDistance(unit.row, unit.col, entry.row, entry.col) > 1);
       if (!remoteTargets.length) continue;
       const key = `${playerId}:${unit.id}`;
@@ -45398,7 +45556,6 @@ function renderGuardianChannelFx() {
     Object.entries(channels).forEach(([targetKey, entry]) => {
       const unit = getUnitById(entry.playerId, entry.unitId);
       if (!unit || unit.status === 'restoring' || !isCellInsideGuardianAura(guardian, unit.row, unit.col)) return;
-      if (shouldFullyConcealOnlineUnitForLocalViewer(entry.playerId, unit)) return;
       const key = `${playerId}:${guardian.id}:${targetKey}`;
       activeKeys.add(key);
       let beam = els.guardianChannelFxLayer.querySelector(`[data-guardian-channel-key="${key}"]`);
@@ -45475,7 +45632,6 @@ function renderMinokageChannelFxLayer() {
   charges.forEach(charge => {
     const unit = getUnitById(charge.playerId, charge.unitId);
     if (!unit || unit.status === 'restoring' || !unit.minokageChanneling) return;
-    if (shouldFullyConcealOnlineUnitForLocalViewer(charge.playerId, unit)) return;
     if (!isMinokageChargeTargetValid(charge)) {
       clearMinokageChargeRuntime(charge, 'el objetivo murió, fue destruido o salió de la arena', true);
       return;
@@ -45559,7 +45715,6 @@ function renderUnits() {
     guardians.filter(g => g.active !== false || g.destroying).forEach((g, index) => renderUnit(g.row, g.col, 'guardian', getGuardianAssetForPlayer(playerId), `Guardián ${index + 1} · RES ${g.resistance ?? 5}`, playerId, null, getOwnerColor(playerId), null, g.id));
     units.forEach(unit => {
       if (unit.restoreAnimating) return;
-      if (shouldFullyConcealOnlineUnitForLocalViewer(playerId, unit)) return;
       const card = CARD_LIBRARY[unit.cardId];
       const element = getElementById(getUnitElementId(playerId, unit));
       renderUnit(unit.row, unit.col, 'invocation', card.tokenImage, card.name, playerId, unit.spawnId, element?.color || '#ffffff', unit.id);
@@ -45587,7 +45742,6 @@ function renderKaguyaChargeFxLayer() {
     const player = state.players?.[playerId];
     const units = Array.isArray(player?.units) ? player.units : [];
     units.forEach(unit => {
-      if (shouldFullyConcealOnlineUnitForLocalViewer(playerId, unit)) return;
       const visual = getKaguyaChargeVisualState(unit);
       if (!visual?.active || unit.status === 'restoring' || unit.restoreAnimating) return;
       const key = `p${playerId}_${unit.id}`;
@@ -45788,18 +45942,6 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
   if (type === 'invocation' && unitState && (unitHasCamuflajeHidden(unitState) || unitHasSaqueadorSigiloHidden(unitState))) {
     div.classList.add('unit-camuflaje-hidden');
     div.style.setProperty('--camuflaje-opacity', String(unitState.saqueadorSigiloOpacity || unitState.camuflajeOpacity || 0.5));
-  }
-  if (
-    type === 'invocation'
-    && unitState
-    && ROK_ONLINE_MATCH_ACTIVE
-    && Number(playerId) === Number(LOCAL_PLAYER_ID)
-    && unitHasActiveFactor(unitState, 'hidden')
-    && !unitHasCamuflajeHidden(unitState)
-    && !unitHasSaqueadorSigiloHidden(unitState)
-    && !(isKurayamiUnit(unitState) && unitHasActiveFactor(unitState, 'hidden'))
-  ) {
-    div.classList.add('unit-online-hidden-owner-visible');
   }
   if (type === 'invocation' && unitState && (Number(unitState.camuflajeFxUntil || 0) > Date.now() || Number(unitState.saqueadorSigiloFxUntil || 0) > Date.now())) {
     div.classList.add('unit-camuflaje-activating');

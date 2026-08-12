@@ -39548,6 +39548,176 @@ body.rok-account-locked {
 .profile-panel-heading { display:flex; justify-content:space-between; gap:14px; align-items:flex-end; margin-bottom:14px; }
 .profile-panel-heading h3 { margin:5px 0 0; color:#f0e4f5; font:800 18px/1 Cinzel,Georgia,serif; }
 .profile-panel-heading > small { color:#756a7d; font:700 7px/1.2 system-ui,sans-serif; }
+
+.caster-avatar-creator {
+  margin-bottom:14px;
+  padding:14px;
+  border:1px solid rgba(114,184,224,.18);
+  border-radius:16px;
+  background:
+    radial-gradient(circle at 76% 24%,rgba(69,180,221,.10),transparent 31%),
+    linear-gradient(180deg,rgba(13,26,37,.88),rgba(8,10,17,.94));
+  box-shadow:inset 0 0 18px rgba(71,174,212,.04);
+}
+.caster-avatar-creator-copy > span {
+  color:#8fcfe5;
+  font:900 7px/1 system-ui,sans-serif;
+  letter-spacing:.12em;
+}
+.caster-avatar-creator-copy h4 {
+  margin:5px 0 6px;
+  color:#f0e8da;
+  font:800 15px/1.1 Cinzel,Georgia,serif;
+}
+.caster-avatar-creator-copy p {
+  margin:0;
+  color:#8d8990;
+  font:650 8px/1.45 system-ui,sans-serif;
+}
+.caster-avatar-creator-body {
+  display:grid;
+  grid-template-columns:150px 170px minmax(0,1fr);
+  gap:12px;
+  align-items:stretch;
+  margin-top:12px;
+}
+.caster-avatar-upload {
+  min-height:154px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:12px;
+  border:1px dashed rgba(121,197,226,.34);
+  border-radius:13px;
+  background:rgba(8,18,25,.62);
+  color:#c8deea;
+  cursor:pointer;
+  text-align:center;
+  transition:border-color .16s ease,transform .16s ease,background .16s ease;
+}
+.caster-avatar-upload:hover {
+  transform:translateY(-1px);
+  border-color:rgba(132,215,247,.62);
+  background:rgba(11,27,37,.72);
+}
+.caster-avatar-upload-mark {
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  border:1px solid rgba(123,206,239,.28);
+  color:#8ddbf5;
+  background:rgba(58,146,180,.10);
+  font:300 26px/1 system-ui,sans-serif;
+}
+.caster-avatar-upload strong { font:900 8px/1 system-ui,sans-serif; }
+.caster-avatar-upload small { color:#6f828d; font:700 6.5px/1.25 system-ui,sans-serif; }
+.caster-avatar-preview-stage {
+  min-height:154px;
+  position:relative;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:13px;
+  background:
+    linear-gradient(45deg,rgba(255,255,255,.025) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.025) 75%),
+    linear-gradient(45deg,rgba(255,255,255,.025) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.025) 75%),
+    #090c11;
+  background-size:20px 20px;
+  background-position:0 0,10px 10px;
+}
+.caster-avatar-preview-stage img {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+.caster-avatar-preview-empty {
+  display:grid;
+  place-items:center;
+  gap:5px;
+  color:#53636d;
+  text-align:center;
+}
+.caster-avatar-preview-empty > span { font-size:30px; line-height:1; }
+.caster-avatar-preview-empty small { font:800 6.5px/1 system-ui,sans-serif; text-transform:uppercase; letter-spacing:.08em; }
+.caster-avatar-result-preview { z-index:2; background:#080b10; }
+.caster-avatar-result-badge {
+  position:absolute;
+  z-index:3;
+  right:7px;
+  top:7px;
+  padding:5px 7px;
+  border-radius:999px;
+  border:1px solid rgba(100,223,191,.32);
+  color:#a7ecd9;
+  background:rgba(22,87,70,.72);
+  font:900 6px/1 system-ui,sans-serif;
+  letter-spacing:.08em;
+}
+.caster-avatar-request-controls {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:8px;
+}
+.caster-avatar-consent {
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:8px;
+  align-items:start;
+  color:#8d8793;
+  font:650 7.2px/1.35 system-ui,sans-serif;
+}
+.caster-avatar-consent input { margin:1px 0 0; accent-color:#65cbe9; }
+.caster-avatar-request-btn,
+.caster-avatar-use-btn {
+  min-height:36px;
+  border-radius:10px;
+  border:1px solid rgba(105,200,233,.28);
+  background:linear-gradient(180deg,rgba(27,108,137,.78),rgba(12,52,70,.88));
+  color:#e2f5fb;
+  font:900 7.5px/1 system-ui,sans-serif;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.caster-avatar-use-btn {
+  border-color:rgba(115,221,184,.30);
+  background:linear-gradient(180deg,rgba(24,112,83,.78),rgba(11,57,43,.9));
+}
+.caster-avatar-request-btn:disabled,
+.caster-avatar-use-btn:disabled { opacity:.45; cursor:not-allowed; }
+.caster-avatar-job-status {
+  min-height:30px;
+  padding:8px 9px;
+  border-radius:9px;
+  background:rgba(255,255,255,.035);
+  color:#77828a;
+  font:700 7px/1.35 system-ui,sans-serif;
+}
+.caster-avatar-job-status.working { color:#9fdcf1; background:rgba(45,132,164,.09); }
+.caster-avatar-job-status.ok { color:#a9e4ca; background:rgba(44,139,101,.09); }
+.caster-avatar-job-status.error { color:#efaaa2; background:rgba(159,58,50,.09); }
+.profile-avatar-divider {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:4px 0 11px;
+  color:#716a78;
+  font:900 6.5px/1 system-ui,sans-serif;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+}
+.profile-avatar-divider::before,.profile-avatar-divider::after { content:''; height:1px; flex:1; background:rgba(255,255,255,.06); }
+
 .profile-avatar-grid {
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -39656,6 +39826,7 @@ body.rok-account-locked {
   .main-menu-profile-chip { flex-basis:136px; min-width:136px; }
   .main-menu-profile-avatar { width:28px; height:28px; flex-basis:28px; }
   .profile-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .caster-avatar-creator-body { grid-template-columns:130px 150px minmax(0,1fr); gap:9px; }
   .profile-avatar-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .profile-achievements-grid { grid-template-columns:1fr; }
 }
@@ -39665,6 +39836,8 @@ body.rok-account-locked {
   .profile-center-hero { gap:12px; padding-right:36px; }
   .profile-center-avatar { width:68px; height:68px; flex-basis:68px; }
   .profile-center-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .caster-avatar-creator-body { grid-template-columns:1fr; }
+  .caster-avatar-upload,.caster-avatar-preview-stage { min-height:140px; }
   .profile-avatar-grid { grid-template-columns:1fr 1fr; }
   .profile-account-actions { grid-template-columns:1fr; }
 }
@@ -42092,25 +42265,28 @@ body.rok-adventure-mode .adventure-screen,
   left: 0;
   top: 9px;
   bottom: 9px;
-  width: 3px;
+  width: 4px;
   border-radius: 999px;
-  background: var(--option-accent, rgba(159,179,187,.45));
-  opacity: .7;
-  box-shadow: 0 0 10px var(--option-accent, transparent);
+  background: linear-gradient(180deg, var(--option-accent-from, var(--option-accent, rgba(159,179,187,.45))), var(--option-accent-to, var(--option-accent, rgba(159,179,187,.18))));
+  opacity: .88;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--option-accent-from, var(--option-accent, transparent)) 65%, transparent);
 }
 
 .adventure-option:hover,
 .adventure-option:focus-visible,
 .adventure-option.selected {
   transform: translateX(3px);
-  border-color: color-mix(in srgb, var(--option-accent, #8fa8b2) 58%, rgba(255,255,255,.2));
+  border-color: color-mix(in srgb, var(--option-accent-from, var(--option-accent, #8fa8b2)) 58%, rgba(255,255,255,.2));
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--option-accent, #8fa8b2) 15%, rgba(8,13,18,.94)), rgba(15,20,25,.82));
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--option-accent-from, var(--option-accent, #8fa8b2)) 18%, rgba(8,13,18,.94)),
+      color-mix(in srgb, var(--option-accent-to, var(--option-accent, #8fa8b2)) 12%, rgba(15,20,25,.82))
+    );
   outline: none;
 }
 
 .adventure-option.selected {
-  box-shadow: inset 0 0 20px color-mix(in srgb, var(--option-accent, #8fa8b2) 9%, transparent);
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--option-accent-from, var(--option-accent, #8fa8b2)) 9%, transparent);
 }
 
 .adventure-option.locked {
@@ -42158,9 +42334,12 @@ body.rok-adventure-mode .adventure-screen,
 }
 
 .adventure-option.available .adventure-option-badge {
-  color: #bdefff;
-  border-color: rgba(88,217,255,.38);
-  background: rgba(17,102,129,.18);
+  color: color-mix(in srgb, var(--option-accent-from, #bdefff) 70%, white);
+  border-color: color-mix(in srgb, var(--option-accent-from, rgba(88,217,255,.38)) 45%, rgba(255,255,255,.18));
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--option-accent-from, #58d9ff) 18%, rgba(17,102,129,.18)),
+    color-mix(in srgb, var(--option-accent-to, #0f617f) 14%, rgba(12,24,30,.16))
+  );
 }
 
 .adventure-world-main,
@@ -42344,27 +42523,44 @@ body.rok-adventure-mode .adventure-screen,
 
 /* Etapa 2 · área de Agua */
 .adventure-water-main {
-  grid-template-rows: minmax(0, 1fr) 196px;
+  grid-template-rows: minmax(0, 1fr) 214px;
 }
 
 .adventure-water-top {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(360px, .72fr) minmax(520px, 1.1fr);
+  grid-template-columns: minmax(380px, .78fr) minmax(520px, 1.08fr);
   gap: 12px;
 }
 
 .adventure-water-map-frame {
   display: grid;
-  place-items: center;
+  place-items: stretch;
+  overflow: hidden;
+  padding: 0;
   background:
     radial-gradient(circle at 50% 50%, rgba(55,171,205,.12), transparent 52%),
     #02080c;
 }
 
+.adventure-water-map-canvas {
+  --water-map-zoom: 1.62;
+  --water-map-offset-x: -24%;
+  --water-map-offset-y: -12%;
+}
+
 .adventure-water-map-frame .adventure-map-image {
-  object-fit: contain;
+  object-fit: fill;
   object-position: center center;
+  width: calc(100% * var(--water-map-zoom, 1));
+  height: calc(100% * var(--water-map-zoom, 1));
+  max-width: none;
+  max-height: none;
+  right: auto;
+  bottom: auto;
+  left: var(--water-map-offset-x, 0%);
+  top: var(--water-map-offset-y, 0%);
+  transition: left .34s cubic-bezier(.2,.75,.2,1), top .34s cubic-bezier(.2,.75,.2,1), width .34s cubic-bezier(.2,.75,.2,1), height .34s cubic-bezier(.2,.75,.2,1);
 }
 
 .adventure-water-marker {
@@ -42380,7 +42576,7 @@ body.rok-adventure-mode .adventure-screen,
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   background:
-    radial-gradient(circle at 56% 42%, rgba(35,166,204,.2), transparent 28%),
+    radial-gradient(circle at 58% 38%, rgba(35,166,204,.22), transparent 30%),
     linear-gradient(120deg, rgba(4,13,18,.96), rgba(10,21,27,.88));
 }
 
@@ -42397,11 +42593,17 @@ body.rok-adventure-mode .adventure-screen,
 }
 
 .adventure-caster-visual {
+  --caster-art-scale: 1.72;
+  --caster-art-shift-x: -8%;
+  --caster-art-shift-y: 14%;
   min-height: 0;
   position: relative;
   display: grid;
-  place-items: end center;
+  place-items: end start;
   overflow: hidden;
+  padding-left: 184px;
+  padding-right: 176px;
+  background: radial-gradient(circle at 76% 48%, rgba(65,203,255,.08), transparent 28%);
 }
 
 .adventure-caster-visual > img {
@@ -42412,7 +42614,162 @@ body.rok-adventure-mode .adventure-screen,
   height: 100%;
   object-fit: contain;
   object-position: center bottom;
-  filter: drop-shadow(0 16px 20px rgba(0,0,0,.65));
+  transform: scale(var(--caster-art-scale, 1.72)) translate(var(--caster-art-shift-x, -8%), var(--caster-art-shift-y, 14%));
+  transform-origin: center 24%;
+  filter: drop-shadow(0 18px 22px rgba(0,0,0,.66));
+}
+
+.adventure-caster-stats {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  bottom: 16px;
+  width: 170px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(113, 179, 203, .23);
+  background: linear-gradient(180deg, rgba(8,18,24,.94), rgba(5,12,18,.82));
+  box-shadow: inset 0 0 14px rgba(81,191,220,.06), 0 10px 18px rgba(0,0,0,.24);
+  backdrop-filter: blur(3px);
+}
+
+.adventure-caster-stats[hidden] {
+  display: none !important;
+}
+
+.adventure-stats-kicker {
+  color: rgba(175, 223, 239, .88);
+  font: 700 10px/1 Cinzel, Georgia, serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.adventure-stats-section {
+  display: grid;
+  gap: 6px;
+}
+
+.adventure-stats-section-title {
+  color: rgba(247, 231, 194, .88);
+  font: 700 9px/1 Cinzel, Georgia, serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.adventure-stat-row {
+  display: grid;
+  gap: 3px;
+}
+
+.adventure-stat-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: rgba(223, 231, 236, .86);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.adventure-stat-value {
+  color: #d8f2fb;
+  font: 700 10px/1 Cinzel, Georgia, serif;
+}
+
+.adventure-stat-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+.adventure-stat-fill {
+  height: 100%;
+  width: var(--stat-ratio, 0%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--stat-fill-from, #55d7ff), var(--stat-fill-to, #8cf7ff));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--stat-fill-from, #55d7ff) 70%, transparent);
+}
+
+.adventure-caster-profile {
+  margin-top: auto;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  display: grid;
+  gap: 5px;
+}
+
+.adventure-caster-profile-line {
+  display: grid;
+  gap: 2px;
+}
+
+.adventure-caster-profile-line b {
+  color: #f1ddb4;
+  font: 700 9px/1.15 Cinzel, Georgia, serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.adventure-caster-profile-line span {
+  color: rgba(217,228,234,.84);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.adventure-caster-domain-panel {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 154px;
+  z-index: 4;
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
+}
+
+.adventure-domain-card {
+  display: grid;
+  gap: 3px;
+  padding: 10px 11px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--domain-tint, #58d9ff) 28%, rgba(255,255,255,.12));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--domain-tint, #58d9ff) 10%, rgba(10,18,24,.96)), rgba(6,12,17,.88));
+  box-shadow: inset 0 0 15px color-mix(in srgb, var(--domain-tint, #58d9ff) 9%, transparent), 0 10px 18px rgba(0,0,0,.22);
+}
+
+.adventure-domain-card.small {
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+.adventure-domain-card small {
+  color: rgba(241, 220, 179, .88);
+  font: 700 9px/1 Cinzel, Georgia, serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.adventure-domain-card b {
+  color: color-mix(in srgb, var(--domain-tint, #58d9ff) 65%, white);
+  font: 700 12px/1.14 Cinzel, Georgia, serif;
+  letter-spacing: .03em;
+}
+
+.adventure-domain-card span {
+  color: rgba(215,227,232,.76);
+  font-size: 10px;
+  line-height: 1.18;
+}
+
+.adventure-domain-card-stack {
+  display: grid;
+  gap: 6px;
 }
 
 .adventure-caster-placeholder {
@@ -42460,14 +42817,28 @@ body.rok-adventure-mode .adventure-screen,
 .adventure-quality-tag {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 9px;
+  gap: 6px;
+  min-height: 27px;
+  padding: 0 10px 0 6px;
   border-radius: 999px;
   border: 1px solid rgba(88,217,255,.28);
   color: #b9e8f7;
   background: rgba(19,95,118,.14);
   font: 700 10px/1 Cinzel, Georgia, serif;
   letter-spacing: .055em;
+}
+
+.adventure-quality-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--quality-tint, #58d9ff) 35%, rgba(255,255,255,.14));
+  background: color-mix(in srgb, var(--quality-tint, #58d9ff) 16%, rgba(7,16,24,.88));
+  color: var(--quality-tint, #9feaff);
+  font: 700 11px/1 Cinzel, Georgia, serif;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--quality-tint, #58d9ff) 25%, transparent);
 }
 
 .adventure-caster-info {
@@ -42504,7 +42875,7 @@ body.rok-adventure-mode .adventure-screen,
 .adventure-role-pill {
   flex: 1 1 0;
   min-width: 0;
-  padding: 7px 9px;
+  padding: 8px 9px;
   border-radius: 10px;
   border: 1px solid rgba(108,172,194,.15);
   background: rgba(10,26,34,.55);
@@ -42513,11 +42884,24 @@ body.rok-adventure-mode .adventure-screen,
   line-height: 1.3;
 }
 
+.adventure-role-pill-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
 .adventure-role-pill b {
   display: block;
-  margin-bottom: 2px;
+  margin: 0;
   color: #aee7f8;
   font: 700 10px/1.2 Cinzel, Georgia, serif;
+}
+
+.adventure-role-pill .adventure-quality-icon {
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
 }
 
 .adventure-notice {
@@ -42596,6 +42980,22 @@ body.rok-adventure-mode .adventure-screen,
 .adventure-water-map-frame .adventure-map-image {
   object-fit: fill;
   object-position: center;
+}
+
+@media (max-width: 1560px) {
+  .adventure-caster-visual {
+    padding-left: 170px;
+    padding-right: 160px;
+  }
+  .adventure-caster-visual > img {
+    transform: scale(var(--caster-art-scale, 1.58)) translate(var(--caster-art-shift-x, -7%), var(--caster-art-shift-y, 12%));
+  }
+  .adventure-caster-stats {
+    width: 160px;
+  }
+  .adventure-caster-domain-panel {
+    width: 146px;
+  }
 }
 
 
@@ -42963,20 +43363,4 @@ body.rok-battle-mode .cast-panel .cast-item.cast-waiting::after {
 body.rok-battle-mode .cast-panel .small-note {
   flex: 0 0 auto !important;
   overflow: visible !important;
-}
-
-
-/* =========================================================
-   ROK v536 · OCULTO PRIVADO EN PVP ONLINE
-   El propietario mantiene una lectura semitransparente de su propia ficha.
-   El rival no recibe este nodo: game.js omite por completo su render.
-   ========================================================= */
-.unit.invocation.unit-online-hidden-owner-visible > .unit-token-img {
-  opacity: .44;
-  filter:
-    saturate(.72)
-    contrast(.92)
-    drop-shadow(0 0 8px rgba(132, 96, 255, .48))
-    drop-shadow(0 8px 8px rgba(0, 0, 0, .45)) !important;
-  transition: opacity 160ms ease, filter 160ms ease;
 }

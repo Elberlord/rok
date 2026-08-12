@@ -80,6 +80,9 @@
         },
         "$other": {
           ".validate": false
+        },
+        "casterAvatarUrl": {
+          ".validate": "newData.isString()"
         }
       }
     },
@@ -114,6 +117,48 @@
         "$friendUid": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $uid !== $friendUid && ((!newData.exists() && (auth.uid === $uid || auth.uid === $friendUid)) || (newData.exists() && ((auth.uid === $uid && root.child('friendRequests').child($uid).child($friendUid).child('fromUid').val() === $friendUid) || (auth.uid === $friendUid && root.child('friendRequests').child($friendUid).child($uid).child('fromUid').val() === $uid))))",
           ".validate": "!newData.exists() || (newData.hasChildren(['uid','since']) && newData.child('uid').val() === $friendUid && newData.child('since').isNumber())"
+        }
+      }
+    },
+    "avatarJobs": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        "$jobId": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['uid','status','createdAt','updatedAt']) && newData.child('uid').val() === $uid && newData.child('status').isString() && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber()",
+          "uid": {
+            ".validate": "newData.val() === $uid"
+          },
+          "status": {
+            ".validate": "newData.isString() && (newData.val() === 'queued' || newData.val() === 'processing' || newData.val() === 'completed' || newData.val() === 'failed')"
+          },
+          "sourcePath": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "sourceContentType": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "promptVersion": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "mode": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "resultUrl": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "mock": {
+            ".validate": "!newData.exists() || newData.isBoolean()"
+          },
+          "completedAt": {
+            ".validate": "!newData.exists() || newData.isNumber()"
+          },
+          "errorMessage": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     }

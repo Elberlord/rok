@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>R.O.K LITE</title>
-  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=536-online-hidden-private-visibility" />
+  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=533-unified-logical-fx-coordinates" />
   <link rel="icon" href="assets/kast-cell-icon.jpg" />
 </head>
 <body>
@@ -215,7 +215,7 @@
         <section class="adventure-water-main">
           <div class="adventure-water-top">
             <div class="adventure-map-frame adventure-water-map-frame">
-              <div class="adventure-map-canvas adventure-water-map-canvas">
+              <div id="adventureWaterMapCanvas" class="adventure-map-canvas adventure-water-map-canvas">
                 <img class="adventure-map-image" src="assets/adventure/water-region-map.png" alt="Mapa del área de Agua">
                 <img id="adventureWaterMarker" class="adventure-map-marker adventure-water-marker" src="assets/adventure/zone-marker.png" alt="" aria-hidden="true">
                 <div class="adventure-map-shade" aria-hidden="true"></div>
@@ -224,11 +224,13 @@
 
             <article class="adventure-caster-preview">
               <div class="adventure-caster-visual">
+                <div id="adventureCasterStats" class="adventure-caster-stats"></div>
+                <div id="adventureCasterDomainPanel" class="adventure-caster-domain-panel"></div>
                 <div id="adventureCasterPlaceholder" class="adventure-caster-placeholder" hidden>
                   <span>?</span>
                   <strong>Próximamente</strong>
                 </div>
-                <img id="adventureCasterImage" src="assets/adventure/casters/enigma-first-apprentice.png" alt="Primera aprendiz de Enigma">
+                <img id="adventureCasterImage" src="assets/adventure/casters/enigma-apprentice.png" alt="Aprendiz de Enigma">
               </div>
               <div class="adventure-caster-caption">
                 <small id="adventureCasterDomain">AGUA · CONOCIMIENTO</small>
@@ -349,7 +351,35 @@
           <div class="profile-summary-copy"><h3>Progreso de cuenta</h3><p>El nivel y la experiencia pertenecen a tu cuenta de R.O.K. El sistema queda preparado para sumar XP mediante partidas, progresión y logros en etapas posteriores.</p></div>
         </section>
         <section class="profile-center-panel" data-profile-panel="avatar">
-          <div class="profile-panel-heading"><div><span>PERSONALIZACIÓN</span><h3>Selecciona tu avatar</h3></div><small>Se guarda en tu perfil de Firebase.</small></div>
+          <div class="profile-panel-heading"><div><span>PERSONALIZACIÓN</span><h3>Avatar de tu Kaster</h3></div><small>Se guarda en tu perfil de Firebase.</small></div>
+          <article class="caster-avatar-creator" aria-labelledby="casterAvatarCreatorTitle">
+            <div class="caster-avatar-creator-copy">
+              <span>AVATAR PERSONAL</span>
+              <h4 id="casterAvatarCreatorTitle">Solicita la creación de tu Kaster</h4>
+              <p>Sube una foto tuya. El sistema conservará tu identidad visual y generará una versión de fantasía medieval de R.O.K sin fondo. Tu foto fuente se usa solo para procesar la solicitud.</p>
+            </div>
+            <div class="caster-avatar-creator-body">
+              <label class="caster-avatar-upload" for="casterAvatarSourceInput">
+                <input id="casterAvatarSourceInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                <span class="caster-avatar-upload-mark">＋</span>
+                <strong>Subir una foto</strong>
+                <small>PNG, JPG o WEBP · máximo 10 MB</small>
+              </label>
+              <div class="caster-avatar-preview-stage">
+                <div id="casterAvatarSourceEmpty" class="caster-avatar-preview-empty"><span>◇</span><small>Foto de referencia</small></div>
+                <img id="casterAvatarSourcePreview" alt="Vista previa de la foto de referencia" hidden>
+                <img id="casterAvatarResultPreview" class="caster-avatar-result-preview" alt="Avatar generado del Kaster" hidden>
+                <span id="casterAvatarResultBadge" class="caster-avatar-result-badge" hidden>GENERADO</span>
+              </div>
+              <div class="caster-avatar-request-controls">
+                <label class="caster-avatar-consent"><input id="casterAvatarConsent" type="checkbox"><span>Confirmo que la foto es mía o tengo permiso para usarla y autorizo su uso para generar mi avatar de Kaster.</span></label>
+                <button id="casterAvatarRequestBtn" class="caster-avatar-request-btn" type="button" disabled>Solicitar creación</button>
+                <button id="casterAvatarUseResultBtn" class="caster-avatar-use-btn" type="button" hidden>Usar avatar generado</button>
+                <div id="casterAvatarJobStatus" class="caster-avatar-job-status" aria-live="polite">Sube una foto para comenzar.</div>
+              </div>
+            </div>
+          </article>
+          <div class="profile-avatar-divider"><span>Avatares disponibles</span></div>
           <div id="profileAvatarGrid" class="profile-avatar-grid"></div>
         </section>
         <section class="profile-center-panel" data-profile-panel="achievements">
@@ -1305,7 +1335,7 @@
     }());
   </script>
   <script src="rok-layout-scale.js?v=528-smoke-action-window-cast-geometry"></script>
-  <script src="game.js?v=536-online-hidden-private-visibility"></script>
+  <script src="game.js?v=533-unified-logical-fx-coordinates"></script>
   <script src="firebase-online.js?v=528-smoke-action-window-cast-geometry"></script>
 </body>
 </html>

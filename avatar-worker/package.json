@@ -1,0 +1,11 @@
+{
+  "name": "rok-lite-caster-avatar-worker",
+  "private": true,
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "dependencies": {
+    "firebase-admin": "latest",
+    "firebase-functions": "latest",
+    "openai": "latest"
+  }
+}

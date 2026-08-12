@@ -29,6 +29,10 @@
   const FRIEND_CODE_LENGTH = 8;
   const FRIEND_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const OPEN_ROOMS_ROOT = 'openRooms';
+  const AVATAR_JOBS_ROOT = 'avatarJobs';
+  const AVATAR_SOURCE_ROOT = 'casterAvatarSources';
+  const CUSTOM_PROFILE_AVATAR_ID = 'custom-caster';
+  const MAX_CASTER_AVATAR_SOURCE_BYTES = 10 * 1024 * 1024;
   const LOBBY_COUNTDOWN_MS = 3400;
   const ARENA_OPTIONS = Object.freeze({
     classic: { id: 'classic', label: 'Arena clásica', src: 'assets/arena.webp' },
@@ -105,6 +109,7 @@
   let firebaseApiPromise = null;
   let auth = null;
   let db = null;
+  let storage = null;
   let uid = '';
   let roomCode = '';
   let roomPath = '';
@@ -156,6 +161,11 @@
   let socialUnsubscribes = [];
   let socialFriendsRenderSerial = 0;
   let socialRequestsRenderSerial = 0;
+  let casterAvatarSourceFile = null;
+  let casterAvatarSourceObjectUrl = '';
+  let casterAvatarJobUnsubscribe = null;
+  let casterAvatarCurrentJobId = '';
+  let casterAvatarCurrentResultUrl = '';
 
   const PROFILE_AVATARS = Object.freeze([
     { id: 'shinra', label: 'Shinra Hitokiri', src: 'assets/shinra-hitokiri-token.png' },
@@ -166,14 +176,107 @@
     { id: 'tokugawa', label: 'Tokugawa', src: 'assets/tokugawa-light-token.webp' },
   ]);
   const DEFAULT_PROFILE_AVATAR_ID = 'shinra';
+  const LOCAL_SOCIAL_PROFILE_PREFIX = 'rokLocalSocialProfile';
+  const LOCAL_CASTER_AVATAR_JOB_PREFIX = 'rokLocalCasterAvatarJob';
+
+  function isCasterAvatarMockMode() {
+    return new URLSearchParams(window.location.search).get('avatarMock') === '1';
+  }
+
+  function isPermissionDeniedError(error) {
+    const code = String(error?.code || error?.message || '').toLowerCase();
+    return code.includes('permission-denied') || code.includes('permission denied');
+  }
+
+  function buildLocalScopedKey(prefix) {
+    return `${prefix}:${String(uid || 'guest')}`;
+  }
+
+  function readLocalJson(key, fallback = null) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  function writeLocalJson(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+  }
+
+  function makeLocalFriendCode(seed = '') {
+    const alphabet = FRIEND_CODE_ALPHABET;
+    const source = String(seed || uid || auth?.currentUser?.uid || 'KASTERLOCAL');
+    let hash = 0;
+    for (let i = 0; i < source.length; i += 1) hash = ((hash * 31) + source.charCodeAt(i)) >>> 0;
+    let code = '';
+    for (let i = 0; i < FRIEND_CODE_LENGTH; i += 1) {
+      code += alphabet[hash % alphabet.length];
+      hash = Math.floor(hash / alphabet.length) ^ ((source.charCodeAt(i % source.length) || 17) << 7);
+      hash >>>= 0;
+    }
+    return code;
+  }
+
+  function buildLocalSocialProfile(existing = {}) {
+    const stored = readLocalJson(buildLocalScopedKey(LOCAL_SOCIAL_PROFILE_PREFIX), {}) || {};
+    const merged = { ...stored, ...existing };
+    const friendCode = normalizeFriendCode(merged.friendCode || '') || makeLocalFriendCode(merged.displayName || merged.uid || uid);
+    const displayName = normalizeSocialDisplayName(merged.displayName)
+      || normalizeSocialDisplayName(auth?.currentUser?.displayName)
+      || `Kaster ${String(friendCode || '0000').slice(-4)}`;
+    const profile = {
+      friendCode,
+      displayName,
+      avatarId: normalizeProfileAvatarId(merged.avatarId),
+      casterAvatarUrl: String(merged.casterAvatarUrl || ''),
+      level: normalizeAccountLevel(merged.level),
+      xp: normalizeAccountXp(merged.xp),
+      createdAt: Number(merged.createdAt || Date.now()),
+      updatedAt: Date.now(),
+    };
+    if (profile.avatarId === CUSTOM_PROFILE_AVATAR_ID && !profile.casterAvatarUrl) profile.avatarId = DEFAULT_PROFILE_AVATAR_ID;
+    return profile;
+  }
+
+  function persistLocalSocialProfile(profile) {
+    writeLocalJson(buildLocalScopedKey(LOCAL_SOCIAL_PROFILE_PREFIX), profile);
+  }
+
+  function readLocalCasterAvatarJob() {
+    return readLocalJson(buildLocalScopedKey(LOCAL_CASTER_AVATAR_JOB_PREFIX), null);
+  }
+
+  function persistLocalCasterAvatarJob(payload) {
+    writeLocalJson(buildLocalScopedKey(LOCAL_CASTER_AVATAR_JOB_PREFIX), payload);
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      try {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(reader.error || new Error('No se pudo leer la imagen seleccionada.'));
+        reader.readAsDataURL(file);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
 
   function normalizeProfileAvatarId(value) {
     const id = String(value || '');
+    if (id === CUSTOM_PROFILE_AVATAR_ID) return CUSTOM_PROFILE_AVATAR_ID;
     return PROFILE_AVATARS.some(entry => entry.id === id) ? id : DEFAULT_PROFILE_AVATAR_ID;
   }
 
-  function getProfileAvatar(id) {
+  function getProfileAvatar(id, profileLike = null) {
     const normalized = normalizeProfileAvatarId(id);
+    const profile = profileLike || socialProfileCache || {};
+    if (normalized === CUSTOM_PROFILE_AVATAR_ID && profile?.casterAvatarUrl) {
+      return { id: CUSTOM_PROFILE_AVATAR_ID, label: 'Mi Kaster', src: String(profile.casterAvatarUrl) };
+    }
     return PROFILE_AVATARS.find(entry => entry.id === normalized) || PROFILE_AVATARS[0];
   }
 
@@ -342,7 +445,7 @@
       const avatarWrap = document.createElement('div');
       avatarWrap.className = 'online-available-room-avatar';
       const avatar = document.createElement('img');
-      avatar.src = getProfileAvatar(entry.avatarId).src;
+      avatar.src = getProfileAvatar(entry.avatarId, { casterAvatarUrl: entry.avatarUrl || '' }).src;
       avatar.alt = entry.hostName || 'Host';
       avatarWrap.appendChild(avatar);
       const copy = document.createElement('div');
@@ -420,6 +523,7 @@
       hostUid: uid,
       hostName: profile.displayName,
       avatarId: normalizeProfileAvatarId(profile.avatarId),
+      avatarUrl: profile.casterAvatarUrl || '',
       level: normalizeAccountLevel(profile.level),
       arenaId,
       createdAt: Number(room?.createdAt || Date.now()),
@@ -444,7 +548,7 @@
     const spellbook = isHost ? ui.hostSpellbook : ui.guestSpellbook;
     const ready = isHost ? ui.hostReady : ui.guestReady;
     const connected = Boolean(record?.connected);
-    if (avatar) avatar.src = getProfileAvatar(record?.avatarId).src;
+    if (avatar) avatar.src = getProfileAvatar(record?.avatarId, { casterAvatarUrl: record?.avatarUrl || '' }).src;
     if (name) name.textContent = record?.displayName || (isHost ? 'Host' : (room?.guestUid ? 'Invitado' : 'Esperando amigo…'));
     if (spellbook) spellbook.textContent = record?.loadout?.name || 'Sin Spellbook';
     setPlayerReadyBadge(ready, Boolean(record?.ready), connected || (isHost && Boolean(record)));
@@ -1016,17 +1120,19 @@
   async function loadFirebase() {
     if (firebaseApiPromise) return firebaseApiPromise;
     firebaseApiPromise = (async () => {
-      const [appModule, authModule, dbModule] = await Promise.all([
+      const [appModule, authModule, dbModule, storageModule] = await Promise.all([
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-database.js`),
+        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-storage.js`),
       ]);
       const app = appModule.initializeApp(FIREBASE_CONFIG);
       auth = authModule.getAuth(app);
       try { await authModule.setPersistence(auth, authModule.browserLocalPersistence); } catch (_) {}
       uid = auth.currentUser && !auth.currentUser.isAnonymous ? String(auth.currentUser.uid || '') : '';
       db = dbModule.getDatabase(app);
-      return { ...dbModule, authModule };
+      storage = storageModule.getStorage(app);
+      return { ...dbModule, authModule, storageModule };
     })();
     try {
       return await firebaseApiPromise;
@@ -1094,6 +1200,7 @@
           lastSeenAt: now,
           displayName: profile.displayName,
           avatarId: normalizeProfileAvatarId(profile.avatarId),
+          avatarUrl: profile.casterAvatarUrl || '',
           level: normalizeAccountLevel(profile.level),
         };
         if (selectedLoadout && !getLoadoutIssue(selectedLoadout)) playerRecord.loadout = selectedLoadout;
@@ -1102,6 +1209,7 @@
           hostUid: uid,
           hostName: profile.displayName,
           avatarId: normalizeProfileAvatarId(profile.avatarId),
+          avatarUrl: profile.casterAvatarUrl || '',
           level: normalizeAccountLevel(profile.level),
           arenaId: 'classic',
           createdAt: now,
@@ -1156,6 +1264,7 @@
         lastSeenAt: now,
         displayName: profile.displayName,
         avatarId: normalizeProfileAvatarId(profile.avatarId),
+        avatarUrl: profile.casterAvatarUrl || '',
         level: normalizeAccountLevel(profile.level),
       };
       if (selectedLoadout && !getLoadoutIssue(selectedLoadout)) playerRecord.loadout = selectedLoadout;
@@ -2013,7 +2122,7 @@
     const xp = normalizeAccountXp(profile?.xp);
     const required = getXpRequirement(level);
     const progress = Math.max(0, Math.min(100, (xp / required) * 100));
-    const avatar = getProfileAvatar(profile?.avatarId);
+    const avatar = getProfileAvatar(profile?.avatarId, profile);
     if (accountUi.menuName) accountUi.menuName.textContent = name;
     if (accountUi.menuEmail) accountUi.menuEmail.textContent = String(user.email || 'Cuenta de Firebase');
     if (accountUi.hudName) accountUi.hudName.textContent = name;
@@ -2192,8 +2301,9 @@
   function readableFirebaseError(error) {
     const code = String(error?.code || '');
     if (code.includes('auth/operation-not-allowed')) return 'Activa el proveedor Email/Password en Firebase Authentication.';
-    if (code.includes('permission-denied') || code.includes('PERMISSION_DENIED')) return 'Firebase bloqueó la sala. Revisa las Realtime Database Security Rules.';
-    if (code.includes('network-request-failed')) return 'No se pudo conectar con Firebase. Revisa Internet y vuelve a intentar.';
+    if (code.includes('permission-denied') || code.includes('PERMISSION_DENIED')) return 'Firebase bloqueó la operación. Revisa las Realtime Database Security Rules.';
+    if (code.includes('storage/unauthorized') || code.includes('storage/unauthenticated')) return 'Firebase Storage bloqueó la foto. Revisa las Storage Security Rules y tu sesión.';
+    if (code.includes('network-request-failed') || code.includes('storage/retry-limit-exceeded')) return 'No se pudo conectar con Firebase. Revisa Internet y vuelve a intentar.';
     return error?.message || 'Ocurrió un error al conectar la partida online.';
   }
 
@@ -2214,6 +2324,15 @@
     profileUi.tabs = Array.from(document.querySelectorAll('[data-profile-tab]'));
     profileUi.panels = Array.from(document.querySelectorAll('[data-profile-panel]'));
     profileUi.avatarGrid = document.getElementById('profileAvatarGrid');
+    profileUi.casterAvatarSourceInput = document.getElementById('casterAvatarSourceInput');
+    profileUi.casterAvatarSourcePreview = document.getElementById('casterAvatarSourcePreview');
+    profileUi.casterAvatarSourceEmpty = document.getElementById('casterAvatarSourceEmpty');
+    profileUi.casterAvatarResultPreview = document.getElementById('casterAvatarResultPreview');
+    profileUi.casterAvatarResultBadge = document.getElementById('casterAvatarResultBadge');
+    profileUi.casterAvatarConsent = document.getElementById('casterAvatarConsent');
+    profileUi.casterAvatarRequestBtn = document.getElementById('casterAvatarRequestBtn');
+    profileUi.casterAvatarUseResultBtn = document.getElementById('casterAvatarUseResultBtn');
+    profileUi.casterAvatarJobStatus = document.getElementById('casterAvatarJobStatus');
     profileUi.achievementsGrid = document.getElementById('profileAchievementsGrid');
     profileUi.achievementsCount = document.getElementById('profileAchievementsCount');
     profileUi.summarySpellbooks = document.getElementById('profileSummarySpellbooks');
@@ -2240,6 +2359,282 @@
     profileUi.status.textContent = String(message || '');
     profileUi.status.classList.remove('ok', 'error', 'working');
     if (kind) profileUi.status.classList.add(kind);
+  }
+
+  function setCasterAvatarJobStatus(message = '', kind = '') {
+    cacheProfileUi();
+    if (!profileUi.casterAvatarJobStatus) return;
+    profileUi.casterAvatarJobStatus.textContent = String(message || '');
+    profileUi.casterAvatarJobStatus.classList.remove('ok', 'error', 'working');
+    if (kind) profileUi.casterAvatarJobStatus.classList.add(kind);
+  }
+
+  function refreshCasterAvatarRequestButton() {
+    cacheProfileUi();
+    const consent = Boolean(profileUi.casterAvatarConsent?.checked);
+    const validFile = Boolean(casterAvatarSourceFile);
+    if (profileUi.casterAvatarRequestBtn) profileUi.casterAvatarRequestBtn.disabled = !(consent && validFile);
+  }
+
+  function clearCasterAvatarSourceObjectUrl() {
+    if (casterAvatarSourceObjectUrl) {
+      try { URL.revokeObjectURL(casterAvatarSourceObjectUrl); } catch (_) {}
+      casterAvatarSourceObjectUrl = '';
+    }
+  }
+
+  function clearCasterAvatarSourceSelection() {
+    casterAvatarSourceFile = null;
+    clearCasterAvatarSourceObjectUrl();
+    if (profileUi.casterAvatarSourceInput) profileUi.casterAvatarSourceInput.value = '';
+    if (profileUi.casterAvatarSourcePreview) {
+      profileUi.casterAvatarSourcePreview.hidden = true;
+      profileUi.casterAvatarSourcePreview.removeAttribute('src');
+    }
+    if (profileUi.casterAvatarSourceEmpty) profileUi.casterAvatarSourceEmpty.hidden = false;
+    refreshCasterAvatarRequestButton();
+  }
+
+  function handleCasterAvatarSourceSelected(fileList) {
+    cacheProfileUi();
+    const file = fileList?.[0] || null;
+    clearCasterAvatarSourceSelection();
+    if (!file) {
+      setCasterAvatarJobStatus('Sube una foto para comenzar.', '');
+      return false;
+    }
+    const type = String(file.type || '').toLowerCase();
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(type)) {
+      setCasterAvatarJobStatus('Usa una imagen PNG, JPG o WEBP.', 'error');
+      return false;
+    }
+    if (Number(file.size || 0) > MAX_CASTER_AVATAR_SOURCE_BYTES) {
+      setCasterAvatarJobStatus('La imagen supera el máximo de 10 MB.', 'error');
+      return false;
+    }
+    casterAvatarSourceFile = file;
+    casterAvatarSourceObjectUrl = URL.createObjectURL(file);
+    if (profileUi.casterAvatarSourcePreview) {
+      profileUi.casterAvatarSourcePreview.src = casterAvatarSourceObjectUrl;
+      profileUi.casterAvatarSourcePreview.hidden = false;
+    }
+    if (profileUi.casterAvatarSourceEmpty) profileUi.casterAvatarSourceEmpty.hidden = true;
+    setCasterAvatarJobStatus('Foto preparada. Confirma la autorización y solicita la creación.', '');
+    refreshCasterAvatarRequestButton();
+    return true;
+  }
+
+  function stopCasterAvatarJobListener() {
+    if (casterAvatarJobUnsubscribe) {
+      try { casterAvatarJobUnsubscribe(); } catch (_) {}
+      casterAvatarJobUnsubscribe = null;
+    }
+  }
+
+  function renderCasterAvatarJob(job = null) {
+    cacheProfileUi();
+    const status = String(job?.status || '');
+    const resultUrl = String(job?.resultUrl || '');
+    casterAvatarCurrentResultUrl = resultUrl;
+    if (profileUi.casterAvatarResultPreview) {
+      if (resultUrl) {
+        profileUi.casterAvatarResultPreview.src = resultUrl;
+        profileUi.casterAvatarResultPreview.hidden = false;
+      } else {
+        profileUi.casterAvatarResultPreview.hidden = true;
+        profileUi.casterAvatarResultPreview.removeAttribute('src');
+      }
+    }
+    if (profileUi.casterAvatarResultBadge) profileUi.casterAvatarResultBadge.hidden = !resultUrl;
+    if (profileUi.casterAvatarUseResultBtn) profileUi.casterAvatarUseResultBtn.hidden = !(status === 'completed' && resultUrl);
+    if (!job) {
+      setCasterAvatarJobStatus('Sube una foto para comenzar.', '');
+      return;
+    }
+    if (status === 'queued') setCasterAvatarJobStatus('Solicitud enviada. Está esperando turno para generar el avatar.', 'working');
+    else if (status === 'processing') setCasterAvatarJobStatus('Generando tu Kaster. Puedes cerrar esta ventana y volver después.', 'working');
+    else if (status === 'completed') setCasterAvatarJobStatus('Tu avatar de Kaster está listo. Puedes usarlo como avatar del perfil.', 'ok');
+    else if (status === 'failed') setCasterAvatarJobStatus(job?.errorMessage || 'La generación falló. Puedes volver a intentarlo.', 'error');
+    else setCasterAvatarJobStatus('Solicitud registrada.', 'working');
+  }
+
+  async function attachCasterAvatarJobListener(jobId) {
+    if (!jobId) return;
+    const api = await loadFirebase();
+    stopCasterAvatarJobListener();
+    casterAvatarCurrentJobId = String(jobId);
+    casterAvatarJobUnsubscribe = api.onValue(api.ref(db, `${AVATAR_JOBS_ROOT}/${uid}/${jobId}`), snapshot => {
+      const job = snapshot.val();
+      if (job) renderCasterAvatarJob(job);
+    }, error => {
+      setCasterAvatarJobStatus(readableFirebaseError(error), 'error');
+    });
+  }
+
+  async function loadLatestCasterAvatarJob(profile = socialProfileCache) {
+    cacheProfileUi();
+    if (isCasterAvatarMockMode()) {
+      const localEntry = readLocalCasterAvatarJob();
+      if (localEntry?.job) {
+        casterAvatarCurrentJobId = String(localEntry.jobId || 'mock-job');
+        renderCasterAvatarJob(localEntry.job);
+        return localEntry.job;
+      }
+      if (profile?.casterAvatarUrl) {
+        casterAvatarCurrentResultUrl = profile.casterAvatarUrl;
+        renderCasterAvatarJob({ status: 'completed', resultUrl: profile.casterAvatarUrl, mock: true });
+      } else {
+        renderCasterAvatarJob(null);
+      }
+      return null;
+    }
+    try {
+      const api = await loadFirebase();
+      const jobsQuery = api.query(api.ref(db, `${AVATAR_JOBS_ROOT}/${uid}`), api.orderByChild('createdAt'), api.limitToLast(1));
+      const snapshot = await api.get(jobsQuery);
+      const jobs = snapshot.val() || {};
+      const entries = Object.entries(jobs);
+      if (entries.length) {
+        const [jobId, job] = entries[entries.length - 1];
+        renderCasterAvatarJob(job);
+        await attachCasterAvatarJobListener(jobId);
+        return job;
+      }
+      if (profile?.casterAvatarUrl) {
+        casterAvatarCurrentResultUrl = profile.casterAvatarUrl;
+        renderCasterAvatarJob({ status: 'completed', resultUrl: profile.casterAvatarUrl });
+      } else {
+        renderCasterAvatarJob(null);
+      }
+      return null;
+    } catch (error) {
+      setCasterAvatarJobStatus(readableFirebaseError(error), 'error');
+      return null;
+    }
+  }
+
+  function casterAvatarSourceExtension(file) {
+    const type = String(file?.type || '').toLowerCase();
+    if (type === 'image/png') return 'png';
+    if (type === 'image/webp') return 'webp';
+    return 'jpg';
+  }
+
+  async function requestCasterAvatarGeneration() {
+    cacheProfileUi();
+    if (!hasAuthenticatedAccount()) {
+      showAccountAuthOverlay(true);
+      return false;
+    }
+    if (!casterAvatarSourceFile) {
+      setCasterAvatarJobStatus('Primero sube una foto.', 'error');
+      return false;
+    }
+    if (!profileUi.casterAvatarConsent?.checked) {
+      setCasterAvatarJobStatus('Necesitas confirmar la autorización de uso de la foto.', 'error');
+      return false;
+    }
+    const file = casterAvatarSourceFile;
+    if (profileUi.casterAvatarRequestBtn) profileUi.casterAvatarRequestBtn.disabled = true;
+    setCasterAvatarJobStatus('Subiendo la foto de referencia…', 'working');
+    try {
+      if (isCasterAvatarMockMode()) {
+        const resultUrl = await fileToDataUrl(file);
+        const now = Date.now();
+        const jobId = `mock-${now}`;
+        const jobPayload = {
+          uid,
+          status: 'completed',
+          sourceContentType: file.type,
+          promptVersion: 'rok-caster-avatar-v1',
+          mode: 'mock-client-local',
+          createdAt: now,
+          updatedAt: now,
+          completedAt: now,
+          resultUrl,
+          mock: true,
+        };
+        persistLocalCasterAvatarJob({ jobId, job: jobPayload });
+        casterAvatarCurrentJobId = jobId;
+        clearCasterAvatarSourceSelection();
+        if (profileUi.casterAvatarConsent) profileUi.casterAvatarConsent.checked = false;
+        renderCasterAvatarJob(jobPayload);
+        setCasterAvatarJobStatus('Modo mock: avatar generado localmente para prueba.', 'ok');
+        return true;
+      }
+      const api = await loadFirebase();
+      requireAuthenticatedAccount();
+      const jobRef = api.push(api.ref(db, `${AVATAR_JOBS_ROOT}/${uid}`));
+      const jobId = String(jobRef.key || '');
+      if (!jobId) throw new Error('No se pudo crear el identificador de la solicitud.');
+      const ext = casterAvatarSourceExtension(file);
+      const sourcePath = `${AVATAR_SOURCE_ROOT}/${uid}/${jobId}/source.${ext}`;
+      const sourceRef = api.storageModule.ref(storage, sourcePath);
+      await api.storageModule.uploadBytes(sourceRef, file, {
+        contentType: file.type,
+        customMetadata: { ownerUid: uid, jobId, purpose: 'rok-caster-avatar-source' },
+      });
+      const now = Date.now();
+      const jobPayload = {
+        uid,
+        status: 'queued',
+        sourcePath,
+        sourceContentType: file.type,
+        promptVersion: 'rok-caster-avatar-v1',
+        mode: 'production',
+        createdAt: now,
+        updatedAt: now,
+      };
+      await api.set(jobRef, jobPayload);
+      casterAvatarCurrentJobId = jobId;
+      clearCasterAvatarSourceSelection();
+      if (profileUi.casterAvatarConsent) profileUi.casterAvatarConsent.checked = false;
+      renderCasterAvatarJob(jobPayload);
+      await attachCasterAvatarJobListener(jobId);
+      return true;
+    } catch (error) {
+      setCasterAvatarJobStatus(readableFirebaseError(error), 'error');
+      refreshCasterAvatarRequestButton();
+      return false;
+    }
+  }
+
+  async function useGeneratedCasterAvatar() {
+    if (!casterAvatarCurrentResultUrl) {
+      setCasterAvatarJobStatus('Todavía no hay un avatar generado disponible.', 'error');
+      return false;
+    }
+    try {
+      const profile = await ensureSocialProfile();
+      const updates = {
+        avatarId: CUSTOM_PROFILE_AVATAR_ID,
+        casterAvatarUrl: casterAvatarCurrentResultUrl,
+        updatedAt: Date.now(),
+      };
+      if (isCasterAvatarMockMode()) {
+        const localProfile = { ...profile, ...updates, uid };
+        socialProfileCache = localProfile;
+        persistLocalSocialProfile(localProfile);
+        renderProfileAvatarChoices(localProfile);
+        updateAccountIdentityUi(auth?.currentUser || null, localProfile);
+        await renderProfileCenter(localProfile);
+        setProfileCenterTab('avatar');
+        setProfileCenterStatus('Tu Kaster generado ahora es el avatar activo de tu cuenta. (modo mock)', 'ok');
+        setCasterAvatarJobStatus('Avatar aplicado al perfil local de prueba.', 'ok');
+        return true;
+      }
+      const api = await loadFirebase();
+      await api.update(api.ref(db, `socialProfiles/${uid}`), updates);
+      socialProfileCache = { ...profile, ...updates, uid };
+      await renderProfileCenter(socialProfileCache);
+      setProfileCenterTab('avatar');
+      setProfileCenterStatus('Tu Kaster generado ahora es el avatar activo de tu cuenta.', 'ok');
+      setCasterAvatarJobStatus('Avatar aplicado a tu perfil.', 'ok');
+      return true;
+    } catch (error) {
+      setCasterAvatarJobStatus(readableSocialError(error), 'error');
+      return false;
+    }
   }
 
   function setProfileCenterTab(tab = 'summary') {
@@ -2276,13 +2671,16 @@
   function renderProfileAvatarChoices(profile) {
     if (!profileUi.avatarGrid) return;
     profileUi.avatarGrid.innerHTML = '';
-    PROFILE_AVATARS.forEach(entry => {
+    const entries = [...PROFILE_AVATARS];
+    if (profile?.casterAvatarUrl) entries.unshift({ id: CUSTOM_PROFILE_AVATAR_ID, label: 'Mi Kaster', src: profile.casterAvatarUrl });
+    entries.forEach(entry => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'profile-avatar-choice';
       button.dataset.avatarId = entry.id;
-      button.classList.toggle('selected', entry.id === normalizeProfileAvatarId(profile?.avatarId));
-      button.innerHTML = `<span><img src="${entry.src}" alt="${entry.label}"></span><strong>${entry.label}</strong><small>${entry.id === normalizeProfileAvatarId(profile?.avatarId) ? 'Seleccionado' : 'Usar avatar'}</small>`;
+      const selected = entry.id === normalizeProfileAvatarId(profile?.avatarId);
+      button.classList.toggle('selected', selected);
+      button.innerHTML = `<span><img src="${entry.src}" alt="${entry.label}"></span><strong>${entry.label}</strong><small>${selected ? 'Seleccionado' : 'Usar avatar'}</small>`;
       profileUi.avatarGrid.appendChild(button);
     });
   }
@@ -2314,7 +2712,7 @@
     const xp = normalizeAccountXp(activeProfile.xp);
     const required = getXpRequirement(level);
     const progress = Math.max(0, Math.min(100, (xp / required) * 100));
-    const avatar = getProfileAvatar(activeProfile.avatarId);
+    const avatar = getProfileAvatar(activeProfile.avatarId, activeProfile);
     const stats = readLocalProfileStats();
     let friendCount = 0;
     try { friendCount = (await getFriendIds()).length; } catch (_) {}
@@ -2335,6 +2733,7 @@
     renderProfileAvatarChoices(activeProfile);
     renderProfileAchievements(stats, friendCount);
     updateAccountIdentityUi(auth?.currentUser || null, activeProfile);
+    await loadLatestCasterAvatarJob(activeProfile);
   }
 
   async function openProfileCenter(tab = 'summary') {
@@ -2367,11 +2766,12 @@
     try {
       const api = await loadFirebase();
       const profile = await ensureSocialProfile();
+      if (normalized === CUSTOM_PROFILE_AVATAR_ID && !profile.casterAvatarUrl) throw new Error('Todavía no tienes un avatar de Kaster generado.');
       await api.update(api.ref(db, `socialProfiles/${uid}`), { avatarId: normalized, updatedAt: Date.now() });
       socialProfileCache = { ...profile, avatarId: normalized, uid };
       await renderProfileCenter(socialProfileCache);
       setProfileCenterTab('avatar');
-      setProfileCenterStatus(`Avatar actualizado: ${getProfileAvatar(normalized).label}.`, 'ok');
+      setProfileCenterStatus(`Avatar actualizado: ${getProfileAvatar(normalized, socialProfileCache).label}.`, 'ok');
       return true;
     } catch (error) {
       setProfileCenterStatus(readableSocialError(error), 'error');
@@ -2511,28 +2911,42 @@
   }
 
   async function ensureSocialProfile() {
-    const api = await loadFirebase();
-    const profileRef = api.ref(db, `socialProfiles/${uid}`);
-    const snapshot = await api.get(profileRef);
-    const existing = snapshot.val() || {};
-    let friendCode = normalizeFriendCode(existing.friendCode || '');
-    friendCode = await reserveFriendCode(api, friendCode);
-    const displayName = normalizeSocialDisplayName(existing.displayName)
-      || normalizeSocialDisplayName(auth?.currentUser?.displayName)
-      || `Kaster ${friendCode.slice(-4)}`;
-    const profile = {
-      friendCode,
-      displayName,
-      avatarId: normalizeProfileAvatarId(existing.avatarId),
-      level: normalizeAccountLevel(existing.level),
-      xp: normalizeAccountXp(existing.xp),
-      createdAt: Number(existing.createdAt || Date.now()),
-      updatedAt: Date.now(),
-    };
-    await api.set(profileRef, profile);
-    socialProfileCache = { ...profile, uid };
-    updateAccountIdentityUi(auth?.currentUser || null, socialProfileCache);
-    return socialProfileCache;
+    try {
+      const api = await loadFirebase();
+      const profileRef = api.ref(db, `socialProfiles/${uid}`);
+      const snapshot = await api.get(profileRef);
+      const existing = snapshot.val() || {};
+      let friendCode = normalizeFriendCode(existing.friendCode || '');
+      friendCode = await reserveFriendCode(api, friendCode);
+      const displayName = normalizeSocialDisplayName(existing.displayName)
+        || normalizeSocialDisplayName(auth?.currentUser?.displayName)
+        || `Kaster ${friendCode.slice(-4)}`;
+      const profile = {
+        friendCode,
+        displayName,
+        avatarId: normalizeProfileAvatarId(existing.avatarId),
+        casterAvatarUrl: String(existing.casterAvatarUrl || ''),
+        level: normalizeAccountLevel(existing.level),
+        xp: normalizeAccountXp(existing.xp),
+        createdAt: Number(existing.createdAt || Date.now()),
+        updatedAt: Date.now(),
+      };
+      if (profile.avatarId === CUSTOM_PROFILE_AVATAR_ID && !profile.casterAvatarUrl) profile.avatarId = DEFAULT_PROFILE_AVATAR_ID;
+      await api.set(profileRef, profile);
+      socialProfileCache = { ...profile, uid };
+      persistLocalSocialProfile(socialProfileCache);
+      updateAccountIdentityUi(auth?.currentUser || null, socialProfileCache);
+      return socialProfileCache;
+    } catch (error) {
+      if (isCasterAvatarMockMode() || isPermissionDeniedError(error)) {
+        const profile = buildLocalSocialProfile({ uid });
+        socialProfileCache = { ...profile, uid };
+        persistLocalSocialProfile(socialProfileCache);
+        updateAccountIdentityUi(auth?.currentUser || null, socialProfileCache);
+        return socialProfileCache;
+      }
+      throw error;
+    }
   }
 
   async function readSocialProfile(profileUid) {
@@ -2548,6 +2962,7 @@
       displayName: normalizeSocialDisplayName(profile.displayName) || 'Kaster',
       friendCode: normalizeFriendCode(profile.friendCode),
       avatarId: normalizeProfileAvatarId(profile.avatarId),
+      casterAvatarUrl: String(profile.casterAvatarUrl || ''),
       level: normalizeAccountLevel(profile.level),
       xp: normalizeAccountXp(profile.xp),
     };
@@ -2904,6 +3319,10 @@
     profileUi.overlay?.addEventListener('click', event => { if (event.target === profileUi.overlay) closeProfileCenter(); });
     profileUi.tabs.forEach(button => button.addEventListener('click', () => setProfileCenterTab(button.dataset.profileTab)));
     profileUi.avatarGrid?.addEventListener('click', event => { const button = event.target?.closest?.('[data-avatar-id]'); if (button) void selectProfileAvatar(button.dataset.avatarId); });
+    profileUi.casterAvatarSourceInput?.addEventListener('change', event => { handleCasterAvatarSourceSelected(event.currentTarget.files); });
+    profileUi.casterAvatarConsent?.addEventListener('change', refreshCasterAvatarRequestButton);
+    profileUi.casterAvatarRequestBtn?.addEventListener('click', () => { void requestCasterAvatarGeneration(); });
+    profileUi.casterAvatarUseResultBtn?.addEventListener('click', () => { void useGeneratedCasterAvatar(); });
     profileUi.accountSaveNameBtn?.addEventListener('click', () => { void saveProfileCenterDisplayName(); });
     profileUi.accountNameInput?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); void saveProfileCenterDisplayName(); } });
     profileUi.accountCopyCodeBtn?.addEventListener('click', () => { void copyProfileFriendCode(); });
@@ -2990,6 +3409,17 @@
     getOwnProfile: getOwnSocialProfile,
     readProfile: readSocialProfile,
     sendFriendRequestByCode,
+  };
+
+  window.ROK_CASTER_AVATAR = {
+    request: requestCasterAvatarGeneration,
+    useResult: useGeneratedCasterAvatar,
+    loadLatest: loadLatestCasterAvatarJob,
+    getState: () => ({
+      jobId: casterAvatarCurrentJobId,
+      resultUrl: casterAvatarCurrentResultUrl,
+      hasSourceFile: Boolean(casterAvatarSourceFile),
+    }),
   };
 
   window.ROK_ONLINE_PVP = {
