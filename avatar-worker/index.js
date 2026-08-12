@@ -15,7 +15,7 @@ Create a R.O.K Lite player Caster avatar: the same person reimagined as a fantas
 Preserve recognizable facial identity, skin tone, hair, apparent age, and major facial characteristics. Do not beautify into a different person.
 The character must feel coherent with The Rise of the Kasters: practical medieval-fantasy clothing, subtle arcane details, layered fabrics, leather accessories, and restrained magical ornamentation.
 Do not assign a specific elemental domain, faction, class, weapon specialty, or gameplay ability. The player's gameplay kit is defined separately by the game.
-Full character illustration, centered, readable silhouette, approximately full body with enough lower body visible for flexible cropping in the game UI.
+Full character illustration, centered, readable silhouette, clear full body, suitable both for profile avatar use and for the player's in-match caster representation or token art.
 No pedestal, no scenery, no frame, no text, no logos, no UI, no extra characters.
 Transparent background. High-detail fantasy game illustration, polished but not photorealistic statue rendering.
 `.trim();

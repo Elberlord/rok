@@ -11028,9 +11028,9 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     domains: [
       { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
     ],
-    imageScale: 1.78,
-    imageShiftX: '-10%',
-    imageShiftY: '15%',
+    imageScale: 1.04,
+    imageShiftX: '0%',
+    imageShiftY: '0%',
     deckTitle: 'Control mágico adaptable',
     qualities: ['Telépata', 'Sabio', 'Hechicero'],
     description: 'Su Spellbook de Agua está construido alrededor de Telépatas, Sabios y Hechiceros. No busca imponerse por fuerza bruta: analiza tu plan, interfiere tus kasteos, altera tiempos y convierte tus mejores jugadas en decisiones arriesgadas.',
@@ -11079,9 +11079,9 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     domains: [
       { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
     ],
-    imageScale: 1.72,
-    imageShiftX: '-12%',
-    imageShiftY: '15%',
+    imageScale: 1.03,
+    imageShiftX: '0%',
+    imageShiftY: '0%',
     deckTitle: 'Formación defensiva y ofensiva',
     qualities: ['Guardián', 'Guerrero', 'Caudillo'],
     description: 'Kaelor dirige una formación de Agua enfocada al control físico del frente. Sus Guardianes protegen, sus Guerreros sostienen la presión y sus Caudillos reorganizan nexos y líneas para convertir una defensa cerrada en una contraofensiva disciplinada.',
@@ -11130,9 +11130,9 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     domains: [
       { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
     ],
-    imageScale: 1.56,
-    imageShiftX: '-9%',
-    imageShiftY: '12%',
+    imageScale: 1.02,
+    imageShiftX: '0%',
+    imageShiftY: '0%',
     deckTitle: 'Bioma acuático progresivo',
     qualities: ['Gélido', 'Hechicero', 'Sanador'],
     description: "Sahr'kel no domina el Agua solo como hechizo, sino como ecosistema. Convierte la arena en bioma acuático, favorece criaturas acuáticas y anfibias, y mezcla frío, Posma y sanación para pelear cada vez mejor dentro de su propio entorno.",
@@ -11182,9 +11182,9 @@ const ADVENTURE_WATER_ENCOUNTERS = [
       { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' },
       { element: 'Rayo', domain: 'Energía', tint: '#f2da42' }
     ],
-    imageScale: 1.82,
-    imageShiftX: '-11%',
-    imageShiftY: '15%',
+    imageScale: 1.0,
+    imageShiftX: '0%',
+    imageShiftY: '0%',
     deckTitle: 'Sinergia elemental de choque',
     qualities: ['Sobrenatural', 'Hechicero', 'Guerrero'],
     description: 'Ilyan representa la unión elemental de Agua y Rayo. El Agua abre el espacio táctico ralentizando o condicionando; el Rayo lo explota con descargas rápidas, aturdimientos y ataques que castigan antes de que el rival pueda reorganizarse.',
@@ -11235,9 +11235,9 @@ const ADVENTURE_WATER_ENCOUNTERS = [
       { element: 'Luz', domain: 'Revelación', tint: '#e7ca62' },
       { element: 'Oscuridad', domain: 'Misterio', tint: '#8b63f1' }
     ],
-    imageScale: 1.70,
-    imageShiftX: '-10%',
-    imageShiftY: '14%',
+    imageScale: 1.01,
+    imageShiftX: '0%',
+    imageShiftY: '0%',
     deckTitle: 'Ingeniería táctica y trampas',
     qualities: ['Maestro', 'Científico', 'Sabio'],
     description: 'Aurek no pelea como un elemental puro. Usa Agua, Luz y Oscuridad como doctrinas tácticas: analiza el campo, revela lo que necesita conocer, oculta lo que no quiere mostrar y convierte equipos, trampas y habilidades enseñadas en la base de su control estratégico.',

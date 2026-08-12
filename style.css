@@ -39598,22 +39598,17 @@ body.rok-account-locked {
   color:#c8deea;
   cursor:pointer;
   text-align:center;
-  transition:border-color .16s ease,transform .16s ease,background .16s ease;
+  user-select:none;
+  transition:border-color .16s ease,transform .16s ease,background .16s ease, box-shadow .16s ease;
 }
-.caster-avatar-upload:hover {
+.caster-avatar-upload:hover,
+.caster-avatar-upload:focus-visible {
   transform:translateY(-1px);
   border-color:rgba(132,215,247,.62);
   background:rgba(11,27,37,.72);
+  box-shadow:0 0 0 2px rgba(101,203,233,.12);
 }
-.caster-avatar-file-input {
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  opacity:0;
-  cursor:pointer;
-  z-index:5;
-}
+.caster-avatar-file-input { display:none; }
 .caster-avatar-upload-mark {
   width:42px;
   height:42px;
@@ -39627,6 +39622,15 @@ body.rok-account-locked {
 }
 .caster-avatar-upload strong { font:900 8px/1 system-ui,sans-serif; }
 .caster-avatar-upload small { color:#6f828d; font:700 6.5px/1.25 system-ui,sans-serif; }
+.caster-avatar-source-name {
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#8fb7c8;
+  font:800 6.4px/1.2 system-ui,sans-serif;
+}
 .caster-avatar-preview-stage {
   min-height:154px;
   position:relative;
@@ -39658,6 +39662,7 @@ body.rok-account-locked {
 }
 .caster-avatar-preview-empty > span { font-size:30px; line-height:1; }
 .caster-avatar-preview-empty small { font:800 6.5px/1 system-ui,sans-serif; text-transform:uppercase; letter-spacing:.08em; }
+.caster-avatar-source-preview { z-index:1; background:#080b10; }
 .caster-avatar-result-preview { z-index:2; background:#080b10; }
 .caster-avatar-result-badge {
   position:absolute;

@@ -356,18 +356,19 @@
             <div class="caster-avatar-creator-copy">
               <span>AVATAR PERSONAL</span>
               <h4 id="casterAvatarCreatorTitle">Solicita la creación de tu Kaster</h4>
-              <p>Sube una foto tuya. El sistema conservará tu identidad visual y generará una versión de fantasía medieval de R.O.K sin fondo. Tu foto fuente se usa solo para procesar la solicitud.</p>
+              <p>Sube una foto tuya. El sistema conservará tu identidad visual y generará una versión de fantasía medieval de R.O.K sin fondo, pensada para servir tanto como avatar de perfil como imagen de tu Caster dentro de la partida. Tu foto fuente se usa solo para procesar la solicitud.</p>
             </div>
             <div class="caster-avatar-creator-body">
-              <label class="caster-avatar-upload" for="casterAvatarSourceInput">
-                <input id="casterAvatarSourceInput" class="caster-avatar-file-input" type="file" accept="image/png,image/jpeg,image/webp,.jpg,.jpeg,.png,.webp">
+              <label id="casterAvatarUploadTrigger" class="caster-avatar-upload" for="casterAvatarSourceInput" tabindex="0" role="button" aria-controls="casterAvatarSourceInput" aria-label="Subir una foto de referencia para tu Kaster">
+                <input id="casterAvatarSourceInput" class="caster-avatar-file-input" type="file" accept="image/png,image/jpeg,image/webp,.jpg,.jpeg,.png,.webp" hidden>
                 <span class="caster-avatar-upload-mark">＋</span>
                 <strong>Subir una foto</strong>
                 <small>PNG, JPG o WEBP · máximo 10 MB</small>
+                <span id="casterAvatarSourceName" class="caster-avatar-source-name">Ningún archivo seleccionado</span>
               </label>
               <div class="caster-avatar-preview-stage">
                 <div id="casterAvatarSourceEmpty" class="caster-avatar-preview-empty"><span>◇</span><small>Foto de referencia</small></div>
-                <img id="casterAvatarSourcePreview" alt="Vista previa de la foto de referencia" hidden>
+                <img id="casterAvatarSourcePreview" class="caster-avatar-source-preview" alt="Vista previa de la foto de referencia" hidden>
                 <img id="casterAvatarResultPreview" class="caster-avatar-result-preview" alt="Avatar generado del Kaster" hidden>
                 <span id="casterAvatarResultBadge" class="caster-avatar-result-badge" hidden>GENERADO</span>
               </div>

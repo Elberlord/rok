@@ -2324,7 +2324,9 @@
     profileUi.tabs = Array.from(document.querySelectorAll('[data-profile-tab]'));
     profileUi.panels = Array.from(document.querySelectorAll('[data-profile-panel]'));
     profileUi.avatarGrid = document.getElementById('profileAvatarGrid');
+    profileUi.casterAvatarUploadTrigger = document.getElementById('casterAvatarUploadTrigger');
     profileUi.casterAvatarSourceInput = document.getElementById('casterAvatarSourceInput');
+    profileUi.casterAvatarSourceName = document.getElementById('casterAvatarSourceName');
     profileUi.casterAvatarSourcePreview = document.getElementById('casterAvatarSourcePreview');
     profileUi.casterAvatarSourceEmpty = document.getElementById('casterAvatarSourceEmpty');
     profileUi.casterAvatarResultPreview = document.getElementById('casterAvatarResultPreview');
@@ -2387,6 +2389,7 @@
     casterAvatarSourceFile = null;
     clearCasterAvatarSourceObjectUrl();
     if (profileUi.casterAvatarSourceInput) profileUi.casterAvatarSourceInput.value = '';
+    if (profileUi.casterAvatarSourceName) profileUi.casterAvatarSourceName.textContent = 'Ningún archivo seleccionado';
     if (profileUi.casterAvatarSourcePreview) {
       profileUi.casterAvatarSourcePreview.hidden = true;
       profileUi.casterAvatarSourcePreview.removeAttribute('src');
@@ -2418,6 +2421,7 @@
 
     clearCasterAvatarSourceObjectUrl();
     casterAvatarSourceFile = file;
+    if (profileUi.casterAvatarSourceName) profileUi.casterAvatarSourceName.textContent = String(file.name || 'Archivo seleccionado');
     setCasterAvatarJobStatus('Cargando vista previa…', 'working');
 
     try {
@@ -2435,6 +2439,7 @@
       return true;
     } catch (error) {
       casterAvatarSourceFile = null;
+      if (profileUi.casterAvatarSourceName) profileUi.casterAvatarSourceName.textContent = 'Ningún archivo seleccionado';
       if (profileUi.casterAvatarSourcePreview) {
         profileUi.casterAvatarSourcePreview.hidden = true;
         profileUi.casterAvatarSourcePreview.removeAttribute('src');
@@ -2568,7 +2573,7 @@
           uid,
           status: 'completed',
           sourceContentType: file.type,
-          promptVersion: 'rok-caster-avatar-v1',
+          promptVersion: 'rok-caster-avatar-v2',
           mode: 'mock-client-local',
           createdAt: now,
           updatedAt: now,
@@ -2602,7 +2607,7 @@
         status: 'queued',
         sourcePath,
         sourceContentType: file.type,
-        promptVersion: 'rok-caster-avatar-v1',
+        promptVersion: 'rok-caster-avatar-v2',
         mode: 'production',
         createdAt: now,
         updatedAt: now,
@@ -3341,6 +3346,17 @@
     profileUi.overlay?.addEventListener('click', event => { if (event.target === profileUi.overlay) closeProfileCenter(); });
     profileUi.tabs.forEach(button => button.addEventListener('click', () => setProfileCenterTab(button.dataset.profileTab)));
     profileUi.avatarGrid?.addEventListener('click', event => { const button = event.target?.closest?.('[data-avatar-id]'); if (button) void selectProfileAvatar(button.dataset.avatarId); });
+    profileUi.casterAvatarUploadTrigger?.addEventListener('click', event => {
+      if (event.target === profileUi.casterAvatarSourceInput) return;
+      event.preventDefault();
+      profileUi.casterAvatarSourceInput?.click();
+    });
+    profileUi.casterAvatarUploadTrigger?.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        profileUi.casterAvatarSourceInput?.click();
+      }
+    });
     profileUi.casterAvatarSourceInput?.addEventListener('change', event => { void handleCasterAvatarSourceSelected(event.currentTarget.files); });
     profileUi.casterAvatarConsent?.addEventListener('change', refreshCasterAvatarRequestButton);
     profileUi.casterAvatarRequestBtn?.addEventListener('click', () => { void requestCasterAvatarGeneration(); });
