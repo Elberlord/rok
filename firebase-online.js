@@ -2395,33 +2395,55 @@
     refreshCasterAvatarRequestButton();
   }
 
-  function handleCasterAvatarSourceSelected(fileList) {
+  async function handleCasterAvatarSourceSelected(fileList) {
     cacheProfileUi();
     const file = fileList?.[0] || null;
-    clearCasterAvatarSourceSelection();
     if (!file) {
       setCasterAvatarJobStatus('Sube una foto para comenzar.', '');
       return false;
     }
+
     const type = String(file.type || '').toLowerCase();
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(type)) {
-      setCasterAvatarJobStatus('Usa una imagen PNG, JPG o WEBP.', 'error');
+    const name = String(file.name || '').toLowerCase();
+    const supportedType = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(type);
+    const supportedExt = /\.(png|jpe?g|webp)$/i.test(name);
+    if (!supportedType && !supportedExt) {
+      setCasterAvatarJobStatus('Usa una imagen PNG, JPG, JPEG o WEBP.', 'error');
       return false;
     }
     if (Number(file.size || 0) > MAX_CASTER_AVATAR_SOURCE_BYTES) {
       setCasterAvatarJobStatus('La imagen supera el máximo de 10 MB.', 'error');
       return false;
     }
+
+    clearCasterAvatarSourceObjectUrl();
     casterAvatarSourceFile = file;
-    casterAvatarSourceObjectUrl = URL.createObjectURL(file);
-    if (profileUi.casterAvatarSourcePreview) {
-      profileUi.casterAvatarSourcePreview.src = casterAvatarSourceObjectUrl;
-      profileUi.casterAvatarSourcePreview.hidden = false;
+    setCasterAvatarJobStatus('Cargando vista previa…', 'working');
+
+    try {
+      const previewUrl = await fileToDataUrl(file);
+      if (!previewUrl) throw new Error('La imagen no pudo convertirse a vista previa.');
+
+      if (profileUi.casterAvatarSourcePreview) {
+        profileUi.casterAvatarSourcePreview.src = previewUrl;
+        profileUi.casterAvatarSourcePreview.hidden = false;
+      }
+      if (profileUi.casterAvatarSourceEmpty) profileUi.casterAvatarSourceEmpty.hidden = true;
+
+      setCasterAvatarJobStatus('Foto preparada. Confirma la autorización y solicita la creación.', '');
+      refreshCasterAvatarRequestButton();
+      return true;
+    } catch (error) {
+      casterAvatarSourceFile = null;
+      if (profileUi.casterAvatarSourcePreview) {
+        profileUi.casterAvatarSourcePreview.hidden = true;
+        profileUi.casterAvatarSourcePreview.removeAttribute('src');
+      }
+      if (profileUi.casterAvatarSourceEmpty) profileUi.casterAvatarSourceEmpty.hidden = false;
+      setCasterAvatarJobStatus('No se pudo cargar la vista previa de esa imagen. Prueba con otro PNG, JPG o WEBP.', 'error');
+      refreshCasterAvatarRequestButton();
+      return false;
     }
-    if (profileUi.casterAvatarSourceEmpty) profileUi.casterAvatarSourceEmpty.hidden = true;
-    setCasterAvatarJobStatus('Foto preparada. Confirma la autorización y solicita la creación.', '');
-    refreshCasterAvatarRequestButton();
-    return true;
   }
 
   function stopCasterAvatarJobListener() {
@@ -3319,7 +3341,7 @@
     profileUi.overlay?.addEventListener('click', event => { if (event.target === profileUi.overlay) closeProfileCenter(); });
     profileUi.tabs.forEach(button => button.addEventListener('click', () => setProfileCenterTab(button.dataset.profileTab)));
     profileUi.avatarGrid?.addEventListener('click', event => { const button = event.target?.closest?.('[data-avatar-id]'); if (button) void selectProfileAvatar(button.dataset.avatarId); });
-    profileUi.casterAvatarSourceInput?.addEventListener('change', event => { handleCasterAvatarSourceSelected(event.currentTarget.files); });
+    profileUi.casterAvatarSourceInput?.addEventListener('change', event => { void handleCasterAvatarSourceSelected(event.currentTarget.files); });
     profileUi.casterAvatarConsent?.addEventListener('change', refreshCasterAvatarRequestButton);
     profileUi.casterAvatarRequestBtn?.addEventListener('click', () => { void requestCasterAvatarGeneration(); });
     profileUi.casterAvatarUseResultBtn?.addEventListener('click', () => { void useGeneratedCasterAvatar(); });

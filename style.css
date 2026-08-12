@@ -39584,6 +39584,8 @@ body.rok-account-locked {
 .caster-avatar-upload {
   min-height:154px;
   box-sizing:border-box;
+  position:relative;
+  overflow:hidden;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -39602,6 +39604,15 @@ body.rok-account-locked {
   transform:translateY(-1px);
   border-color:rgba(132,215,247,.62);
   background:rgba(11,27,37,.72);
+}
+.caster-avatar-file-input {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  opacity:0;
+  cursor:pointer;
+  z-index:5;
 }
 .caster-avatar-upload-mark {
   width:42px;
