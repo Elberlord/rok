@@ -752,12 +752,24 @@ function getCasterDisplayName(caster, fallback = 'Kaster') {
   return getCasterDefinition(caster)?.name || caster?.name || fallback;
 }
 
-function getCasterArtImage(caster, fallback = 'assets/caster-hanzo.png') {
-  return getCasterDefinition(caster)?.artImage || caster?.artImage || fallback;
+function getCasterTokenImage(caster, fallback = 'assets/caster-hanzo.png') {
+  return caster?.customAvatarUrl || getCasterDefinition(caster)?.tokenImage || caster?.tokenImage || fallback;
 }
 
-function getCasterTokenImage(caster, fallback = 'assets/caster-hanzo.png') {
-  return getCasterDefinition(caster)?.tokenImage || caster?.tokenImage || fallback;
+function getCasterArtImage(caster, fallback = 'assets/caster-hanzo.png') {
+  return caster?.customAvatarUrl || getCasterDefinition(caster)?.artImage || caster?.artImage || fallback;
+}
+
+function applyLocalProfileCasterAvatar(url = '') {
+  const caster = state?.players?.[LOCAL_PLAYER_ID]?.caster;
+  if (!caster) return;
+  const clean = String(url || '').trim();
+  if (clean) caster.customAvatarUrl = clean;
+  else delete caster.customAvatarUrl;
+  try {
+    renderUnits();
+    renderCasterWidePanel();
+  } catch (_) {}
 }
 
 function isHattoriCaster(playerId) {
@@ -11398,12 +11410,19 @@ function updateAdventureWaterMapFocus(point) {
   }
   const px = Math.max(0, Math.min(1, (Number(point && point.x) || 50) / 100));
   const py = Math.max(0, Math.min(1, (Number(point && point.y) || 50) / 100));
-  const zoom = 1.68;
-  const focusX = 0.55;
+
+  // El mapa se mantiene deliberadamente más grande que su ventana. Al cambiar
+  // de encuentro desplazamos ese lienzo para mantener la ubicación del pin en
+  // una zona cómoda de lectura, sin deformar las coordenadas originales.
+  const zoom = 2.18;
+  const focusX = 0.52;
   const focusY = 0.50;
-  const clampMin = 1 - zoom;
-  const offsetX = Math.min(0, Math.max(clampMin, focusX - (px * zoom)));
-  const offsetY = Math.min(0, Math.max(clampMin, focusY - (py * zoom)));
+  const minOffset = 1 - zoom;
+  let offsetX = focusX - (px * zoom);
+  let offsetY = focusY - (py * zoom);
+  offsetX = Math.min(0, Math.max(minOffset, offsetX));
+  offsetY = Math.min(0, Math.max(minOffset, offsetY));
+
   const markerX = (offsetX + (px * zoom)) * 100;
   const markerY = (offsetY + (py * zoom)) * 100;
   els.adventureWaterMapCanvas.style.setProperty('--water-map-zoom', String(zoom));
@@ -48015,5 +48034,12 @@ window.addEventListener('resize', () => { syncHudOverlayLayerToBoard(); renderGu
 window.addEventListener('DOMContentLoaded', init);
 window.addEventListener('scroll', syncHudOverlayLayerToBoard, true);
 
+
+window.addEventListener('rok:caster-avatar-changed', event => {
+  applyLocalProfileCasterAvatar(event?.detail?.url || '');
+});
+window.addEventListener('DOMContentLoaded', () => {
+  if (window.ROK_ACTIVE_CASTER_AVATAR_URL) applyLocalProfileCasterAvatar(window.ROK_ACTIVE_CASTER_AVATAR_URL);
+});
 window.addEventListener('resize', updateCombatHudFixedPosition);
 window.addEventListener('scroll', updateCombatHudFixedPosition, true);

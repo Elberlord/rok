@@ -2105,6 +2105,15 @@
     setTimeout(() => (register ? accountUi.registerName : accountUi.loginEmail)?.focus(), 30);
   }
 
+  function publishActiveCasterAvatar(profile = socialProfileCache) {
+    const normalized = normalizeProfileAvatarId(profile?.avatarId);
+    const url = normalized === CUSTOM_PROFILE_AVATAR_ID ? String(profile?.casterAvatarUrl || '') : '';
+    window.ROK_ACTIVE_CASTER_AVATAR_URL = url;
+    try {
+      window.dispatchEvent(new CustomEvent('rok:caster-avatar-changed', { detail: { url } }));
+    } catch (_) {}
+  }
+
   function updateAccountIdentityUi(user = auth?.currentUser, profile = socialProfileCache) {
     cacheAccountUi();
     if (!user || user.isAnonymous) {
@@ -2119,6 +2128,7 @@
       if (accountUi.menuLevel) accountUi.menuLevel.textContent = 'Nivel 1';
       if (accountUi.menuXpFill) accountUi.menuXpFill.style.width = '0%';
       if (accountUi.menuXpText) accountUi.menuXpText.textContent = '0 / 100 XP';
+      publishActiveCasterAvatar(null);
       return;
     }
     const name = normalizeSocialDisplayName(profile?.displayName) || normalizeSocialDisplayName(user.displayName) || 'Kaster';
@@ -2138,6 +2148,7 @@
     if (accountUi.menuLevel) accountUi.menuLevel.textContent = `Nivel ${level}`;
     if (accountUi.menuXpFill) accountUi.menuXpFill.style.width = `${progress}%`;
     if (accountUi.menuXpText) accountUi.menuXpText.textContent = `${xp} / ${required} XP`;
+    publishActiveCasterAvatar(profile);
   }
 
   function readableAccountAuthError(error) {
@@ -2482,7 +2493,11 @@
       setCasterAvatarJobStatus('Sube una foto para comenzar.', '');
       return;
     }
-    if (status === 'queued') setCasterAvatarJobStatus('Solicitud enviada. Está esperando turno para generar el avatar.', 'working');
+    if (status === 'queued') {
+      const age = Date.now() - Number(job?.createdAt || Date.now());
+      if (age > 30000) setCasterAvatarJobStatus('Solicitud en cola. El generador todavía no la ha tomado; verifica que avatar-worker esté desplegado y activo.', 'working');
+      else setCasterAvatarJobStatus('Solicitud enviada. Está esperando turno para generar el avatar.', 'working');
+    }
     else if (status === 'processing') setCasterAvatarJobStatus('Generando tu Kaster. Puedes cerrar esta ventana y volver después.', 'working');
     else if (status === 'completed') setCasterAvatarJobStatus('Tu avatar de Kaster está listo. Puedes usarlo como avatar del perfil.', 'ok');
     else if (status === 'failed') setCasterAvatarJobStatus(job?.errorMessage || 'La generación falló. Puedes volver a intentarlo.', 'error');
@@ -2551,6 +2566,40 @@
     return 'jpg';
   }
 
+  function uploadCasterAvatarSource(api, sourceRef, file, metadata = {}) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let lastProgressAt = Date.now();
+      const task = api.storageModule.uploadBytesResumable(sourceRef, file, metadata);
+      const watchdog = window.setInterval(() => {
+        if (settled) return;
+        if (Date.now() - lastProgressAt > 45000) {
+          settled = true;
+          window.clearInterval(watchdog);
+          try { task.cancel(); } catch (_) {}
+          reject(new Error('La subida de la foto no respondió durante 45 segundos. Revisa Firebase Storage y vuelve a intentarlo.'));
+        }
+      }, 2500);
+      task.on('state_changed', snapshot => {
+        lastProgressAt = Date.now();
+        const total = Math.max(1, Number(snapshot.totalBytes || file.size || 1));
+        const sent = Math.max(0, Number(snapshot.bytesTransferred || 0));
+        const pct = Math.max(0, Math.min(100, Math.round((sent / total) * 100)));
+        setCasterAvatarJobStatus(`Subiendo la foto de referencia… ${pct}%`, 'working');
+      }, error => {
+        if (settled) return;
+        settled = true;
+        window.clearInterval(watchdog);
+        reject(error);
+      }, () => {
+        if (settled) return;
+        settled = true;
+        window.clearInterval(watchdog);
+        resolve(task.snapshot);
+      });
+    });
+  }
+
   async function requestCasterAvatarGeneration() {
     cacheProfileUi();
     if (!hasAuthenticatedAccount()) {
@@ -2601,10 +2650,11 @@
       const ext = casterAvatarSourceExtension(file);
       const sourcePath = `${AVATAR_SOURCE_ROOT}/${uid}/${jobId}/source.${ext}`;
       const sourceRef = api.storageModule.ref(storage, sourcePath);
-      await api.storageModule.uploadBytes(sourceRef, file, {
+      await uploadCasterAvatarSource(api, sourceRef, file, {
         contentType: file.type,
         customMetadata: { ownerUid: uid, jobId, purpose: 'rok-caster-avatar-source' },
       });
+      setCasterAvatarJobStatus('Foto subida. Registrando la solicitud de generación…', 'working');
       const now = Date.now();
       const jobPayload = {
         uid,
@@ -2621,10 +2671,18 @@
       clearCasterAvatarSourceSelection();
       if (profileUi.casterAvatarConsent) profileUi.casterAvatarConsent.checked = false;
       renderCasterAvatarJob(jobPayload);
+      setCasterAvatarJobStatus('Solicitud creada. Esperando que el generador tome el trabajo…', 'working');
       await attachCasterAvatarJobListener(jobId);
       return true;
     } catch (error) {
-      setCasterAvatarJobStatus(readableFirebaseError(error), 'error');
+      const raw = `${String(error?.code || '')} ${String(error?.message || '')}`.toLowerCase();
+      let message = readableFirebaseError(error);
+      if (raw.includes('storage/') && (raw.includes('unauthorized') || raw.includes('permission'))) {
+        message = 'Firebase Storage bloqueó la foto. Revisa las Storage Rules de casterAvatarSources y vuelve a intentarlo.';
+      } else if (isPermissionDeniedError(error)) {
+        message = 'La foto pudo prepararse, pero Firebase bloqueó avatarJobs. Revisa las Realtime Database Rules del sistema de avatar.';
+      }
+      setCasterAvatarJobStatus(message, 'error');
       refreshCasterAvatarRequestButton();
       return false;
     }

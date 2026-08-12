@@ -43410,3 +43410,34 @@ body.rok-battle-mode .cast-panel .small-note {
   flex: 0 0 auto !important;
   overflow: visible !important;
 }
+
+
+/* v545 · Área de Agua: el mapa usa un lienzo ampliado y se desplaza hacia el
+   encuentro seleccionado. Esta regla debe quedar DESPUÉS de las reglas
+   genéricas .adventure-map-canvas > .adventure-map-image. */
+.adventure-water-map-canvas > .adventure-map-image {
+  inset: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: var(--water-map-offset-x, 0%) !important;
+  top: var(--water-map-offset-y, 0%) !important;
+  width: calc(100% * var(--water-map-zoom, 1)) !important;
+  height: calc(100% * var(--water-map-zoom, 1)) !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: fill;
+  object-position: center;
+  transition:
+    left .48s cubic-bezier(.2,.78,.18,1),
+    top .48s cubic-bezier(.2,.78,.18,1),
+    width .48s cubic-bezier(.2,.78,.18,1),
+    height .48s cubic-bezier(.2,.78,.18,1);
+  will-change: left, top, width, height;
+}
+
+.adventure-water-map-canvas .adventure-water-marker {
+  transition:
+    left .48s cubic-bezier(.2,.78,.18,1),
+    top .48s cubic-bezier(.2,.78,.18,1),
+    filter .2s ease;
+}
