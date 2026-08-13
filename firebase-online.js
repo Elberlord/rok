@@ -39,7 +39,8 @@
     egypt: { id: 'egypt', label: 'Arena Egipto', src: 'assets/arena-egipto.webp' },
   });
 
-  const ONLINE_SNAPSHOT_SCHEMA_VERSION = 4;
+  const ONLINE_SNAPSHOT_SCHEMA_VERSION = 5;
+  const ONLINE_SNAPSHOT_HASH_VERSION = 2;
   const ONLINE_FX_SCHEMA_VERSION = 2;
   const ONLINE_FX_RETENTION_MS = 18000;
   const ONLINE_FX_DEFAULT_MAX_REPLAY_AGE_MS = 9000;
@@ -943,6 +944,72 @@
     return JSON.stringify(stableJsonValue(value));
   }
 
+  // Etapa 8 · Canonización de transporte RTDB.
+  // Firebase Realtime Database NO conserva null como un valor de objeto: null
+  // elimina la rama. Tampoco conserva colecciones vacías como una representación
+  // distinguible de una rama ausente, y los arrays con huecos pueden regresar
+  // como objetos de claves numéricas. El hash de Etapa 7 se calculaba sobre el
+  // JSON previo a ese transporte; por eso una revisión válida podía regresar con
+  // otro hash y era rechazada por ambos clientes.
+  //
+  // Esta proyección calcula la identidad del ESTADO LÓGICO, no de la forma
+  // concreta que RTDB utiliza para almacenarlo. Se eliminan valores que RTDB no
+  // puede preservar y los arrays se representan de forma dispersa con un marcador
+  // explícito, conservando los índices que sí contienen información.
+  const INTEGRITY_ABSENT = Symbol('rok-integrity-absent');
+
+  function integrityJsonValue(value) {
+    if (value === null || value === undefined || typeof value === 'function' || typeof value === 'symbol') {
+      return INTEGRITY_ABSENT;
+    }
+    if (Array.isArray(value)) {
+      const items = {};
+      for (let index = 0; index < value.length; index += 1) {
+        if (!Object.prototype.hasOwnProperty.call(value, index)) continue;
+        const projected = integrityJsonValue(value[index]);
+        if (projected === INTEGRITY_ABSENT) continue;
+        items[String(index)] = projected;
+      }
+      if (!Object.keys(items).length) return INTEGRITY_ABSENT;
+      return { __rokIndexed: items };
+    }
+    if (typeof value === 'object') {
+      // Primero retiramos ramas que RTDB no puede conservar. Solo DESPUÉS
+      // decidimos si el nodo restante es indexado; de lo contrario un objeto
+      // {0: x, nombre: null} cambiaría de identidad al volver de Firebase.
+      const projectedEntries = [];
+      Object.keys(value).forEach(key => {
+        const projected = integrityJsonValue(value[key]);
+        if (projected === INTEGRITY_ABSENT) return;
+        projectedEntries.push([key, projected]);
+      });
+      if (!projectedEntries.length) return INTEGRITY_ABSENT;
+
+      // RTDB puede devolver un nodo indexado como Array o como objeto de claves
+      // numéricas según su densidad. Para integridad de transporte ambas formas
+      // son equivalentes porque RTDB no conserva esa distinción.
+      if (projectedEntries.every(([key]) => /^\d+$/.test(key))) {
+        const items = {};
+        projectedEntries
+          .sort((a, b) => Number(a[0]) - Number(b[0]))
+          .forEach(([key, projected]) => { items[String(Number(key))] = projected; });
+        return { __rokIndexed: items };
+      }
+
+      const sorted = {};
+      projectedEntries
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([key, projected]) => { sorted[key] = projected; });
+      return sorted;
+    }
+    return value;
+  }
+
+  function integritySnapshotText(value) {
+    const projected = integrityJsonValue(value);
+    return JSON.stringify(projected === INTEGRITY_ABSENT ? {} : projected);
+  }
+
   function hashSnapshotText(text = '') {
     // FNV-1a 32-bit: no es una firma criptográfica; sirve para detectar
     // divergencias/corrupción accidental entre el payload escrito y leído.
@@ -953,6 +1020,62 @@
       hash = Math.imul(hash, 0x01000193) >>> 0;
     }
     return hash.toString(16).padStart(8, '0');
+  }
+
+  // Simulador deliberadamente conservador del round-trip de RTDB para la
+  // prueba de diagnóstico. Representa arrays como objetos numéricos y elimina
+  // null/colecciones vacías, que son precisamente las transformaciones que
+  // pueden cambiar la forma JSON sin cambiar el estado lógico.
+  function simulateRtdbRoundTripValue(value) {
+    if (value === null || value === undefined || typeof value === 'function' || typeof value === 'symbol') {
+      return INTEGRITY_ABSENT;
+    }
+    if (Array.isArray(value)) {
+      const out = {};
+      for (let index = 0; index < value.length; index += 1) {
+        if (!Object.prototype.hasOwnProperty.call(value, index)) continue;
+        const child = simulateRtdbRoundTripValue(value[index]);
+        if (child === INTEGRITY_ABSENT) continue;
+        out[String(index)] = child;
+      }
+      return Object.keys(out).length ? out : INTEGRITY_ABSENT;
+    }
+    if (typeof value === 'object') {
+      const out = {};
+      Object.keys(value).forEach(key => {
+        const child = simulateRtdbRoundTripValue(value[key]);
+        if (child === INTEGRITY_ABSENT) return;
+        out[key] = child;
+      });
+      return Object.keys(out).length ? out : INTEGRITY_ABSENT;
+    }
+    return value;
+  }
+
+  function runTransportHashSelfTest() {
+    try {
+      const localPacket = makeBattleSnapshotPacket();
+      if (!localPacket.snapshot || !localPacket.hash) return { ok: false, reason: 'snapshot-local-inválido' };
+      const transported = simulateRtdbRoundTripValue(localPacket.snapshot);
+      if (transported === INTEGRITY_ABSENT || !transported || typeof transported !== 'object') {
+        return { ok: false, reason: 'snapshot-transportado-vacío' };
+      }
+      const normalized = normalizeAuthoritativeSnapshot(transported);
+      const report = auditSnapshotSource(normalized, { repair: false });
+      if (!report.ok) return { ok: false, reason: formatIntegrityIssue(report), report };
+      const remoteText = snapshotText(normalized);
+      const remoteHash = hashSnapshotText(remoteText);
+      return {
+        ok: localPacket.hash === remoteHash,
+        hashVersion: ONLINE_SNAPSHOT_HASH_VERSION,
+        localHash: localPacket.hash,
+        transportedHash: remoteHash,
+        localTextBytes: localPacket.text.length,
+        transportedTextBytes: remoteText.length,
+      };
+    } catch (error) {
+      return { ok: false, reason: String(error?.message || error) };
+    }
   }
 
   function auditSnapshotSource(source, options = {}) {
@@ -995,27 +1118,34 @@
   }
 
   function makeBattleSnapshotPacket() {
-    // Etapa 7: primero normalizamos y auditamos el ESTADO LÓGICO que va a
-    // viajar. Un valor no JSON-safe o una identidad duplicada ya no puede
-    // convertirse silenciosamente en el estado autoritativo de la sala.
+    // Primero normalizamos y auditamos el ESTADO LÓGICO que va a viajar. Un
+    // valor no JSON-safe o una identidad duplicada no puede convertirse en el
+    // estado autoritativo de la sala. El texto/hash usa la proyección canónica
+    // de transporte para que escribir -> leer por RTDB sea idempotente.
     try {
       if (typeof ensureRuntimeStateCollections === 'function') ensureRuntimeStateCollections(state);
       const source = getBattleSnapshotSource();
-      const report = auditSnapshotSource(source, { repair: true });
+      const repairedReport = auditSnapshotSource(source, { repair: true });
+      if (!repairedReport.ok) {
+        consistencyStats.rejectedOutgoing += 1;
+        consistencyStats.lastIssue = formatIntegrityIssue(repairedReport);
+        return { text: '', snapshot: null, hash: '', report: repairedReport, hashVersion: ONLINE_SNAPSHOT_HASH_VERSION };
+      }
+      const snapshot = normalizeAuthoritativeSnapshot(source);
+      const report = auditSnapshotSource(snapshot, { repair: false });
       if (!report.ok) {
         consistencyStats.rejectedOutgoing += 1;
         consistencyStats.lastIssue = formatIntegrityIssue(report);
-        return { text: '', snapshot: null, hash: '', report };
+        return { text: '', snapshot: null, hash: '', report, hashVersion: ONLINE_SNAPSHOT_HASH_VERSION };
       }
-      const snapshot = JSON.parse(JSON.stringify(source));
-      const text = stableSnapshotText(snapshot);
+      const text = integritySnapshotText(snapshot);
       consistencyStats.validatedOutgoing += 1;
-      return { text, snapshot, hash: hashSnapshotText(text), report };
+      return { text, snapshot, hash: hashSnapshotText(text), report, hashVersion: ONLINE_SNAPSHOT_HASH_VERSION };
     } catch (error) {
       reportOnlineError(error, 'No se pudo serializar la partida');
       consistencyStats.rejectedOutgoing += 1;
       consistencyStats.lastIssue = String(error?.message || error);
-      return { text: '', snapshot: null, hash: '', report: null };
+      return { text: '', snapshot: null, hash: '', report: null, hashVersion: ONLINE_SNAPSHOT_HASH_VERSION };
     }
   }
 
@@ -1024,7 +1154,7 @@
   }
 
   function snapshotText(snapshot) {
-    try { return stableSnapshotText(snapshot); }
+    try { return integritySnapshotText(snapshot); }
     catch (error) {
       reportOnlineError(error, 'No se pudo serializar la partida');
       return '';
@@ -1039,7 +1169,6 @@
     if (schemaVersion > ONLINE_SNAPSHOT_SCHEMA_VERSION) {
       return { ok: false, reason: `schema ${schemaVersion} no soportado` };
     }
-    if (schemaVersion > 0 && schemaVersion < ONLINE_SNAPSHOT_SCHEMA_VERSION) consistencyStats.legacySnapshots += 1;
     const normalized = normalizeAuthoritativeSnapshot(authoritative.snapshot);
     if (!normalized) return { ok: false, reason: 'snapshot no normalizable' };
     const report = auditSnapshotSource(normalized, { repair: false });
@@ -1048,11 +1177,24 @@
     if (!text) return { ok: false, reason: 'snapshot no serializable', report };
     const hash = hashSnapshotText(text);
     const declaredHash = String(authoritative.snapshotHash || '');
-    if (declaredHash && declaredHash !== hash) {
-      consistencyStats.hashMismatch += 1;
-      return { ok: false, reason: `hash ${declaredHash} != ${hash}`, report, hash, text, snapshot: normalized };
+    const hashVersion = Number(authoritative.hashVersion || 0);
+
+    if (schemaVersion >= 5) {
+      if (hashVersion !== ONLINE_SNAPSHOT_HASH_VERSION) {
+        return { ok: false, reason: `hashVersion ${hashVersion || 'ausente'} no soportado`, report, hash, text, snapshot: normalized };
+      }
+      if (!declaredHash || declaredHash !== hash) {
+        consistencyStats.hashMismatch += 1;
+        return { ok: false, reason: `hash ${declaredHash || 'ausente'} != ${hash}`, report, hash, text, snapshot: normalized };
+      }
+    } else {
+      // Migración de una sala creada antes de Etapa 8. El hash v1 se calculaba
+      // antes del round-trip de RTDB y puede diferir aunque el estado sea válido.
+      // Se audita el payload pero se deja que la próxima escritura lo convierta
+      // al esquema/hash actual.
+      consistencyStats.legacySnapshots += 1;
     }
-    return { ok: true, report, hash, text, snapshot: normalized, schemaVersion };
+    return { ok: true, report, hash, text, snapshot: normalized, schemaVersion, hashVersion: schemaVersion >= 5 ? hashVersion : 1 };
   }
 
 
@@ -1604,6 +1746,7 @@
       schemaVersion: validation.schemaVersion || Number(authoritative.schemaVersion || 0),
       snapshot: validation.snapshot,
       snapshotHash: validation.hash,
+      hashVersion: validation.hashVersion || ONLINE_SNAPSHOT_HASH_VERSION,
     };
     updateRoomCacheGameAuthoritative(normalizedAuthoritative);
     lastAuthoritativeSnapshot = deepClone(validation.snapshot);
@@ -2189,6 +2332,7 @@
           phaseKey: phaseKeyFromSnapshot(nextSnapshot),
           matchSerial: Math.max(1, Number(nextSnapshot.matchSerial || 1)),
           schemaVersion: ONLINE_SNAPSHOT_SCHEMA_VERSION,
+          hashVersion: ONLINE_SNAPSHOT_HASH_VERSION,
           snapshotHash: nextHash,
           snapshot: nextSnapshot,
           updatedAt: Date.now(),
@@ -4663,9 +4807,48 @@
         authoritativeHash: lastAuthoritativeSnapshotHash,
         localHash: makeBattleSnapshotPacket().hash,
         authoritativeRevision: lastKnownRevision,
+        snapshotSchemaVersion: ONLINE_SNAPSHOT_SCHEMA_VERSION,
+        snapshotHashVersion: ONLINE_SNAPSHOT_HASH_VERSION,
       },
     }),
     verifyConsistency: () => verifyPassiveClientConsistency({ repair: false }),
+    transportHashSelfTest: runTransportHashSelfTest,
+    getStressSnapshot: () => {
+      const memory = performance?.memory ? {
+        usedJSHeapSize: Number(performance.memory.usedJSHeapSize || 0),
+        totalJSHeapSize: Number(performance.memory.totalJSHeapSize || 0),
+        jsHeapSizeLimit: Number(performance.memory.jsHeapSizeLimit || 0),
+      } : null;
+      return {
+        capturedAt: Date.now(),
+        roomCode,
+        playerSlot,
+        revision: lastKnownRevision,
+        matchSerial: currentMatchSerial(),
+        phaseKey: currentLocalPhaseKey(),
+        domNodes: document?.getElementsByTagName?.('*')?.length || 0,
+        memory,
+        render: window.ROK_RENDER_ENGINE?.getStats?.() || null,
+        fxRuntime: window.ROK_ONLINE_FX?.getStats?.() || null,
+        fxNetwork: { ...fxStats },
+        consistency: {
+          ...consistencyStats,
+          authoritativeHash: lastAuthoritativeSnapshotHash,
+          localHash: makeBattleSnapshotPacket().hash,
+        },
+        pendingInteractionWaits: pendingInteractionAborters.size,
+        pendingFxCleanupTimers: pendingFxCleanupEntries.size,
+        networkCleanupTimers: networkCleanupTimers.size,
+        handledInteractions: handledInteractionIds.size,
+      };
+    },
+    resetStressCounters: () => {
+      try { window.ROK_RENDER_ENGINE?.resetStats?.(); } catch (_) {}
+      try { window.ROK_ONLINE_FX?.resetStats?.(); } catch (_) {}
+      Object.assign(fxStats, { emitted: 0, received: 0, played: 0, skippedOwn: 0, skippedOld: 0, skippedDuplicate: 0, skippedMatch: 0, skippedStale: 0, skippedUnsupported: 0, revisionWaits: 0, revisionWaitFailures: 0, parallelPlayed: 0, serialPlayed: 0 });
+      Object.assign(consistencyStats, { validatedOutgoing: 0, rejectedOutgoing: 0, validatedIncoming: 0, rejectedIncoming: 0, hashMismatch: 0, passiveChecks: 0, passiveRepairs: 0, actionWindowRejected: 0, legacySnapshots: 0, lastIssue: '' });
+      return true;
+    },
     auditLocalState: () => window.ROK_STATE_INTEGRITY?.audit?.(state, { repair: false }) || { ok: true, issues: [], warnings: [] },
   };
 

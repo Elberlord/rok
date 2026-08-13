@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.6.275';
+const GAME_VERSION = 'v5.7.276';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -456,6 +456,13 @@ window.ROK_ONLINE_FX = {
   getPolicy: getOnlineFxPolicy,
   cancelAll: cancelOnlineVisualFxRuntime,
   getStats: () => ({ ...ONLINE_FX_RUNTIME_STATS, byType: { ...ONLINE_FX_RUNTIME_STATS.byType }, generation: ONLINE_FX_RUNTIME_GENERATION }),
+  resetStats: () => {
+    ONLINE_FX_RUNTIME_STATS.played = 0;
+    ONLINE_FX_RUNTIME_STATS.cancelled = 0;
+    ONLINE_FX_RUNTIME_STATS.unsupported = 0;
+    ONLINE_FX_RUNTIME_STATS.failed = 0;
+    ONLINE_FX_RUNTIME_STATS.byType = {};
+  },
   getSupportedTypes: () => Object.keys(ONLINE_FX_DEFINITIONS),
 };
 
