@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.7.276';
+const GAME_VERSION = 'v5.7.279';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -402,6 +402,30 @@ const ONLINE_FX_DEFINITIONS = Object.freeze({
   },
 });
 
+function getOnlineFxInvocationFromRef(ref) {
+  if (!ref || ref.unitId == null || ref.playerId == null) return null;
+  const unit = getUnitById(Number(ref.playerId), ref.unitId);
+  return unit ? { ownerPlayerId: Number(ref.playerId), unit } : null;
+}
+
+function shouldSuppressOnlineFxForHiddenOpponent(type, payload = {}) {
+  if (!isOnlineMatchActive() || LOCAL_PLAYER_ID == null) return false;
+  const sourceRef = getOnlineFxInvocationFromRef(payload.source || payload);
+  const targetRef = getOnlineFxInvocationFromRef(payload.target || null);
+  const sourceHidden = sourceRef && isOnlineUnitConcealedFromViewer(sourceRef.ownerPlayerId, sourceRef.unit);
+  const targetHidden = targetRef && isOnlineUnitConcealedFromViewer(targetRef.ownerPlayerId, targetRef.unit);
+  if (sourceHidden) return true;
+  if (targetHidden) {
+    const targetRevealingTypes = new Set([
+      'floating-text', 'floating-damage', 'critical-damage', 'critical-slash',
+      'armor-reduction', 'blindness-debuff', 'kurayami-execution-cue',
+      'kurayami-execution-damage', 'shirahadori-redirect', 'minokage-hit-slash'
+    ]);
+    if (targetRevealingTypes.has(String(type || ''))) return true;
+  }
+  return false;
+}
+
 function getOnlineFxPolicy(type) {
   const definition = ONLINE_FX_DEFINITIONS[String(type || '')];
   if (!definition) return null;
@@ -420,6 +444,7 @@ async function playOnlineVisualEvent(event = {}) {
   }
   const generation = ONLINE_FX_RUNTIME_GENERATION;
   const payload = event.payload || {};
+  if (shouldSuppressOnlineFxForHiddenOpponent(type, payload)) return false;
   let playbackResult;
   ONLINE_FX_REPLAY_DEPTH += 1;
   try {
@@ -467,6 +492,8 @@ window.ROK_ONLINE_FX = {
 };
 
 const PATCH_NOTES = [
+  'v549: PvP · Oculto se vuelve privacidad real de combate: la invocación rival no genera token ni capas persistentes, queda fuera de toda selección directa (ataques, poderes, Emboscada e Interceptar) y no revela daño/retorno visual al oponente; los impactos indirectos de área, barrido o trayectoria siguen resolviendo normalmente.',
+  'v548: Aventura · Kiara recibe una arena propia con preview dedicado en Preparar combate y arte cenital de batalla; el sistema de encuentros queda preparado para asignar preview/arena individual a cada Kaster. El Kaster inicial del jugador pasa a llamarse Lioren.',
   'v534: Restaura la composición canónica de la zona de kasteo sobre el lienzo lógico 1600x900: carril de 150 px, slots 100x138, miniaturas 58x74/54x54, reloj y contador en tamaño original, ACTIVO/COLA por encima del token y cola sin scrollbar interno.',
   'v533: Unifica la geometría de FX heredados con el sistema lógico 1600x900: Minokage (Shippū Ugachi, pasiva y Evasión), proyectiles a distancia, Shirahadori, cadena persistente de Parálisis de Junkai, caída/recuperación de armas, recompensas del Guardián y extracción elemental dejan de mezclar píxeles físicos del viewport con coordenadas internas de boardContent.',
   'v532: Corrige la trayectoria de los cuervos de Genyutsu, Shinigami Karasu de Yasugana Hattori: los anclajes de salida y objetivo se convierten de coordenadas físicas del viewport a coordenadas lógicas de #rokAppStage antes de dibujar el proyectil, evitando que la animación salga corrida al redimensionar.',
@@ -11374,6 +11401,15 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     available: true,
     marker: { x: 58.5, y: 58.0 },
     image: 'assets/adventure/casters/enigma-apprentice.png',
+    arena: {
+      label: 'Arena de Kiara',
+      previewImage: 'assets/adventure/arenas/kiara-preview.png',
+      battleImage: 'assets/adventure/arenas/kiara-arena.png',
+      previewFocusX: 50,
+      previewFocusY: 56,
+      battleFocusX: 50,
+      battleFocusY: 50
+    },
     domain: 'Agua · Conocimiento',
     domains: [
       { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
@@ -11648,7 +11684,7 @@ const ADVENTURE_PROGRESS_STORAGE_KEY = 'rokLite.adventure.progress.v1';
 const ADVENTURE_PLAYER_CASTERS = [
   {
     id: 'starter-player-kaster',
-    label: 'Kaster inicial',
+    label: 'Lioren',
     subtitle: 'Extractora · Sanadora',
     image: 'assets/adventure/player/default-player-kaster.png',
     casterQualities: ['Extractor', 'Sanador'],
@@ -11915,13 +11951,42 @@ function renderAdventureDominantFigures(entries = [], side = 'left') {
   return entries.map((entry, index) => `<div class="adventure-intro-invocation adventure-intro-invocation-${side}" style="--intro-index:${index}"><img src="${entry.image}" alt="Previsualización ${entry.quality}"><span>${renderAdventureQualityIcon(entry.quality)}${entry.quality}</span></div>`).join('');
 }
 
-function getAdventureArenaPreview(encounter) {
+function getAdventureArenaConfig(encounter) {
+  const custom = encounter?.arena && typeof encounter.arena === 'object' ? encounter.arena : {};
+  const fallbackLabel = `Arena de ${encounter?.label || 'Agua'}`;
   return {
-    label: `Arena de ${encounter?.label || 'Agua'}`,
-    image: 'assets/adventure/water-region-map.png',
-    focusX: encounter?.marker?.x || 50,
-    focusY: encounter?.marker?.y || 50,
+    label: custom.label || fallbackLabel,
+    previewImage: custom.previewImage || 'assets/adventure/water-region-map.png',
+    battleImage: custom.battleImage || 'assets/arena.webp',
+    previewFocusX: Number.isFinite(Number(custom.previewFocusX)) ? Number(custom.previewFocusX) : (encounter?.marker?.x || 50),
+    previewFocusY: Number.isFinite(Number(custom.previewFocusY)) ? Number(custom.previewFocusY) : (encounter?.marker?.y || 50),
+    battleFocusX: Number.isFinite(Number(custom.battleFocusX)) ? Number(custom.battleFocusX) : 50,
+    battleFocusY: Number.isFinite(Number(custom.battleFocusY)) ? Number(custom.battleFocusY) : 50,
+    custom: Boolean(custom.previewImage || custom.battleImage),
+  };
+}
+
+function getAdventureArenaPreview(encounter) {
+  const arena = getAdventureArenaConfig(encounter);
+  return {
+    label: arena.label,
+    image: arena.previewImage,
+    focusX: arena.previewFocusX,
+    focusY: arena.previewFocusY,
     preview: true,
+    custom: arena.custom,
+  };
+}
+
+function getAdventureBattleArena(encounter) {
+  const arena = getAdventureArenaConfig(encounter);
+  return {
+    label: arena.label,
+    image: arena.battleImage,
+    focusX: arena.battleFocusX,
+    focusY: arena.battleFocusY,
+    preview: false,
+    custom: arena.custom,
   };
 }
 
@@ -11944,6 +12009,7 @@ function renderAdventurePreparation() {
   if (els.adventurePrepArenaImage) {
     els.adventurePrepArenaImage.src = arena.image;
     els.adventurePrepArenaImage.style.objectPosition = `${arena.focusX}% ${arena.focusY}%`;
+    els.adventurePrepArenaImage.dataset.customArena = arena.custom ? 'true' : 'false';
   }
   if (els.adventurePrepArenaName) els.adventurePrepArenaName.textContent = arena.label;
   if (els.adventurePrepArenaBadge) els.adventurePrepArenaBadge.textContent = arena.preview ? 'PREVISUALIZACIÓN' : 'ARENA';
@@ -12081,7 +12147,8 @@ function launchPreparedAdventureBattle() {
     rivalCaster: encounter,
     playerCaster,
     playerSpellbookCardIds: getAdventureSpellbookCardIds(),
-    arena: getAdventureArenaPreview(encounter),
+    arena: getAdventureBattleArena(encounter),
+    arenaPreview: getAdventureArenaPreview(encounter),
   };
   window.ROK_ADVENTURE_PENDING_BATTLE = payload;
   if (typeof window.ROK_ADVENTURE_START_BATTLE === 'function') {
@@ -12099,6 +12166,8 @@ window.ROK_ADVENTURE = {
   setPlayerSpellbook(cardIds = []) { adventureState.playerSpellbookCardIds = Array.isArray(cardIds) ? cardIds.filter(id => CARD_LIBRARY[id]) : []; renderAdventurePreparation(); },
   setEncounterSpellbook(encounterId, cardIds = []) { adventureState.encounterSpellbooks[encounterId] = Array.isArray(cardIds) ? cardIds.filter(id => CARD_LIBRARY[id]) : []; renderAdventurePreparation(); },
   getProgress: () => loadAdventureProgress(),
+  getArenaForEncounter(encounterId = adventureState.encounterId) { return getAdventureBattleArena(getAdventureWaterEncounter(encounterId)); },
+  getArenaPreviewForEncounter(encounterId = adventureState.encounterId) { return getAdventureArenaPreview(getAdventureWaterEncounter(encounterId)); },
 };
 
 function renderAdventureCasterStats(encounter, ready) {
@@ -19718,7 +19787,7 @@ function getMinokagePassiveSelectableTargets(playerId, unit) {
     if (dist < 1 || dist > MINOKAGE_BASIC_SELECTION_AURA) return;
     if (target.type === 'invocation') {
       const live = getUnitById(target.playerId, target.unitId);
-      if (!live || live.status === 'restoring' || unitHasActiveFactor(live, 'hidden') || isUnitEngaged(live)) return;
+      if (!canPlayerDirectlyTargetInvocation(playerId, target.playerId, live) || isUnitEngaged(live)) return;
     }
     if (target.type === 'guardian') {
       const guardian = state.players?.[target.playerId]?.guardians?.find(g => String(g.id) === String(target.guardianId));
@@ -19799,7 +19868,7 @@ function getMinokagePowerTargets(playerId, unit) {
     addIfValid(buildTarget('guardian', enemyId, { guardianId: guardian.id }));
   });
   (enemy.units || [])
-    .filter(enemyUnit => enemyUnit.status !== 'restoring' && !unitHasActiveFactor(enemyUnit, 'hidden'))
+    .filter(enemyUnit => canPlayerDirectlyTargetInvocation(playerId, enemyId, enemyUnit))
     .forEach(enemyUnit => addIfValid(buildTarget('invocation', enemyId, { unitId: enemyUnit.id })));
   return targets;
 }
@@ -22457,7 +22526,7 @@ function canUnitDamageUnitWithProfile(sourcePlayerId, sourceUnit, targetPlayerId
   if (!sourceUnit || !targetUnit || sourceUnit.status === 'restoring' || targetUnit.status === 'restoring') return false;
   const attackProfile = profile || getUnitAttackProfile(sourcePlayerId, sourceUnit);
   if (!attackProfile) return false;
-  if (unitHasActiveFactor(targetUnit, 'hidden')) return false;
+  if (!canPlayerDirectlyTargetInvocation(sourcePlayerId, targetPlayerId, targetUnit)) return false;
   const dist = ringDistance(sourceUnit.row, sourceUnit.col, targetUnit.row, targetUnit.col);
   return dist >= 1 && dist <= Number(attackProfile.range ?? 1);
 }
@@ -22497,8 +22566,7 @@ function canSelectTarget(source, target) {
     }
     if (target.type !== 'invocation') return false;
     const targetUnit = getUnitById(target.playerId, target.unitId);
-    if (!targetUnit || targetUnit.status === 'restoring') return false;
-    if (unitHasActiveFactor(targetUnit, 'hidden')) return false;
+    if (!canPlayerDirectlyTargetInvocation(source.playerId, target.playerId, targetUnit)) return false;
     // El Kaster puede intervenir contra una invocación rival dentro de alcance
     // aunque esa invocación ya esté trabada con otra unidad. La restricción de
     // "nuevo objetivo" pertenece a invocaciones, no al ataque del Kaster.
@@ -22518,8 +22586,7 @@ function canSelectTarget(source, target) {
   if (target.type === 'guardian' && unitHasGuardianAttackSpentThisResolution(source.unit)) return false;
   if (target.type === 'invocation') {
     const targetUnit = getUnitById(target.playerId, target.unitId);
-    if (!targetUnit || targetUnit.status === 'restoring') return false;
-    if (unitHasActiveFactor(targetUnit, 'hidden')) return false;
+    if (!canPlayerDirectlyTargetInvocation(source.playerId, target.playerId, targetUnit)) return false;
     // Regla base: una invocación ya trabada en batalla no puede ser seleccionada como nuevo objetivo.
     if (isUnitEngaged(targetUnit)) return false;
   }
@@ -22748,13 +22815,14 @@ function canUnitDamageUnit(sourcePlayerId, sourceUnit, targetPlayerId, targetUni
   if (unitHasParalysis(sourceUnit)) return false;
   const sourceCard = CARD_LIBRARY[sourceUnit.cardId];
   const profile = getEffectiveAttackProfile(sourceCard, sourceUnit, sourcePlayerId);
-  if (unitHasActiveFactor(targetUnit, 'hidden')) return false;
+  if (!canPlayerDirectlyTargetInvocation(sourcePlayerId, targetPlayerId, targetUnit)) return false;
   const dist = ringDistance(sourceUnit.row, sourceUnit.col, targetUnit.row, targetUnit.col);
   return dist >= 1 && dist <= profile.range;
 }
 
 function openInfoForTarget(target) {
   if (!target) return;
+  if (target.type === 'invocation' && !canPlayerDirectlyTargetTarget(LOCAL_PLAYER_ID, target)) return;
   if (target.type === 'caster') openKasterInfo(target.playerId);
   else if (target.type === 'guardian') openGuardianInfo(target.playerId, target.guardianId);
   else if (target.type === 'invocation') {
@@ -22834,9 +22902,9 @@ function showTargetMenu(target) {
   }
   const source = getSourceUnitFromSelection();
 
-  if (!source || !canSelectTarget(source, target)) {
+  if (!source || !canPlayerDirectlyTargetTarget(source.playerId, target) || !canSelectTarget(source, target)) {
     clearCombatMenus();
-    openInfoForTarget(target);
+    if (canPlayerDirectlyTargetTarget(LOCAL_PLAYER_ID, target)) openInfoForTarget(target);
     return;
   }
 
@@ -22888,8 +22956,8 @@ function selectCombatTarget(target) {
     return;
   }
   const source = getSourceUnitFromSelection();
-  if (!source || !canSelectTarget(source, target)) {
-    log('Ese objetivo no puede ser seleccionado por esta invocación.');
+  if (!source || !canPlayerDirectlyTargetTarget(source.playerId, target) || !canSelectTarget(source, target)) {
+    log('Ese objetivo no puede ser seleccionado directamente.');
     clearCombatMenus();
     return;
   }
@@ -26853,6 +26921,7 @@ function showArmorDamageReductionAt(row, col, reducedDamage, armorReduction) {
 function damageInvocationUnit(playerId, unit, amount, reason = 'daño', source = null) {
   if (!unit || unit.status === 'restoring') return;
   const card = CARD_LIBRARY[unit.cardId];
+  const concealedFromLocalViewer = isOnlineUnitConcealedFromViewer(playerId, unit);
   const previousHp = Number(unit.hp ?? card?.stats?.life ?? 1);
   const incomingDamage = Math.max(0, Number(amount) || 0);
   const armorReduction = getPhysicalArmorReductionForDamage(unit, source);
@@ -26866,9 +26935,12 @@ function damageInvocationUnit(playerId, unit, amount, reason = 'daño', source =
 
   unit.hp = Math.max(0, previousHp - damageAmount);
   const damageDealt = Math.max(0, previousHp - unit.hp);
-  markInvocationDamageFlash(playerId, unit.id);
+  if (!concealedFromLocalViewer) markInvocationDamageFlash(playerId, unit.id);
 
-  if (source?.suppressDefaultFloatingDamage) {
+  if (concealedFromLocalViewer) {
+    // El daño indirecto sí existe, pero el rival no recibe feedback puntual que
+    // revele la casilla, la identidad o la vida de la invocación oculta.
+  } else if (source?.suppressDefaultFloatingDamage) {
     // El origen ya mostró su propio chip visual, por ejemplo Quemadura con icono + -1.
   } else if (armorReduction && reducedByArmor > 0) {
     showArmorDamageReductionAt(unit.row, unit.col, reducedByArmor, armorReduction);
@@ -26883,7 +26955,9 @@ function damageInvocationUnit(playerId, unit, amount, reason = 'daño', source =
   renderSelectedUnitCommandPanel();
   renderCombatHud();
 
-  if (armorReduction && reducedByArmor > 0) {
+  if (concealedFromLocalViewer) {
+    log('Un efecto indirecto alcanza una invocación oculta. Su identidad, posición exacta y vida permanecen ocultas.');
+  } else if (armorReduction && reducedByArmor > 0) {
     const penetrationText = armorReduction.penetratedAmount > 0 ? ` tras ignorar ${armorReduction.penetratedAmount} por Penetración de armadura` : '';
     log(`${card?.name || 'Invocación'} J${playerId} activa Armadura ${armorReduction.level}${penetrationText}: ${incomingDamage} daño físico → ${damageAmount}. VIDA ${unit.hp}.`);
   } else {
@@ -27367,6 +27441,9 @@ function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options
 
   // Copia exclusivamente visual. Desde aquí la unidad real deja de existir.
   const visualUnit = { ...unit, activeFactors: Array.isArray(unit.activeFactors) ? unit.activeFactors.map(entry => ({ ...entry })) : [] };
+  const concealedFromLocalViewer = isOnlineUnitConcealedFromViewer(playerId, visualUnit);
+  const remoteViewerIsOwner = isOnlineMatchActive() && Number(LOCAL_PLAYER_ID) !== Number(playerId);
+  const mayEmitReturnFxToRemote = !unitHasActiveFactor(visualUnit, 'hidden') || remoteViewerIsOwner;
   const returnFxPayload = {
     source: snapshotOnlineFxUnit(playerId, visualUnit),
     tab: Number(tab || 0),
@@ -27384,15 +27461,20 @@ function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options
   const revealReturnedCard = () => {
     if (playerId === LOCAL_PLAYER_ID) renderCards();
   };
-  animateReturnInvocationToSpellbook(playerId, visualUnit, tab, returnedSlot, revealReturnedCard, { ...options, suppressOnlineFx: true });
+  if (!concealedFromLocalViewer) {
+    animateReturnInvocationToSpellbook(playerId, visualUnit, tab, returnedSlot, revealReturnedCard, { ...options, suppressOnlineFx: true });
+  } else {
+    revealReturnedCard();
+  }
 
   if (isOnlineMatchActive()) {
     void commitOnlineStateBarrier(`invocation-left-arena:${unit.id}`).then(committed => {
-      if (committed) emitOnlineVisualEvent('return-spellbook', returnFxPayload);
+      if (committed && mayEmitReturnFxToRemote) emitOnlineVisualEvent('return-spellbook', returnFxPayload);
     });
   }
   markOnlineStateDirty('invocation-left-arena');
-  log(`${card?.name || 'Invocación'} vuelve al Spellbook por ${reason}.`);
+  if (concealedFromLocalViewer) log('Una invocación oculta abandona la arena sin revelar su identidad ni su posición.');
+  else log(`${card?.name || 'Invocación'} vuelve al Spellbook por ${reason}.`);
 }
 
 function getTargetsInRangeForSource(source) {
@@ -28369,7 +28451,7 @@ function countPlayerResource(playerId, elementId) {
 function getYasuganaBlindnessTargets(playerId, sourceUnit) {
   const enemyId = getOpponentId(playerId);
   return (state.players?.[enemyId]?.units || []).filter(unit =>
-    unit && unit.status !== 'restoring' && Number(unit.hp ?? 0) > 0 && !unitHasActiveFactor(unit, 'hidden')
+    canPlayerDirectlyTargetInvocation(playerId, enemyId, unit)
   );
 }
 
@@ -28698,7 +28780,7 @@ function resolveYasuganaPowerTarget(playerId, sourceUnitId, targetPlayerId, targ
   }
   const cost = kind === 'yasuganaBlindness' ? 1 : 2;
   if (kind === 'yasuganaBlindness') {
-    if (targetPlayerId === playerId || unitHasActiveFactor(targetUnit, 'hidden')) {
+    if (targetPlayerId === playerId || !canPlayerDirectlyTargetInvocation(playerId, targetPlayerId, targetUnit)) {
       return cancelYasuganaPowerTargeting('Ese objetivo no puede recibir Ceguera.');
     }
   } else {
@@ -28762,7 +28844,7 @@ function getKurayamiPowerTargets(playerId, sourceUnit) {
   const targetRange = Math.max(1, Number(getPowerProfile('shizukesaNoShiin')?.targetRange ?? 5));
   return (state.players?.[enemyId]?.units || []).filter(unit => {
     if (!unit || unit.status === 'restoring') return false;
-    if (unitHasActiveFactor(unit, 'hidden')) return false;
+    if (!canPlayerDirectlyTargetInvocation(playerId, enemyId, unit)) return false;
     return ringDistance(sourceUnit.row, sourceUnit.col, unit.row, unit.col) <= targetRange;
   });
 }
@@ -33833,7 +33915,11 @@ function tryMoveSelectedTo(row, col, moveContext = {}) {
   if (sel.type === 'caster') {
     const caster = state.players[sel.playerId].caster;
     const isOffTurnCasterMove = isOffTurnCasterRepositionMoving(sel.playerId);
-    displaceHiddenOpponentIfNeeded(row, col, sel.playerId);
+    const hiddenAtDestination = getHiddenOpponentUnitAtForPlayer(row, col, sel.playerId);
+    if (hiddenAtDestination && !displaceHiddenOpponentIfNeeded(row, col, sel.playerId)) {
+      log('Ese movimiento no puede finalizar en la casilla elegida.');
+      return false;
+    }
     if (!isOffTurnCasterMove) markResolutionActionTaken();
     caster.row = row;
     caster.col = col;
@@ -33853,7 +33939,11 @@ function tryMoveSelectedTo(row, col, moveContext = {}) {
     const unit = state.players[sel.playerId].units.find(u => u.id === sel.unitId);
     if (!unit) return false;
     const fukuroEntryMove = isFukuroNoMeEntryMoveWindow(sel.playerId, unit);
-    displaceHiddenOpponentIfNeeded(row, col, sel.playerId);
+    const hiddenAtDestination = getHiddenOpponentUnitAtForPlayer(row, col, sel.playerId);
+    if (hiddenAtDestination && !displaceHiddenOpponentIfNeeded(row, col, sel.playerId)) {
+      log('Ese movimiento no puede finalizar en la casilla elegida.');
+      return false;
+    }
     markResolutionActionTaken();
     const previousRow = unit.row;
     const previousCol = unit.col;
@@ -38789,9 +38879,8 @@ function getEmboscadaWaterCount(playerId) {
 function getEmboscadaRivalCandidates(playerId) {
   const enemyId = getEnemyPlayerId(playerId);
   return (state.players?.[enemyId]?.units || []).filter(unit => unit
-    && unit.status !== 'restoring'
+    && canPlayerDirectlyTargetInvocation(playerId, enemyId, unit)
     && !unit.restoreAnimating
-    && Number(unit.hp ?? 0) > 0
     && isUnitInOwnSide(playerId, unit));
 }
 
@@ -39392,7 +39481,7 @@ function getInterceptarRivalCandidates(playerId, alliedUnit = null) {
   const enemyPlayerId = getEnemyPlayerId(playerId);
   const alliedCandidates = alliedUnit ? [alliedUnit] : getInterceptarAlliedCandidates(playerId);
   return (state.players?.[enemyPlayerId]?.units || []).filter(rival => {
-    if (!rival || rival.status === 'restoring' || rival.restoreAnimating || Number(rival.hp ?? 0) <= 0) return false;
+    if (!canPlayerDirectlyTargetInvocation(playerId, enemyPlayerId, rival) || rival.restoreAnimating) return false;
     if (!isUnitInOwnSide(playerId, rival)) return false;
     return alliedCandidates.some(ally => Boolean(getInterceptarDestinationCell(playerId, ally, rival)));
   });
@@ -46893,6 +46982,7 @@ function renderMinokageAuras() {
   for (const playerId of [1, 2]) {
     for (const unit of state.players?.[playerId]?.units || []) {
       if (!isMinokageUnit(unit) || unit.status === 'restoring') continue;
+      if (isOnlineUnitConcealedFromViewer(playerId, unit)) continue;
       const remoteTargets = getMinokagePassiveSelectableTargets(playerId, unit).filter(entry => ringDistance(unit.row, unit.col, entry.row, entry.col) > 1);
       if (!remoteTargets.length) continue;
       const key = `${playerId}:${unit.id}`;
@@ -46930,6 +47020,7 @@ function renderGuardianChannelFx() {
     Object.entries(channels).forEach(([targetKey, entry]) => {
       const unit = getUnitById(entry.playerId, entry.unitId);
       if (!unit || unit.status === 'restoring' || !isCellInsideGuardianAura(guardian, unit.row, unit.col)) return;
+      if (isOnlineUnitConcealedFromViewer(entry.playerId, unit)) return;
       const key = `${playerId}:${guardian.id}:${targetKey}`;
       activeKeys.add(key);
       let beam = els.guardianChannelFxLayer.querySelector(`[data-guardian-channel-key="${key}"]`);
@@ -46996,9 +47087,27 @@ function syncMinokagePersistentAnimationPhase(node, startedAt) {
   });
 }
 
+function isInvocationHiddenFromPlayer(viewerPlayerId, ownerPlayerId, unit) {
+  if (!unit || viewerPlayerId == null || ownerPlayerId == null) return false;
+  if (Number(viewerPlayerId) === Number(ownerPlayerId)) return false;
+  return unit.status !== 'restoring' && unitHasActiveFactor(unit, 'hidden');
+}
+
+function canPlayerDirectlyTargetInvocation(viewerPlayerId, ownerPlayerId, unit) {
+  if (!unit || unit.status === 'restoring' || Number(unit.hp ?? 1) <= 0) return false;
+  return !isInvocationHiddenFromPlayer(viewerPlayerId, ownerPlayerId, unit);
+}
+
+function canPlayerDirectlyTargetTarget(viewerPlayerId, target) {
+  if (!target || viewerPlayerId == null) return false;
+  if (target.type !== 'invocation') return true;
+  const unit = getUnitById(target.playerId, target.unitId);
+  return canPlayerDirectlyTargetInvocation(viewerPlayerId, target.playerId, unit);
+}
+
 function isOnlineUnitConcealedFromViewer(ownerPlayerId, unit, viewerPlayerId = LOCAL_PLAYER_ID) {
-  if (!isOnlineMatchActive() || !unit || viewerPlayerId == null) return false;
-  return Number(ownerPlayerId) !== Number(viewerPlayerId) && unitHasActiveFactor(unit, 'hidden');
+  if (!isOnlineMatchActive()) return false;
+  return isInvocationHiddenFromPlayer(viewerPlayerId, ownerPlayerId, unit);
 }
 
 function isOnlineOwnHiddenUnit(ownerPlayerId, unit, viewerPlayerId = LOCAL_PLAYER_ID) {
@@ -48351,7 +48460,7 @@ function isOccupied(row, col) {
 
 
 function isHiddenOpponentUnitForPlayer(viewerPlayerId, ownerPlayerId, unit) {
-  return viewerPlayerId && ownerPlayerId !== viewerPlayerId && unitHasActiveFactor(unit, 'hidden');
+  return isInvocationHiddenFromPlayer(viewerPlayerId, ownerPlayerId, unit);
 }
 
 function getHiddenOpponentUnitAtForPlayer(row, col, playerId) {
@@ -48366,13 +48475,19 @@ function getHiddenOpponentUnitAtForPlayer(row, col, playerId) {
 }
 
 function isOccupiedForPlayer(row, col, playerId = null) {
-  // Regla base de arena: una sola pieza puede ocupar una casilla.
-  // Oculto cambia la visibilidad, pero NO vuelve libre la casilla.
+  // Una pieza sigue ocupando físicamente su casilla, pero una invocación rival
+  // con Oculto no puede convertir el mapa de movimientos del oponente en un
+  // detector de posición. Para ese jugador la casilla se ofrece como libre y,
+  // justo antes de entrar, la unidad oculta se desplaza sin revelar dónde estaba.
   for (const id of [1, 2]) {
     const p = state.players[id];
     if (p.caster && p.caster.row === row && p.caster.col === col) return true;
     if (p.guardians.some(g => g.row === row && g.col === col && g.active)) return true;
-    if (p.units.some(u => u.status !== 'restoring' && u.row === row && u.col === col)) return true;
+    if (p.units.some(u => {
+      if (!u || u.status === 'restoring' || u.row !== row || u.col !== col) return false;
+      if (playerId != null && isInvocationHiddenFromPlayer(playerId, id, u)) return false;
+      return true;
+    })) return true;
   }
   return false;
 }
@@ -48445,14 +48560,17 @@ function displaceHiddenOpponentIfNeeded(row, col, incomingPlayerId) {
   if (!hiddenUnit) return false;
   const enemyId = getEnemyPlayerId(incomingPlayerId);
   const destination = chooseHiddenDisplacementCell(incomingPlayerId, hiddenUnit, row, col);
+  const viewerOwnsHiddenUnit = Number(LOCAL_PLAYER_ID) === Number(enemyId);
   if (!destination) {
-    log(`${CARD_LIBRARY[hiddenUnit.cardId]?.name || 'Invocación oculta'} no encontró casilla libre para desplazarse.`);
+    if (viewerOwnsHiddenUnit) log(`${CARD_LIBRARY[hiddenUnit.cardId]?.name || 'Invocación oculta'} no encontró una casilla libre para reposicionarse.`);
     return false;
   }
   const oldLabel = coordLabel(hiddenUnit.row, hiddenUnit.col);
   hiddenUnit.row = destination.row;
   hiddenUnit.col = destination.col;
-  log(`${CARD_LIBRARY[hiddenUnit.cardId]?.name || 'Invocación oculta'} se reposiciona desde ${oldLabel} a ${coordLabel(destination.row, destination.col)} dentro del humo.`);
+  if (viewerOwnsHiddenUnit) {
+    log(`${CARD_LIBRARY[hiddenUnit.cardId]?.name || 'Invocación oculta'} se reposiciona desde ${oldLabel} a ${coordLabel(destination.row, destination.col)} para conservar Oculto.`);
+  }
   refreshSmokeZoneEffects();
   return true;
 }

@@ -43786,6 +43786,11 @@ button.adventure-identity-tag:focus-visible {
   filter: saturate(.85) contrast(1.05) brightness(.8);
 }
 
+.adventure-prep-arena-visual img[data-custom-arena="true"] {
+  transform: scale(1.02);
+  filter: saturate(.96) contrast(1.04) brightness(.92);
+}
+
 .adventure-prep-arena-visual::after {
   content: '';
   position: absolute;
