@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: rok-caster-avatar-worker
+  cancel-in-progress: false
+
 jobs:
   process-avatar-queue:
     runs-on: ubuntu-latest
@@ -37,13 +41,13 @@ jobs:
 
       - name: Commit generated avatars
         run: |
-          if git diff --quiet -- rock_html_base/assets/user-kasters; then
+          if [ -z "$(git status --porcelain -- assets/user-kasters)" ]; then
             echo "No generated avatars to commit."
             exit 0
           fi
           git config user.name "ROK Avatar Worker"
           git config user.email "rok-avatar-worker@users.noreply.github.com"
-          git add rock_html_base/assets/user-kasters
+          git add assets/user-kasters
           git commit -m "Generate ROK caster avatar"
           git push
 

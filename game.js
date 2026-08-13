@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.5.270';
+const GAME_VERSION = 'v5.6.275';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -88,6 +88,29 @@ function emitOnlineVisualEvent(type, payload = {}) {
     return false;
   }
 }
+
+function commitOnlineStateBarrier(reason = 'critical-state') {
+  try {
+    if (!ROK_ONLINE_MATCH_ACTIVE || typeof window.ROK_ONLINE_PVP?.commitStateBarrier !== 'function') return Promise.resolve(true);
+    return Promise.resolve(window.ROK_ONLINE_PVP.commitStateBarrier(reason)).catch(error => {
+      reportDebugError(`online-state-barrier:${reason}`, error);
+      return false;
+    });
+  } catch (error) {
+    reportDebugError(`online-state-barrier:${reason}`, error);
+    return Promise.resolve(false);
+  }
+}
+
+function markOnlineStateDirty(reason = 'state-change') {
+  try {
+    if (!ROK_ONLINE_MATCH_ACTIVE || typeof window.ROK_ONLINE_PVP?.markStateDirty !== 'function') return false;
+    return Boolean(window.ROK_ONLINE_PVP.markStateDirty(reason));
+  } catch (_) {
+    return false;
+  }
+}
+
 
 // v487 · Todos los modales/HUD estructurales viven dentro del lienzo lógico.
 // Los FX que trabajan con coordenadas físicas del viewport permanecen en body.
@@ -135,140 +158,306 @@ function onlineFxVirtualUnit(payload = {}) {
   };
 }
 
-async function playOnlineVisualEvent(event = {}) {
-  const payload = event.payload || {};
-  const replay = async action => {
-    ONLINE_FX_REPLAY_DEPTH += 1;
-    let result;
-    try { result = action(); }
-    finally { ONLINE_FX_REPLAY_DEPTH = Math.max(0, ONLINE_FX_REPLAY_DEPTH - 1); }
-    return await result;
-  };
+const ONLINE_FX_TRANSIENT_SELECTOR = [
+  '.floating-damage',
+  '.floating-combat',
+  '.distance-attack-charge-fx',
+  '.weapon-impact-fx',
+  '.weapon-slash-fx',
+  '.minokage-dash-visual',
+  '.minokage-dash-token-fx',
+  '.minokage-passive-windup-fx',
+  '.minokage-hit-slash-burst-fx',
+  '.minokage-passive-afterimage-fx',
+  '.restore-travel-token',
+  '.tokugawa-nexus-transfer-fx',
+  '.shirahadori-guard-fx',
+  '.shirahadori-redirect-impact-fx',
+  '.structure-destroy-fx',
+  '.critical-slash-fx',
+  '.caster-defend-fx',
+  '.caster-special-counter-fx',
+  '.invocation-summon-circle-fx',
+  '.tactica-guerra-resolution-fx',
+  '.tactica-guerra-water-restore-fx',
+  '.kouuten-fx-layer',
+  '.guren-gan-fx-layer',
+  '.carga-real-charge-fx',
+  '.kurayami-execution-cue',
+  '.kurayami-execution-damage',
+  '.blindness-debuff-floating',
+].join(',');
 
-  switch (String(event.type || '')) {
-    case 'floating-text':
-      await replay(() => showFloatingTextAt(payload.row, payload.col, payload.text, payload.className || 'floating-combat'));
-      break;
-    case 'floating-damage':
-      await replay(() => showFloatingDamageAt(payload.row, payload.col, payload.amount));
-      break;
-    case 'critical-damage':
-      await replay(() => showCriticalDamageChipAt(payload.row, payload.col, payload.amount));
-      break;
-    case 'unit-lunge': {
+let ONLINE_FX_RUNTIME_GENERATION = 1;
+const ONLINE_FX_RUNTIME_STATS = {
+  played: 0,
+  cancelled: 0,
+  unsupported: 0,
+  failed: 0,
+  byType: {},
+};
+
+function registerOnlineFxPlay(type) {
+  const key = String(type || 'unknown');
+  ONLINE_FX_RUNTIME_STATS.played += 1;
+  ONLINE_FX_RUNTIME_STATS.byType[key] = Math.max(0, Number(ONLINE_FX_RUNTIME_STATS.byType[key] || 0)) + 1;
+}
+
+function removeOnlineVisualFxNodes() {
+  try { document.querySelectorAll(ONLINE_FX_TRANSIENT_SELECTOR).forEach(node => node.remove()); } catch (_) {}
+}
+
+function cancelOnlineVisualFxRuntime() {
+  ONLINE_FX_RUNTIME_GENERATION += 1;
+  ONLINE_FX_REPLAY_DEPTH = 0;
+  ONLINE_FX_RUNTIME_STATS.cancelled += 1;
+  removeOnlineVisualFxNodes();
+}
+
+const ONLINE_FX_DEFINITIONS = Object.freeze({
+  'floating-text': {
+    playbackMode: 'parallel', maxReplayAgeMs: 3500,
+    play: payload => showFloatingTextAt(payload.row, payload.col, payload.text, payload.className || 'floating-combat'),
+  },
+  'floating-damage': {
+    playbackMode: 'parallel', maxReplayAgeMs: 3500,
+    play: payload => showFloatingDamageAt(payload.row, payload.col, payload.amount),
+  },
+  'critical-damage': {
+    playbackMode: 'parallel', maxReplayAgeMs: 3500,
+    play: payload => showCriticalDamageChipAt(payload.row, payload.col, payload.amount),
+  },
+  'critical-slash': {
+    playbackMode: 'parallel', maxReplayAgeMs: 4000,
+    play: payload => showCriticalSlashAtTarget(payload.target || null),
+  },
+  'armor-reduction': {
+    playbackMode: 'parallel', maxReplayAgeMs: 4000,
+    play: payload => showArmorDamageReductionAt(payload.row, payload.col, payload.reducedDamage, { level: payload.armorLevel }),
+  },
+  'external-buff': {
+    playbackMode: 'serial', maxReplayAgeMs: 9000,
+    play: payload => {
+      const unit = getUnitById(Number(payload.source?.playerId || 0), payload.source?.unitId) || onlineFxVirtualUnit(payload.source || {});
+      return showExternalBuffFloatingFxSequential(Number(payload.source?.playerId || 0), unit, Array.isArray(payload.parts) ? payload.parts : []);
+    },
+  },
+  'blindness-debuff': {
+    playbackMode: 'parallel', maxReplayAgeMs: 6500,
+    play: payload => {
+      const unit = getUnitById(Number(payload.source?.playerId || 0), payload.source?.unitId) || onlineFxVirtualUnit(payload.source || {});
+      return showBlindnessDebuffFloatingFxSequential(Number(payload.source?.playerId || 0), unit);
+    },
+  },
+  'kurayami-execution-cue': {
+    playbackMode: 'parallel', maxReplayAgeMs: 5000,
+    play: payload => showKurayamiExecutionCueAtTarget(payload.target || null),
+  },
+  'kurayami-execution-damage': {
+    playbackMode: 'parallel', maxReplayAgeMs: 5000,
+    play: payload => showKurayamiExecutionDamageAtTarget(payload.target || null, payload.amount),
+  },
+  'unit-lunge': {
+    playbackMode: 'serial', maxReplayAgeMs: 6000,
+    play: payload => {
       const unit = getUnitById(payload.playerId, payload.unitId) || onlineFxVirtualUnit(payload);
-      await replay(() => triggerUnitAttackLunge(payload.playerId, unit, payload.target || null));
-      break;
-    }
-    case 'distance-attack': {
+      return triggerUnitAttackLunge(payload.playerId, unit, payload.target || null);
+    },
+  },
+  'distance-attack': {
+    playbackMode: 'serial', maxReplayAgeMs: 7000,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
-      await replay(() => showDistanceAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null));
-      break;
-    }
-    case 'weapon-attack': {
+      return showDistanceAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null);
+    },
+  },
+  'weapon-attack': {
+    playbackMode: 'serial', maxReplayAgeMs: 7000,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
-      await replay(() => showWeaponAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null, payload.weaponType || 'golpe'));
-      break;
-    }
-    case 'kouuten':
-      await replay(() => playRemoteKouutenFx(payload));
-      break;
-    case 'guren-gan':
-      await replay(() => playRemoteGurenGanFx(payload));
-      break;
-    case 'carga-real':
-      await replay(() => playRemoteCargaRealFx(payload));
-      break;
-    case 'minokage-dash': {
+      return showWeaponAttackFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.target || null, payload.weaponType || 'golpe');
+    },
+  },
+  'kouuten': {
+    playbackMode: 'serial', maxReplayAgeMs: 11000,
+    play: payload => playRemoteKouutenFx(payload),
+  },
+  'guren-gan': {
+    playbackMode: 'serial', maxReplayAgeMs: 11000,
+    play: payload => playRemoteGurenGanFx(payload),
+  },
+  'carga-real': {
+    playbackMode: 'serial', maxReplayAgeMs: 10000,
+    play: payload => playRemoteCargaRealFx(payload),
+  },
+  'minokage-dash': {
+    playbackMode: 'serial', maxReplayAgeMs: 8000,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      await replay(() => playMinokageDashFx(Number(payload.source?.playerId || 0), unit, payload.path || [], payload.landing || { row: unit.row, col: unit.col }, payload.targets || []));
-      break;
-    }
-    case 'minokage-travel': {
+      return playMinokageDashFx(Number(payload.source?.playerId || 0), unit, payload.path || [], payload.landing || { row: unit.row, col: unit.col }, payload.targets || []);
+    },
+  },
+  'minokage-travel': {
+    playbackMode: 'serial', maxReplayAgeMs: 7500,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      await replay(() => playMinokagePassiveTravelFx(Number(payload.source?.playerId || 0), unit, payload.destination || { row: unit.row, col: unit.col }, { ...(payload.options || {}), suppressOnlineFx: true }));
-      break;
-    }
-    case 'minokage-windup': {
+      return playMinokagePassiveTravelFx(Number(payload.source?.playerId || 0), unit, payload.destination || { row: unit.row, col: unit.col }, { ...(payload.options || {}), suppressOnlineFx: true });
+    },
+  },
+  'minokage-windup': {
+    playbackMode: 'serial', maxReplayAgeMs: 6500,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      await replay(() => playMinokagePassiveWindupFx(unit, Number(payload.duration || 420), { suppressOnlineFx: true }));
-      break;
-    }
-    case 'minokage-hit-slash':
-      await replay(() => playMinokageHitSlashBurstFx({ row: Number(payload.row || 0), col: Number(payload.col || 0) }, { angles: payload.angles || [], suppressOnlineFx: true }));
-      break;
-    case 'restore-travel': {
+      return playMinokagePassiveWindupFx(unit, Number(payload.duration || 420), { suppressOnlineFx: true });
+    },
+  },
+  'minokage-hit-slash': {
+    playbackMode: 'parallel', maxReplayAgeMs: 4500,
+    play: payload => playMinokageHitSlashBurstFx({ row: Number(payload.row || 0), col: Number(payload.col || 0) }, { angles: payload.angles || [], suppressOnlineFx: true }),
+  },
+  'restore-travel': {
+    playbackMode: 'serial', maxReplayAgeMs: 7000,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      await replay(() => animateRestoreInvocationToSpawn(Number(payload.source?.playerId || 0), unit, payload.destination || null, null, { fromRow: payload.source?.row, fromCol: payload.source?.col, suppressOnlineFx: true }));
-      break;
-    }
-    case 'return-spellbook': {
+      return animateRestoreInvocationToSpawn(Number(payload.source?.playerId || 0), unit, payload.destination || null, null, { fromRow: payload.source?.row, fromCol: payload.source?.col, suppressOnlineFx: true });
+    },
+  },
+  'return-spellbook': {
+    playbackMode: 'serial', maxReplayAgeMs: 7000,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      await replay(() => animateReturnInvocationToSpellbook(Number(payload.source?.playerId || 0), unit, Number(payload.tab || 0), Number(payload.slot || 0), null, { ...(payload.options || {}), suppressOnlineFx: true }));
-      break;
-    }
-    case 'tokugawa-nexus': {
+      return animateReturnInvocationToSpellbook(Number(payload.source?.playerId || 0), unit, Number(payload.tab || 0), Number(payload.slot || 0), null, { ...(payload.options || {}), suppressOnlineFx: true });
+    },
+  },
+  'tokugawa-nexus': {
+    playbackMode: 'serial', maxReplayAgeMs: 8000,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      await replay(() => animateTokugawaNexusTransfer(Number(payload.source?.playerId || 0), unit, payload.from, payload.to, { suppressOnlineFx: true }));
-      break;
-    }
-    case 'tactica-resolution':
-      await replay(() => playTacticaGuerraResolutionFx(payload.title, payload.subtitle, { suppressOnlineFx: true }));
-      break;
-    case 'tactica-water': {
+      return animateTokugawaNexusTransfer(Number(payload.source?.playerId || 0), unit, payload.from, payload.to, { suppressOnlineFx: true });
+    },
+  },
+  'tactica-resolution': {
+    playbackMode: 'serial', maxReplayAgeMs: 7000,
+    play: payload => playTacticaGuerraResolutionFx(payload.title, payload.subtitle, { suppressOnlineFx: true }),
+  },
+  'tactica-water': {
+    playbackMode: 'parallel', maxReplayAgeMs: 6500,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      await replay(() => playTacticaGuerraWaterRestoreFx(unit, Number(payload.delayMs || 0), { suppressOnlineFx: true }));
-      break;
-    }
-    case 'shirahadori-trigger': {
+      return playTacticaGuerraWaterRestoreFx(unit, Number(payload.delayMs || 0), { suppressOnlineFx: true });
+    },
+  },
+  'shirahadori-trigger': {
+    playbackMode: 'parallel', maxReplayAgeMs: 5000,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      await replay(() => createShirahadoriTriggerFx(Number(payload.source?.playerId || 0), unit));
-      break;
-    }
-    case 'shirahadori-redirect':
-      await replay(() => showShirahadoriRedirectFx(payload.originalTarget || null, payload.redirectedTarget || null, { ...(payload.options || {}), suppressOnlineFx: true }));
-      break;
-    case 'minokage-oscillation': {
+      return createShirahadoriTriggerFx(Number(payload.source?.playerId || 0), unit);
+    },
+  },
+  'shirahadori-redirect': {
+    playbackMode: 'serial', maxReplayAgeMs: 6500,
+    play: payload => showShirahadoriRedirectFx(payload.originalTarget || null, payload.redirectedTarget || null, { ...(payload.options || {}), suppressOnlineFx: true }),
+  },
+  'minokage-oscillation': {
+    playbackMode: 'serial', maxReplayAgeMs: 8000,
+    play: payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
       const card = CARD_LIBRARY[unit.cardId] || {};
-      await replay(() => playMinokageOscillationCompleteFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.targets || [], { suppressOnlineFx: true }));
-      break;
-    }
-    case 'structure-destroy':
-      await replay(() => showStructureDestroyFx(payload.target || null));
-      break;
-    case 'caster-defense':
-      await replay(() => showCasterDefenseFx(Number(payload.playerId || 0)));
-      break;
-    case 'caster-special-counter':
-      await replay(() => showCasterSpecialCounterFx(Number(payload.playerId || 0)));
-      break;
-    case 'cast-landing':
-      await replay(() => showImmediateCastLandingFx(Number(payload.playerId || 0), payload.item || {}));
-      break;
-    case 'invocation-summon-circle':
-      await replay(() => playInvocationSummonCircleFxAtCell(Number(payload.playerId || 0), payload.item || {}));
-      break;
-    case 'invocation-entry': {
+      return playMinokageOscillationCompleteFx({ playerId: Number(payload.source?.playerId || 0), unit, card }, payload.targets || [], { suppressOnlineFx: true });
+    },
+  },
+  'structure-destroy': {
+    playbackMode: 'parallel', maxReplayAgeMs: 5500,
+    play: payload => showStructureDestroyFx(payload.target || null),
+  },
+  'caster-defense': {
+    playbackMode: 'parallel', maxReplayAgeMs: 4500,
+    play: payload => showCasterDefenseFx(Number(payload.playerId || 0)),
+  },
+  'caster-special-counter': {
+    playbackMode: 'parallel', maxReplayAgeMs: 4500,
+    play: payload => showCasterSpecialCounterFx(Number(payload.playerId || 0)),
+  },
+  'cast-landing': {
+    playbackMode: 'serial', maxReplayAgeMs: 6500,
+    play: payload => showImmediateCastLandingFx(Number(payload.playerId || 0), payload.item || {}),
+  },
+  'invocation-summon-circle': {
+    playbackMode: 'serial', maxReplayAgeMs: 6500,
+    play: payload => playInvocationSummonCircleFxAtCell(Number(payload.playerId || 0), payload.item || {}),
+  },
+  'invocation-entry': {
+    playbackMode: 'serial', maxReplayAgeMs: 7000,
+    play: async payload => {
       const unit = onlineFxVirtualUnit(payload.source || {});
-      // La ficha puede llegar por snapshot unos milisegundos después del evento.
-      // Darle una oportunidad breve evita perder la animación de entrada.
       let attempts = 0;
       while (!findRenderedUnitNode(Number(payload.source?.playerId || 0), unit.id) && attempts < 6) {
         attempts += 1;
         await sleep(90);
       }
-      await replay(() => playInvocationEntryDropFx(Number(payload.source?.playerId || 0), unit));
-      break;
+      return playInvocationEntryDropFx(Number(payload.source?.playerId || 0), unit);
+    },
+  },
+});
+
+function getOnlineFxPolicy(type) {
+  const definition = ONLINE_FX_DEFINITIONS[String(type || '')];
+  if (!definition) return null;
+  return {
+    playbackMode: definition.playbackMode === 'parallel' ? 'parallel' : 'serial',
+    maxReplayAgeMs: Math.max(1000, Number(definition.maxReplayAgeMs || 9000)),
+  };
+}
+
+async function playOnlineVisualEvent(event = {}) {
+  const type = String(event.type || '');
+  const definition = ONLINE_FX_DEFINITIONS[type];
+  if (!definition) {
+    ONLINE_FX_RUNTIME_STATS.unsupported += 1;
+    return false;
+  }
+  const generation = ONLINE_FX_RUNTIME_GENERATION;
+  const payload = event.payload || {};
+  let playbackResult;
+  ONLINE_FX_REPLAY_DEPTH += 1;
+  try {
+    if (generation !== ONLINE_FX_RUNTIME_GENERATION) return false;
+    // Los handlers emiten, si corresponde, al inicio síncrono de la función.
+    // El guard solo cubre ese tramo para no silenciar acciones LOCALES mientras
+    // una animación remota larga continúa con awaits o timers.
+    playbackResult = definition.play(payload, event);
+  } catch (error) {
+    ONLINE_FX_RUNTIME_STATS.failed += 1;
+    try { reportDebugError(`online-fx-play:${type}`, error); } catch (_) {}
+    return false;
+  } finally {
+    ONLINE_FX_REPLAY_DEPTH = Math.max(0, ONLINE_FX_REPLAY_DEPTH - 1);
+  }
+  try {
+    await playbackResult;
+    if (generation !== ONLINE_FX_RUNTIME_GENERATION) {
+      removeOnlineVisualFxNodes();
+      return false;
     }
-    default:
-      break;
+    registerOnlineFxPlay(type);
+    return true;
+  } catch (error) {
+    ONLINE_FX_RUNTIME_STATS.failed += 1;
+    try { reportDebugError(`online-fx-play:${type}`, error); } catch (_) {}
+    return false;
   }
 }
 
-window.ROK_ONLINE_FX = { play: playOnlineVisualEvent };
+
+window.ROK_ONLINE_FX = {
+  play: playOnlineVisualEvent,
+  getPolicy: getOnlineFxPolicy,
+  cancelAll: cancelOnlineVisualFxRuntime,
+  getStats: () => ({ ...ONLINE_FX_RUNTIME_STATS, byType: { ...ONLINE_FX_RUNTIME_STATS.byType }, generation: ONLINE_FX_RUNTIME_GENERATION }),
+  getSupportedTypes: () => Object.keys(ONLINE_FX_DEFINITIONS),
+};
 
 const PATCH_NOTES = [
   'v534: Restaura la composición canónica de la zona de kasteo sobre el lienzo lógico 1600x900: carril de 150 px, slots 100x138, miniaturas 58x74/54x54, reloj y contador en tamaño original, ACTIVO/COLA por encima del token y cola sin scrollbar interno.',
@@ -2545,7 +2734,7 @@ function ensureDroppedWeaponsLayer() {
 function renderDroppedWeaponsLayer() {
   const layer = ensureDroppedWeaponsLayer();
   if (!layer) return;
-  layer.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   const pickupPending = state.pendingPowerAction?.kind === 'kurokagiBukiPickup'
     ? state.pendingPowerAction
     : null;
@@ -2556,8 +2745,9 @@ function renderDroppedWeaponsLayer() {
     const node = document.createElement('div');
     node.className = 'dropped-weapon-marker';
     node.dataset.dropId = String(entry.id || '');
-    node.style.left = `${cellCenter(entry.row, entry.col).x}%`;
-    node.style.top = `${cellCenter(entry.row, entry.col).y}%`;
+    const pos = cellCenter(entry.row, entry.col);
+    node.style.left = `${pos.x}%`;
+    node.style.top = `${pos.y}%`;
     node.style.zIndex = String(120 + Number(entry.row || 0));
     node.title = `${weapon.label || entry.weaponType} caída en ${coordLabel(entry.row, entry.col)}`;
     node.innerHTML = `<span class="dropped-weapon-ring"></span><span class="dropped-weapon-inner"><img src="${weapon.icon}" alt="${weapon.label || entry.weaponType}"></span>`;
@@ -2577,8 +2767,9 @@ function renderDroppedWeaponsLayer() {
         if (event.key === 'Enter' || event.key === ' ') openChoice(event);
       });
     }
-    layer.appendChild(node);
+    fragment.appendChild(node);
   });
+  layer.replaceChildren(fragment);
 }
 
 
@@ -8325,6 +8516,7 @@ const state = {
   tokugawaAbilitySelectionActive: false,
   pendingTokugawaReposition: null,
   gameOver: false,
+  matchSerial: 1,
   matchWins: { 1: 0, 2: 0 },
   phaseUndo: null,
   resolutionUndoReturn: null,
@@ -8534,6 +8726,141 @@ function ensureRuntimeStateCollections(targetState = state) {
 
   return targetState;
 }
+
+// =========================================================
+// Etapa 7 · Integridad de estado autoritativo PvP
+// =========================================================
+// Esta auditoría NO aplica reglas nuevas de juego. Su única función es impedir
+// que un snapshot corrupto, parcialmente serializado o con identidades dobles
+// entre en Firebase y se convierta en el estado compartido de la partida.
+function auditBattleStateIntegrity(targetState = state, options = {}) {
+  const repair = options.repair === true;
+  const issues = [];
+  const warnings = [];
+  const pushIssue = (code, path, detail = '') => issues.push({ code, path, detail });
+  const pushWarning = (code, path, detail = '') => warnings.push({ code, path, detail });
+
+  if (!targetState || typeof targetState !== 'object') {
+    pushIssue('state-not-object', 'state', 'El estado de batalla no es un objeto.');
+    return { ok: false, issues, warnings };
+  }
+
+  if (repair) ensureRuntimeStateCollections(targetState);
+
+  if (typeof targetState.openingElementsDealt !== 'boolean') {
+    if (repair) targetState.openingElementsDealt = Boolean(targetState.openingElementsDealt);
+    else pushIssue('opening-flag-invalid', 'openingElementsDealt');
+  }
+  if (!targetState.openingExtractionSkippedByPlayer || typeof targetState.openingExtractionSkippedByPlayer !== 'object') {
+    if (repair) targetState.openingExtractionSkippedByPlayer = { 1: false, 2: false };
+    else pushIssue('opening-skip-map-invalid', 'openingExtractionSkippedByPlayer');
+  } else if (repair) {
+    targetState.openingExtractionSkippedByPlayer = {
+      1: targetState.openingExtractionSkippedByPlayer[1] === true,
+      2: targetState.openingExtractionSkippedByPlayer[2] === true,
+    };
+  }
+
+  const seenUnitIds = new Map();
+  for (const playerId of [1, 2]) {
+    const player = targetState.players?.[playerId];
+    if (!player || typeof player !== 'object') {
+      pushIssue('missing-player', `players.${playerId}`);
+      continue;
+    }
+    if (!player.caster || typeof player.caster !== 'object') pushIssue('missing-caster', `players.${playerId}.caster`);
+    for (const key of ['resources', 'elementDeck', 'elementDiscard', 'guardians', 'handTabs', 'castQueue', 'units', 'spawnMarkers']) {
+      if (!Array.isArray(player[key])) pushIssue('player-array-invalid', `players.${playerId}.${key}`);
+    }
+
+    const activePieces = [];
+    if (player.caster) activePieces.push(['caster', player.caster]);
+    (Array.isArray(player.guardians) ? player.guardians : []).forEach((guardian, index) => {
+      if (guardian?.active !== false) activePieces.push([`guardians.${index}`, guardian]);
+    });
+    (Array.isArray(player.units) ? player.units : []).forEach((unit, index) => {
+      if (!unit || typeof unit !== 'object') {
+        pushIssue('unit-invalid', `players.${playerId}.units.${index}`);
+        return;
+      }
+      const unitId = String(unit.id || '');
+      if (!unitId) pushIssue('unit-id-missing', `players.${playerId}.units.${index}.id`);
+      else if (seenUnitIds.has(unitId)) {
+        pushIssue('duplicate-unit-id', `players.${playerId}.units.${index}.id`, `También existe en ${seenUnitIds.get(unitId)}.`);
+      } else {
+        seenUnitIds.set(unitId, `players.${playerId}.units.${index}`);
+      }
+      if (!unit.cardId) pushWarning('unit-card-missing', `players.${playerId}.units.${index}.cardId`);
+      if (unit.status !== 'restoring') activePieces.push([`units.${index}`, unit]);
+    });
+
+    for (const [piecePath, piece] of activePieces) {
+      const row = Number(piece?.row);
+      const col = Number(piece?.col);
+      if (!Number.isFinite(row) || !Number.isFinite(col)) {
+        pushIssue('piece-coordinate-invalid', `players.${playerId}.${piecePath}`, `row=${piece?.row}, col=${piece?.col}`);
+      } else if (row < 0 || row >= 18 || col < 0 || col >= 9) {
+        pushIssue('piece-outside-arena', `players.${playerId}.${piecePath}`, `row=${row}, col=${col}`);
+      }
+    }
+  }
+
+  // JSON convierte NaN/Infinity a null y elimina undefined/funciones. Detectar
+  // esos valores antes de serializar evita una corrupción silenciosa del estado.
+  const visited = new WeakSet();
+  const scanSerializable = (value, path, depth = 0) => {
+    if (depth > 32 || value == null) return;
+    const type = typeof value;
+    if (type === 'number' && !Number.isFinite(value)) {
+      pushIssue('non-finite-number', path, String(value));
+      return;
+    }
+    if (type === 'bigint') {
+      pushIssue('non-json-value', path, type);
+      return;
+    }
+    if (type === 'undefined' || type === 'function' || type === 'symbol') {
+      // JSON omite estos valores de objetos. Se reportan para diagnóstico,
+      // pero no bloquean un snapshot porque varias estructuras de juego usan
+      // propiedades opcionales undefined de forma legítima.
+      pushWarning('json-omitted-value', path, type);
+      return;
+    }
+    if (type !== 'object') return;
+    if (visited.has(value)) {
+      pushIssue('circular-reference', path);
+      return;
+    }
+    visited.add(value);
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => scanSerializable(entry, `${path}.${index}`, depth + 1));
+    } else {
+      Object.entries(value).forEach(([key, entry]) => scanSerializable(entry, `${path}.${key}`, depth + 1));
+    }
+    visited.delete(value);
+  };
+
+  const authoritativeRootKeys = [
+    'activePlayer', 'phaseIndex', 'turnSerial', 'phaseTransitionSerial',
+    'phaseTransitionFrom', 'phaseTransitionTo', 'phaseTransitionChangedPlayer',
+    'phaseTransitionReason', 'gameOver', 'matchSerial', 'matchWins', 'phaseUndo',
+    'resolutionUndoReturn', 'resolutionActionTaken', 'turnActionByPlayer',
+    'resolutionSerial', 'arenaEntrySerial', 'smokeZones', 'celestialLamps',
+    'longNightEffects', 'activeSpellLinks', 'pendingGuardianStrikes',
+    'kaguyaChargedShots', 'minokageCharges', 'pendingImmediateMinokageResolutions',
+    'pendingTimedAbilityResolutions', 'droppedWeapons', 'kouutenProgressiveByPlayer',
+    'extractedThisPhase', 'openingElementsDealt', 'openingExtractionSkippedByPlayer',
+    'players',
+  ];
+  authoritativeRootKeys.forEach(key => scanSerializable(targetState[key], key));
+
+  return { ok: issues.length === 0, issues, warnings };
+}
+
+window.ROK_STATE_INTEGRITY = {
+  audit: (target = state, options = {}) => auditBattleStateIntegrity(target, options),
+  normalizeCollections: (target = state) => ensureRuntimeStateCollections(target),
+};
 
 const els = {};
 
@@ -11031,8 +11358,12 @@ const ADVENTURE_WORLD_ZONES = [
 const ADVENTURE_WATER_ENCOUNTERS = [
   {
     id: 'enigma-apprentice',
-    label: 'Aprendiz de Enigma',
+    label: 'Kiara, Décima Aprendiz de Enigma',
     subtitle: 'Control mágico adaptable',
+    casterQualities: ['Hechicero'],
+    raceId: 'human',
+    raceLabel: 'Humano',
+    gender: 'female',
     available: true,
     marker: { x: 58.5, y: 58.0 },
     image: 'assets/adventure/casters/enigma-apprentice.png',
@@ -11084,6 +11415,10 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     id: 'kaelor-rompiente',
     label: 'Kaelor de la Rompiente',
     subtitle: 'Formación de rompiente',
+    casterQualities: ['Guerrero'],
+    raceId: 'human',
+    raceLabel: 'Humano',
+    gender: 'male',
     available: true,
     marker: { x: 58.0, y: 15.7 },
     image: 'assets/adventure/casters/kaelor-rompiente.png',
@@ -11135,6 +11470,10 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     id: 'sahrkel-oraculo-abisal',
     label: "Sahr'kel, Oráculo Abisal",
     subtitle: 'Geoformación acuática',
+    casterQualities: ['Hechicero'],
+    raceId: '',
+    raceLabel: 'Raza por definir',
+    gender: 'none',
     available: true,
     marker: { x: 49.4, y: 34.5 },
     image: 'assets/adventure/casters/sahrkel-oraculo-abisal.png',
@@ -11186,6 +11525,10 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     id: 'ilyan-marea-electrica',
     label: 'Ilyan de la Marea Eléctrica',
     subtitle: 'Control y ataque rápido',
+    casterQualities: ['Hechicero'],
+    raceId: 'human',
+    raceLabel: 'Humano',
+    gender: 'male',
     available: true,
     marker: { x: 52.0, y: 74.0 },
     image: 'assets/adventure/casters/ilyan-marea-electrica.png',
@@ -11238,6 +11581,10 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     id: 'aurek-sabio-belico',
     label: 'Aurek Vhal, Sabio Bélico',
     subtitle: 'Guerra de información',
+    casterQualities: ['Sabio'],
+    raceId: 'human',
+    raceLabel: 'Humano',
+    gender: 'male',
     available: true,
     marker: { x: 54.2, y: 89.2 },
     image: 'assets/adventure/casters/aurek-sabio-belico.png',
@@ -11289,11 +11636,60 @@ const ADVENTURE_WATER_ENCOUNTERS = [
   }
 ];
 
+const ADVENTURE_PROGRESS_STORAGE_KEY = 'rokLite.adventure.progress.v1';
+
+const ADVENTURE_PLAYER_CASTERS = [
+  {
+    id: 'starter-player-kaster',
+    label: 'Kaster inicial',
+    subtitle: 'Extractora · Sanadora',
+    image: 'assets/adventure/player/default-player-kaster.png',
+    casterQualities: ['Extractor', 'Sanador'],
+    raceId: '',
+    raceLabel: 'Raza por definir',
+    gender: 'female',
+    domains: [],
+    previewDominants: ['Guerrero', 'Extractor', 'Sanador'],
+    stats: {
+      sections: [
+        { title: 'Base', items: [
+          { label: 'Ataque', value: 2, max: 10, display: '2' },
+          { label: 'Vida', value: 14, max: 20, display: '14' },
+          { label: 'Alcance', value: 3, max: 8, display: '3' },
+          { label: 'Movilidad', value: 3, max: 6, display: '3' },
+          { label: 'Esc. especial', value: 1, max: 4, display: '1' },
+          { label: 'Esc. completo', value: 0, max: 1, display: '0' }
+        ] },
+        { title: 'Elemento puro', items: [
+          { label: 'EP por ciclo', value: 2, max: 5, display: '+2' },
+          { label: 'EP máximo', value: 7, max: 10, display: '7' }
+        ] }
+      ],
+      profile: [
+        { label: 'Especialidad', value: 'Extracción y sostenimiento' },
+        { label: 'Tempo', value: 'Adaptable · progresivo' },
+        { label: 'Pico', value: 'Juego medio' },
+        { label: 'Aporte', value: 'Recursos, presencia de Guerreros y recuperación.' }
+      ]
+    }
+  }
+];
+
+const ADVENTURE_PREVIEW_INVOCATION_ART = [
+  'assets/invocation-art.png',
+  'assets/bushi-iniciado-token.png',
+  'assets/kaguya-token.png'
+];
+
 const adventureState = {
   view: 'world',
   worldZoneId: 'water',
   encounterId: 'enigma-apprentice',
-  noticeTimer: null
+  playerCasterId: 'starter-player-kaster',
+  playerSpellbookCardIds: [],
+  encounterSpellbooks: {},
+  noticeTimer: null,
+  battleIntroTimer: null
 };
 
 function getAdventureWorldZone(id) {
@@ -11305,19 +11701,19 @@ function getAdventureWaterEncounter(id) {
 }
 
 const ADVENTURE_QUALITY_META = {
-  'Hechicero': { icon: 'assets/qualities/adventure-hechicero.png', tint: '#63e2ff' },
-  'Telépata': { icon: 'assets/qualities/adventure-telepata.svg', tint: '#c0a8ff' },
-  'Sabio': { icon: 'assets/qualities/adventure-sabio.svg', tint: '#f1d676' },
-  'Guardián': { icon: 'assets/qualities/adventure-guardian.png', tint: '#84d8ff' },
-  'Guerrero': { icon: 'assets/qualities/adventure-guerrero.png', tint: '#74c9ff' },
-  'Caudillo': { icon: 'assets/qualities/adventure-caudillo.png', tint: '#d9bf74' },
-  'Gélido': { icon: 'assets/qualities/adventure-gelido.png', tint: '#95e9ff' },
-  'Sanador': { icon: 'assets/qualities/adventure-sanador.svg', tint: '#7fdcc6' },
-  'Sobrenatural': { icon: 'assets/qualities/adventure-sobrenatural.svg', tint: '#e8dc7b' },
-  'Maestro': { icon: 'assets/qualities/adventure-maestro.svg', tint: '#e4c98a' },
-  'Científico': { icon: 'assets/qualities/adventure-cientifico.svg', tint: '#85d4ff' }
+  'Hechicero': { icon: 'assets/qualities/adventure-hechicero.png', tint: '#63e2ff', summary: 'Presión y control mediante magia, Silencio, inmunidad mágica y purificación.', description: 'Hechicero representa una orientación intensiva al uso de efectos mágicos. En Aventura se usa para señalar Spellbooks que prefieren interferencia, control y respuestas arcanas por encima del combate físico.' },
+  'Telépata': { icon: 'assets/qualities/adventure-telepata.svg', tint: '#c0a8ff', summary: 'Control mental, Sugestión y negación de kasteos.', description: 'Telépata se especializa en alterar decisiones y acciones rivales mediante control mental, Sugestión y Telepatía.' },
+  'Sabio': { icon: 'assets/qualities/adventure-sabio.svg', tint: '#f1d676', summary: 'Optimización táctica, manipulación de tiempos y lectura del plan rival.', description: 'Sabio mejora la capacidad de juego mediante adaptación, análisis y modificación de tiempos de kasteo o enfriamiento.' },
+  'Guardián': { icon: 'assets/qualities/adventure-guardian.png', tint: '#84d8ff', summary: 'Protección de posiciones, cobertura y bloqueo del avance.', description: 'Guardián sostiene líneas defensivas y controla el acceso a zonas clave de la arena.' },
+  'Guerrero': { icon: 'assets/qualities/adventure-guerrero.png', tint: '#74c9ff', qualityId: 'warrior', summary: 'Combate físico equilibrado, evasión, agilidad y defensa.', description: 'Guerrero representa invocaciones preparadas para sostener combate directo sin renunciar a movilidad y defensas físicas.' },
+  'Caudillo': { icon: 'assets/qualities/adventure-caudillo.png', tint: '#d9bf74', qualityId: 'caudillo', summary: 'Mando, coordinación y reposicionamiento de aliados.', description: 'Caudillo dirige formaciones y convierte la colocación de las unidades en una herramienta estratégica.' },
+  'Gélido': { icon: 'assets/qualities/adventure-gelido.png', tint: '#95e9ff', summary: 'Ralentización, Posma, Congelamiento y control por frío.', description: 'Gélido es una cualidad de Agua orientada a limitar movilidad y acciones mediante frío progresivo.' },
+  'Sanador': { icon: 'assets/qualities/adventure-sanador.svg', tint: '#7fdcc6', summary: 'Curación, sobrecuración y recuperación sostenida.', description: 'Sanador mantiene invocaciones activas durante más tiempo y puede convertir curación excedente en protección.' },
+  'Extractor': { icon: 'assets/qualities/adventure-extractor.svg', tint: '#9fdc72', summary: 'Extracción, ciclado y aceleración de recursos elementales.', description: 'Extractor mejora la disponibilidad de elementos y la velocidad con la que vuelven a estar disponibles para nuevos kasteos.' },
+  'Sobrenatural': { icon: 'assets/qualities/adventure-sobrenatural.svg', tint: '#e8dc7b', qualityId: 'supernatural', summary: 'Interacciones anómalas y efectos fuera de patrones normales.', description: 'Sobrenatural habilita piezas con reglas no convencionales y sinergias que rompen expectativas de combate.' },
+  'Maestro': { icon: 'assets/qualities/adventure-maestro.svg', tint: '#e4c98a', qualityId: 'master', summary: 'Perfeccionamiento de técnicas y habilidades enseñadas.', description: 'Maestro recompensa disciplina, entrenamiento y mejora de las capacidades de otras piezas.' },
+  'Científico': { icon: 'assets/qualities/adventure-cientifico.svg', tint: '#85d4ff', summary: 'Equipos, trampas, artefactos y enseñanza de habilidades.', description: 'Científico convierte herramientas, trampas y equipamiento en parte central del plan táctico.' }
 };
-
 function getAdventureQualityMeta(name = '') {
   const label = String(name || '').trim();
   if (ADVENTURE_QUALITY_META[label]) return ADVENTURE_QUALITY_META[label];
@@ -11331,11 +11727,11 @@ function renderAdventureQualityIcon(name = '') {
 }
 
 function renderAdventureQualityTag(name = '') {
-  return `<span class="adventure-quality-tag">${renderAdventureQualityIcon(name)}<span>${name}</span></span>`;
+  return `<button type="button" class="adventure-quality-tag" data-adventure-quality="${name}">${renderAdventureQualityIcon(name)}<span>${name}</span></button>`;
 }
 
 function renderAdventureRolePill(role = {}) {
-  return `<div class="adventure-role-pill"><div class="adventure-role-pill-head">${renderAdventureQualityIcon(role.name)}<b>${role.name || 'Rol'}</b></div>${role.text || ''}</div>`;
+  return `<button type="button" class="adventure-role-pill" data-adventure-quality="${role.name || ''}"><div class="adventure-role-pill-head">${renderAdventureQualityIcon(role.name)}<b>${role.name || 'Rol'}</b></div><span>${role.text || ''}</span></button>`;
 }
 
 const ADVENTURE_DOMAIN_ID_BY_LABEL = {
@@ -11362,11 +11758,11 @@ function getAdventureDomainProfile(entry = {}) {
 function renderAdventureDomainEmblem(entry = {}, primary = false) {
   const profile = getAdventureDomainProfile(entry);
   const sizeClass = primary ? 'primary' : 'secondary';
-  return `<span class="adventure-domain-emblem ${sizeClass}" title="Dominio: ${profile.elementLabel} · Atributo: ${profile.attributeLabel}" aria-label="Dominio ${profile.elementLabel}, ${profile.attributeLabel}">
+  return `<button type="button" class="adventure-domain-emblem ${sizeClass}" data-adventure-domain="${ADVENTURE_DOMAIN_ID_BY_LABEL[String(entry.element || '').trim()] || ''}" title="Dominio: ${profile.elementLabel} · Atributo: ${profile.attributeLabel}" aria-label="Abrir dominio ${profile.elementLabel}, ${profile.attributeLabel}">
     <span class="adventure-domain-layer adventure-domain-bg" aria-hidden="true"></span>
     <img class="adventure-domain-layer adventure-domain-element" src="${profile.elementArt}" alt="Elemento ${profile.elementLabel}">
     <img class="adventure-domain-layer adventure-domain-attribute" src="${profile.attributeArt}" alt="Atributo ${profile.attributeLabel}">
-  </span>`;
+  </button>`;
 }
 
 function renderAdventureCasterDomainPanel(encounter, ready) {
@@ -11379,6 +11775,324 @@ function renderAdventureCasterDomainPanel(encounter, ready) {
     .map((entry, index) => renderAdventureDomainEmblem(entry, index === 0))
     .join('');
 }
+
+function getAdventurePlayerCaster(id = adventureState.playerCasterId) {
+  return ADVENTURE_PLAYER_CASTERS.find(caster => caster.id === id) || ADVENTURE_PLAYER_CASTERS[0];
+}
+
+function getAdventureRaceIcon(entity = {}) {
+  if (entity.raceId === 'human') {
+    return entity.gender === 'female' ? 'assets/races/race-human-female.svg' : 'assets/races/race-human-male.svg';
+  }
+  return '';
+}
+
+function renderAdventureIdentityTag({ label = '', icon = '', quality = '', muted = false } = {}) {
+  const attrs = quality ? ` data-adventure-quality="${quality}"` : '';
+  const tag = quality ? 'button' : 'span';
+  return `<${tag}${quality ? ' type="button"' : ''} class="adventure-identity-tag${muted ? ' muted' : ''}"${attrs}>${icon ? `<img src="${icon}" alt="">` : `<span class="adventure-identity-fallback">?</span>`}<span>${label}</span></${tag}>`;
+}
+
+function renderAdventureCasterIdentity(entity = {}) {
+  const parts = [
+    renderAdventureIdentityTag({ label: 'Kaster', icon: 'assets/card-types/card-type-kaster.svg' }),
+    renderAdventureIdentityTag({ label: entity.raceLabel || 'Raza por definir', icon: getAdventureRaceIcon(entity), muted: !getAdventureRaceIcon(entity) }),
+  ];
+  (entity.casterQualities || []).forEach(name => {
+    const meta = getAdventureQualityMeta(name);
+    parts.push(renderAdventureIdentityTag({ label: name, icon: meta.icon, quality: name }));
+  });
+  return parts.join('');
+}
+
+function openAdventureQualityInfo(name = '') {
+  const meta = getAdventureQualityMeta(name);
+  if (meta.qualityId && typeof getQualityProfile === 'function' && getQualityProfile(meta.qualityId)) {
+    openCardMetaInfo('quality', meta.qualityId, null);
+    return;
+  }
+  if (!els.cardMetaInfoOverlay) return;
+  if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = meta.icon ? `<img src="${meta.icon}" alt="${name}">` : '';
+  if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Cualidad: ${name}`;
+  if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = 'Cualidad · enfoque de jugabilidad';
+  if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${meta.summary || 'Cualidad de R.O.K.'}</p><p>${meta.description || 'Su descripción se completará cuando la cualidad quede definida en el sistema.'}</p>`;
+  els.cardMetaInfoOverlay.classList.add('open');
+  els.cardMetaInfoOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function openAdventureDomainInfo(domainId = '') {
+  if (!domainId) return;
+  openCardMetaInfo('domain', domainId, null);
+}
+
+function loadAdventureProgress() {
+  try {
+    const raw = safeLocalStorageGet(ADVENTURE_PROGRESS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      defeatedEncounterIds: Array.isArray(parsed.defeatedEncounterIds) ? parsed.defeatedEncounterIds : [],
+      unlockedCardIds: Array.isArray(parsed.unlockedCardIds) ? parsed.unlockedCardIds : [],
+      spellbookCardIds: Array.isArray(parsed.spellbookCardIds) ? parsed.spellbookCardIds : [],
+    };
+  } catch (_) {
+    return { defeatedEncounterIds: [], unlockedCardIds: [], spellbookCardIds: [] };
+  }
+}
+
+function saveAdventureProgress(progress) {
+  safeLocalStorageSet(ADVENTURE_PROGRESS_STORAGE_KEY, JSON.stringify(progress || {}));
+}
+
+function isAdventureSpellbookEditingUnlocked() {
+  return loadAdventureProgress().defeatedEncounterIds.includes('enigma-apprentice');
+}
+
+function markAdventureEncounterDefeated(encounterId, rewardCardIds = []) {
+  const progress = loadAdventureProgress();
+  if (!progress.defeatedEncounterIds.includes(encounterId)) progress.defeatedEncounterIds.push(encounterId);
+  rewardCardIds.forEach(cardId => {
+    if (CARD_LIBRARY[cardId] && !progress.unlockedCardIds.includes(cardId)) progress.unlockedCardIds.push(cardId);
+  });
+  saveAdventureProgress(progress);
+  renderAdventurePreparation();
+}
+
+function getAdventureSpellbookCardIds() {
+  const progress = loadAdventureProgress();
+  if (progress.spellbookCardIds.length) return progress.spellbookCardIds.filter(id => CARD_LIBRARY[id]);
+  return adventureState.playerSpellbookCardIds.filter(id => CARD_LIBRARY[id]);
+}
+
+function getAdventureDominantQualitiesFromCardIds(cardIds = [], fallback = []) {
+  const counts = new Map();
+  cardIds.forEach(cardId => {
+    const card = CARD_LIBRARY[cardId];
+    if (!card || card.type !== 'invocation') return;
+    (card.qualities || []).forEach(qualityId => counts.set(qualityId, (counts.get(qualityId) || 0) + 1));
+  });
+  const result = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))
+    .slice(0, 3)
+    .map(([qualityId]) => getQualityProfile(qualityId)?.label || qualityId);
+  return result.length ? result : fallback.slice(0, 3);
+}
+
+function getAdventureRepresentativeInvocationArt(qualityLabel, cardIds = [], fallbackIndex = 0) {
+  for (const cardId of cardIds) {
+    const card = CARD_LIBRARY[cardId];
+    if (!card || card.type !== 'invocation') continue;
+    const matches = (card.qualities || []).some(qualityId => {
+      const profile = getQualityProfile(qualityId);
+      return (profile?.label || qualityId) === qualityLabel;
+    });
+    if (matches) return card.tokenImage || card.artImage || ADVENTURE_PREVIEW_INVOCATION_ART[fallbackIndex % ADVENTURE_PREVIEW_INVOCATION_ART.length];
+  }
+  return ADVENTURE_PREVIEW_INVOCATION_ART[fallbackIndex % ADVENTURE_PREVIEW_INVOCATION_ART.length];
+}
+
+function getAdventureDominantEntries(entity, cardIds = []) {
+  const fallback = entity?.previewDominants || entity?.qualities || [];
+  const qualities = getAdventureDominantQualitiesFromCardIds(cardIds, fallback);
+  return qualities.slice(0, 3).map((quality, index) => ({
+    quality,
+    image: getAdventureRepresentativeInvocationArt(quality, cardIds, index),
+    preview: !cardIds.length,
+  }));
+}
+
+function renderAdventureDominantChips(entries = [], compact = false) {
+  return entries.map(entry => `<span class="adventure-dominant-chip${compact ? ' compact' : ''}">${renderAdventureQualityIcon(entry.quality)}<span>${entry.quality}</span>${entry.preview ? '<small>PREVIEW</small>' : ''}</span>`).join('');
+}
+
+function renderAdventureDominantFigures(entries = [], side = 'left') {
+  return entries.map((entry, index) => `<div class="adventure-intro-invocation adventure-intro-invocation-${side}" style="--intro-index:${index}"><img src="${entry.image}" alt="Previsualización ${entry.quality}"><span>${renderAdventureQualityIcon(entry.quality)}${entry.quality}</span></div>`).join('');
+}
+
+function getAdventureArenaPreview(encounter) {
+  return {
+    label: `Arena de ${encounter?.label || 'Agua'}`,
+    image: 'assets/adventure/water-region-map.png',
+    focusX: encounter?.marker?.x || 50,
+    focusY: encounter?.marker?.y || 50,
+    preview: true,
+  };
+}
+
+function renderAdventurePreparation() {
+  if (!els.adventurePrepareView) return;
+  const encounter = getAdventureWaterEncounter(adventureState.encounterId);
+  const playerCaster = getAdventurePlayerCaster();
+  const playerCardIds = getAdventureSpellbookCardIds();
+  const playerDominants = getAdventureDominantEntries({ previewDominants: playerCaster.previewDominants }, playerCardIds);
+  const rivalCardIds = adventureState.encounterSpellbooks[encounter.id] || [];
+  const rivalDominants = getAdventureDominantEntries(encounter, rivalCardIds);
+  const arena = getAdventureArenaPreview(encounter);
+
+  if (els.adventurePrepRivalImage) els.adventurePrepRivalImage.src = encounter.image;
+  if (els.adventurePrepRivalName) els.adventurePrepRivalName.textContent = encounter.label;
+  if (els.adventurePrepRivalDominants) els.adventurePrepRivalDominants.innerHTML = renderAdventureDominantChips(rivalDominants, true);
+  if (els.adventurePrepPlayerImage) els.adventurePrepPlayerImage.src = playerCaster.image;
+  if (els.adventurePrepPlayerName) els.adventurePrepPlayerName.textContent = playerCaster.label;
+  if (els.adventurePrepPlayerDominants) els.adventurePrepPlayerDominants.innerHTML = renderAdventureDominantChips(playerDominants, true);
+  if (els.adventurePrepArenaImage) {
+    els.adventurePrepArenaImage.src = arena.image;
+    els.adventurePrepArenaImage.style.objectPosition = `${arena.focusX}% ${arena.focusY}%`;
+  }
+  if (els.adventurePrepArenaName) els.adventurePrepArenaName.textContent = arena.label;
+  if (els.adventurePrepArenaBadge) els.adventurePrepArenaBadge.textContent = arena.preview ? 'PREVISUALIZACIÓN' : 'ARENA';
+
+  const unlocked = isAdventureSpellbookEditingUnlocked();
+  if (els.adventurePrepSpellbookStatus) {
+    els.adventurePrepSpellbookStatus.textContent = unlocked
+      ? `${playerCardIds.length} cartas configuradas · edición disponible`
+      : 'Edición bloqueada hasta derrotar a Kiara.';
+  }
+  if (els.adventurePrepEditSpellbookBtn) {
+    els.adventurePrepEditSpellbookBtn.disabled = !unlocked;
+    els.adventurePrepEditSpellbookBtn.textContent = unlocked ? 'Editar Spellbook' : 'Spellbook bloqueado';
+  }
+  if (els.adventurePlayerCasterList) {
+    els.adventurePlayerCasterList.innerHTML = ADVENTURE_PLAYER_CASTERS.map(caster => `<button type="button" class="adventure-player-caster-option${caster.id === adventureState.playerCasterId ? ' selected' : ''}" data-adventure-player-caster="${caster.id}"><img src="${caster.image}" alt=""><span><b>${caster.label}</b><small>${caster.subtitle}</small></span></button>`).join('');
+  }
+}
+
+function renderAdventureCasterDetail(entity, side = 'player') {
+  if (!els.adventureCasterDetailOverlay || !entity) return;
+  if (els.adventureCasterDetailKicker) els.adventureCasterDetailKicker.textContent = side === 'rival' ? 'KASTER RIVAL' : 'TU KASTER';
+  if (els.adventureCasterDetailName) els.adventureCasterDetailName.textContent = entity.label || 'Kaster';
+  if (els.adventureCasterDetailImage) els.adventureCasterDetailImage.src = entity.image || '';
+  if (els.adventureCasterDetailIdentity) els.adventureCasterDetailIdentity.innerHTML = renderAdventureCasterIdentity(entity);
+  if (els.adventureCasterDetailStats) {
+    const stats = entity.stats || {};
+    const sections = stats.sections || [];
+    const profile = stats.profile || [];
+    els.adventureCasterDetailStats.innerHTML = sections.map(section => `<div class="adventure-detail-stat-section"><b>${section.title}</b>${(section.items || []).map(item => `<span><em>${item.label}</em><strong>${item.display ?? item.value ?? '-'}</strong></span>`).join('')}</div>`).join('') + (profile.length ? `<div class="adventure-detail-profile">${profile.map(line => `<span><b>${line.label}</b>${line.value}</span>`).join('')}</div>` : '');
+  }
+  const dominantSource = side === 'rival'
+    ? getAdventureDominantEntries(entity, adventureState.encounterSpellbooks[entity.id] || [])
+    : getAdventureDominantEntries({ previewDominants: entity.previewDominants }, getAdventureSpellbookCardIds());
+  if (els.adventureCasterDetailDominants) els.adventureCasterDetailDominants.innerHTML = renderAdventureDominantChips(dominantSource);
+  els.adventureCasterDetailOverlay.classList.add('open');
+  els.adventureCasterDetailOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function closeAdventureCasterDetail() {
+  els.adventureCasterDetailOverlay?.classList.remove('open');
+  els.adventureCasterDetailOverlay?.setAttribute('aria-hidden', 'true');
+}
+
+function openAdventureSpellbookEditor() {
+  if (!isAdventureSpellbookEditingUnlocked()) {
+    showAdventureNotice('El Spellbook se desbloquea al derrotar a Kiara.');
+    return;
+  }
+  const progress = loadAdventureProgress();
+  const current = new Set(progress.spellbookCardIds || []);
+  const unlocked = new Set([...(progress.unlockedCardIds || []), ...current]);
+  if (els.adventureSpellbookGrid) {
+    const cards = Object.values(CARD_LIBRARY).filter(card => card && card.type !== 'kaster' && card.type !== 'element');
+    els.adventureSpellbookGrid.innerHTML = cards.map(card => {
+      const available = unlocked.has(card.id);
+      const selected = current.has(card.id);
+      const art = card.artImage || card.tokenImage || card.bgImage || '';
+      return `<button type="button" class="adventure-spellbook-card${available ? ' unlocked' : ' locked'}${selected ? ' selected' : ''}" data-adventure-spellbook-card="${card.id}" ${available ? '' : 'disabled'}><span class="adventure-spellbook-card-art">${art ? `<img src="${art}" alt="">` : ''}</span><b>${card.shortName || card.name || card.id}</b><small>${available ? (selected ? 'EN SPELLBOOK' : 'DESBLOQUEADA') : 'BLOQUEADA'}</small></button>`;
+    }).join('');
+  }
+  if (els.adventureSpellbookOverlay) {
+    els.adventureSpellbookOverlay.classList.add('open');
+    els.adventureSpellbookOverlay.setAttribute('aria-hidden', 'false');
+  }
+  updateAdventureSpellbookEditorCounter();
+}
+
+function updateAdventureSpellbookEditorCounter() {
+  const progress = loadAdventureProgress();
+  if (els.adventureSpellbookCounter) els.adventureSpellbookCounter.textContent = `${(progress.spellbookCardIds || []).length}/30`;
+}
+
+function toggleAdventureSpellbookCard(cardId) {
+  const progress = loadAdventureProgress();
+  const unlocked = new Set(progress.unlockedCardIds || []);
+  const current = progress.spellbookCardIds || [];
+  if (!unlocked.has(cardId) && !current.includes(cardId)) return;
+  const index = current.indexOf(cardId);
+  if (index >= 0) current.splice(index, 1);
+  else if (current.length < 30) current.push(cardId);
+  progress.spellbookCardIds = current;
+  saveAdventureProgress(progress);
+  openAdventureSpellbookEditor();
+  renderAdventurePreparation();
+}
+
+function closeAdventureSpellbookEditor() {
+  els.adventureSpellbookOverlay?.classList.remove('open');
+  els.adventureSpellbookOverlay?.setAttribute('aria-hidden', 'true');
+}
+
+function startAdventureBattleIntro() {
+  const encounter = getAdventureWaterEncounter(adventureState.encounterId);
+  const playerCaster = getAdventurePlayerCaster();
+  if (!els.adventureBattleIntro) return;
+  const rivalEntries = getAdventureDominantEntries(encounter, adventureState.encounterSpellbooks[encounter.id] || []);
+  const playerEntries = getAdventureDominantEntries({ previewDominants: playerCaster.previewDominants }, getAdventureSpellbookCardIds());
+  if (els.adventureIntroRivalImage) els.adventureIntroRivalImage.src = encounter.image;
+  if (els.adventureIntroRivalName) els.adventureIntroRivalName.textContent = encounter.label;
+  if (els.adventureIntroRivalDominants) els.adventureIntroRivalDominants.innerHTML = renderAdventureDominantFigures(rivalEntries, 'left');
+  if (els.adventureIntroPlayerImage) els.adventureIntroPlayerImage.src = playerCaster.image;
+  if (els.adventureIntroPlayerName) els.adventureIntroPlayerName.textContent = playerCaster.label;
+  if (els.adventureIntroPlayerDominants) els.adventureIntroPlayerDominants.innerHTML = renderAdventureDominantFigures(playerEntries, 'right');
+  els.adventureBattleIntro.setAttribute('aria-hidden', 'false');
+  els.adventureBattleIntro.classList.remove('active', 'counting', 'combat-ready');
+  void els.adventureBattleIntro.offsetWidth;
+  els.adventureBattleIntro.classList.add('active');
+
+  if (adventureState.battleIntroTimer) clearTimeout(adventureState.battleIntroTimer);
+  adventureState.battleIntroTimer = setTimeout(() => {
+    els.adventureBattleIntro?.classList.add('counting');
+    let count = 3;
+    if (els.adventureIntroCountdown) els.adventureIntroCountdown.textContent = String(count);
+    const interval = setInterval(() => {
+      count -= 1;
+      if (count >= 1) {
+        if (els.adventureIntroCountdown) els.adventureIntroCountdown.textContent = String(count);
+        return;
+      }
+      clearInterval(interval);
+      if (els.adventureIntroCountdown) els.adventureIntroCountdown.textContent = '';
+      els.adventureBattleIntro?.classList.add('combat-ready');
+      setTimeout(() => launchPreparedAdventureBattle(), 1050);
+    }, 700);
+  }, 2600);
+}
+
+function launchPreparedAdventureBattle() {
+  const encounter = getAdventureWaterEncounter(adventureState.encounterId);
+  const playerCaster = getAdventurePlayerCaster();
+  const payload = {
+    mode: 'adventure',
+    encounterId: encounter.id,
+    rivalCaster: encounter,
+    playerCaster,
+    playerSpellbookCardIds: getAdventureSpellbookCardIds(),
+    arena: getAdventureArenaPreview(encounter),
+  };
+  window.ROK_ADVENTURE_PENDING_BATTLE = payload;
+  if (typeof window.ROK_ADVENTURE_START_BATTLE === 'function') {
+    window.ROK_ADVENTURE_START_BATTLE(payload);
+    return;
+  }
+  els.adventureBattleIntro?.classList.remove('active', 'counting', 'combat-ready');
+  els.adventureBattleIntro?.setAttribute('aria-hidden', 'true');
+  setAdventureView('prepare');
+  showAdventureNotice('Presentación VS lista. El inicio real se conectará al definir el Kaster y los Spellbooks de Aventura.');
+}
+
+window.ROK_ADVENTURE = {
+  markEncounterDefeated: markAdventureEncounterDefeated,
+  setPlayerSpellbook(cardIds = []) { adventureState.playerSpellbookCardIds = Array.isArray(cardIds) ? cardIds.filter(id => CARD_LIBRARY[id]) : []; renderAdventurePreparation(); },
+  setEncounterSpellbook(encounterId, cardIds = []) { adventureState.encounterSpellbooks[encounterId] = Array.isArray(cardIds) ? cardIds.filter(id => CARD_LIBRARY[id]) : []; renderAdventurePreparation(); },
+  getProgress: () => loadAdventureProgress(),
+};
 
 function renderAdventureCasterStats(encounter, ready) {
   if (!els.adventureCasterStats) return;
@@ -11410,29 +12124,48 @@ function updateAdventureWaterMapFocus(point) {
   }
   const px = Math.max(0, Math.min(1, (Number(point && point.x) || 50) / 100));
   const py = Math.max(0, Math.min(1, (Number(point && point.y) || 50) / 100));
+  const canvasW = Math.max(1, els.adventureWaterMapCanvas.clientWidth || 1);
+  const canvasH = Math.max(1, els.adventureWaterMapCanvas.clientHeight || 1);
+  const sourceW = 916;
+  const sourceH = 1717;
+  const sourceRatio = sourceW / sourceH;
+  const canvasRatio = canvasW / canvasH;
 
-  // El mapa se mantiene deliberadamente más grande que su ventana. Al cambiar
-  // de encuentro desplazamos ese lienzo para mantener la ubicación del pin en
-  // una zona cómoda de lectura, sin deformar las coordenadas originales.
-  const zoom = 2.18;
-  const focusX = 0.52;
-  const focusY = 0.50;
-  const minOffset = 1 - zoom;
-  let offsetX = focusX - (px * zoom);
-  let offsetY = focusY - (py * zoom);
-  offsetX = Math.min(0, Math.max(minOffset, offsetX));
-  offsetY = Math.min(0, Math.max(minOffset, offsetY));
+  // Primero cubrimos por completo el recuadro (sin bandas negras), conservando
+  // la proporción natural del mapa. Después ampliamos y desplazamos el lienzo
+  // hasta que el marcador seleccionado quede dentro de la zona de enfoque.
+  let coverW, coverH;
+  if (canvasRatio >= sourceRatio) {
+    coverW = canvasW;
+    coverH = coverW / sourceRatio;
+  } else {
+    coverH = canvasH;
+    coverW = coverH * sourceRatio;
+  }
+  const zoom = 1.46;
+  const renderW = coverW * zoom;
+  const renderH = coverH * zoom;
+  const focusX = .52 * canvasW;
+  const focusY = .50 * canvasH;
+  let left = focusX - (px * renderW);
+  let top = focusY - (py * renderH);
+  left = Math.min(0, Math.max(canvasW - renderW, left));
+  top = Math.min(0, Math.max(canvasH - renderH, top));
 
-  const markerX = (offsetX + (px * zoom)) * 100;
-  const markerY = (offsetY + (py * zoom)) * 100;
-  els.adventureWaterMapCanvas.style.setProperty('--water-map-zoom', String(zoom));
-  els.adventureWaterMapCanvas.style.setProperty('--water-map-offset-x', `${offsetX * 100}%`);
-  els.adventureWaterMapCanvas.style.setProperty('--water-map-offset-y', `${offsetY * 100}%`);
-  setAdventureMarkerPosition(els.adventureWaterMarker, { x: markerX, y: markerY });
+  els.adventureWaterMapCanvas.style.setProperty('--water-map-width', `${renderW}px`);
+  els.adventureWaterMapCanvas.style.setProperty('--water-map-height', `${renderH}px`);
+  els.adventureWaterMapCanvas.style.setProperty('--water-map-left', `${left}px`);
+  els.adventureWaterMapCanvas.style.setProperty('--water-map-top', `${top}px`);
+  setAdventureMarkerPosition(els.adventureWaterMarker, { x: `${left + px * renderW}px`, y: `${top + py * renderH}px` }, true);
 }
 
-function setAdventureMarkerPosition(markerEl, point) {
+function setAdventureMarkerPosition(markerEl, point, rawUnits = false) {
   if (!markerEl || !point) return;
+  if (rawUnits) {
+    markerEl.style.setProperty('--marker-x', String(point.x || '50%'));
+    markerEl.style.setProperty('--marker-y', String(point.y || '50%'));
+    return;
+  }
   markerEl.style.setProperty('--marker-x', `${Number(point.x) || 50}%`);
   markerEl.style.setProperty('--marker-y', `${Number(point.y) || 50}%`);
 }
@@ -11517,8 +12250,8 @@ function selectAdventureWaterEncounter(encounterId, options = {}) {
   if (els.adventureCasterName) els.adventureCasterName.textContent = encounter.label;
   if (els.adventureCasterQualities) {
     els.adventureCasterQualities.innerHTML = ready
-      ? (encounter.qualities || []).map(name => renderAdventureQualityTag(name)).join('')
-      : renderAdventureQualityTag('Por definir');
+      ? renderAdventureCasterIdentity(encounter)
+      : renderAdventureIdentityTag({ label: 'Por definir', muted: true });
   }
   renderAdventureCasterStats(encounter, ready);
   if (els.adventureCasterDeckTitle) els.adventureCasterDeckTitle.textContent = ready ? encounter.deckTitle : 'Encuentro en desarrollo';
@@ -11543,21 +12276,25 @@ function selectAdventureWaterEncounter(encounterId, options = {}) {
 }
 
 function setAdventureView(view = 'world') {
-  adventureState.view = view === 'water' ? 'water' : 'world';
+  adventureState.view = ['water', 'prepare'].includes(view) ? view : 'world';
   const water = adventureState.view === 'water';
-  if (els.adventureWorldView) els.adventureWorldView.hidden = water;
+  const prepare = adventureState.view === 'prepare';
+  const world = adventureState.view === 'world';
+  if (els.adventureWorldView) els.adventureWorldView.hidden = !world;
   if (els.adventureWaterView) els.adventureWaterView.hidden = !water;
-  if (els.adventureTitle) els.adventureTitle.textContent = water ? 'Área de Agua' : 'Regiones elementales';
-  if (els.adventureSubtitle) els.adventureSubtitle.textContent = water
-    ? 'Selecciona un enfrentamiento para conocer al Kaster rival y localizar su arena.'
-    : 'Explora el continente y elige la región donde comenzará tu travesía.';
-  if (els.adventureProgressChip) els.adventureProgressChip.textContent = water ? 'ETAPA 2 · AGUA' : 'ETAPA 1 · REGIONES';
+  if (els.adventurePrepareView) els.adventurePrepareView.hidden = !prepare;
+  if (els.adventureTitle) els.adventureTitle.textContent = prepare ? 'Preparar combate' : (water ? 'Área de Agua' : 'Regiones elementales');
+  if (els.adventureSubtitle) els.adventureSubtitle.textContent = prepare
+    ? 'Confirma tu Kaster, revisa el Spellbook y conoce la arena antes del enfrentamiento.'
+    : (water ? 'Selecciona un enfrentamiento para conocer al Kaster rival y localizar su arena.' : 'Explora el continente y elige la región donde comenzará tu travesía.');
+  if (els.adventureProgressChip) els.adventureProgressChip.textContent = prepare ? 'ETAPA 3 · PREPARACIÓN' : (water ? 'ETAPA 2 · AGUA' : 'ETAPA 1 · REGIONES');
   if (els.adventureBackBtn) {
-    els.adventureBackBtn.textContent = 'Regiones';
-    els.adventureBackBtn.hidden = !water;
+    els.adventureBackBtn.textContent = prepare ? 'Enfrentamientos' : 'Regiones';
+    els.adventureBackBtn.hidden = world;
   }
   if (els.adventureHomeBtn) els.adventureHomeBtn.hidden = false;
-  if (water) selectAdventureWaterEncounter(adventureState.encounterId);
+  if (prepare) renderAdventurePreparation();
+  else if (water) selectAdventureWaterEncounter(adventureState.encounterId);
   else selectAdventureWorldZone(adventureState.worldZoneId);
 }
 
@@ -11585,6 +12322,10 @@ function closeAdventureScreen() {
 }
 
 function handleAdventureBack() {
+  if (adventureState.view === 'prepare') {
+    setAdventureView('water');
+    return;
+  }
   if (adventureState.view === 'water') {
     setAdventureView('world');
     return;
@@ -11607,7 +12348,7 @@ function prepareSelectedAdventureEncounter() {
     showAdventureNotice('Este encuentro todavía no ha sido definido.');
     return;
   }
-  showAdventureNotice('La selección está lista. La arena y el Spellbook de combate se conectarán cuando queden definidos.');
+  setAdventureView('prepare');
 }
 
 function showMainMenu() {
@@ -14243,6 +14984,42 @@ function cacheEls() {
   els.adventureCasterRoles = document.getElementById('adventureCasterRoles');
   els.adventureCasterStatus = document.getElementById('adventureCasterStatus');
   els.adventureStartEncounterBtn = document.getElementById('adventureStartEncounterBtn');
+  els.adventurePrepareView = document.getElementById('adventurePrepareView');
+  els.adventurePrepRivalCard = document.getElementById('adventurePrepRivalCard');
+  els.adventurePrepRivalImage = document.getElementById('adventurePrepRivalImage');
+  els.adventurePrepRivalName = document.getElementById('adventurePrepRivalName');
+  els.adventurePrepRivalDominants = document.getElementById('adventurePrepRivalDominants');
+  els.adventurePrepPlayerCard = document.getElementById('adventurePrepPlayerCard');
+  els.adventurePrepPlayerImage = document.getElementById('adventurePrepPlayerImage');
+  els.adventurePrepPlayerName = document.getElementById('adventurePrepPlayerName');
+  els.adventurePrepPlayerDominants = document.getElementById('adventurePrepPlayerDominants');
+  els.adventurePlayerCasterList = document.getElementById('adventurePlayerCasterList');
+  els.adventurePrepArenaImage = document.getElementById('adventurePrepArenaImage');
+  els.adventurePrepArenaName = document.getElementById('adventurePrepArenaName');
+  els.adventurePrepArenaBadge = document.getElementById('adventurePrepArenaBadge');
+  els.adventurePrepSpellbookStatus = document.getElementById('adventurePrepSpellbookStatus');
+  els.adventurePrepEditSpellbookBtn = document.getElementById('adventurePrepEditSpellbookBtn');
+  els.adventureCombatBtn = document.getElementById('adventureCombatBtn');
+  els.adventureBattleIntro = document.getElementById('adventureBattleIntro');
+  els.adventureIntroRivalImage = document.getElementById('adventureIntroRivalImage');
+  els.adventureIntroRivalName = document.getElementById('adventureIntroRivalName');
+  els.adventureIntroRivalDominants = document.getElementById('adventureIntroRivalDominants');
+  els.adventureIntroPlayerImage = document.getElementById('adventureIntroPlayerImage');
+  els.adventureIntroPlayerName = document.getElementById('adventureIntroPlayerName');
+  els.adventureIntroPlayerDominants = document.getElementById('adventureIntroPlayerDominants');
+  els.adventureIntroCountdown = document.getElementById('adventureIntroCountdown');
+  els.adventureCasterDetailOverlay = document.getElementById('adventureCasterDetailOverlay');
+  els.adventureCasterDetailCloseBtn = document.getElementById('adventureCasterDetailCloseBtn');
+  els.adventureCasterDetailKicker = document.getElementById('adventureCasterDetailKicker');
+  els.adventureCasterDetailName = document.getElementById('adventureCasterDetailName');
+  els.adventureCasterDetailImage = document.getElementById('adventureCasterDetailImage');
+  els.adventureCasterDetailIdentity = document.getElementById('adventureCasterDetailIdentity');
+  els.adventureCasterDetailStats = document.getElementById('adventureCasterDetailStats');
+  els.adventureCasterDetailDominants = document.getElementById('adventureCasterDetailDominants');
+  els.adventureSpellbookOverlay = document.getElementById('adventureSpellbookOverlay');
+  els.adventureSpellbookCloseBtn = document.getElementById('adventureSpellbookCloseBtn');
+  els.adventureSpellbookGrid = document.getElementById('adventureSpellbookGrid');
+  els.adventureSpellbookCounter = document.getElementById('adventureSpellbookCounter');
   els.adventureNotice = document.getElementById('adventureNotice');
   els.boosterStoreScreen = document.getElementById('boosterStoreScreen');
   els.boosterStoreTitle = document.getElementById('boosterStoreTitle');
@@ -14592,6 +15369,40 @@ function bindEvents() {
   if (els.adventureHomeBtn) els.adventureHomeBtn.addEventListener('click', closeAdventureScreen);
   if (els.adventureEnterZoneBtn) els.adventureEnterZoneBtn.addEventListener('click', enterSelectedAdventureZone);
   if (els.adventureStartEncounterBtn) els.adventureStartEncounterBtn.addEventListener('click', prepareSelectedAdventureEncounter);
+  if (els.adventurePrepRivalCard) els.adventurePrepRivalCard.addEventListener('click', () => renderAdventureCasterDetail(getAdventureWaterEncounter(adventureState.encounterId), 'rival'));
+  if (els.adventurePrepPlayerCard) els.adventurePrepPlayerCard.addEventListener('click', () => renderAdventureCasterDetail(getAdventurePlayerCaster(), 'player'));
+  if (els.adventurePrepEditSpellbookBtn) els.adventurePrepEditSpellbookBtn.addEventListener('click', openAdventureSpellbookEditor);
+  if (els.adventureCombatBtn) els.adventureCombatBtn.addEventListener('click', startAdventureBattleIntro);
+  if (els.adventureCasterDetailCloseBtn) els.adventureCasterDetailCloseBtn.addEventListener('click', closeAdventureCasterDetail);
+  if (els.adventureCasterDetailOverlay) els.adventureCasterDetailOverlay.addEventListener('click', event => { if (event.target === els.adventureCasterDetailOverlay) closeAdventureCasterDetail(); });
+  if (els.adventureSpellbookCloseBtn) els.adventureSpellbookCloseBtn.addEventListener('click', closeAdventureSpellbookEditor);
+  if (els.adventureSpellbookOverlay) els.adventureSpellbookOverlay.addEventListener('click', event => { if (event.target === els.adventureSpellbookOverlay) closeAdventureSpellbookEditor(); });
+  if (els.adventureSpellbookGrid) els.adventureSpellbookGrid.addEventListener('click', event => {
+    const button = event.target?.closest?.('[data-adventure-spellbook-card]');
+    if (button && !button.disabled) toggleAdventureSpellbookCard(button.dataset.adventureSpellbookCard);
+  });
+  if (els.adventurePlayerCasterList) els.adventurePlayerCasterList.addEventListener('click', event => {
+    const button = event.target?.closest?.('[data-adventure-player-caster]');
+    if (!button) return;
+    adventureState.playerCasterId = button.dataset.adventurePlayerCaster;
+    renderAdventurePreparation();
+  });
+  if (els.adventureScreen) els.adventureScreen.addEventListener('click', event => {
+    const quality = event.target?.closest?.('[data-adventure-quality]');
+    if (quality) {
+      event.stopPropagation();
+      openAdventureQualityInfo(quality.dataset.adventureQuality);
+      return;
+    }
+    const domain = event.target?.closest?.('[data-adventure-domain]');
+    if (domain && domain.dataset.adventureDomain) {
+      event.stopPropagation();
+      openAdventureDomainInfo(domain.dataset.adventureDomain);
+    }
+  });
+  window.addEventListener('resize', () => {
+    if (adventureState.view === 'water') updateAdventureWaterMapFocus(getAdventureWaterEncounter(adventureState.encounterId).marker);
+  });
   if (els.adventureZoneList) {
     const previewZoneFromEvent = event => {
       const option = event.target?.closest?.('[data-adventure-zone]');
@@ -16776,6 +17587,18 @@ function getNobunagaBuffFxTotalDuration(parts = []) {
 
 function showExternalBuffFloatingFxSequential(playerId, unit, parts = []) {
   if (!els?.boardContent || !unit?.id || !Array.isArray(parts) || !parts.length) return Promise.resolve(false);
+  emitOnlineVisualEvent('external-buff', {
+    source: snapshotOnlineFxUnit(playerId, unit),
+    parts: parts.map(part => ({
+      id: String(part?.id || ''),
+      label: String(part?.label || ''),
+      amountLabel: String(part?.amountLabel || ''),
+      icon: String(part?.icon || ''),
+      kind: String(part?.kind || 'bonus'),
+      category: String(part?.category || ''),
+      sourceId: String(part?.sourceId || ''),
+    })),
+  });
   return new Promise(resolve => {
     let totalDelay = 0;
     parts.forEach((part, index) => {
@@ -16819,6 +17642,7 @@ function showNobunagaBuffFloatingFx(playerId, unit, parts = []) {
 
 function showBlindnessDebuffFloatingFxSequential(playerId, unit) {
   if (!els?.boardContent || !unit?.id) return Promise.resolve(false);
+  emitOnlineVisualEvent('blindness-debuff', { source: snapshotOnlineFxUnit(playerId, unit) });
   const precisionPenalty = Math.max(0, Number(FACTOR_DB.blindness?.precisionPenalty ?? 4));
   const speedPenalty = Math.max(0, Number(FACTOR_DB.blindness?.speedPenalty ?? 1));
   const parts = [
@@ -22326,6 +23150,7 @@ function triggerStructureDestroySequence(target, guardian, destroySource = null)
 }
 
 function showCriticalSlashAtTarget(target) {
+  emitOnlineVisualEvent('critical-slash', { target: snapshotOnlineFxTarget(target) });
   const pos = getTargetPositionForFx(target);
   if (pos) {
     const center = cellCenter(pos.row, pos.col);
@@ -25999,6 +26824,12 @@ function showLethalityExecutionChipAtTarget(target) {
 function showArmorDamageReductionAt(row, col, reducedDamage, armorReduction) {
   const actualReduction = Math.max(0, Number(reducedDamage) || 0);
   if (actualReduction <= 0) return null;
+  emitOnlineVisualEvent('armor-reduction', {
+    row: Number(row),
+    col: Number(col),
+    reducedDamage: actualReduction,
+    armorLevel: Math.max(0, Number(armorReduction?.level || 0)),
+  });
   const pos = cellCenter(row, col);
   const div = document.createElement('div');
   div.className = 'floating-damage floating-armor-damage';
@@ -26488,10 +27319,12 @@ function queueGloriaLatenteRestoreCompletion(playerId, unit, options = {}) {
 }
 
 function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options = {}) {
+  if (!unit) return;
   if (Number(unit?.hp ?? 1) <= 0) triggerEmboscadaHuntersOnTargetDeath(playerId, unit?.id);
   returnEquippedAbilityCardsForUnit(unit, reason || 'la invocación dejó la arena');
   const player = state.players[playerId];
   const card = CARD_LIBRARY[unit.cardId];
+  if (!player || !card) return;
   migrateLegacyAbilityCardEntries(unit);
   const spellbookCooldownBreakdown = getUnitSpellbookCooldownBreakdown(unit, card);
   const despliegueUseCooldownOnReturn = getDespliegueAnticipadoReturnCooldown(playerId, card);
@@ -26507,9 +27340,7 @@ function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options
   const tab = marker?.originTab ?? unit.originTab ?? 0;
   const slot = marker?.originSlot ?? unit.originSlot ?? player.handTabs[tab]?.findIndex(v => !v) ?? 0;
   const applyUseCooldownOnReturn = totalSpellbookCooldownOnReturn > 0;
-  // La devolución al Spellbook es estado de juego, no parte de la animación.
-  // Se confirma inmediatamente para que el snapshot online nunca dependa de
-  // un callback visual que puede terminar después de entregar el turno.
+
   if (!player.handTabs[tab]) player.handTabs[tab] = [];
   let returnedSlot = slot;
   if (player.handTabs[tab][slot]) {
@@ -26527,18 +27358,33 @@ function returnInvocationToSpellbook(playerId, unit, reason = 'derrota', options
     breakdown: { base: spellbookCooldownBreakdown.base, learned: spellbookCooldownBreakdown.learned, despliegue: despliegueUseCooldownOnReturn },
   });
 
+  // Copia exclusivamente visual. Desde aquí la unidad real deja de existir.
+  const visualUnit = { ...unit, activeFactors: Array.isArray(unit.activeFactors) ? unit.activeFactors.map(entry => ({ ...entry })) : [] };
+  const returnFxPayload = {
+    source: snapshotOnlineFxUnit(playerId, visualUnit),
+    tab: Number(tab || 0),
+    slot: Number(returnedSlot || 0),
+    options: { immediateVisual: options?.immediateVisual === true },
+  };
+  player.units = player.units.filter(u => u.id !== unit.id);
+  player.spawnMarkers = player.spawnMarkers.filter(m => m.id !== unit.spawnId);
+
+  // El DOM refleja primero el estado lógico ya consumado; la animación usa visualUnit.
+  renderUnits();
+  renderKaguyaChargeFxLayer();
+  renderSelectedUnitCommandPanel();
+  renderCombatHud();
   const revealReturnedCard = () => {
     if (playerId === LOCAL_PLAYER_ID) renderCards();
   };
-  animateReturnInvocationToSpellbook(playerId, unit, tab, returnedSlot, revealReturnedCard, options);
-  player.units = player.units.filter(u => u.id !== unit.id);
-  player.spawnMarkers = player.spawnMarkers.filter(m => m.id !== unit.spawnId);
-  if (options?.renderAfterRemoval === true) {
-    renderUnits();
-    renderKaguyaChargeFxLayer();
-    renderSelectedUnitCommandPanel();
-    renderCombatHud();
+  animateReturnInvocationToSpellbook(playerId, visualUnit, tab, returnedSlot, revealReturnedCard, { ...options, suppressOnlineFx: true });
+
+  if (isOnlineMatchActive()) {
+    void commitOnlineStateBarrier(`invocation-left-arena:${unit.id}`).then(committed => {
+      if (committed) emitOnlineVisualEvent('return-spellbook', returnFxPayload);
+    });
   }
+  markOnlineStateDirty('invocation-left-arena');
   log(`${card?.name || 'Invocación'} vuelve al Spellbook por ${reason}.`);
 }
 
@@ -28134,6 +28980,7 @@ async function moveKurayamiAlongPowerPath(playerId, unit, targetPlayerId, target
 }
 
 function showKurayamiExecutionCueAtTarget(target) {
+  emitOnlineVisualEvent('kurayami-execution-cue', { target: snapshotOnlineFxTarget(target) });
   const pos = getTargetPositionForFx(target);
   if (!pos || !els.boardContent) return null;
   const center = cellCenter(pos.row, pos.col);
@@ -28149,6 +28996,7 @@ function showKurayamiExecutionCueAtTarget(target) {
 }
 
 function showKurayamiExecutionDamageAtTarget(target, amount = 999) {
+  emitOnlineVisualEvent('kurayami-execution-damage', { target: snapshotOnlineFxTarget(target), amount: Math.max(0, Number(amount) || 999) });
   const pos = getTargetPositionForFx(target);
   if (!pos || !els.boardContent) return null;
   const center = cellCenter(pos.row, pos.col);
@@ -28433,10 +29281,6 @@ function nextPhase(force = false) {
   enterPhase(false, true);
   renderAll();
 
-  if (changedPlayer && isOnlineMatchActive() && Number(oldPlayer) === Number(LOCAL_PLAYER_ID)) {
-    window.ROK_ONLINE_PVP?.markTurnHandoffPending?.();
-  }
-
   const allowOffTurnCasterReposition = oldPhase === 'casting' && currentPhase().id === 'resolution';
   if (changedPlayer) {
     const items = [
@@ -28444,6 +29288,13 @@ function nextPhase(force = false) {
       { text: `JUGADOR ${state.activePlayer}`, playerId: state.activePlayer, duration: 900 },
       { text: 'EXTRACCIÓN', playerId: state.activePlayer, duration: 900 },
     ];
+    if (isOnlineMatchActive() && Number(oldPlayer) === Number(LOCAL_PLAYER_ID)) {
+      // El jugador que entrega el turno publica y se retira del coordinador.
+      // Puede mostrar los flyers localmente, pero no abre ventanas ni arranca la fase rival.
+      queueTransitions(items, { anchor: getTransitionAnchorPoint() });
+      window.ROK_ONLINE_PVP?.markTurnHandoffPending?.();
+      return;
+    }
     schedulePhaseIntroFlow(items, { allowOffTurnCasterReposition });
   } else {
     const phase = currentPhase();
@@ -29085,6 +29936,8 @@ async function resolveInvocationCastWithSummonSequence(playerId, item, options =
     showImmediateCastLandingFx(playerId, item);
     return result;
   }
+
+  // El círculo anuncia el kasteo; la ficha todavía no existe en estado lógico.
   await playInvocationSummonCircleFxAtCell(playerId, item);
   const result = resolveCast(playerId, item, { ...options, queueNobunagaEntryFx: false });
   if (!result) {
@@ -29092,27 +29945,28 @@ async function resolveInvocationCastWithSummonSequence(playerId, item, options =
     return null;
   }
   renderAll();
+
   if (result?.type === 'invocation' && result.unit) {
+    // Barrera crítica: el rival debe conocer la unidad antes de recibir caída/landing/buffs.
+    if (isOnlineMatchActive()) {
+      const committed = await commitOnlineStateBarrier(`invocation-entered:${result.unit.id}`);
+      if (!committed) {
+        reportDebugError('invocation-entry-barrier', new Error(`No se confirmó la entrada autoritativa de ${result.unit.cardId || result.unit.id}.`));
+      }
+    }
     await playInvocationEntryDropFx(playerId, result.unit);
     await showImmediateCastLandingFx(playerId, item);
-    if (isKishimotoUnit(result.unit)) {
-      await showKishimotoEntryPowerActivationFx(playerId, result.unit);
-    }
-    if (result.unionStrengthTrigger) {
-      await showUnionStrengthTriggerFx(playerId, result.unit, result.unionStrengthTrigger);
-    }
+    if (isKishimotoUnit(result.unit)) await showKishimotoEntryPowerActivationFx(playerId, result.unit);
+    if (result.unionStrengthTrigger) await showUnionStrengthTriggerFx(playerId, result.unit, result.unionStrengthTrigger);
     notifyInvocationLimitIfFull(playerId);
     const postSummonReactionResult = await resolvePostSummonQuickReactionOpportunity(playerId, result.unit);
-    if (postSummonReactionResult && postSummonReactionResult !== 'none') {
-      await sleep(EXTERNAL_BUFF_SOURCE_DELAY_MS);
-    }
+    if (postSummonReactionResult && postSummonReactionResult !== 'none') await sleep(EXTERNAL_BUFF_SOURCE_DELAY_MS);
     await triggerExternalBuffVisualFxForEntry(playerId, result.unit);
     if (isTestMatchActive() && Number(playerId) === 2 && result.unit.cardId === TEST_BOT_CARD_ID) {
       await maybeExecuteTestBotTacticaAfterMinokage(playerId, result.unit);
     }
-    if (isTakedaUnit(result.unit)) {
-      await maybeResolveTakedaOldFriendSummon(playerId, result.unit);
-    }
+    if (isTakedaUnit(result.unit)) await maybeResolveTakedaOldFriendSummon(playerId, result.unit);
+    markOnlineStateDirty('invocation-entry-complete');
   } else if (result?.type === 'spell') {
     showImmediateCastLandingFx(playerId, item);
   }
@@ -30779,83 +31633,76 @@ window.ROK_ONLINE_ACTION_WINDOW = {
 };
 
 function schedulePhaseIntroFlow(items, options = {}) {
+  const phaseKey = String(options.phaseKey || `${Number(state.turnSerial || 0)}:${Number(state.activePlayer || 0)}:${Number(state.phaseIndex || 0)}`);
+  if (isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) {
+    return Promise.resolve(false);
+  }
+  if (schedulePhaseIntroFlow.active?.key === phaseKey && schedulePhaseIntroFlow.active.promise) {
+    return schedulePhaseIntroFlow.active.promise;
+  }
+
   const flowId = Number(state.quickReactionWindow?.phaseFlowId || 0) + 1;
   const phaseLockReason = `phase-intro-flow:${flowId}`;
   const transitionAnchor = options.transitionAnchor || getTransitionAnchorPoint();
   state.quickReactionWindow.phaseFlowId = flowId;
 
-  (async () => {
+  const promise = (async () => {
     let phaseDelivered = false;
     try {
-      // Minokage completes Shippū Ugachi on the exact transition that reduces
-      // its counter to zero. It does not wait for a later Resolution phase.
       await resolvePendingImmediateMinokageResolutions();
-      if (state.quickReactionWindow.phaseFlowId !== flowId) return;
+      if (state.quickReactionWindow.phaseFlowId !== flowId) return false;
       await runLocalKouutenRecastOpportunityBeforePhase();
-      if (state.quickReactionWindow.phaseFlowId !== flowId) return;
+      if (state.quickReactionWindow.phaseFlowId !== flowId) return false;
       await runLocalQuickReactionOpportunityBeforePhase({ windowMs: QUICK_REACTION_WINDOW_MS });
-      if (state.quickReactionWindow.phaseFlowId !== flowId) return;
+      if (state.quickReactionWindow.phaseFlowId !== flowId) return false;
 
-      // En PvP el navegador que conduce la fase también debe detenerse para
-      // entregar la misma oportunidad al otro jugador. El rival resuelve su
-      // ventana localmente y devuelve un snapshot de resultado antes de seguir.
+      // Desde que termina la oportunidad local, el dueño de la fase queda
+      // bloqueado hasta recibir la respuesta remota y completar la introducción.
+      setActionExecutionLock(true, phaseLockReason);
+
+      // Un solo coordinador: siempre el dueño de la fase actual. El otro cliente
+      // únicamente responde a la interacción; nunca inicia un flujo espejo.
       if (isOnlineMatchActive()) {
         await requestRemoteOnlineActionWindow(getOpponentId(LOCAL_PLAYER_ID), 'phase-reaction', {
           windowMs: QUICK_REACTION_WINDOW_MS,
           collectContext: { phaseTransition: true },
+          phaseKey,
         });
-        if (state.quickReactionWindow.phaseFlowId !== flowId) return;
+        if (state.quickReactionWindow.phaseFlowId !== flowId) return false;
       }
-
-      // Desde este punto la fase ya cambió internamente, pero todavía no está
-      // entregada al jugador. Este bloqueo evita acciones/movimiento prematuros.
-      setActionExecutionLock(true, phaseLockReason);
 
       if (options.allowOffTurnCasterReposition && currentPhase().id === 'resolution') {
         const casterPlayerId = getOpponentId(state.activePlayer);
-        const casterActionItem = {
-          text: 'ACCIÓN DE KASTER',
-          playerId: casterPlayerId,
-          duration: OFF_TURN_CASTER_FLYER_MS,
-        };
-
-        // 1) Flyer completo. 2) Un beat limpio. 3) Decisión/acción del Kaster.
+        const casterActionItem = { text: 'ACCIÓN DE KASTER', playerId: casterPlayerId, duration: OFF_TURN_CASTER_FLYER_MS };
         queueTransitions([casterActionItem], { anchor: transitionAnchor });
         await sleep(casterActionItem.duration + OFF_TURN_CASTER_SEQUENCE_GAP_MS);
-        if (state.quickReactionWindow.phaseFlowId !== flowId) return;
-
-        // La oportunidad local necesita recibir clics. El propio flujo del
-        // Kaster bloquea el resto de entradas mientras la miniatura está activa.
-        if (Number(casterPlayerId) === Number(LOCAL_PLAYER_ID)) {
-          releaseActionExecutionLockIfOwned(phaseLockReason);
-        }
-
+        if (state.quickReactionWindow.phaseFlowId !== flowId) return false;
+        if (Number(casterPlayerId) === Number(LOCAL_PLAYER_ID)) releaseActionExecutionLockIfOwned(phaseLockReason);
         await runOffTurnCasterRepositionOpportunityBeforePhase(options);
-        if (state.quickReactionWindow.phaseFlowId !== flowId) return;
-
-        // Terminada la decisión local, vuelve a bloquear hasta que el flyer de
-        // Resolución termine y la fase se entregue de verdad.
-        if (Number(casterPlayerId) === Number(LOCAL_PLAYER_ID)) {
-          setActionExecutionLock(true, phaseLockReason);
-        }
+        if (state.quickReactionWindow.phaseFlowId !== flowId) return false;
+        if (Number(casterPlayerId) === Number(LOCAL_PLAYER_ID)) setActionExecutionLock(true, phaseLockReason);
       }
 
-      // La entrega de fase forma parte de ESTA MISMA promesa. Antes se dejaba
-      // en un setTimeout independiente; si la acción local del Kaster alteraba
-      // el render/flujo, la IA podía no retomar nunca su Resolución.
-      queueTransitions(items, { anchor: transitionAnchor });
-      await sleep(Math.max(0, sumTransitionDurations(items) - 120));
-      if (state.quickReactionWindow.phaseFlowId !== flowId) return;
+      if (items?.length) queueTransitions(items, { anchor: transitionAnchor });
+      await sleep(items?.length ? Math.max(0, sumTransitionDurations(items) - 120) : 80);
+      if (state.quickReactionWindow.phaseFlowId !== flowId) return false;
 
       releaseActionExecutionLockIfOwned(phaseLockReason);
-      phaseDelivered = true;
-      await startPhaseActions();
+      const started = await startPhaseActions();
+      phaseDelivered = Boolean(started);
+      return started;
     } finally {
-      if (!phaseDelivered) {
-        releaseActionExecutionLockIfOwned(phaseLockReason);
-      }
+      if (!phaseDelivered) releaseActionExecutionLockIfOwned(phaseLockReason);
     }
-  })().catch(error => reportDebugError('schedulePhaseIntroFlow', error));
+  })().catch(error => {
+    reportDebugError('schedulePhaseIntroFlow', error);
+    throw error;
+  }).finally(() => {
+    if (schedulePhaseIntroFlow.active?.flowId === flowId) schedulePhaseIntroFlow.active = null;
+  });
+
+  schedulePhaseIntroFlow.active = { key: phaseKey, flowId, promise };
+  return promise;
 }
 
 function collectQuickReactionTargetsForSource(source) {
@@ -32313,10 +33160,6 @@ async function startPhaseActions() {
     if (isOnlineMatchActive()) window.ROK_ONLINE_PVP?.markPhaseStarted?.(onlinePhaseKey);
   };
   await waitForOpponentActionNoticePause();
-  // La fase no debe arrancar acciones normales mientras una invocación recién liberada
-  // de la cola de kasteo todavía está entrando, abriendo ventana de acción rápida
-  // o resolviendo su poder de entrada. Esto evita que la IA avance/termine fase
-  // encima de las dos Kaguyas iniciales.
   await waitForPendingCastTravelResolutions();
   await waitForOpponentActionNoticePause();
   if (state.extractionAnimating) return false;
@@ -32332,17 +33175,17 @@ async function startPhaseActions() {
   await resolvePendingGuardianStrikes();
   await waitForOpponentActionNoticePause();
   if (state.extractionAnimating) return false;
-  // ROK v104 · la oportunidad local ya corre ANTES de la banderita/transición.
-  // Aquí solo resuelve el bot sin abrir modal de Enter para el jugador.
   if (state.aiEnabled) await resolveAiQuickReactionWindow(getOpponentId(LOCAL_PLAYER_ID), { allowOwnTurn: true, reason: 'phase-cadence' });
   if (state.extractionAnimating) return false;
+
   const phase = currentPhase();
   if (phase.id === 'extraction' && !state.extractedThisPhase) {
-    markOnlinePhaseStarted();
     const playerId = state.activePlayer;
     await resolveTakedaTurnAttackGrowth(playerId);
     if (currentPhase().id !== 'extraction' || state.activePlayer !== playerId) return false;
     state.extractedThisPhase = true;
+    markOnlinePhaseStarted();
+    markOnlineStateDirty('extraction-started');
     if (!isTestMatchActive() && shouldSkipOpeningExtraction(playerId)) {
       markOpeningExtractionSkipped(playerId);
       log(`Jugador ${playerId}: la primera Extracción ya está cubierta por sus ${STARTING_ELEMENT_CARDS_PER_PLAYER} elementos iniciales.`);
@@ -32352,16 +33195,15 @@ async function startPhaseActions() {
     }
     const shouldAutoAdvance = await animateExtractionPhase(playerId);
     renderAll();
-    if (shouldAutoAdvance && state.activePlayer === playerId && currentPhase().id === 'extraction') {
-      autoAdvanceExtractionToCasting(playerId);
-    }
+    if (shouldAutoAdvance && state.activePlayer === playerId && currentPhase().id === 'extraction') autoAdvanceExtractionToCasting(playerId);
     return true;
   }
   if (phase.id === 'casting') {
-    markOnlinePhaseStarted();
     const playerId = state.activePlayer;
     await generateCasterPureElementsAtCastingCadence(playerId);
     if (currentPhase().id !== 'casting' || state.activePlayer !== playerId) return false;
+    markOnlinePhaseStarted();
+    markOnlineStateDirty('casting-started');
     if (!state.pendingCard && !canPlayerCastAnyCard(playerId)) {
       autoAdvanceCastingToResolution(playerId);
       return true;
@@ -32373,15 +33215,14 @@ async function startPhaseActions() {
     return true;
   }
   if (phase.id === 'resolution') {
-    markOnlinePhaseStarted();
     const playerId = state.activePlayer;
     await resolveResolutionStartSequence(playerId);
     if (currentPhase().id !== 'resolution' || state.activePlayer !== playerId) return false;
-    prepareResolutionMoves(state.activePlayer);
+    prepareResolutionMoves(playerId);
     renderAll();
-    if (state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) {
-      await runEnemyResolutionPhase(state.activePlayer);
-    }
+    if (isOnlineMatchActive()) await commitOnlineStateBarrier(`resolution-ready:${onlinePhaseKey}`);
+    markOnlinePhaseStarted();
+    if (state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) await runEnemyResolutionPhase(state.activePlayer);
     return true;
   }
   markOnlinePhaseStarted();
@@ -32724,7 +33565,10 @@ const MOVE_ARROW_BY_DELTA = {
 
 function prepareResolutionMoves(playerId) {
   const player = state.players[playerId];
-  if (!player) return;
+  if (!player) return false;
+  const resolutionSerial = Math.max(0, Number(state.resolutionSerial || 0));
+  if (Number(player.resolutionMovesPreparedSerial || -1) === resolutionSerial) return false;
+  player.resolutionMovesPreparedSerial = resolutionSerial;
   player.caster.movesLeft = TEST_CASTER_MOVE_SPEED;
   player.units.forEach(unit => {
     const lockedByCombat = isUnitEngaged(unit) && !canMoveWhileEngagedToReachOwnAttackRange(playerId, unit);
@@ -32732,6 +33576,8 @@ function prepareResolutionMoves(playerId) {
     syncGoemonLegendaryInfiltrationState(playerId, unit);
     syncKurayamiNinjaEnemySideBonus(playerId, unit);
   });
+  markOnlineStateDirty('resolution-moves-prepared');
+  return true;
 }
 
 function restoreFukuroNoMeMoveIfStale(playerId, unit = null) {
@@ -37761,17 +38607,19 @@ async function playTacticaGuerraResolutionFx(title = 'TÁCTICA DE GUERRA', subti
 
 function playTacticaGuerraWaterRestoreFx(unit, delayMs = 0, options = {}) {
   if (!options.suppressOnlineFx) emitOnlineVisualEvent('tactica-water', { source: snapshotOnlineFxUnit(0, unit), delayMs: Number(delayMs || 0) });
-  if (!unit) return;
-  setTimeout(() => {
-    const point = getCellViewportCenter(unit.row, unit.col);
-    const fx = document.createElement('div');
-    fx.className = 'tactica-guerra-water-restore-fx';
-    fx.style.left = `${point.x}px`;
-    fx.style.top = `${point.y}px`;
-    fx.innerHTML = '<span class="tactica-water-ring ring-a"></span><span class="tactica-water-ring ring-b"></span><span class="tactica-water-ray ray-a"></span><span class="tactica-water-ray ray-b"></span><span class="tactica-water-ray ray-c"></span><i></i><i></i><i></i><i></i><i></i><i></i>';
-    document.body.appendChild(fx);
-    setTimeout(() => fx.remove(), 1700);
-  }, Math.max(0, Number(delayMs) || 0));
+  if (!unit) return Promise.resolve(false);
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const point = getCellViewportCenter(unit.row, unit.col);
+      const fx = document.createElement('div');
+      fx.className = 'tactica-guerra-water-restore-fx';
+      fx.style.left = `${point.x}px`;
+      fx.style.top = `${point.y}px`;
+      fx.innerHTML = '<span class="tactica-water-ring ring-a"></span><span class="tactica-water-ring ring-b"></span><span class="tactica-water-ray ray-a"></span><span class="tactica-water-ray ray-b"></span><span class="tactica-water-ray ray-c"></span><i></i><i></i><i></i><i></i><i></i><i></i>';
+      document.body.appendChild(fx);
+      setTimeout(() => { fx.remove(); resolve(true); }, 1700);
+    }, Math.max(0, Number(delayMs) || 0));
+  });
 }
 
 function applyTacticaGuerraNexusDestinations(playerId, units = [], destinations = []) {
@@ -41992,50 +42840,193 @@ function applyDamageToCaster(playerId, amount, reason = '', options = {}) {
 }
 
 function clearTransientBattleUiForRestart() {
-  closeGioshoninSupplyPrompt('restart', { silent: true });
+  try { closeGioshoninSupplyPrompt('restart', { silent: true }); } catch (_) {}
   document.getElementById('matchResultOverlay')?.remove();
-  document.querySelectorAll('.hud-floating-menu, .caster-defense-menu, .combat-target-menu, .combat-action-menu, .combat-choice-menu, .floating-damage, .floating-combat, .pure-element-travel-fx, .tokugawa-nexus-transfer-fx').forEach(node => node.remove());
-  if (els.transitionOverlay) els.transitionOverlay.classList.remove('visible');
-  if (els.opponentActionNotice) hideOpponentActionNoticeVisual();
-  if (els.cardInfoOverlay) closeCardInfo();
+  document.getElementById('quickReactionInputShield')?.remove();
+  document.querySelectorAll([
+    '.hud-floating-menu',
+    '.caster-defense-menu',
+    '.combat-target-menu',
+    '.combat-action-menu',
+    '.combat-choice-menu',
+    '.floating-damage',
+    '.floating-combat',
+    '.pure-element-travel-fx',
+    '.tokugawa-nexus-transfer-fx',
+    '.caster-defeat-fx',
+    '.element-burst-fx',
+    '.quick-reaction-execution-layer',
+    '.quick-reaction-command-dock-timer',
+    '.selected-unit-command-countdown',
+    '.kurokagi-drop-choice-overlay',
+    '.hattori-ability-overlay',
+    '.tokugawa-ability-overlay',
+    '.kurokagi-weapon-modal-overlay',
+    '.yasugana-power-modal-overlay',
+    '.kouuten-recast-overlay',
+    '.tactica-guerra-selection-overlay',
+  ].join(', ')).forEach(node => node.remove());
+  [
+    els.quickReactionModal,
+    els.gioshoninSupplyOverlay,
+    els.randomCostOverlay,
+    els.cardMetaInfoOverlay,
+    els.powerImagePreviewOverlay,
+    els.gameMenuOverlay,
+    els.targetAccessPanel,
+  ].forEach(node => {
+    if (!node) return;
+    node.classList.remove('open', 'visible', 'awaiting-confirm', 'quick-reaction-modal-executing');
+    node.setAttribute?.('aria-hidden', 'true');
+  });
+  if (els.transitionOverlay) els.transitionOverlay.classList.remove('visible', 'show');
+  if (els.transitionText) els.transitionText.classList.remove('fly-phase', 'pinned-top');
+  try { clearCombatMenus(); } catch (_) {}
+  try { hideOpponentActionNoticeVisual(); } catch (_) {}
+  if (els.cardInfoOverlay) { try { closeCardInfo(); } catch (_) {} }
 }
 
-function resetBattleForRematch(preserveWins = true) {
-  const wins = preserveWins ? { ...(state.matchWins || { 1: 0, 2: 0 }) } : { 1: 0, 2: 0 };
+function cancelBattleRuntimeForRestart(reason = 'match-reset') {
+  try { window.ROK_ONLINE_FX?.cancelAll?.(); } catch (_) {}
+  // Cualquier frame/microtask visual todavía pendiente pertenece al match que
+  // está cerrando. Se invalida antes de tocar el estado nuevo.
+  try { window.ROK_RENDER_ENGINE?.resetForMatch?.(); } catch (_) {}
+  // Cancelación central de todos los flujos largos que pueden sobrevivir a una
+  // partida. El estado nuevo nunca hereda resolvers, intervalos ni transiciones
+  // de la partida anterior.
+  clearTimeout(schedulePhaseStartActions.timer);
+  schedulePhaseStartActions.timer = null;
+  clearTimeout(scheduleSustainedCombatResolution.timer);
+  scheduleSustainedCombatResolution.timer = null;
+  clearTimeout(scheduleSustainedStructureAttacks.timer);
+  scheduleSustainedStructureAttacks.timer = null;
+  try { clearQueuedTransitions(); } catch (_) {}
+  try { stopQuickReactionDecisionCountdown(); } catch (_) {}
+  try { clearQuickReactionCommandDock(); } catch (_) {}
+  clearTimeout(hideQuickReactionInputShield.timer);
+  hideQuickReactionInputShield.timer = null;
+
+  const offTurn = state.offTurnCasterReposition;
+  if (offTurn?.timer) { clearInterval(offTurn.timer); offTurn.timer = null; }
+  if (offTurn?.active) {
+    try { finishOffTurnCasterReposition(reason); } catch (_) {
+      try { if (typeof offTurn.resolver === 'function') offTurn.resolver(reason); } catch (_) {}
+    }
+  }
+
+  const quick = state.quickReactionWindow;
+  if (quick?.phaseIntro && !quick.phaseIntro.done) {
+    try { finishQuickReactionPhaseIntro(reason); } catch (_) {
+      try { quick.phaseIntro.resolve?.(reason); } catch (_) {}
+    }
+  }
+  if (typeof quick?.resolver === 'function') {
+    try { quick.resolver(reason); } catch (_) {}
+    quick.resolver = null;
+  }
+  if (quick?.hideTimersByPlayer) {
+    Object.values(quick.hideTimersByPlayer).forEach(timer => clearTimeout(timer));
+    quick.hideTimersByPlayer = {};
+  }
+
+  const pendingPowerResolve = state.pendingPowerAction?.reactionResolve;
+  if (typeof pendingPowerResolve === 'function') {
+    try { pendingPowerResolve('cancelled'); } catch (_) {}
+  }
+  if (typeof state.hattoriAbilitySelectionResolver === 'function') {
+    try { state.hattoriAbilitySelectionResolver('cancelled'); } catch (_) {}
+    state.hattoriAbilitySelectionResolver = null;
+  }
+  if (state.opponentActionNoticeAwaiting) {
+    try { confirmOpponentActionNotice(reason); } catch (_) {}
+  }
+
+  const pause = state.globalGameplayPause;
+  if (pause && typeof pause === 'object') {
+    const waiters = Array.isArray(pause.waiters) ? [...pause.waiters] : [];
+    pause.tokens = {};
+    pause.waiters = [];
+    pause.serial = Math.max(0, Number(pause.serial || 0)) + 1;
+    waiters.forEach(resolve => { try { resolve(false); } catch (_) {} });
+  }
+
+  try { clearGioshoninSupplyPromptTimers(); } catch (_) {}
+  state.pendingCastTravelPromises = [];
+  state.pendingCastTravelCount = 0;
+  state.castTravelResolving = false;
+  state.pendingOnlineActionWindowPromise = null;
+  state.aiThinking = false;
+  state.enemyResolutionRunning = false;
+  state.semiAutoMovementAnimating = false;
+  state.opponentActionResolving = false;
+  state.actionExecutionLock = false;
+  state.actionExecutionLockReason = '';
+  state.selectedMover = null;
+  state.selectedTarget = null;
+  state.pendingPowerAction = null;
+  clearTransientBattleUiForRestart();
+}
+
+function replaceBattleStateForNewMatch(options = {}) {
+  const preserveWins = options.preserveWins !== false;
+  const wins = preserveWins
+    ? { ...(options.matchWins || state.matchWins || { 1: 0, 2: 0 }) }
+    : { 1: 0, 2: 0 };
   const hudMode = state.hudMode;
   const semiAutoMovement = state.semiAutoMovement;
-  const aiEnabled = state.aiEnabled;
-  clearTimeout(schedulePhaseStartActions.timer);
-  clearTimeout(scheduleSustainedCombatResolution.timer);
-  clearTimeout(scheduleSustainedStructureAttacks.timer);
-  clearTransientBattleUiForRestart();
+  const aiEnabled = options.aiEnabled === undefined ? state.aiEnabled : Boolean(options.aiEnabled);
+  const requestedMatchSerial = Math.max(1, Number(options.matchSerial || 0) || (Number(state.matchSerial || 1) + 1));
+
+  cancelBattleRuntimeForRestart(options.reason || 'match-reset');
   const fresh = JSON.parse(JSON.stringify(INITIAL_BATTLE_STATE));
   Object.keys(state).forEach(key => delete state[key]);
   Object.assign(state, fresh);
+  state.matchSerial = requestedMatchSerial;
   state.matchWins = wins;
   state.hudMode = hudMode;
   state.semiAutoMovement = semiAutoMovement;
   state.aiEnabled = aiEnabled;
   state.gameOver = false;
+  state.activeTab = 0;
   mainMenuBattleStarted = true;
+  return state;
+}
+
+function startFreshBattleRuntimeAfterReset(options = {}) {
   initializeElementDecks();
   prepareStartingElementStocks();
   enterPhase(true, true);
   renderAll();
   const introTransitions = [
-    { text: 'NUEVA PARTIDA', playerId: 1, duration: 1000 },
+    { text: options.title || 'NUEVA PARTIDA', playerId: 1, duration: 1000 },
     { text: '10 ELEMENTOS INICIALES', playerId: 1, duration: 880 },
   ];
   queueTransitions(introTransitions);
-  schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+  if (!isOnlineMatchActive() || Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) {
+    schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+  }
+}
+
+function resetBattleForRematch(preserveWins = true) {
+  if (isOnlineMatchActive()) {
+    window.ROK_MATCH_LIFECYCLE?.setRematchButtonState?.('requesting');
+    void window.ROK_ONLINE_PVP?.requestRematch?.().catch(error => {
+      reportDebugError('request-online-rematch', error);
+      window.ROK_MATCH_LIFECYCLE?.setRematchButtonState?.('error');
+    });
+    return;
+  }
+  replaceBattleStateForNewMatch({ preserveWins, aiEnabled: state.aiEnabled, reason: 'offline-rematch' });
+  startFreshBattleRuntimeAfterReset();
 }
 
 function exitMatchToMainMenu() {
-  if (isOnlineMatchActive()) window.ROK_ONLINE_PVP?.leaveRoom?.({ silent: true, keepMenu: true });
-  clearTimeout(schedulePhaseStartActions.timer);
-  clearTimeout(scheduleSustainedCombatResolution.timer);
-  clearTimeout(scheduleSustainedStructureAttacks.timer);
-  clearTransientBattleUiForRestart();
+  const leavingOnlineMatch = isOnlineMatchActive();
+  if (leavingOnlineMatch) {
+    ROK_ONLINE_MATCH_ACTIVE = false;
+    window.ROK_ONLINE_PVP?.leaveRoom?.({ silent: true, keepMenu: true });
+  }
+  cancelBattleRuntimeForRestart('exit-match');
   const fresh = JSON.parse(JSON.stringify(INITIAL_BATTLE_STATE));
   Object.keys(state).forEach(key => delete state[key]);
   Object.assign(state, fresh);
@@ -42058,6 +43049,7 @@ function showMatchResultOverlay(winnerPlayerId, defeatedPlayerId) {
     <h2>${localWon ? 'GANASTE LA PARTIDA' : 'PERDISTE LA PARTIDA'}</h2>
     <p>${getCasterDisplayName(state.players[defeatedPlayerId]?.caster, 'El Kaster rival')} cayó a 0 de vida.</p>
     <div class="match-result-score"><span>Hattori ${Number(state.matchWins?.[1] || 0)}</span><b>VS</b><span>Tokugawa ${Number(state.matchWins?.[2] || 0)}</span></div>
+    <p class="match-rematch-status" data-match-rematch-status aria-live="polite"></p>
     <div class="match-result-actions"><button type="button" data-match-action="rematch">Jugar otra partida</button><button type="button" data-match-action="menu">Salir al menú</button></div>
   </div>`;
   appendRokUiNode(overlay);
@@ -42094,8 +43086,101 @@ function handleCasterDefeat(defeatedPlayerId, winnerPlayerId = null) {
     window.setTimeout(() => fx.remove(), 1800);
   }
   renderAll();
-  window.setTimeout(() => showMatchResultOverlay(winner, defeatedPlayerId), 1150);
+  if (isOnlineMatchActive()) {
+    void window.ROK_ONLINE_PVP?.notifyMatchFinished?.(winner, defeatedPlayerId);
+    // El control de match es quien presenta el resultado a ambos clientes.
+    // Este fallback solo cubre una pérdida excepcional del canal de control.
+    window.setTimeout(() => {
+      if (!document.getElementById('matchResultOverlay')) showMatchResultOverlay(winner, defeatedPlayerId);
+    }, 1800);
+  } else {
+    window.setTimeout(() => showMatchResultOverlay(winner, defeatedPlayerId), 1150);
+  }
 }
+
+let lastOnlineMatchIntroSerial = 0;
+
+function setOnlineRematchButtonState(mode = '', control = null) {
+  const overlay = document.getElementById('matchResultOverlay');
+  if (!overlay) return;
+  const button = overlay.querySelector('[data-match-action="rematch"]');
+  const status = overlay.querySelector('[data-match-rematch-status]');
+  const votes = control?.rematchVotes || {};
+  const localVote = votes?.[LOCAL_PLAYER_ID];
+  const otherVote = votes?.[getOpponentId(LOCAL_PLAYER_ID)];
+  const starting = mode === 'starting' || control?.status === 'starting';
+  if (button) {
+    button.disabled = starting || mode === 'requesting' || Boolean(localVote);
+    button.textContent = starting
+      ? 'Preparando partida…'
+      : (localVote ? 'Revancha solicitada' : 'Jugar otra partida');
+  }
+  if (!status) return;
+  if (mode === 'error') status.textContent = 'No se pudo registrar la revancha. Inténtalo de nuevo.';
+  else if (starting) status.textContent = 'Ambos aceptaron. Reiniciando la partida…';
+  else if (localVote && !otherVote) status.textContent = 'Esperando que el rival acepte la revancha.';
+  else if (!localVote && otherVote) status.textContent = 'El rival quiere revancha.';
+  else if (localVote && otherVote) status.textContent = 'Revancha confirmada por ambos jugadores.';
+  else if (isOnlineMatchActive()) status.textContent = 'La revancha inicia únicamente cuando ambos jugadores la acepten.';
+  else status.textContent = '';
+}
+
+function prepareForIncomingOnlineMatchReset(matchSerial = null) {
+  cancelBattleRuntimeForRestart(`online-rematch:${Number(matchSerial || 0)}`);
+}
+
+function resetStateForOnlineRematch(options = {}) {
+  replaceBattleStateForNewMatch({
+    preserveWins: true,
+    matchWins: options.matchWins,
+    matchSerial: options.matchSerial,
+    aiEnabled: false,
+    reason: 'online-rematch-host',
+  });
+  return true;
+}
+
+function announceOnlineMatchStarted(options = {}) {
+  const serial = Math.max(1, Number(options.matchSerial || state.matchSerial || 1));
+  if (lastOnlineMatchIntroSerial === serial) return false;
+  lastOnlineMatchIntroSerial = serial;
+  document.getElementById('matchResultOverlay')?.remove();
+  clearTransientBattleUiForRestart();
+  renderAll();
+  const introTransitions = [
+    { text: serial > 1 ? 'NUEVA PARTIDA' : 'INICIA EL COMBATE', playerId: 1, duration: 1000 },
+    { text: '10 ELEMENTOS INICIALES', playerId: 1, duration: 880 },
+  ];
+  queueTransitions(introTransitions);
+  if (Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) {
+    schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+  }
+  return true;
+}
+
+function showOnlineMatchFinished(control = {}) {
+  const winner = Number(control.winnerPlayer || 0);
+  const defeated = Number(control.defeatedPlayer || (winner ? getOpponentId(winner) : 0));
+  state.gameOver = true;
+  state.aiThinking = false;
+  state.enemyResolutionRunning = false;
+  state.actionExecutionLock = true;
+  state.actionExecutionLockReason = 'match-finished';
+  if (control.matchWins && typeof control.matchWins === 'object') {
+    state.matchWins = { 1: Number(control.matchWins[1] || 0), 2: Number(control.matchWins[2] || 0) };
+  }
+  if (winner && defeated && !document.getElementById('matchResultOverlay')) showMatchResultOverlay(winner, defeated);
+  setOnlineRematchButtonState('', control);
+}
+
+window.ROK_MATCH_LIFECYCLE = {
+  cancelRuntime: cancelBattleRuntimeForRestart,
+  prepareForIncomingOnlineReset: prepareForIncomingOnlineMatchReset,
+  resetStateForOnlineRematch,
+  announceOnlineMatchStarted,
+  showOnlineMatchFinished,
+  setRematchButtonState: setOnlineRematchButtonState,
+};
 
 function showFloatingDamageAt(row, col, amount) {
   emitOnlineVisualEvent('floating-damage', { row: Number(row), col: Number(col), amount });
@@ -43149,9 +44234,10 @@ function renderCombatHud() {
   }
 
   const pairs = [...getActiveCombatPairs(), ...getGuardianCombatGroups()];
-  hud.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   hud.classList.toggle('visible', pairs.length > 0);
-  pairs.forEach(pair => hud.appendChild(createCombatPairNode(pair)));
+  pairs.forEach(pair => fragment.appendChild(createCombatPairNode(pair)));
+  hud.replaceChildren(fragment);
 }
 
 function setupCombatHudDragging(hud) {
@@ -43877,49 +44963,251 @@ function renderDespliegueAnticipadoTargetingGuide() {
   els.boardContent.appendChild(guide);
 }
 
-function renderAll() {
-  ensureRuntimeStateCollections();
-  cleanupInvalidGloriaLatenteLinks();
-  safeRenderStep('refreshGuardianAuraState', refreshGuardianAuraState);
-  safeRenderStep('refreshSmokeZoneEffects', refreshSmokeZoneEffects);
-  safeRenderStep('refreshLongNightEffects', refreshLongNightEffects);
-  safeRenderStep('syncSaqueadorNovatoSigiloState', syncSaqueadorNovatoSigiloState);
-  safeRenderStep('applyFountainColors', applyFountainColors);
-  safeRenderStep('renderPhaseUI', renderPhaseUI);
-  safeRenderStep('renderCards', renderCards);
-  safeRenderStep('renderResources', renderResources);
-  safeRenderStep('renderCastQueue', renderCastQueue);
-  safeRenderStep('renderEnemyMiniHud', renderEnemyMiniHud);
-  safeRenderStep('renderGridHighlights', renderGridHighlights);
-  safeRenderStep('renderSpawnMarkers', renderSpawnMarkers);
-  safeRenderStep('renderMoveOptions', renderMoveOptions);
-  safeRenderStep('renderTacticaGuerraNexusCursor', renderTacticaGuerraNexusCursor);
-  safeRenderStep('renderGuardianAuras', renderGuardianAuras);
-  safeRenderStep('renderMinokageAuras', renderMinokageAuras);
-  safeRenderStep('renderSmokeZones', renderSmokeZones);
-  safeRenderStep('renderCelestialLamps', renderCelestialLamps);
-  safeRenderStep('renderLongNightLayer', renderLongNightLayer);
-  safeRenderStep('renderArenaEffectTrackers', renderArenaEffectTrackers);
-  safeRenderStep('renderDroppedWeaponsLayer', renderDroppedWeaponsLayer);
-  safeRenderStep('renderUnits', renderUnits);
-  safeRenderStep('renderDespliegueAnticipadoTargetingGuide', renderDespliegueAnticipadoTargetingGuide);
-  safeRenderStep('renderParalysisLinksLayer', renderParalysisLinksLayer);
-  safeRenderStep('renderGuardianChannelFx', renderGuardianChannelFx);
-  safeRenderStep('renderMinokageChannelFxLayer', renderMinokageChannelFxLayer);
-  safeRenderStep('renderKaguyaChargeFxLayer', renderKaguyaChargeFxLayer);
-  safeRenderStep('renderSelectedUnitCommandPanel', renderSelectedUnitCommandPanel);
-  safeRenderStep('renderCombatHud', renderCombatHud);
-  safeRenderStep('renderTargetAccessPanel', renderTargetAccessPanel);
-  safeRenderStep('renderCasterStats', renderCasterStats);
-  safeRenderStep('renderCasterWidePanel', renderCasterWidePanel);
-  safeRenderStep('renderOpponentCasterHud', renderOpponentCasterHud);
-  safeRenderStep('renderVisualDevShowcase', renderVisualDevShowcase);
-  safeRenderStep('updateCardInfoAction', updateCardInfoAction);
-  safeRenderStep('refreshQuickReactionWindowVisibility', refreshQuickReactionWindowVisibility);
-  safeRenderStep('renderQuickReactionCancelHint', renderQuickReactionCancelHint);
-  safeRenderStep('refreshGioshoninSupplyPrompt', refreshGioshoninSupplyPrompt);
-  scheduleEligibleGoemonLegendaryInfiltrationCheck();
+// Etapa 5 · Motor de render batched.
+//
+// Antes cada mutación llamaba renderAll() de forma síncrona. En una sola
+// acción podían acumularse decenas de reconstrucciones completas del DOM,
+// y cada una volvía a marcar el snapshot online como dirty. El motor nuevo
+// colapsa todas las solicitudes del mismo frame en una sola pasada, mantiene
+// una ruta de flush inmediato para transiciones autoritativas y separa el
+// aviso de estado online del trabajo visual.
+let ROK_RENDER_FRAME_HANDLE = null;
+let ROK_RENDER_FALLBACK_TIMER = null;
+let ROK_RENDER_RUNNING = false;
+let ROK_RENDER_AGAIN = false;
+let ROK_RENDER_ONLINE_DIRTY_QUEUED = false;
+let ROK_RENDER_DIRTY_TOKEN = 0;
+let ROK_RENDER_SUPPRESS_ONLINE_DIRTY_DEPTH = 0;
+let ROK_RENDER_GEOMETRY_CACHE = null;
+let ROK_ARENA_CELL_CACHE = [];
+const ROK_RENDER_PENDING_REASONS = new Set();
+const ROK_RENDER_STATS = {
+  requested: 0,
+  flushed: 0,
+  coalesced: 0,
+  immediateFlushes: 0,
+  lastDurationMs: 0,
+  maxDurationMs: 0,
+  totalDurationMs: 0,
+  lastReasons: [],
+};
+
+function queueOnlineDirtyFromRender(reason = 'render-state-change') {
+  if (ROK_RENDER_SUPPRESS_ONLINE_DIRTY_DEPTH > 0 || ROK_RENDER_ONLINE_DIRTY_QUEUED) return;
+  ROK_RENDER_ONLINE_DIRTY_QUEUED = true;
+  const token = ++ROK_RENDER_DIRTY_TOKEN;
+  const flushDirty = () => {
+    // Un reset de partida invalida microtasks pertenecientes al match anterior.
+    if (token !== ROK_RENDER_DIRTY_TOKEN) return;
+    ROK_RENDER_ONLINE_DIRTY_QUEUED = false;
+    markOnlineStateDirty(reason || 'render-batch');
+  };
+  if (typeof queueMicrotask === 'function') queueMicrotask(flushDirty);
+  else Promise.resolve().then(flushDirty);
 }
+
+function captureRenderGeometry() {
+  if (!els?.boardContent) return null;
+  try {
+    const boardRect = els.boardContent.getBoundingClientRect();
+    const enemyRect = els.enemyGrid?.getBoundingClientRect?.() || null;
+    const allyRect = els.allyGrid?.getBoundingClientRect?.() || null;
+    const rootStyle = getComputedStyle(document.documentElement);
+    const readCachedRootNumber = (name, fallback) => {
+      const parsed = Number.parseFloat(rootStyle.getPropertyValue(name).trim());
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    return {
+      boardRect,
+      enemyRect,
+      allyRect,
+      boardWidth: Number(els.boardContent.offsetWidth || 0),
+      boardHeight: Number(els.boardContent.offsetHeight || 0),
+      enemyCellSize: {
+        width: readCachedRootNumber('--enemy-grid-width', 53.7) / 9,
+        height: readCachedRootNumber('--enemy-grid-height', 34.5) / 9,
+      },
+      allyCellSize: {
+        width: readCachedRootNumber('--ally-grid-width', 53.7) / 9,
+        height: readCachedRootNumber('--ally-grid-height', 39.5) / 9,
+      },
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function performRenderAll(reasons = []) {
+  if (ROK_RENDER_RUNNING) {
+    ROK_RENDER_AGAIN = true;
+    return false;
+  }
+  ROK_RENDER_RUNNING = true;
+  const startedAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  ROK_RENDER_GEOMETRY_CACHE = captureRenderGeometry();
+  try {
+    ensureRuntimeStateCollections();
+    cleanupInvalidGloriaLatenteLinks();
+    safeRenderStep('refreshGuardianAuraState', refreshGuardianAuraState);
+    safeRenderStep('refreshSmokeZoneEffects', refreshSmokeZoneEffects);
+    safeRenderStep('refreshLongNightEffects', refreshLongNightEffects);
+    safeRenderStep('syncSaqueadorNovatoSigiloState', syncSaqueadorNovatoSigiloState);
+    safeRenderStep('applyFountainColors', applyFountainColors);
+    safeRenderStep('renderPhaseUI', renderPhaseUI);
+    safeRenderStep('renderCards', renderCards);
+    safeRenderStep('renderResources', renderResources);
+    safeRenderStep('renderCastQueue', renderCastQueue);
+    safeRenderStep('renderEnemyMiniHud', renderEnemyMiniHud);
+    safeRenderStep('renderGridHighlights', renderGridHighlights);
+    safeRenderStep('renderSpawnMarkers', renderSpawnMarkers);
+    safeRenderStep('renderMoveOptions', renderMoveOptions);
+    safeRenderStep('renderTacticaGuerraNexusCursor', renderTacticaGuerraNexusCursor);
+    safeRenderStep('renderGuardianAuras', renderGuardianAuras);
+    safeRenderStep('renderMinokageAuras', renderMinokageAuras);
+    safeRenderStep('renderSmokeZones', renderSmokeZones);
+    safeRenderStep('renderCelestialLamps', renderCelestialLamps);
+    safeRenderStep('renderLongNightLayer', renderLongNightLayer);
+    safeRenderStep('renderArenaEffectTrackers', renderArenaEffectTrackers);
+    safeRenderStep('renderDroppedWeaponsLayer', renderDroppedWeaponsLayer);
+    safeRenderStep('renderUnits', renderUnits);
+    safeRenderStep('renderDespliegueAnticipadoTargetingGuide', renderDespliegueAnticipadoTargetingGuide);
+    safeRenderStep('renderParalysisLinksLayer', renderParalysisLinksLayer);
+    safeRenderStep('renderGuardianChannelFx', renderGuardianChannelFx);
+    safeRenderStep('renderMinokageChannelFxLayer', renderMinokageChannelFxLayer);
+    // renderUnits() ya mantiene esta capa; no repetir el mismo trabajo aquí.
+    safeRenderStep('renderSelectedUnitCommandPanel', renderSelectedUnitCommandPanel);
+    safeRenderStep('renderCombatHud', renderCombatHud);
+    safeRenderStep('renderTargetAccessPanel', renderTargetAccessPanel);
+    safeRenderStep('renderCasterStats', renderCasterStats);
+    safeRenderStep('renderCasterWidePanel', renderCasterWidePanel);
+    safeRenderStep('renderOpponentCasterHud', renderOpponentCasterHud);
+    safeRenderStep('renderVisualDevShowcase', renderVisualDevShowcase);
+    safeRenderStep('updateCardInfoAction', updateCardInfoAction);
+    safeRenderStep('refreshQuickReactionWindowVisibility', refreshQuickReactionWindowVisibility);
+    safeRenderStep('renderQuickReactionCancelHint', renderQuickReactionCancelHint);
+    safeRenderStep('refreshGioshoninSupplyPrompt', refreshGioshoninSupplyPrompt);
+    scheduleEligibleGoemonLegendaryInfiltrationCheck();
+    return true;
+  } finally {
+    ROK_RENDER_GEOMETRY_CACHE = null;
+    ROK_RENDER_RUNNING = false;
+    const endedAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const duration = Math.max(0, endedAt - startedAt);
+    ROK_RENDER_STATS.flushed += 1;
+    ROK_RENDER_STATS.lastDurationMs = duration;
+    ROK_RENDER_STATS.totalDurationMs += duration;
+    ROK_RENDER_STATS.maxDurationMs = Math.max(ROK_RENDER_STATS.maxDurationMs, duration);
+    ROK_RENDER_STATS.lastReasons = Array.isArray(reasons) ? reasons.slice(-12) : [];
+    if (ROK_RENDER_AGAIN) {
+      ROK_RENDER_AGAIN = false;
+      requestRenderAll('render-reentrant');
+    }
+  }
+}
+
+function cancelScheduledRenderFrame() {
+  if (ROK_RENDER_FRAME_HANDLE != null && typeof window.cancelAnimationFrame === 'function') {
+    try { window.cancelAnimationFrame(ROK_RENDER_FRAME_HANDLE); } catch (_) {}
+  }
+  ROK_RENDER_FRAME_HANDLE = null;
+  if (ROK_RENDER_FALLBACK_TIMER != null) {
+    try { window.clearTimeout(ROK_RENDER_FALLBACK_TIMER); } catch (_) {}
+  }
+  ROK_RENDER_FALLBACK_TIMER = null;
+}
+
+function resetRenderEngineForMatch() {
+  cancelScheduledRenderFrame();
+  ROK_RENDER_PENDING_REASONS.clear();
+  ROK_RENDER_AGAIN = false;
+  ROK_RENDER_ONLINE_DIRTY_QUEUED = false;
+  ROK_RENDER_DIRTY_TOKEN += 1;
+  ROK_RENDER_GEOMETRY_CACHE = null;
+  ROK_ARENA_CELL_CACHE = [];
+}
+
+function flushScheduledRender() {
+  cancelScheduledRenderFrame();
+  const reasons = Array.from(ROK_RENDER_PENDING_REASONS);
+  ROK_RENDER_PENDING_REASONS.clear();
+  // Una única señal dirty por pasada visual real. Ya no se generan señales
+  // redundantes por cada renderAll() que terminó colapsado en este frame.
+  queueOnlineDirtyFromRender('render-frame');
+  return performRenderAll(reasons);
+}
+
+function scheduleRenderFrame() {
+  if (ROK_RENDER_FRAME_HANDLE != null || ROK_RENDER_FALLBACK_TIMER != null) return;
+  const flush = () => flushScheduledRender();
+  if (typeof document !== 'undefined' && document.hidden) {
+    ROK_RENDER_FALLBACK_TIMER = window.setTimeout(flush, 16);
+    return;
+  }
+  if (typeof window.requestAnimationFrame === 'function') {
+    ROK_RENDER_FRAME_HANDLE = window.requestAnimationFrame(flush);
+  } else {
+    ROK_RENDER_FALLBACK_TIMER = window.setTimeout(flush, 16);
+  }
+}
+
+function requestRenderAll(reason = 'state-change') {
+  ROK_RENDER_STATS.requested += 1;
+  ROK_RENDER_PENDING_REASONS.add(String(reason || 'state-change'));
+  if (ROK_RENDER_RUNNING) {
+    ROK_RENDER_AGAIN = true;
+    ROK_RENDER_STATS.coalesced += 1;
+    return false;
+  }
+  if (ROK_RENDER_FRAME_HANDLE != null || ROK_RENDER_FALLBACK_TIMER != null) {
+    ROK_RENDER_STATS.coalesced += 1;
+    return false;
+  }
+  scheduleRenderFrame();
+  return true;
+}
+
+function flushRenderAllNow(reason = 'forced-render', options = {}) {
+  const suppressOnlineDirty = options.markOnlineDirty === false;
+  ROK_RENDER_STATS.immediateFlushes += 1;
+  ROK_RENDER_PENDING_REASONS.add(String(reason || 'forced-render'));
+  if (suppressOnlineDirty) ROK_RENDER_SUPPRESS_ONLINE_DIRTY_DEPTH += 1;
+  try {
+    return flushScheduledRender();
+  } finally {
+    if (suppressOnlineDirty) ROK_RENDER_SUPPRESS_ONLINE_DIRTY_DEPTH = Math.max(0, ROK_RENDER_SUPPRESS_ONLINE_DIRTY_DEPTH - 1);
+  }
+}
+
+// Compatibilidad con todo el código existente: renderAll ya no reconstruye
+// el DOM inmediatamente; solicita una sola pasada para el siguiente frame.
+function renderAll(reason = 'legacy-render') {
+  return requestRenderAll(reason);
+}
+
+window.ROK_RENDER_ENGINE = {
+  request: requestRenderAll,
+  flush: (reason = 'external-flush') => flushRenderAllNow(reason, { markOnlineDirty: false }),
+  getStats: () => ({
+    ...ROK_RENDER_STATS,
+    averageDurationMs: ROK_RENDER_STATS.flushed > 0
+      ? ROK_RENDER_STATS.totalDurationMs / ROK_RENDER_STATS.flushed
+      : 0,
+    pendingReasons: Array.from(ROK_RENDER_PENDING_REASONS),
+  }),
+  resetForMatch: resetRenderEngineForMatch,
+  resetStats: () => {
+    Object.assign(ROK_RENDER_STATS, {
+      requested: 0,
+      flushed: 0,
+      coalesced: 0,
+      immediateFlushes: 0,
+      lastDurationMs: 0,
+      maxDurationMs: 0,
+      totalDurationMs: 0,
+      lastReasons: [],
+    });
+  },
+};
 
 function updateOpponentThinkingNotice() {
   const notice = els.opponentThinkingNotice;
@@ -44225,7 +45513,7 @@ function renderCards() {
   const tab = localPlayer().handTabs[state.activeTab] || [];
   const reactionFocus = state.quickReactionSpellbookFocus;
   const focusOnThisPage = Boolean(reactionFocus && Number(reactionFocus.tab) === Number(state.activeTab));
-  els.cardGrid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   els.cardGrid.classList.toggle('quick-reaction-spellbook-focus-active', focusOnThisPage);
   for (let i = 0; i < 12; i++) {
     const slot = document.createElement('div');
@@ -44340,8 +45628,9 @@ function renderCards() {
     } else {
       slot.classList.add('empty');
     }
-    els.cardGrid.appendChild(slot);
+    fragment.appendChild(slot);
   }
+  els.cardGrid.replaceChildren(fragment);
 }
 
 
@@ -44532,7 +45821,7 @@ function bindArenaEffectTrackerInfo(item, zone) {
 function renderArenaEffectTrackers() {
   if (!els.arenaEffectTrackers) return;
   mountArenaEffectTrackersForHudMode();
-  els.arenaEffectTrackers.innerHTML = '';
+  const fragment = document.createDocumentFragment();
 
   // Contadores permanentes de consumibles recargables: permanecen mientras
   // la entidad dueña siga en la arena. Su burbuja usa el color de su dominio.
@@ -44559,7 +45848,7 @@ function renderArenaEffectTrackers() {
         event.stopPropagation();
         openSmokeBombStockInfo(playerId, unit);
       });
-      els.arenaEffectTrackers.appendChild(item);
+      fragment.appendChild(item);
     });
   }
 
@@ -44578,7 +45867,7 @@ function renderArenaEffectTrackers() {
       event.stopPropagation();
       openCardInfo(card.id, null, null, { source: 'activeSpell', playerId: link.playerId, targetUnitId: link.targetUnitId });
     });
-    els.arenaEffectTrackers.appendChild(item);
+    fragment.appendChild(item);
   });
 
   getActiveTentorouGroups().forEach(group => {
@@ -44599,7 +45888,7 @@ function renderArenaEffectTrackers() {
       event.stopPropagation();
       openCardInfo(card.id, null, null, { source: 'activeSpell', playerId: group.playerId, effectId: group.id });
     });
-    els.arenaEffectTrackers.appendChild(item);
+    fragment.appendChild(item);
   });
 
   getActiveLongNightGroups().forEach(group => {
@@ -44620,7 +45909,7 @@ function renderArenaEffectTrackers() {
       event.stopPropagation();
       openCardInfo(card.id, null, null, { source: 'activeSpell', playerId: group.playerId, effectId: group.id });
     });
-    els.arenaEffectTrackers.appendChild(item);
+    fragment.appendChild(item);
   });
 
   const zones = (Array.isArray(state.smokeZones) ? state.smokeZones : []).slice().sort((a, b) => {
@@ -44639,13 +45928,14 @@ function renderArenaEffectTrackers() {
     count.textContent = String(zone.phasesRemaining ?? 0);
     item.appendChild(count);
     bindArenaEffectTrackerInfo(item, zone);
-    els.arenaEffectTrackers.appendChild(item);
+    fragment.appendChild(item);
   });
+  els.arenaEffectTrackers.replaceChildren(fragment);
 }
 
 function renderResources() {
   const resources = sortResourcesForPlayer(localPlayer().resources, LOCAL_PLAYER_ID);
-  els.resourceBar.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   resources.forEach(res => {
     const token = document.createElement('div');
     token.className = 'orb resource-token';
@@ -44654,8 +45944,9 @@ function renderResources() {
     token.dataset.elementId = res.id;
     token.title = res.label || res.id || 'Elemento';
     token.innerHTML = `<img src="${res.icon || getElementCostIcon(res.id)}" alt="${res.label || res.id || 'Elemento'}">`;
-    els.resourceBar.appendChild(token);
+    fragment.appendChild(token);
   });
+  els.resourceBar.replaceChildren(fragment);
 }
 
 
@@ -44709,10 +46000,11 @@ function appendEnemyMiniResourceToken(container, resource, count = 1) {
 function renderEnemyMiniResources(enemy, enemyId, grouped = false) {
   const container = els.enemyMiniResources;
   if (!container) return;
-  container.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   const ordered = sortResourcesForPlayer(enemy.resources || [], enemyId);
   if (!grouped) {
-    ordered.forEach(resource => appendEnemyMiniResourceToken(container, resource, 1));
+    ordered.forEach(resource => appendEnemyMiniResourceToken(fragment, resource, 1));
+    container.replaceChildren(fragment);
     window.requestAnimationFrame(() => {
       if (container.scrollWidth > container.clientWidth + 2) renderEnemyMiniResources(enemy, enemyId, true);
     });
@@ -44725,7 +46017,8 @@ function renderEnemyMiniResources(enemy, enemyId, grouped = false) {
     current.count += 1;
     groups.set(id, current);
   });
-  groups.forEach(({ resource, count }) => appendEnemyMiniResourceToken(container, resource, count));
+  groups.forEach(({ resource, count }) => appendEnemyMiniResourceToken(fragment, resource, count));
+  container.replaceChildren(fragment);
 }
 
 function renderEnemyMiniHud() {
@@ -44736,7 +46029,7 @@ function renderEnemyMiniHud() {
 
   renderEnemyMiniResources(enemy, enemyId, false);
 
-  els.enemyMiniCastQueue.innerHTML = '';
+  const castFragment = document.createDocumentFragment();
   (enemy.castQueue || []).forEach((item, index) => {
     const card = CARD_LIBRARY[item.cardId];
     if (!card) return;
@@ -44753,8 +46046,9 @@ function renderEnemyMiniHud() {
     status.className = 'enemy-mini-cast-status';
     status.innerHTML = `<span class="cast-icon-badge enemy-mini-hourglass cooldown-time-badge">${CAST_ENTRY_ICON_INLINE_SVG}<span class="cast-corner-number enemy-mini-corner-number">${isActiveCast ? item.remaining : 'Q'}</span></span>`;
     div.appendChild(status);
-    els.enemyMiniCastQueue.appendChild(div);
+    castFragment.appendChild(div);
   });
+  els.enemyMiniCastQueue.replaceChildren(castFragment);
 
   window.requestAnimationFrame(updateEnemyMiniCastOverflowIndicator);
   els.enemyMiniHud.classList.toggle('empty', !(enemy.resources?.length) && !(enemy.castQueue?.length));
@@ -44786,7 +46080,7 @@ function scheduleCastIntroFinish(playerId, spawnId, duration = 940) {
 
 function renderCastQueue() {
   const queue = localPlayer().castQueue;
-  els.castQueue.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   queue.forEach((item, index) => {
     const card = CARD_LIBRARY[item.cardId];
     const isActiveCast = index === 0;
@@ -44853,17 +46147,29 @@ function renderCastQueue() {
       attachLinkHoverHandlers(div, item.spawnId, state.activePlayer, 'queue');
     }
 
-    els.castQueue.appendChild(div);
+    fragment.appendChild(div);
   });
+  els.castQueue.replaceChildren(fragment);
+}
+
+function getArenaCellCache() {
+  if (ROK_ARENA_CELL_CACHE.length
+    && ROK_ARENA_CELL_CACHE.every(entry => entry?.node?.isConnected)) {
+    return ROK_ARENA_CELL_CACHE;
+  }
+  ROK_ARENA_CELL_CACHE = Array.from(document.querySelectorAll('.cell')).map(node => ({
+    node,
+    row: Number(node.dataset.row),
+    col: Number(node.dataset.col),
+  }));
+  return ROK_ARENA_CELL_CACHE;
 }
 
 function renderGridHighlights() {
   const castingActive = Boolean(state.pendingCard);
   els.enemyGrid.classList.toggle('casting-active', castingActive);
   els.allyGrid.classList.toggle('casting-active', castingActive);
-  document.querySelectorAll('.cell').forEach(cell => {
-    const row = Number(cell.dataset.row);
-    const col = Number(cell.dataset.col);
+  getArenaCellCache().forEach(({ node: cell, row, col }) => {
     cell.classList.remove('caster-zone', 'selected-place', 'occupied');
     const pendingCard = state.pendingCard ? CARD_LIBRARY[state.pendingCard.cardId] : null;
     const blockedForCast = isCastPlacementBlockedForPlayer(row, col, state.pendingCard ? LOCAL_PLAYER_ID : null);
@@ -44881,7 +46187,7 @@ function renderGridHighlights() {
 
 function renderSpawnMarkers() {
   if (!els.spawnMarkersLayer) return;
-  els.spawnMarkersLayer.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   for (const playerId of [1, 2]) {
     const player = state.players[playerId];
     (player.spawnMarkers || []).forEach(marker => {
@@ -44912,14 +46218,16 @@ function renderSpawnMarkers() {
         holder.appendChild(status);
       }
       attachLinkHoverHandlers(holder, marker.id, playerId, 'marker');
-      els.spawnMarkersLayer.appendChild(holder);
+      fragment.appendChild(holder);
     });
   }
+  els.spawnMarkersLayer.replaceChildren(fragment);
 }
 
 function renderMoveOptions() {
   if (!els.moveOptionsLayer) return;
-  els.moveOptionsLayer.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  try {
 
 
   if (state.pendingPowerAction?.kind === 'emboscadaDestination') {
@@ -44938,7 +46246,7 @@ function renderMoveOptions() {
       div.title = `Emboscada · nexo ${index + 1}/${pending.selectedUnitIds.length} en ${coordLabel(opt.row,opt.col)}`;
       div.innerHTML = '<span class="tactica-guerra-target-glyph">✦</span>';
       div.addEventListener('click', async event => { event.stopPropagation(); await resolveEmboscadaDestination(Number(pending.playerId), opt.row, opt.col); });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -44967,7 +46275,7 @@ function renderMoveOptions() {
         event.stopPropagation();
         await resolveTacticaGuerraDestination(Number(pending.playerId), opt.row, opt.col);
       });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -44992,7 +46300,7 @@ function renderMoveOptions() {
         event.stopPropagation();
         await executeTokugawaReposition(opt.row, opt.col);
       });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -45019,7 +46327,7 @@ function renderMoveOptions() {
           event.stopPropagation();
           resolveCargaRealLocation(LOCAL_PLAYER_ID, row, col);
         });
-        els.moveOptionsLayer.appendChild(button);
+        fragment.appendChild(button);
       }
     }
     return;
@@ -45047,7 +46355,7 @@ function renderMoveOptions() {
           event.stopPropagation();
           resolveKouutenLocation(LOCAL_PLAYER_ID, row, col);
         });
-        els.moveOptionsLayer.appendChild(button);
+        fragment.appendChild(button);
       }
     }
     return;
@@ -45076,7 +46384,7 @@ function renderMoveOptions() {
           event.stopPropagation();
           resolveGurenGanLocation(LOCAL_PLAYER_ID, row, col);
         });
-        els.moveOptionsLayer.appendChild(button);
+        fragment.appendChild(button);
       }
     }
     return;
@@ -45112,7 +46420,7 @@ function renderMoveOptions() {
         event.stopPropagation();
         void resolveMinokagePowerTarget(pending.playerId, pending.unitId, target);
       });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -45141,7 +46449,7 @@ function renderMoveOptions() {
         event.stopPropagation();
         void resolveKaguyaChargedShotTarget(pending.playerId, pending.unitId, target);
       });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -45170,7 +46478,7 @@ function renderMoveOptions() {
         event.stopPropagation();
         resolveKurayamiPowerTarget(pending.playerId, pending.unitId, targetUnit.owner, targetUnit.id);
       });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -45202,7 +46510,7 @@ function renderMoveOptions() {
         event.stopPropagation();
         resolveYasuganaPowerTarget(pending.playerId, pending.unitId, targetUnit.owner, targetUnit.id, pending.kind);
       });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -45234,7 +46542,7 @@ function renderMoveOptions() {
       aura.style.width = `${size.width}%`;
       aura.style.height = `${size.height}%`;
       aura.setAttribute('aria-hidden', 'true');
-      els.moveOptionsLayer.appendChild(aura);
+      fragment.appendChild(aura);
     });
 
     return;
@@ -45260,7 +46568,7 @@ function renderMoveOptions() {
         event.stopPropagation();
         resolveSmokeBombAt(opt.row, opt.col);
       });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -45283,7 +46591,7 @@ function renderMoveOptions() {
         event.stopPropagation();
         await executeSemiAutoMovementTo(opt.row, opt.col);
       });
-      els.moveOptionsLayer.appendChild(div);
+      fragment.appendChild(div);
     });
     return;
   }
@@ -45306,8 +46614,11 @@ function renderMoveOptions() {
       event.stopPropagation();
       tryMoveSelectedTo(opt.row, opt.col);
     });
-    els.moveOptionsLayer.appendChild(div);
+    fragment.appendChild(div);
   });
+  } finally {
+    els.moveOptionsLayer.replaceChildren(fragment);
+  }
 }
 
 
@@ -45678,6 +46989,16 @@ function syncMinokagePersistentAnimationPhase(node, startedAt) {
   });
 }
 
+function isOnlineUnitConcealedFromViewer(ownerPlayerId, unit, viewerPlayerId = LOCAL_PLAYER_ID) {
+  if (!isOnlineMatchActive() || !unit || viewerPlayerId == null) return false;
+  return Number(ownerPlayerId) !== Number(viewerPlayerId) && unitHasActiveFactor(unit, 'hidden');
+}
+
+function isOnlineOwnHiddenUnit(ownerPlayerId, unit, viewerPlayerId = LOCAL_PLAYER_ID) {
+  if (!isOnlineMatchActive() || !unit || viewerPlayerId == null) return false;
+  return Number(ownerPlayerId) === Number(viewerPlayerId) && unitHasActiveFactor(unit, 'hidden');
+}
+
 function renderMinokageChannelFxLayer() {
   if (!els.minokageChannelFxLayer || !els.boardContent) return;
   const activeKeys = new Set();
@@ -45688,6 +47009,7 @@ function renderMinokageChannelFxLayer() {
   charges.forEach(charge => {
     const unit = getUnitById(charge.playerId, charge.unitId);
     if (!unit || unit.status === 'restoring' || !unit.minokageChanneling) return;
+    if (isOnlineUnitConcealedFromViewer(charge.playerId, unit)) return;
     if (!isMinokageChargeTargetValid(charge)) {
       clearMinokageChargeRuntime(charge, 'el objetivo murió, fue destruido o salió de la arena', true);
       return;
@@ -45761,21 +47083,68 @@ function getCasterPersistentInvocationCast(playerId) {
 }
 
 function renderUnits() {
-  els.unitsLayer.innerHTML = '';
+  if (!els.unitsLayer) return;
+  // Construir fuera del DOM vivo evita invalidar layout por cada ficha. La capa
+  // completa se intercambia una sola vez al final de la pasada.
+  const fragment = document.createDocumentFragment();
   for (const playerId of [1, 2]) {
     const player = state.players?.[playerId];
     if (!player?.caster) continue;
     const guardians = Array.isArray(player.guardians) ? player.guardians : [];
     const units = Array.isArray(player.units) ? player.units : [];
-    renderUnit(player.caster.row, player.caster.col, 'caster', getCasterTokenImage(player.caster), getCasterDisplayName(player.caster, `Kaster J${playerId}`), playerId, null, getPlayerElementColor(playerId));
-    guardians.filter(g => g.active !== false || g.destroying).forEach((g, index) => renderUnit(g.row, g.col, 'guardian', getGuardianAssetForPlayer(playerId), `Guardián ${index + 1} · RES ${g.resistance ?? 5}`, playerId, null, getOwnerColor(playerId), null, g.id));
+    renderUnit(
+      player.caster.row,
+      player.caster.col,
+      'caster',
+      getCasterTokenImage(player.caster),
+      getCasterDisplayName(player.caster, `Kaster J${playerId}`),
+      playerId,
+      null,
+      getPlayerElementColor(playerId),
+      null,
+      null,
+      { target: fragment },
+    );
+    guardians
+      .filter(g => g.active !== false || g.destroying)
+      .forEach((g, index) => renderUnit(
+        g.row,
+        g.col,
+        'guardian',
+        getGuardianAssetForPlayer(playerId),
+        `Guardián ${index + 1} · RES ${g.resistance ?? 5}`,
+        playerId,
+        null,
+        getOwnerColor(playerId),
+        null,
+        g.id,
+        { target: fragment },
+      ));
     units.forEach(unit => {
       if (unit.restoreAnimating) return;
+      // PvP: Oculto es información visual privada. El propietario conserva su
+      // ficha como referencia semitransparente; el rival no recibe ningún nodo
+      // DOM de esa invocación, por lo que tampoco ve hitbox, stats ni badges.
+      if (isOnlineUnitConcealedFromViewer(playerId, unit)) return;
       const card = CARD_LIBRARY[unit.cardId];
+      if (!card) return;
       const element = getElementById(getUnitElementId(playerId, unit));
-      renderUnit(unit.row, unit.col, 'invocation', card.tokenImage, card.name, playerId, unit.spawnId, element?.color || '#ffffff', unit.id);
+      renderUnit(
+        unit.row,
+        unit.col,
+        'invocation',
+        card.tokenImage,
+        card.name,
+        playerId,
+        unit.spawnId,
+        element?.color || '#ffffff',
+        unit.id,
+        null,
+        { target: fragment },
+      );
     });
   }
+  els.unitsLayer.replaceChildren(fragment);
   renderKaguyaChargeFxLayer();
 }
 
@@ -45800,6 +47169,7 @@ function renderKaguyaChargeFxLayer() {
     units.forEach(unit => {
       const visual = getKaguyaChargeVisualState(unit);
       if (!visual?.active || unit.status === 'restoring' || unit.restoreAnimating) return;
+      if (isOnlineUnitConcealedFromViewer(playerId, unit)) return;
       const key = `p${playerId}_${unit.id}`;
       activeKeys.add(key);
       let node = layer.querySelector(`[data-kaguya-fx-key="${key}"]`);
@@ -45966,7 +47336,7 @@ function applyStandardArenaSelectionVisual(div, src, title = 'Seleccionable') {
   return true;
 }
 
-function renderUnit(row, col, type, src, label, playerId = null, spawnId = null, glowColor = '#ffffff', unitId = null, guardianId = null) {
+function renderUnit(row, col, type, src, label, playerId = null, spawnId = null, glowColor = '#ffffff', unitId = null, guardianId = null, renderOptions = null) {
   const div = document.createElement('div');
   div.className = `unit ${type}`;
   div.dataset.row = String(row);
@@ -45994,6 +47364,9 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
   if (unitState?.cardId) {
     div.dataset.cardId = unitState.cardId;
     div.classList.add(`unit-card-${unitState.cardId}`);
+  }
+  if (type === 'invocation' && unitState && isOnlineOwnHiddenUnit(playerId, unitState)) {
+    div.classList.add('unit-online-hidden-own');
   }
   if (type === 'invocation' && unitState && (unitHasCamuflajeHidden(unitState) || unitHasSaqueadorSigiloHidden(unitState))) {
     div.classList.add('unit-camuflaje-hidden');
@@ -46151,8 +47524,8 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
       castingFx.style.setProperty('--caster-cast-glow-delay', `-${elapsed % 3600}ms`);
 
       const cellSize = getBoardCellSizePercent(row);
-      const boardWidth = Number(els.boardContent?.offsetWidth || 0);
-      const boardHeight = Number(els.boardContent?.offsetHeight || 0);
+      const boardWidth = Number(ROK_RENDER_GEOMETRY_CACHE?.boardWidth ?? els.boardContent?.offsetWidth ?? 0);
+      const boardHeight = Number(ROK_RENDER_GEOMETRY_CACHE?.boardHeight ?? els.boardContent?.offsetHeight ?? 0);
       if (boardWidth > 0 && boardHeight > 0) {
         // El círculo vive dentro de board-content y ya hereda su zoom. Usar
         // getBoundingClientRect() aquí aplicaba el zoom una segunda vez.
@@ -46571,7 +47944,9 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
   if (type === 'invocation' && spawnId && playerId !== null) {
     attachLinkHoverHandlers(hitbox, spawnId, playerId, 'unit');
   }
-  els.unitsLayer.appendChild(div);
+  const renderTarget = renderOptions?.target || els.unitsLayer;
+  if (renderTarget && renderOptions?.append !== false) renderTarget.appendChild(div);
+  return div;
 }
 
 
@@ -46931,9 +48306,11 @@ function renderCasterWidePanel() {
 }
 
 function cellCenter(row, col) {
-  const boardRect = els.boardContent.getBoundingClientRect();
-  const gridEl = row >= 9 ? els.allyGrid : els.enemyGrid;
-  const gridRect = gridEl.getBoundingClientRect();
+  const cached = ROK_RENDER_GEOMETRY_CACHE;
+  const boardRect = cached?.boardRect || els.boardContent.getBoundingClientRect();
+  const gridRect = row >= 9
+    ? (cached?.allyRect || els.allyGrid.getBoundingClientRect())
+    : (cached?.enemyRect || els.enemyGrid.getBoundingClientRect());
   const localRow = row >= 9 ? row - 9 : row;
   return {
     x: ((gridRect.left - boardRect.left) + ((col + 0.5) / 9) * gridRect.width) / boardRect.width * 100,
@@ -47813,13 +49190,20 @@ function readRootNumber(name, fallback) {
 
 
 function getBoardCellSizePercent(row) {
-  const enemyWidth = readRootNumber('--enemy-grid-width', 53.7);
-  const enemyHeight = readRootNumber('--enemy-grid-height', 34.5);
-  const allyWidth = readRootNumber('--ally-grid-width', 53.7);
-  const allyHeight = readRootNumber('--ally-grid-height', 39.5);
-  if (row < 9) {
-    return { width: enemyWidth / 9, height: enemyHeight / 9 };
+  const cached = ROK_RENDER_GEOMETRY_CACHE;
+  if (cached?.enemyCellSize && cached?.allyCellSize) {
+    return row < 9 ? cached.enemyCellSize : cached.allyCellSize;
   }
+  const rootStyle = getComputedStyle(document.documentElement);
+  const readValue = (name, fallback) => {
+    const parsed = Number.parseFloat(rootStyle.getPropertyValue(name).trim());
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  const enemyWidth = readValue('--enemy-grid-width', 53.7);
+  const enemyHeight = readValue('--enemy-grid-height', 34.5);
+  const allyWidth = readValue('--ally-grid-width', 53.7);
+  const allyHeight = readValue('--ally-grid-height', 39.5);
+  if (row < 9) return { width: enemyWidth / 9, height: enemyHeight / 9 };
   return { width: allyWidth / 9, height: allyHeight / 9 };
 }
 

@@ -43441,3 +43441,1051 @@ body.rok-battle-mode .cast-panel .small-note {
     top .48s cubic-bezier(.2,.78,.18,1),
     filter .2s ease;
 }
+
+/* ========================================================================== 
+   R.O.K Lite v547 · Aventura: preparación VS, identidad del Kaster y flujo
+   de combate. Mantener después de las reglas v545 para que prevalezcan.
+   ========================================================================== */
+
+/* El mapa de Agua llena por completo su recuadro. El JS calcula un cover
+   conservando la relación natural 916/1717 y desplaza la imagen al marcador. */
+.adventure-water-map-frame {
+  place-items: stretch !important;
+}
+
+.adventure-water-map-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  aspect-ratio: auto !important;
+  overflow: hidden;
+}
+
+.adventure-water-map-canvas > .adventure-map-image {
+  inset: auto !important;
+  left: var(--water-map-left, 0px) !important;
+  top: var(--water-map-top, 0px) !important;
+  width: var(--water-map-width, 100%) !important;
+  height: var(--water-map-height, 100%) !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: fill !important;
+  object-position: center !important;
+  transition:
+    left .48s cubic-bezier(.2,.78,.18,1),
+    top .48s cubic-bezier(.2,.78,.18,1),
+    width .48s cubic-bezier(.2,.78,.18,1),
+    height .48s cubic-bezier(.2,.78,.18,1) !important;
+}
+
+/* Dominios y cualidades interactivos. */
+.adventure-caster-domain-panel {
+  pointer-events: auto !important;
+}
+
+.adventure-domain-emblem {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.adventure-domain-emblem:hover,
+.adventure-domain-emblem:focus-visible {
+  filter: drop-shadow(0 0 11px rgba(113,218,255,.7)) drop-shadow(0 5px 8px rgba(0,0,0,.66));
+  outline: none;
+}
+
+.adventure-quality-tag,
+.adventure-role-pill {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.adventure-quality-tag:hover,
+.adventure-quality-tag:focus-visible,
+.adventure-role-pill:hover,
+.adventure-role-pill:focus-visible {
+  border-color: rgba(116,221,255,.5);
+  background: rgba(27,106,132,.2);
+  outline: none;
+}
+
+.adventure-role-pill {
+  text-align: left;
+}
+
+.adventure-role-pill > span {
+  display: block;
+}
+
+/* Debajo del nombre del rival mostramos identidad de Kaster, raza/sexo y
+   cualidades propias. Las dominantes permanecen en Enfoque del Spellbook. */
+.adventure-quality-tags {
+  align-items: center;
+}
+
+.adventure-identity-tag {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(112,190,215,.25);
+  background: rgba(8,25,33,.7);
+  color: #c7e7f1;
+  font: 700 10px/1 Cinzel, Georgia, serif;
+  letter-spacing: .045em;
+}
+
+button.adventure-identity-tag {
+  cursor: pointer;
+}
+
+button.adventure-identity-tag:hover,
+button.adventure-identity-tag:focus-visible {
+  border-color: rgba(111,221,255,.6);
+  background: rgba(20,89,111,.28);
+  outline: none;
+}
+
+.adventure-identity-tag img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: block;
+}
+
+.adventure-identity-tag.muted {
+  opacity: .7;
+}
+
+.adventure-identity-fallback {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.05);
+}
+
+/* -------------------------- Preparar combate -------------------------- */
+.adventure-prepare-view {
+  display: block;
+  min-height: 0;
+}
+
+.adventure-prep-shell {
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid rgba(216,182,107,.27);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(36,134,166,.16), transparent 35%),
+    linear-gradient(180deg, rgba(13,18,24,.94), rgba(4,8,13,.96));
+  box-shadow: 0 16px 34px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.022);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.adventure-prep-versus-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(290px, .74fr) minmax(320px, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.adventure-prep-side,
+.adventure-prep-center {
+  min-width: 0;
+  min-height: 0;
+}
+
+.adventure-prep-side {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.adventure-prep-side-kicker,
+.adventure-player-caster-picker > small,
+.adventure-prep-arena-copy small,
+.adventure-prep-spellbook-card small,
+.adventure-caster-detail-copy > small,
+.adventure-caster-detail-dominant-block > small,
+.adventure-spellbook-head small {
+  color: #b8dbe7;
+  font: 700 10px/1 Cinzel, Georgia, serif;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.adventure-prep-caster-card {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(112,193,219,.25);
+  background: linear-gradient(180deg, rgba(8,18,25,.92), rgba(4,9,14,.96));
+  color: inherit;
+  cursor: pointer;
+  box-shadow: inset 0 0 24px rgba(74,181,219,.05), 0 12px 26px rgba(0,0,0,.32);
+}
+
+.adventure-prep-caster-card:hover,
+.adventure-prep-caster-card:focus-visible {
+  border-color: rgba(105,221,255,.58);
+  outline: none;
+}
+
+.adventure-prep-caster-card-rival {
+  background: radial-gradient(circle at 50% 36%, rgba(101,52,68,.16), transparent 36%), linear-gradient(180deg, rgba(13,17,23,.96), rgba(5,8,12,.98));
+}
+
+.adventure-prep-caster-card-player {
+  background: radial-gradient(circle at 50% 36%, rgba(73,140,76,.17), transparent 36%), linear-gradient(180deg, rgba(10,20,18,.96), rgba(5,9,12,.98));
+}
+
+.adventure-prep-art-wrap {
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: end center;
+  padding: 8px 16px 0;
+}
+
+.adventure-prep-art-wrap::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 38%;
+  background: linear-gradient(transparent, rgba(3,8,12,.9));
+  pointer-events: none;
+}
+
+.adventure-prep-art-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 16px 20px rgba(0,0,0,.62));
+}
+
+.adventure-prep-caster-copy {
+  position: relative;
+  z-index: 2;
+  padding: 10px 12px 12px;
+  display: grid;
+  gap: 5px;
+  text-align: left;
+}
+
+.adventure-prep-caster-copy > strong {
+  color: #f2e7ce;
+  font: 700 18px/1.1 Cinzel, Georgia, serif;
+}
+
+.adventure-prep-caster-copy > small {
+  color: rgba(204,218,225,.62);
+  font: 700 9px/1 Cinzel, Georgia, serif;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.adventure-prep-dominants,
+.adventure-caster-detail-dominants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.adventure-dominant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 29px;
+  padding: 3px 8px 3px 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(100,193,219,.22);
+  background: rgba(8,27,35,.75);
+  color: #c4e7f1;
+  font: 700 9px/1.1 Cinzel, Georgia, serif;
+}
+
+.adventure-dominant-chip.compact {
+  min-height: 24px;
+  padding-right: 6px;
+  font-size: 8px;
+}
+
+.adventure-dominant-chip small {
+  color: rgba(241,211,146,.65);
+  font-size: 7px;
+  letter-spacing: .05em;
+}
+
+.adventure-prep-center {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.adventure-prep-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 58px;
+  color: #f3dfb2;
+  font: 900 46px/.9 Cinzel, Georgia, serif;
+  text-shadow: 0 0 18px rgba(228,187,91,.4), 0 4px 10px #000;
+}
+
+.adventure-prep-vs span:first-child { transform: translateX(2px) rotate(-5deg); }
+.adventure-prep-vs span:last-child { transform: translateX(-2px) rotate(5deg); }
+
+.adventure-prep-arena-card,
+.adventure-prep-spellbook-card,
+.adventure-player-caster-picker {
+  border-radius: 14px;
+  border: 1px solid rgba(112,183,207,.2);
+  background: rgba(7,17,23,.82);
+  box-shadow: inset 0 0 16px rgba(73,169,199,.045);
+}
+
+.adventure-prep-arena-card {
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: minmax(120px, 1fr) auto;
+}
+
+.adventure-prep-arena-visual {
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.adventure-prep-arena-visual img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transform: scale(1.24);
+  filter: saturate(.85) contrast(1.05) brightness(.8);
+}
+
+.adventure-prep-arena-visual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 38px rgba(0,0,0,.7);
+  pointer-events: none;
+}
+
+.adventure-prep-arena-badge {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 2;
+  padding: 4px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(226,195,119,.3);
+  background: rgba(4,8,12,.82);
+  color: #d8c28c;
+  font: 700 8px/1 Cinzel, Georgia, serif;
+  letter-spacing: .08em;
+}
+
+.adventure-prep-arena-copy {
+  padding: 9px 10px 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.adventure-prep-arena-copy strong,
+.adventure-prep-spellbook-card strong {
+  color: #f0e4ca;
+  font: 700 14px/1.15 Cinzel, Georgia, serif;
+}
+
+.adventure-prep-arena-copy > span,
+.adventure-prep-spellbook-card > div > span {
+  color: rgba(210,222,228,.66);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.adventure-prep-spellbook-card {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.adventure-prep-spellbook-card > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.adventure-secondary-btn {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(108,193,221,.36);
+  background: rgba(11,56,72,.62);
+  color: #cdebf4;
+  font: 700 9px/1 Cinzel, Georgia, serif;
+  cursor: pointer;
+}
+
+.adventure-secondary-btn:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
+.adventure-player-caster-picker {
+  padding: 8px;
+  display: grid;
+  gap: 7px;
+}
+
+.adventure-player-caster-list {
+  display: grid;
+  gap: 6px;
+}
+
+.adventure-player-caster-option {
+  width: 100%;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 48px minmax(0,1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(98,171,193,.16);
+  background: rgba(5,13,18,.78);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adventure-player-caster-option.selected {
+  border-color: rgba(103,219,255,.55);
+  background: rgba(19,83,104,.24);
+}
+
+.adventure-player-caster-option img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.adventure-player-caster-option span {
+  display: grid;
+  gap: 3px;
+}
+
+.adventure-player-caster-option b {
+  color: #efe3cb;
+  font: 700 11px/1.1 Cinzel, Georgia, serif;
+}
+
+.adventure-player-caster-option small {
+  color: rgba(200,217,225,.6);
+  font-size: 8px;
+}
+
+.adventure-combat-btn {
+  justify-self: center;
+  min-width: 270px;
+  min-height: 48px;
+  font-size: 15px;
+  letter-spacing: .12em;
+}
+
+/* ------------------------------ Ficha modal ------------------------------ */
+.adventure-caster-detail-overlay,
+.adventure-spellbook-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  place-items: center;
+  padding: 26px;
+  box-sizing: border-box;
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(7px);
+}
+
+.adventure-caster-detail-overlay.open,
+.adventure-spellbook-overlay.open {
+  display: grid;
+}
+
+.adventure-caster-detail-shell {
+  position: relative;
+  width: min(980px, 92%);
+  height: min(610px, 88%);
+  display: grid;
+  grid-template-columns: minmax(360px, .9fr) minmax(420px, 1.1fr);
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(216,182,107,.34);
+  background: radial-gradient(circle at 28% 40%, rgba(49,150,178,.14), transparent 36%), linear-gradient(135deg, #071119, #06090f 65%);
+  box-shadow: 0 24px 60px rgba(0,0,0,.68), inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+.adventure-modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(5,8,12,.82);
+  color: #eee4d4;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.adventure-caster-detail-shell > .adventure-modal-close {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  z-index: 4;
+}
+
+.adventure-caster-detail-art {
+  min-height: 0;
+  position: relative;
+  display: grid;
+  place-items: end center;
+  overflow: hidden;
+  padding: 22px 8px 0;
+  background: linear-gradient(90deg, rgba(6,17,23,.95), rgba(8,18,24,.42));
+}
+
+.adventure-caster-detail-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 20px 24px rgba(0,0,0,.72));
+}
+
+.adventure-caster-detail-copy {
+  min-height: 0;
+  padding: 30px 28px 24px;
+  overflow: auto;
+}
+
+.adventure-caster-detail-copy h2 {
+  margin: 5px 0 10px;
+  color: #f2e5c8;
+  font: 700 28px/1.05 Cinzel, Georgia, serif;
+}
+
+.adventure-caster-detail-identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.adventure-caster-detail-stats {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 10px;
+}
+
+.adventure-detail-stat-section,
+.adventure-detail-profile {
+  border: 1px solid rgba(113,181,204,.17);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(8,22,29,.58);
+}
+
+.adventure-detail-stat-section > b {
+  display: block;
+  margin-bottom: 6px;
+  color: #e4cd99;
+  font: 700 10px/1 Cinzel, Georgia, serif;
+  text-transform: uppercase;
+}
+
+.adventure-detail-stat-section > span,
+.adventure-detail-profile > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  color: rgba(210,226,234,.77);
+  font-size: 10px;
+}
+
+.adventure-detail-stat-section em {
+  font-style: normal;
+}
+
+.adventure-detail-stat-section strong,
+.adventure-detail-profile b {
+  color: #e9f7fb;
+}
+
+.adventure-detail-profile {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 4px 12px;
+}
+
+.adventure-detail-profile > span {
+  display: grid;
+  justify-content: initial;
+  gap: 2px;
+}
+
+.adventure-caster-detail-dominant-block {
+  margin-top: 14px;
+  display: grid;
+  gap: 7px;
+}
+
+/* -------------------------- Biblioteca Aventura -------------------------- */
+.adventure-spellbook-shell {
+  width: min(1220px, 96%);
+  height: min(720px, 92%);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr);
+  border-radius: 20px;
+  border: 1px solid rgba(216,182,107,.32);
+  background: linear-gradient(180deg, #0a1016, #05080d);
+  box-shadow: 0 24px 60px rgba(0,0,0,.7);
+}
+
+.adventure-spellbook-head {
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid rgba(216,182,107,.17);
+}
+
+.adventure-spellbook-head h2 {
+  margin: 3px 0 4px;
+  color: #f1e5cc;
+  font: 700 24px/1.05 Cinzel, Georgia, serif;
+}
+
+.adventure-spellbook-head p {
+  margin: 0;
+  max-width: 760px;
+  color: rgba(212,224,230,.68);
+  font-size: 11px;
+}
+
+.adventure-spellbook-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adventure-spellbook-head-actions > strong {
+  color: #c9f0fb;
+  font: 700 14px/1 Cinzel, Georgia, serif;
+}
+
+.adventure-spellbook-grid {
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0,1fr));
+  align-content: start;
+  gap: 10px;
+}
+
+.adventure-spellbook-card {
+  min-width: 0;
+  min-height: 178px;
+  display: grid;
+  grid-template-rows: 118px auto auto;
+  gap: 5px;
+  padding: 7px;
+  border-radius: 12px;
+  border: 1px solid rgba(105,173,197,.17);
+  background: rgba(9,18,24,.82);
+  color: inherit;
+  text-align: left;
+}
+
+.adventure-spellbook-card.unlocked {
+  cursor: pointer;
+}
+
+.adventure-spellbook-card.selected {
+  border-color: rgba(86,217,255,.65);
+  box-shadow: inset 0 0 18px rgba(56,178,218,.12);
+}
+
+.adventure-spellbook-card.locked {
+  opacity: .36;
+  filter: grayscale(.85);
+}
+
+.adventure-spellbook-card-art {
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(0,0,0,.3);
+}
+
+.adventure-spellbook-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.adventure-spellbook-card b {
+  overflow: hidden;
+  color: #e9dfca;
+  font: 700 10px/1.15 Cinzel, Georgia, serif;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.adventure-spellbook-card small {
+  color: rgba(190,211,220,.6);
+  font-size: 8px;
+}
+
+/* ----------------------- Presentación cinematográfica -------------------- */
+.adventure-battle-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: none;
+  overflow: hidden;
+  background: #020408;
+  color: white;
+}
+
+.adventure-battle-intro[aria-hidden="false"] {
+  display: block;
+}
+
+.adventure-intro-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(27,125,161,.2), transparent 34%),
+    radial-gradient(circle at 80% 50%, rgba(110,70,42,.17), transparent 34%),
+    linear-gradient(90deg, #07131b, #06070b 47%, #06070b 53%, #15100b);
+}
+
+.adventure-intro-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 49.7%, rgba(235,204,130,.45) 50%, transparent 50.3%);
+  opacity: 0;
+  transition: opacity .4s ease 1.2s;
+}
+
+.adventure-battle-intro.active .adventure-intro-bg::after {
+  opacity: 1;
+}
+
+.adventure-intro-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  overflow: hidden;
+}
+
+.adventure-intro-rival { left: 0; }
+.adventure-intro-player { right: 0; }
+
+.adventure-intro-caster {
+  position: absolute;
+  bottom: -5%;
+  width: 73%;
+  height: 88%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 24px 30px rgba(0,0,0,.8));
+  opacity: 0;
+}
+
+.adventure-intro-rival .adventure-intro-caster {
+  left: 4%;
+  transform: translateX(-35%);
+}
+
+.adventure-intro-player .adventure-intro-caster {
+  right: 3%;
+  transform: translateX(35%);
+}
+
+.adventure-battle-intro.active .adventure-intro-rival .adventure-intro-caster {
+  animation: adventureIntroCasterLeft .55s cubic-bezier(.16,.8,.2,1) .15s forwards;
+}
+
+.adventure-battle-intro.active .adventure-intro-player .adventure-intro-caster {
+  animation: adventureIntroCasterRight .55s cubic-bezier(.16,.8,.2,1) 1.3s forwards;
+}
+
+@keyframes adventureIntroCasterLeft {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes adventureIntroCasterRight {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.adventure-intro-name {
+  position: absolute;
+  z-index: 5;
+  top: 12%;
+  max-width: 70%;
+  opacity: 0;
+}
+
+.adventure-intro-rival .adventure-intro-name {
+  left: 5%;
+  transform: translateX(-30px);
+}
+
+.adventure-intro-player .adventure-intro-name {
+  right: 5%;
+  text-align: right;
+  transform: translateX(30px);
+}
+
+.adventure-battle-intro.active .adventure-intro-rival .adventure-intro-name {
+  animation: adventureIntroName .4s ease .55s forwards;
+}
+
+.adventure-battle-intro.active .adventure-intro-player .adventure-intro-name {
+  animation: adventureIntroName .4s ease 1.65s forwards;
+}
+
+@keyframes adventureIntroName {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.adventure-intro-name small {
+  display: block;
+  color: #b8e8f6;
+  font: 700 12px/1 Cinzel, Georgia, serif;
+  letter-spacing: .18em;
+}
+
+.adventure-intro-name strong {
+  display: block;
+  margin-top: 6px;
+  color: #f3e6c8;
+  font: 900 30px/1.02 Cinzel, Georgia, serif;
+  text-shadow: 0 4px 14px rgba(0,0,0,.85);
+}
+
+.adventure-intro-vs {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%,-50%);
+  display: flex;
+  color: #f5ddb0;
+  font: 900 94px/.8 Cinzel, Georgia, serif;
+  text-shadow: 0 0 24px rgba(246,201,105,.45), 0 8px 18px #000;
+  pointer-events: none;
+}
+
+.adventure-intro-vs span {
+  opacity: 0;
+  transform: scale(2.6) rotate(-12deg);
+}
+
+.adventure-battle-intro.active .intro-v {
+  animation: adventureVsHit .28s cubic-bezier(.1,.85,.2,1.2) .9s forwards;
+}
+
+.adventure-battle-intro.active .intro-s {
+  animation: adventureVsHit .28s cubic-bezier(.1,.85,.2,1.2) 1.1s forwards;
+}
+
+@keyframes adventureVsHit {
+  70% { opacity: 1; transform: scale(.84) rotate(4deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+.adventure-intro-dominants {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  bottom: 7%;
+  height: 29%;
+  pointer-events: none;
+}
+
+.adventure-intro-invocation {
+  --intro-index: 0;
+  position: absolute;
+  bottom: 0;
+  width: 24%;
+  height: 100%;
+  display: grid;
+  place-items: end center;
+  opacity: 0;
+  filter: drop-shadow(0 12px 16px rgba(0,0,0,.76));
+}
+
+.adventure-intro-invocation:nth-child(1) { left: 4%; }
+.adventure-intro-invocation:nth-child(2) { left: 26%; }
+.adventure-intro-invocation:nth-child(3) { left: 48%; }
+
+.adventure-intro-invocation img {
+  width: 100%;
+  height: calc(100% - 30px);
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.adventure-intro-invocation > span {
+  position: absolute;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(3,8,12,.78);
+  border: 1px solid rgba(110,200,228,.25);
+  color: #cde9f1;
+  font: 700 8px/1 Cinzel, Georgia, serif;
+  white-space: nowrap;
+}
+
+.adventure-battle-intro.active .adventure-intro-rival .adventure-intro-invocation {
+  animation: adventureInvocationDrop .46s cubic-bezier(.12,.76,.16,1) calc(.95s + var(--intro-index) * .14s) forwards;
+}
+
+.adventure-battle-intro.active .adventure-intro-player .adventure-intro-invocation {
+  animation: adventureInvocationDrop .46s cubic-bezier(.12,.76,.16,1) calc(1.85s + var(--intro-index) * .14s) forwards;
+}
+
+@keyframes adventureInvocationDrop {
+  0% { opacity: 0; transform: translateY(-120px) scale(1.45); filter: blur(7px) drop-shadow(0 12px 16px rgba(0,0,0,.76)); }
+  75% { opacity: 1; transform: translateY(8px) scale(.94); filter: blur(0) drop-shadow(0 12px 16px rgba(0,0,0,.76)); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0) drop-shadow(0 12px 16px rgba(0,0,0,.76)); }
+}
+
+.adventure-intro-countdown {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  color: #fff0c8;
+  font: 900 160px/.8 Cinzel, Georgia, serif;
+  text-shadow: 0 0 34px rgba(255,210,111,.58), 0 8px 22px #000;
+  opacity: 0;
+}
+
+.adventure-battle-intro.counting .adventure-intro-countdown:not(:empty) {
+  opacity: 1;
+  animation: adventureCountPulse .7s ease infinite;
+}
+
+@keyframes adventureCountPulse {
+  0% { transform: translate(-50%,-50%) scale(1.55); opacity: 0; }
+  28% { opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(.72); opacity: 0; }
+}
+
+.adventure-intro-combat-flyer {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(.3);
+  padding: 22px 0;
+  border-top: 1px solid rgba(255,223,151,.42);
+  border-bottom: 1px solid rgba(255,223,151,.42);
+  background: linear-gradient(90deg, transparent, rgba(7,13,19,.94) 18%, rgba(49,37,21,.94) 50%, rgba(7,13,19,.94) 82%, transparent);
+  color: #ffe9b8;
+  font: 900 72px/1 Cinzel, Georgia, serif;
+  letter-spacing: .18em;
+  text-align: center;
+  text-shadow: 0 0 20px rgba(255,207,104,.5), 0 5px 12px #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adventure-battle-intro.combat-ready .adventure-intro-combat-flyer {
+  animation: adventureCombatFlyer .75s cubic-bezier(.15,.78,.16,1) forwards;
+}
+
+@keyframes adventureCombatFlyer {
+  0% { opacity: 0; transform: translateY(-50%) scaleX(.2) scaleY(.3); }
+  36% { opacity: 1; transform: translateY(-50%) scaleX(1.05) scaleY(1); }
+  100% { opacity: 1; transform: translateY(-50%) scaleX(1) scaleY(1); }
+}
+
+@container rok-app-stage (max-width: 1180px) {
+  .adventure-prep-versus-grid {
+    grid-template-columns: minmax(250px,1fr) minmax(240px,.7fr) minmax(250px,1fr);
+  }
+  .adventure-spellbook-grid {
+    grid-template-columns: repeat(5,minmax(0,1fr));
+  }
+}
+
+/* v5.5.272 · Revancha PvP coordinada y estado de espera. */
+.match-rematch-status {
+  min-height: 20px;
+  margin: -10px 0 20px !important;
+  color: rgba(255,255,255,.78);
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+.match-result-actions button:disabled {
+  cursor: wait;
+  opacity: .58;
+  filter: saturate(.65);
+  transform: none !important;
+}
+
+/* Etapa 7 · Oculto en PvP online.
+   El token rival no se crea en game.js. El propietario conserva una referencia
+   digital semitransparente para poder controlar su propia invocación. */
+.unit.invocation.unit-online-hidden-own {
+  opacity: .46;
+}
+.unit.invocation.unit-online-hidden-own > .unit-token-img {
+  filter:
+    saturate(.72)
+    contrast(.94)
+    drop-shadow(0 0 8px rgba(151, 96, 255, .42))
+    drop-shadow(0 8px 8px rgba(0,0,0,.48));
+}

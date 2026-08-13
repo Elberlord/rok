@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>R.O.K LITE</title>
-  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=533-unified-logical-fx-coordinates" />
+  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=547-stage7-authoritative-consistency-v4" />
   <link rel="icon" href="assets/kast-cell-icon.jpg" />
 </head>
 <body>
@@ -255,6 +255,114 @@
           </article>
         </section>
       </div>
+
+      <div id="adventurePrepareView" class="adventure-view adventure-prepare-view" hidden>
+        <section class="adventure-prep-shell" aria-label="Preparación de combate">
+          <div class="adventure-prep-versus-grid">
+            <article class="adventure-prep-side adventure-prep-rival-side">
+              <span class="adventure-prep-side-kicker">KASTER RIVAL</span>
+              <button id="adventurePrepRivalCard" class="adventure-prep-caster-card adventure-prep-caster-card-rival" type="button" aria-label="Ver ficha del Kaster rival">
+                <span class="adventure-prep-art-wrap"><img id="adventurePrepRivalImage" alt="Kaster rival"></span>
+                <span class="adventure-prep-caster-copy">
+                  <strong id="adventurePrepRivalName">Kaster rival</strong>
+                  <small>Dominantes del Spellbook</small>
+                  <span id="adventurePrepRivalDominants" class="adventure-prep-dominants"></span>
+                </span>
+              </button>
+            </article>
+
+            <section class="adventure-prep-center" aria-label="Versus y configuración">
+              <div class="adventure-prep-vs" aria-hidden="true"><span>V</span><span>S</span></div>
+              <article class="adventure-prep-arena-card">
+                <div class="adventure-prep-arena-visual">
+                  <img id="adventurePrepArenaImage" src="assets/adventure/water-region-map.png" alt="Previsualización de la arena">
+                  <span id="adventurePrepArenaBadge" class="adventure-prep-arena-badge">PREVISUALIZACIÓN</span>
+                </div>
+                <div class="adventure-prep-arena-copy">
+                  <small>ARENA DEL ENFRENTAMIENTO</small>
+                  <strong id="adventurePrepArenaName">Arena de Agua</strong>
+                  <span>Cada rival tendrá una arena propia. La imagen actual sirve como previsualización hasta cargar los escenarios finales.</span>
+                </div>
+              </article>
+              <article class="adventure-prep-spellbook-card">
+                <div>
+                  <small>SPELLBOOK DEL JUGADOR</small>
+                  <strong>Spellbook de Aventura</strong>
+                  <span id="adventurePrepSpellbookStatus">Edición bloqueada hasta derrotar a Kiara.</span>
+                </div>
+                <button id="adventurePrepEditSpellbookBtn" class="adventure-secondary-btn" type="button" disabled>Spellbook bloqueado</button>
+              </article>
+            </section>
+
+            <article class="adventure-prep-side adventure-prep-player-side">
+              <span class="adventure-prep-side-kicker">TU KASTER</span>
+              <button id="adventurePrepPlayerCard" class="adventure-prep-caster-card adventure-prep-caster-card-player" type="button" aria-label="Ver ficha de tu Kaster">
+                <span class="adventure-prep-art-wrap"><img id="adventurePrepPlayerImage" src="assets/adventure/player/default-player-kaster.png" alt="Kaster del jugador"></span>
+                <span class="adventure-prep-caster-copy">
+                  <strong id="adventurePrepPlayerName">Kaster inicial</strong>
+                  <small>Dominantes del Spellbook</small>
+                  <span id="adventurePrepPlayerDominants" class="adventure-prep-dominants"></span>
+                </span>
+              </button>
+              <div class="adventure-player-caster-picker">
+                <small>SELECCIONA TU KASTER</small>
+                <div id="adventurePlayerCasterList" class="adventure-player-caster-list"></div>
+              </div>
+            </article>
+          </div>
+          <button id="adventureCombatBtn" class="adventure-primary-btn adventure-combat-btn" type="button">Combatir</button>
+        </section>
+      </div>
+
+      <section id="adventureCasterDetailOverlay" class="adventure-caster-detail-overlay" aria-hidden="true">
+        <article class="adventure-caster-detail-shell" role="dialog" aria-modal="true" aria-labelledby="adventureCasterDetailName">
+          <button id="adventureCasterDetailCloseBtn" class="adventure-modal-close" type="button" aria-label="Cerrar">×</button>
+          <div class="adventure-caster-detail-art">
+            <img id="adventureCasterDetailImage" alt="Kaster">
+          </div>
+          <div class="adventure-caster-detail-copy">
+            <small id="adventureCasterDetailKicker">TU KASTER</small>
+            <h2 id="adventureCasterDetailName">Kaster</h2>
+            <div id="adventureCasterDetailIdentity" class="adventure-caster-detail-identity"></div>
+            <div id="adventureCasterDetailStats" class="adventure-caster-detail-stats"></div>
+            <div class="adventure-caster-detail-dominant-block">
+              <small>CUALIDADES DOMINANTES DEL SPELLBOOK</small>
+              <div id="adventureCasterDetailDominants" class="adventure-caster-detail-dominants"></div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section id="adventureSpellbookOverlay" class="adventure-spellbook-overlay" aria-hidden="true">
+        <article class="adventure-spellbook-shell" role="dialog" aria-modal="true" aria-labelledby="adventureSpellbookTitle">
+          <header class="adventure-spellbook-head">
+            <div>
+              <small>AVENTURA · COLECCIÓN DESBLOQUEADA</small>
+              <h2 id="adventureSpellbookTitle">Editar Spellbook</h2>
+              <p>Se muestran todas las cartas, pero solo pueden usarse las obtenidas en Aventura y las que ya forman parte del Spellbook.</p>
+            </div>
+            <div class="adventure-spellbook-head-actions"><strong id="adventureSpellbookCounter">0/30</strong><button id="adventureSpellbookCloseBtn" class="adventure-modal-close" type="button" aria-label="Cerrar">×</button></div>
+          </header>
+          <div id="adventureSpellbookGrid" class="adventure-spellbook-grid"></div>
+        </article>
+      </section>
+
+      <section id="adventureBattleIntro" class="adventure-battle-intro" aria-hidden="true">
+        <div class="adventure-intro-bg" aria-hidden="true"></div>
+        <div class="adventure-intro-side adventure-intro-rival">
+          <img id="adventureIntroRivalImage" class="adventure-intro-caster" alt="Kaster rival">
+          <div class="adventure-intro-name"><small>RIVAL</small><strong id="adventureIntroRivalName">Kaster rival</strong></div>
+          <div id="adventureIntroRivalDominants" class="adventure-intro-dominants"></div>
+        </div>
+        <div class="adventure-intro-vs" aria-hidden="true"><span class="intro-v">V</span><span class="intro-s">S</span></div>
+        <div class="adventure-intro-side adventure-intro-player">
+          <img id="adventureIntroPlayerImage" class="adventure-intro-caster" alt="Kaster del jugador">
+          <div class="adventure-intro-name"><small>JUGADOR</small><strong id="adventureIntroPlayerName">Kaster inicial</strong></div>
+          <div id="adventureIntroPlayerDominants" class="adventure-intro-dominants"></div>
+        </div>
+        <div id="adventureIntroCountdown" class="adventure-intro-countdown" aria-live="assertive"></div>
+        <div class="adventure-intro-combat-flyer">COMBATE</div>
+      </section>
 
       <div id="adventureNotice" class="adventure-notice" aria-live="polite"></div>
     </div>
@@ -1337,7 +1445,7 @@
     }());
   </script>
   <script src="rok-layout-scale.js?v=528-smoke-action-window-cast-geometry"></script>
-  <script src="game.js?v=533-unified-logical-fx-coordinates"></script>
-  <script src="firebase-online.js?v=528-smoke-action-window-cast-geometry"></script>
+  <script src="game.js?v=547-stage7-authoritative-consistency-v4"></script>
+  <script src="firebase-online.js?v=547-stage7-authoritative-consistency-v4"></script>
 </body>
 </html>

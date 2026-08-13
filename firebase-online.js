@@ -21,7 +21,8 @@
   const FIREBASE_VERSION = '12.16.0';
   const ROOM_ROOT = 'rooms';
   const ROOM_CODE_LENGTH = 6;
-  const SYNC_INTERVAL_MS = 220;
+  const SYNC_DEBOUNCE_MS = 90;
+  const SYNC_WATCHDOG_MS = 1800;
   const REMOTE_DEFENSE_TIMEOUT_MS = 45000;
   const REMOTE_ACTION_WINDOW_TIMEOUT_MS = 60000;
   const SESSION_STORAGE_KEY = 'rok_online_room_session_v2';
@@ -38,7 +39,10 @@
     egypt: { id: 'egypt', label: 'Arena Egipto', src: 'assets/arena-egipto.webp' },
   });
 
-  const ONLINE_SNAPSHOT_SCHEMA_VERSION = 2;
+  const ONLINE_SNAPSHOT_SCHEMA_VERSION = 4;
+  const ONLINE_FX_SCHEMA_VERSION = 2;
+  const ONLINE_FX_RETENTION_MS = 18000;
+  const ONLINE_FX_DEFAULT_MAX_REPLAY_AGE_MS = 9000;
 
   // Estado autoritativo que debe ser idéntico en ambos navegadores.
   // La UI transitoria (menús, selección local, resolvers, etc.) NO viaja aquí.
@@ -52,6 +56,7 @@
     'phaseTransitionChangedPlayer',
     'phaseTransitionReason',
     'gameOver',
+    'matchSerial',
     'matchWins',
     'phaseUndo',
     'resolutionUndoReturn',
@@ -71,6 +76,8 @@
     'droppedWeapons',
     'kouutenProgressiveByPlayer',
     'extractedThisPhase',
+    'openingElementsDealt',
+    'openingExtractionSkippedByPlayer',
     'players',
   ];
 
@@ -95,7 +102,10 @@
     if (SNAPSHOT_ARRAY_KEYS.has(key)) return [];
     if (key === 'phaseUndo' || key === 'resolutionUndoReturn') return null;
     if (key === 'turnActionByPlayer') return { 1: null, 2: null };
+    if (key === 'matchSerial') return 1;
     if (key === 'kouutenProgressiveByPlayer') return {};
+    if (key === 'openingElementsDealt') return false;
+    if (key === 'openingExtractionSkippedByPlayer') return { 1: false, 2: false };
     if (key === 'phaseTransitionSerial') return 0;
     if (key === 'phaseTransitionFrom') return 'initial';
     if (key === 'phaseTransitionTo') return 'extraction';
@@ -113,18 +123,71 @@
   let roomPath = '';
   let playerSlot = 0;
   let roomUnsubscribe = null;
+  let authoritativeUnsubscribe = null;
+  let interactionUnsubscribe = null;
+  let priorityActionUnsubscribe = null;
+  let matchPlayersUnsubscribe = null;
+  let matchStatusUnsubscribe = null;
+  let matchControlUnsubscribe = null;
   let fxUnsubscribe = null;
   let fxListenerStartedAt = 0;
   const handledFxEventIds = new Set();
   let presenceDisconnect = null;
   let syncTimer = null;
   let publishTimer = null;
+  let localStateDirty = false;
+  let localMutationSerial = 0;
+  let lastPublishedMutationSerial = 0;
+  let publishQueueTail = Promise.resolve(false);
+  let remoteFxPlaybackTail = Promise.resolve();
+  let outboundFxPublishTail = Promise.resolve(true);
+  let fxPlaybackGeneration = 1;
+  let outboundFxSequence = 0;
+  let fxListenerGeneration = 0;
+  let fxListenerFloorKey = '';
+  let firebaseServerTimeOffsetMs = 0;
+  const lastFxSequenceByAuthor = new Map();
+  const activeParallelFxPlaybacks = new Set();
+  const pendingFxCleanupEntries = new Map();
+  let fxCleanupTimer = null;
+  const fxStats = {
+    emitted: 0,
+    emitFailed: 0,
+    received: 0,
+    played: 0,
+    skippedDuplicate: 0,
+    skippedOwn: 0,
+    skippedMatch: 0,
+    skippedStale: 0,
+    skippedUnsupported: 0,
+    revisionWaits: 0,
+    revisionWaitFailures: 0,
+    parallelPlayed: 0,
+    serialPlayed: 0,
+  };
   let roomCache = null;
   let lastKnownRevision = 0;
   let lastSnapshotText = '';
+  let lastAuthoritativeSnapshot = null;
+  let lastAuthoritativeSnapshotText = '';
+  let lastAuthoritativeSnapshotHash = '';
+  const consistencyStats = {
+    validatedOutgoing: 0,
+    rejectedOutgoing: 0,
+    validatedIncoming: 0,
+    rejectedIncoming: 0,
+    hashMismatch: 0,
+    passiveChecks: 0,
+    passiveRepairs: 0,
+    actionWindowRejected: 0,
+    legacySnapshots: 0,
+    lastIssue: '',
+  };
   let lastObservedPhaseKey = '';
   let lastStartedPhaseKey = '';
   let phaseDeliveryScheduledKey = '';
+  let phaseDeliveryInFlightKey = '';
+  let phaseDeliveryPromise = null;
   let lastAnnouncedPhaseKey = '';
   let phaseDeliveryRetryTimer = null;
   let pendingPhaseDeliveryContext = null;
@@ -132,7 +195,13 @@
   let applyingRemoteSnapshot = false;
   let publishingSnapshot = false;
   let startingOnlineBattle = false;
+  let startingOnlineRematch = false;
+  let matchControlCache = null;
+  const networkCleanupTimers = new Set();
+  const pendingInteractionAborters = new Set();
   let handledInteractionId = '';
+  let passiveConsistencySuspendUntil = 0;
+  const handledInteractionIds = new Set();
   let leavingRoom = false;
   let localStateReady = false;
   let onlineLobbyView = 'home';
@@ -509,7 +578,7 @@
       try {
         const roomSnap = await api.get(api.ref(db, roomRefPath(normalized)));
         const oldRoom = roomSnap.val();
-        if (String(oldRoom?.hostUid || '') === uid && !oldRoom?.game?.snapshot) {
+        if (String(oldRoom?.hostUid || '') === uid && !getAuthoritativeGameState(oldRoom)?.snapshot) {
           await api.remove(api.ref(db, roomRefPath(normalized)));
         }
       } catch (_) {}
@@ -716,7 +785,7 @@
   }
 
   async function configureLobbyDisconnects(room) {
-    if (!roomPath || !playerSlot || !uid || room?.game?.snapshot) {
+    if (!roomPath || !playerSlot || !uid || getAuthoritativeGameState(room)?.snapshot) {
       await cancelLobbyDisconnects();
       return;
     }
@@ -741,7 +810,7 @@
   }
 
   async function reconcileLobbyAsHost(room) {
-    if (playerSlot !== 1 || hostLobbyReconcileBusy || !roomPath || room?.game?.snapshot) return;
+    if (playerSlot !== 1 || hostLobbyReconcileBusy || !roomPath || getAuthoritativeGameState(room)?.snapshot) return;
     hostLobbyReconcileBusy = true;
     try {
       const api = await loadFirebase();
@@ -791,16 +860,44 @@
 
   function deepClone(value) {
     if (value === undefined) return undefined;
+    // El snapshot que viaja a RTDB debe ser JSON-safe: este clon elimina
+    // undefined y cualquier dato no serializable exactamente igual que
+    // Firebase espera. La optimización de Etapa 5 consiste en ejecutarlo una
+    // sola vez sobre el snapshot completo, no una vez por cada clave.
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function getAuthoritativeGameState(room = roomCache) {
+    if (!room || typeof room !== 'object') return null;
+    if (room.game?.authoritative?.snapshot) return room.game.authoritative;
+    // Compatibilidad de lectura con salas creadas antes de la separación de canales.
+    if (room.game?.snapshot) return room.game;
+    return null;
+  }
+
+  function authoritativeGamePath() {
+    return `${roomPath}/game/authoritative`;
+  }
+
+  function interactionsPath() {
+    return `${roomPath}/game/interactions`;
+  }
+
+  function matchControlPath() {
+    return `${roomPath}/game/matchControl`;
+  }
+
+  function currentMatchSerial() {
+    return Math.max(1, Number(state.matchSerial || 1));
   }
 
   function phaseKeyFromSnapshot(snapshot) {
     if (!snapshot) return '';
-    return `${Number(snapshot.turnSerial || 0)}:${Number(snapshot.activePlayer || 0)}:${Number(snapshot.phaseIndex || 0)}`;
+    return `${Math.max(1, Number(snapshot.matchSerial || 1))}:${Number(snapshot.turnSerial || 0)}:${Number(snapshot.activePlayer || 0)}:${Number(snapshot.phaseIndex || 0)}`;
   }
 
   function currentLocalPhaseKey() {
-    return `${Number(state.turnSerial || 0)}:${Number(state.activePlayer || 0)}:${Number(state.phaseIndex || 0)}`;
+    return `${currentMatchSerial()}:${Number(state.turnSerial || 0)}:${Number(state.activePlayer || 0)}:${Number(state.phaseIndex || 0)}`;
   }
 
   function currentPhaseContext() {
@@ -816,26 +913,157 @@
     };
   }
 
-  function makeBattleSnapshot() {
-    const snapshot = { _schemaVersion: ONLINE_SNAPSHOT_SCHEMA_VERSION };
+  function getBattleSnapshotSource() {
+    const source = { _schemaVersion: ONLINE_SNAPSHOT_SCHEMA_VERSION };
     SNAPSHOT_KEYS.forEach(key => {
       if (Object.prototype.hasOwnProperty.call(state, key)) {
-        snapshot[key] = deepClone(state[key]);
+        source[key] = state[key];
         return;
       }
       const fallback = snapshotDefaultValue(key);
-      if (fallback !== undefined) snapshot[key] = deepClone(fallback);
+      if (fallback !== undefined) source[key] = fallback;
     });
-    snapshot.aiEnabled = false;
-    return snapshot;
+    source.aiEnabled = false;
+    return source;
+  }
+
+  function stableJsonValue(value) {
+    if (Array.isArray(value)) return value.map(entry => stableJsonValue(entry));
+    if (!value || typeof value !== 'object') return value;
+    const sorted = {};
+    Object.keys(value).sort().forEach(key => {
+      const entry = value[key];
+      if (entry === undefined || typeof entry === 'function' || typeof entry === 'symbol') return;
+      sorted[key] = stableJsonValue(entry);
+    });
+    return sorted;
+  }
+
+  function stableSnapshotText(value) {
+    return JSON.stringify(stableJsonValue(value));
+  }
+
+  function hashSnapshotText(text = '') {
+    // FNV-1a 32-bit: no es una firma criptográfica; sirve para detectar
+    // divergencias/corrupción accidental entre el payload escrito y leído.
+    let hash = 0x811c9dc5;
+    const value = String(text || '');
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index);
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return hash.toString(16).padStart(8, '0');
+  }
+
+  function auditSnapshotSource(source, options = {}) {
+    try {
+      const auditor = window.ROK_STATE_INTEGRITY?.audit;
+      if (typeof auditor !== 'function') return { ok: true, issues: [], warnings: [] };
+      return auditor(source, { repair: options.repair === true });
+    } catch (error) {
+      return { ok: false, issues: [{ code: 'integrity-audit-failed', path: 'state', detail: String(error?.message || error) }], warnings: [] };
+    }
+  }
+
+  function formatIntegrityIssue(report) {
+    const first = report?.issues?.[0];
+    if (!first) return 'estado inválido';
+    return `${first.code}${first.path ? ` @ ${first.path}` : ''}${first.detail ? ` · ${first.detail}` : ''}`;
+  }
+
+  function normalizeAuthoritativeSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    const copy = deepClone(snapshot);
+    SNAPSHOT_KEYS.forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(copy, key)) return;
+      const fallback = snapshotDefaultValue(key);
+      if (fallback !== undefined) copy[key] = deepClone(fallback);
+    });
+    copy._schemaVersion = Math.max(1, Number(copy._schemaVersion || ONLINE_SNAPSHOT_SCHEMA_VERSION));
+    copy.aiEnabled = false;
+    if (typeof ensureRuntimeStateCollections === 'function') ensureRuntimeStateCollections(copy);
+    if (!copy.openingExtractionSkippedByPlayer || typeof copy.openingExtractionSkippedByPlayer !== 'object') {
+      copy.openingExtractionSkippedByPlayer = { 1: false, 2: false };
+    } else {
+      copy.openingExtractionSkippedByPlayer = {
+        1: copy.openingExtractionSkippedByPlayer[1] === true,
+        2: copy.openingExtractionSkippedByPlayer[2] === true,
+      };
+    }
+    copy.openingElementsDealt = copy.openingElementsDealt === true;
+    return copy;
+  }
+
+  function makeBattleSnapshotPacket() {
+    // Etapa 7: primero normalizamos y auditamos el ESTADO LÓGICO que va a
+    // viajar. Un valor no JSON-safe o una identidad duplicada ya no puede
+    // convertirse silenciosamente en el estado autoritativo de la sala.
+    try {
+      if (typeof ensureRuntimeStateCollections === 'function') ensureRuntimeStateCollections(state);
+      const source = getBattleSnapshotSource();
+      const report = auditSnapshotSource(source, { repair: true });
+      if (!report.ok) {
+        consistencyStats.rejectedOutgoing += 1;
+        consistencyStats.lastIssue = formatIntegrityIssue(report);
+        return { text: '', snapshot: null, hash: '', report };
+      }
+      const snapshot = JSON.parse(JSON.stringify(source));
+      const text = stableSnapshotText(snapshot);
+      consistencyStats.validatedOutgoing += 1;
+      return { text, snapshot, hash: hashSnapshotText(text), report };
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo serializar la partida');
+      consistencyStats.rejectedOutgoing += 1;
+      consistencyStats.lastIssue = String(error?.message || error);
+      return { text: '', snapshot: null, hash: '', report: null };
+    }
+  }
+
+  function makeBattleSnapshot() {
+    return makeBattleSnapshotPacket().snapshot;
   }
 
   function snapshotText(snapshot) {
-    try { return JSON.stringify(snapshot); }
+    try { return stableSnapshotText(snapshot); }
     catch (error) {
       reportOnlineError(error, 'No se pudo serializar la partida');
       return '';
     }
+  }
+
+  function validateIncomingAuthoritative(authoritative) {
+    if (!authoritative?.snapshot || typeof authoritative.snapshot !== 'object') {
+      return { ok: false, reason: 'snapshot ausente' };
+    }
+    const schemaVersion = Number(authoritative.schemaVersion || authoritative.snapshot?._schemaVersion || 0);
+    if (schemaVersion > ONLINE_SNAPSHOT_SCHEMA_VERSION) {
+      return { ok: false, reason: `schema ${schemaVersion} no soportado` };
+    }
+    if (schemaVersion > 0 && schemaVersion < ONLINE_SNAPSHOT_SCHEMA_VERSION) consistencyStats.legacySnapshots += 1;
+    const normalized = normalizeAuthoritativeSnapshot(authoritative.snapshot);
+    if (!normalized) return { ok: false, reason: 'snapshot no normalizable' };
+    const report = auditSnapshotSource(normalized, { repair: false });
+    if (!report.ok) return { ok: false, reason: formatIntegrityIssue(report), report };
+    const text = snapshotText(normalized);
+    if (!text) return { ok: false, reason: 'snapshot no serializable', report };
+    const hash = hashSnapshotText(text);
+    const declaredHash = String(authoritative.snapshotHash || '');
+    if (declaredHash && declaredHash !== hash) {
+      consistencyStats.hashMismatch += 1;
+      return { ok: false, reason: `hash ${declaredHash} != ${hash}`, report, hash, text, snapshot: normalized };
+    }
+    return { ok: true, report, hash, text, snapshot: normalized, schemaVersion };
+  }
+
+
+  function flushBattleRender(reason = 'online-state') {
+    try {
+      if (typeof window.ROK_RENDER_ENGINE?.flush === 'function') {
+        window.ROK_RENDER_ENGINE.flush(reason);
+        return;
+      }
+      renderAll();
+    } catch (_) {}
   }
 
   function resetTransientStateAfterRemoteApply() {
@@ -902,21 +1130,31 @@
     }
     const previousPhaseContext = currentPhaseContext();
     const oldPhaseKey = previousPhaseContext.key;
+    const previousMatchSerial = currentMatchSerial();
+    const incomingMatchSerial = Math.max(1, Number(snapshot.matchSerial || 1));
+    const matchChanged = incomingMatchSerial !== previousMatchSerial;
+    if (matchChanged) {
+      try { window.ROK_MATCH_LIFECYCLE?.prepareForIncomingOnlineReset?.(incomingMatchSerial); } catch (_) {}
+      resetOnlineMatchEphemeralTracking({ cancelPendingInteractions: true });
+    }
     const localHudMode = state.hudMode;
     const localSemiAutoMovement = state.semiAutoMovement;
     const localActiveTab = state.activeTab;
 
     applyingRemoteSnapshot = true;
     try {
+      // Desacoplar el payload de Firebase una sola vez y repartir después sus
+      // ramas. Evita decenas de clones JSON en cada revisión remota.
+      const snapshotCopy = deepClone(snapshot);
       SNAPSHOT_KEYS.forEach(key => {
-        if (Object.prototype.hasOwnProperty.call(snapshot, key)) {
-          state[key] = deepClone(snapshot[key]);
+        if (Object.prototype.hasOwnProperty.call(snapshotCopy, key)) {
+          state[key] = snapshotCopy[key];
           return;
         }
         // RTDB puede omitir null/[]/{}. Para los campos reseteables debemos
         // borrar explícitamente el valor local anterior, no conservarlo.
         const fallback = snapshotDefaultValue(key);
-        if (fallback !== undefined) state[key] = deepClone(fallback);
+        if (fallback !== undefined) state[key] = fallback;
       });
       // RTDB elimina arreglos vacíos y puede devolver arreglos dispersos como
       // objetos numéricos. Reconstruirlos antes de cualquier render o fase.
@@ -934,10 +1172,13 @@
       LOCAL_PLAYER_ID = playerSlot;
       mainMenuBattleStarted = true;
       lastKnownRevision = Math.max(lastKnownRevision, Number(revision || 0));
-      lastSnapshotText = snapshotText(makeBattleSnapshot());
+      lastSnapshotText = makeBattleSnapshotPacket().text;
       localStateReady = true;
       showBattleScreen();
-      renderAll();
+      flushBattleRender('remote-authoritative-snapshot');
+      if (matchChanged) {
+        try { window.ROK_MATCH_LIFECYCLE?.announceOnlineMatchStarted?.({ matchSerial: incomingMatchSerial, remote: true }); } catch (_) {}
+      }
     } finally {
       applyingRemoteSnapshot = false;
     }
@@ -973,23 +1214,21 @@
     if (!key) return;
     lastStartedPhaseKey = key;
     if (phaseDeliveryScheduledKey === key) phaseDeliveryScheduledKey = '';
+    if (phaseDeliveryInFlightKey === key) phaseDeliveryInFlightKey = '';
     pendingPhaseDeliveryContext = null;
     clearPhaseDeliveryRetry();
   }
 
-  function schedulePhaseDeliveryRetry(phaseKey, delayMs) {
+  function schedulePhaseDeliveryRetry(phaseKey, delayMs = 1200) {
     clearPhaseDeliveryRetry();
     phaseDeliveryRetryTimer = window.setTimeout(() => {
       phaseDeliveryRetryTimer = null;
       if (!ROK_ONLINE_MATCH_ACTIVE || state.gameOver) return;
       if (Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) return;
       if (currentLocalPhaseKey() !== phaseKey || lastStartedPhaseKey === phaseKey) return;
+      if (phaseDeliveryInFlightKey === phaseKey) return;
       phaseDeliveryScheduledKey = '';
-      deliverRemotePhaseIfLocal({
-        force: true,
-        announce: false,
-        previousPhase: pendingPhaseDeliveryContext,
-      });
+      deliverRemotePhaseIfLocal({ force: true, announce: false, previousPhase: pendingPhaseDeliveryContext });
     }, Math.max(900, Number(delayMs || 0)));
   }
 
@@ -997,13 +1236,17 @@
     if (!ROK_ONLINE_MATCH_ACTIVE || Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID) || state.gameOver) return false;
     const phaseKey = currentLocalPhaseKey();
     if (!phaseKey || lastStartedPhaseKey === phaseKey) return true;
+    if (phaseDeliveryInFlightKey === phaseKey && phaseDeliveryPromise) return false;
     if (!options.force && phaseDeliveryScheduledKey === phaseKey) return false;
 
     clearTimeout(schedulePhaseStartActions.timer);
+    clearPhaseDeliveryRetry();
     phaseDeliveryScheduledKey = phaseKey;
+    phaseDeliveryInFlightKey = phaseKey;
 
     const phase = currentPhase();
     const previous = options.previousPhase || pendingPhaseDeliveryContext || null;
+    pendingPhaseDeliveryContext = previous;
     const shouldAnnounce = options.announce !== false && lastAnnouncedPhaseKey !== phaseKey;
     const changedPlayer = Boolean(
       previous
@@ -1021,45 +1264,51 @@
     const items = [];
     if (shouldAnnounce) {
       if (changedPlayer) {
-        // Misma plantilla exacta de nextPhase() para J1 y J2.
         items.push(
           { text: 'TERMINA EL TURNO', playerId: Number(previous.activePlayer), duration: 950 },
           { text: `JUGADOR ${state.activePlayer}`, playerId: Number(state.activePlayer), duration: 900 },
           { text: 'EXTRACCIÓN', playerId: Number(state.activePlayer), duration: 900 },
         );
       } else {
-        items.push({
-          text: String(phase?.label || 'FASE').toUpperCase(),
-          playerId: Number(state.activePlayer),
-          duration: 860,
-        });
+        items.push({ text: String(phase?.label || 'FASE').toUpperCase(), playerId: Number(state.activePlayer), duration: 860 });
       }
       lastAnnouncedPhaseKey = phaseKey;
     }
 
-    const transitionAnchor = typeof getTransitionAnchorPoint === 'function'
-      ? getTransitionAnchorPoint()
-      : undefined;
-
-    // El jugador remoto ya no tiene una secuencia abreviada propia. Usa
-    // exactamente schedulePhaseIntroFlow(), igual que el jugador base.
+    const transitionAnchor = typeof getTransitionAnchorPoint === 'function' ? getTransitionAnchorPoint() : undefined;
+    let flowPromise;
     if (typeof schedulePhaseIntroFlow === 'function') {
-      schedulePhaseIntroFlow(items, {
-        allowOffTurnCasterReposition: shouldAnnounce && castingToResolution,
+      flowPromise = Promise.resolve(schedulePhaseIntroFlow(items, {
+        allowOffTurnCasterReposition: castingToResolution,
         transitionAnchor,
-      });
+        phaseKey,
+        onlineDelivery: true,
+      }));
     } else {
       if (items.length) queueTransitions(items, { anchor: transitionAnchor });
-      schedulePhaseStartActions(items.length ? Math.max(0, sumTransitionDurations(items) - 120) : 80);
+      flowPromise = new Promise(resolve => {
+        schedulePhaseStartActions(items.length ? Math.max(0, sumTransitionDurations(items) - 120) : 80);
+        window.setTimeout(resolve, items.length ? sumTransitionDurations(items) + 160 : 260);
+      });
     }
 
-    // La marca definitiva solo llega desde startPhaseActions(). El margen
-    // contempla TERMINA/JUGADOR/EXTRACCIÓN y ACCIÓN DE KASTER.
-    const retryDelay = Math.max(
-      5200,
-      sumTransitionDurations(items) + (castingToResolution ? 15000 : 0) + 3200,
-    );
-    schedulePhaseDeliveryRetry(phaseKey, retryDelay);
+    phaseDeliveryPromise = flowPromise
+      .catch(error => {
+        reportOnlineError(error, `No se pudo entregar la fase ${phaseKey}`);
+        return false;
+      })
+      .finally(() => {
+        if (phaseDeliveryInFlightKey === phaseKey) phaseDeliveryInFlightKey = '';
+        if (phaseDeliveryScheduledKey === phaseKey) phaseDeliveryScheduledKey = '';
+        phaseDeliveryPromise = null;
+        if (ROK_ONLINE_MATCH_ACTIVE
+          && !state.gameOver
+          && Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)
+          && currentLocalPhaseKey() === phaseKey
+          && lastStartedPhaseKey !== phaseKey) {
+          schedulePhaseDeliveryRetry(phaseKey, 1200);
+        }
+      });
     return true;
   }
 
@@ -1113,7 +1362,7 @@
   }
 
   async function handleLobbyClose() {
-    if (roomCode && !roomCache?.game?.snapshot) {
+    if (roomCode && !getAuthoritativeGameState(roomCache)?.snapshot) {
       await leaveRoom({ silent: true, keepMenu: true, returnToLobby: false });
     }
     closeLobby();
@@ -1283,7 +1532,7 @@
     }
   }
 
-  async function attachToRoom(code, slot) {
+    async function attachToRoom(code, slot) {
     const api = await loadFirebase();
     await detachRoomListener();
     roomCode = normalizeRoomCode(code);
@@ -1294,14 +1543,22 @@
     state.aiEnabled = false;
     lastKnownRevision = 0;
     lastSnapshotText = '';
+    lastAuthoritativeSnapshot = null;
+    lastAuthoritativeSnapshotText = '';
+    lastAuthoritativeSnapshotHash = '';
     lastObservedPhaseKey = '';
     lastStartedPhaseKey = '';
     phaseDeliveryScheduledKey = '';
+    phaseDeliveryInFlightKey = '';
+    phaseDeliveryPromise = null;
     lastAnnouncedPhaseKey = '';
     clearPhaseDeliveryRetry();
     turnHandoffPublishPending = false;
+    localStateDirty = false;
     localStateReady = false;
     handledInteractionId = '';
+    passiveConsistencySuspendUntil = 0;
+    handledInteractionIds.clear();
     saveSession();
 
     const presenceRef = api.ref(db, `${roomPath}/players/${uid}`);
@@ -1311,13 +1568,340 @@
       await api.update(presenceRef, { uid, slot: playerSlot, connected: true, lastSeenAt: Date.now() });
     } catch (_) {}
 
+    // En lobby sí observamos la sala completa. Al comenzar el duelo este listener
+    // se sustituye por canales pequeños para que un FX no vuelva a descargar toda la sala.
     roomUnsubscribe = api.onValue(api.ref(db, roomPath), snapshot => {
       void handleRoomValue(snapshot.val());
     }, error => {
       reportOnlineError(error, 'Se perdió la lectura de la sala');
       setStatus(readableFirebaseError(error), 'error');
     });
-    attachFxListener(api);
+    void attachFxListener(api);
+  }
+
+  function updateRoomCacheGameAuthoritative(authoritative) {
+    roomCache = roomCache && typeof roomCache === 'object' ? roomCache : {};
+    roomCache.game = roomCache.game && typeof roomCache.game === 'object' ? roomCache.game : {};
+    roomCache.game.authoritative = authoritative || null;
+  }
+
+  function handleAuthoritativeValue(authoritative) {
+    if (!authoritative?.snapshot || leavingRoom) return;
+    const revision = Number(authoritative.revision || 0);
+    if (!Number.isFinite(revision) || revision < 1) return;
+
+    const validation = validateIncomingAuthoritative(authoritative);
+    if (!validation.ok) {
+      consistencyStats.rejectedIncoming += 1;
+      consistencyStats.lastIssue = String(validation.reason || 'snapshot remoto inválido');
+      reportOnlineError(new Error(`Revisión ${revision} rechazada: ${validation.reason || 'estado inválido'}.`), 'Estado PvP inconsistente');
+      return;
+    }
+    consistencyStats.validatedIncoming += 1;
+
+    const normalizedAuthoritative = {
+      ...authoritative,
+      schemaVersion: validation.schemaVersion || Number(authoritative.schemaVersion || 0),
+      snapshot: validation.snapshot,
+      snapshotHash: validation.hash,
+    };
+    updateRoomCacheGameAuthoritative(normalizedAuthoritative);
+    lastAuthoritativeSnapshot = deepClone(validation.snapshot);
+    lastAuthoritativeSnapshotText = validation.text;
+    lastAuthoritativeSnapshotHash = validation.hash;
+
+    const writerUid = String(authoritative.writerUid || '');
+    if (!localStateReady || (writerUid !== uid && revision > lastKnownRevision)) {
+      applyBattleSnapshot(validation.snapshot, revision, writerUid);
+    } else {
+      lastKnownRevision = Math.max(lastKnownRevision, revision);
+      // Una confirmación de nuestra propia escritura debe actualizar también
+      // el texto base usado por el verificador pasivo.
+      if (writerUid === uid && revision >= lastKnownRevision) lastSnapshotText = validation.text;
+    }
+    if (ui.badgeText) ui.badgeText.textContent = `PVP conectado · J${playerSlot} · rev ${lastKnownRevision}`;
+    closeLobby();
+    showBattleScreen();
+    setStatus(`Partida activa · Jugador ${playerSlot}.`, 'ok');
+  }
+
+  function trimHandledInteractions() {
+    if (handledInteractionIds.size <= 120) return;
+    const keep = Array.from(handledInteractionIds).slice(-60);
+    handledInteractionIds.clear();
+    keep.forEach(id => handledInteractionIds.add(id));
+  }
+
+  function normalizeMatchControl(control = null) {
+    const value = control && typeof control === 'object' ? control : {};
+    return {
+      serial: Math.max(1, Number(value.serial || currentMatchSerial() || 1)),
+      status: String(value.status || (state.gameOver ? 'finished' : 'playing')),
+      winnerPlayer: Number(value.winnerPlayer || 0),
+      defeatedPlayer: Number(value.defeatedPlayer || 0),
+      matchWins: value.matchWins && typeof value.matchWins === 'object'
+        ? { 1: Number(value.matchWins[1] || 0), 2: Number(value.matchWins[2] || 0) }
+        : { 1: Number(state.matchWins?.[1] || 0), 2: Number(state.matchWins?.[2] || 0) },
+      rematchVotes: value.rematchVotes && typeof value.rematchVotes === 'object' ? value.rematchVotes : {},
+      updatedAt: Number(value.updatedAt || 0),
+    };
+  }
+
+  function hasValidRematchVote(control, slot) {
+    const vote = control?.rematchVotes?.[slot];
+    if (!vote || typeof vote !== 'object') return false;
+    return Number(vote.player || 0) === Number(slot)
+      && Number(vote.serial || 0) === Number(control.serial || 0)
+      && Boolean(String(vote.uid || ''));
+  }
+
+  async function notifyMatchFinished(winnerPlayer, defeatedPlayer) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot) return false;
+    const serial = currentMatchSerial();
+    // La derrota es una transición crítica: primero queda confirmada en el
+    // snapshot autoritativo y después se abre el protocolo de revancha.
+    try { await commitStateBarrier('match-finished'); } catch (_) {}
+    try {
+      const api = await loadFirebase();
+      const controlRef = api.ref(db, matchControlPath());
+      const result = await api.runTransaction(controlRef, current => {
+        const existing = normalizeMatchControl(current);
+        if (Number(existing.serial) > serial) return;
+        if (Number(existing.serial) === serial && existing.status === 'starting') return;
+        return {
+          serial,
+          status: 'finished',
+          winnerPlayer: Number(winnerPlayer || 0),
+          defeatedPlayer: Number(defeatedPlayer || 0),
+          matchWins: {
+            1: Number(state.matchWins?.[1] || 0),
+            2: Number(state.matchWins?.[2] || 0),
+          },
+          rematchVotes: existing.status === 'finished' ? (current?.rematchVotes || null) : null,
+          updatedAt: Date.now(),
+        };
+      }, { applyLocally: false });
+      if (result.committed) await clearRemoteMatchEphemera(api);
+      return Boolean(result.committed);
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo cerrar el match online');
+      return false;
+    }
+  }
+
+  async function requestRematch() {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot) return false;
+    const serial = currentMatchSerial();
+    try {
+      const api = await loadFirebase();
+      const controlRef = api.ref(db, matchControlPath());
+      const currentSnapshot = await api.get(controlRef);
+      const control = normalizeMatchControl(currentSnapshot.val());
+      if (Number(control.serial) !== serial || control.status !== 'finished') {
+        throw new Error('La partida todavía no está cerrada para revancha.');
+      }
+      await api.set(api.ref(db, `${matchControlPath()}/rematchVotes/${playerSlot}`), {
+        uid,
+        player: Number(playerSlot),
+        serial,
+        requestedAt: Date.now(),
+      });
+      try { window.ROK_MATCH_LIFECYCLE?.setRematchButtonState?.('requesting', control); } catch (_) {}
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo solicitar la revancha');
+      try { window.ROK_MATCH_LIFECYCLE?.setRematchButtonState?.('error'); } catch (_) {}
+      return false;
+    }
+  }
+
+  async function claimOnlineRematchAsHost(control) {
+    if (playerSlot !== 1 || startingOnlineRematch || !roomPath) return false;
+    const normalized = normalizeMatchControl(control);
+    if (normalized.status !== 'finished') return false;
+    if (!hasValidRematchVote(normalized, 1) || !hasValidRematchVote(normalized, 2)) return false;
+    try {
+      const api = await loadFirebase();
+      let nextSerial = 0;
+      const result = await api.runTransaction(api.ref(db, matchControlPath()), current => {
+        const live = normalizeMatchControl(current);
+        if (live.status !== 'finished') return;
+        if (!hasValidRematchVote(live, 1) || !hasValidRematchVote(live, 2)) return;
+        nextSerial = Math.max(1, Number(live.serial || 1)) + 1;
+        return {
+          serial: nextSerial,
+          status: 'starting',
+          winnerPlayer: Number(live.winnerPlayer || 0),
+          defeatedPlayer: Number(live.defeatedPlayer || 0),
+          matchWins: live.matchWins,
+          rematchVotes: null,
+          startedByUid: uid,
+          updatedAt: Date.now(),
+        };
+      }, { applyLocally: false });
+      if (!result.committed || !nextSerial) return false;
+      await startOnlineRematchAsHost(nextSerial, normalized.matchWins);
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo coordinar la revancha');
+      return false;
+    }
+  }
+
+  async function startOnlineRematchAsHost(nextSerial, preservedWins = null) {
+    if (startingOnlineRematch || playerSlot !== 1 || !roomPath) return false;
+    startingOnlineRematch = true;
+    localStateReady = false;
+    try {
+      try { await publishQueueTail; } catch (_) {}
+      const api = await loadFirebase();
+      await clearRemoteMatchEphemera(api);
+      try { window.ROK_MATCH_LIFECYCLE?.prepareForIncomingOnlineReset?.(nextSerial); } catch (_) {}
+
+      const wins = preservedWins && typeof preservedWins === 'object'
+        ? { 1: Number(preservedWins[1] || 0), 2: Number(preservedWins[2] || 0) }
+        : { 1: Number(state.matchWins?.[1] || 0), 2: Number(state.matchWins?.[2] || 0) };
+      const resetOk = window.ROK_MATCH_LIFECYCLE?.resetStateForOnlineRematch?.({
+        matchSerial: Math.max(2, Number(nextSerial || 2)),
+        matchWins: wins,
+      });
+      if (resetOk === false) throw new Error('No se pudo reiniciar el estado local del host.');
+
+      applyArenaToBattle(roomCache?.arenaId);
+      const hostLoadout = getRoomPlayerRecord(roomCache, 1)?.loadout;
+      const guestLoadout = getRoomPlayerRecord(roomCache, 2)?.loadout;
+      const hostIssue = getLoadoutIssue(hostLoadout);
+      const guestIssue = getLoadoutIssue(guestLoadout);
+      if (hostIssue || guestIssue) throw new Error(hostIssue || guestIssue || 'Falta un Spellbook válido para la revancha.');
+      window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
+      window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
+      initializeElementDecks();
+      if (typeof prepareStartingElementStocks === 'function') prepareStartingElementStocks();
+      enterPhase(true, true);
+      state.gameOver = false;
+      state.matchSerial = Math.max(2, Number(nextSerial || 2));
+      state.matchWins = wins;
+      state.aiEnabled = false;
+      ROK_ONLINE_MATCH_ACTIVE = true;
+      LOCAL_PLAYER_ID = 1;
+      mainMenuBattleStarted = true;
+
+      lastSnapshotText = '';
+      lastObservedPhaseKey = currentLocalPhaseKey();
+      lastStartedPhaseKey = '';
+      phaseDeliveryScheduledKey = '';
+      phaseDeliveryInFlightKey = '';
+      phaseDeliveryPromise = null;
+      lastAnnouncedPhaseKey = '';
+      pendingPhaseDeliveryContext = null;
+      clearPhaseDeliveryRetry();
+      localStateDirty = false;
+      localStateReady = false;
+      showBattleScreen();
+      flushBattleRender('online-rematch-reset');
+      localStateReady = true;
+
+      const committed = await publishSnapshot({
+        force: true,
+        status: 'playing',
+        barrierReason: `rematch-start:${state.matchSerial}`,
+      });
+      if (!committed) throw new Error('Firebase no confirmó el estado inicial de la revancha.');
+
+      const control = {
+        serial: currentMatchSerial(),
+        status: 'playing',
+        winnerPlayer: 0,
+        defeatedPlayer: 0,
+        matchWins: wins,
+        rematchVotes: null,
+        updatedAt: Date.now(),
+      };
+      await api.set(api.ref(db, matchControlPath()), control);
+      matchControlCache = control;
+      startSyncLoop();
+      try { window.ROK_MATCH_LIFECYCLE?.announceOnlineMatchStarted?.({ matchSerial: currentMatchSerial(), host: true }); } catch (_) {}
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo iniciar la revancha online');
+      localStateReady = true;
+      try {
+        const api = await loadFirebase();
+        await api.update(api.ref(db, matchControlPath()), { status: 'finished', updatedAt: Date.now() });
+      } catch (_) {}
+      return false;
+    } finally {
+      startingOnlineRematch = false;
+    }
+  }
+
+  function handleMatchControlValue(rawControl) {
+    if (!rawControl || leavingRoom) return;
+    const control = normalizeMatchControl(rawControl);
+    matchControlCache = control;
+    try { window.ROK_MATCH_LIFECYCLE?.setRematchButtonState?.('', control); } catch (_) {}
+
+    if (control.status === 'finished' && Number(control.serial) === currentMatchSerial()) {
+      stopSyncLoop();
+      localStateDirty = false;
+      try { window.ROK_MATCH_LIFECYCLE?.showOnlineMatchFinished?.(control); } catch (_) {}
+      if (playerSlot === 1) void claimOnlineRematchAsHost(control);
+      return;
+    }
+
+    if (control.status === 'starting' && Number(control.serial) > currentMatchSerial()) {
+      stopSyncLoop();
+      localStateReady = false;
+      try { window.ROK_MATCH_LIFECYCLE?.prepareForIncomingOnlineReset?.(control.serial); } catch (_) {}
+      if (playerSlot === 1) void startOnlineRematchAsHost(control.serial, control.matchWins);
+      return;
+    }
+
+    if (control.status === 'playing' && Number(control.serial) === currentMatchSerial() && localStateReady) {
+      startSyncLoop();
+    }
+  }
+
+  function attachMatchListeners(api) {
+    if (!roomPath) return;
+    if (roomUnsubscribe) {
+      try { roomUnsubscribe(); } catch (_) {}
+      roomUnsubscribe = null;
+    }
+    if (!authoritativeUnsubscribe) {
+      authoritativeUnsubscribe = api.onValue(api.ref(db, authoritativeGamePath()), snapshot => {
+        handleAuthoritativeValue(snapshot.val());
+      }, error => reportOnlineError(error, 'Se perdió el canal autoritativo de la partida'));
+    }
+    if (!interactionUnsubscribe) {
+      interactionUnsubscribe = api.onChildAdded(api.ref(db, interactionsPath()), snapshot => {
+        const interaction = snapshot.val();
+        if (!interaction || String(interaction.id || snapshot.key || '') === '') return;
+        void handleIncomingInteraction({ ...interaction, id: String(interaction.id || snapshot.key || '') });
+      }, error => reportOnlineError(error, 'Se perdió el canal de ventanas de acción'));
+    }
+    if (!priorityActionUnsubscribe) {
+      priorityActionUnsubscribe = api.onValue(api.ref(db, `${roomPath}/game/priorityAction`), snapshot => {
+        handleIncomingPriorityAction(snapshot.val() || null);
+      }, error => reportOnlineError(error, 'Se perdió el canal de acciones prioritarias'));
+    }
+    if (!matchPlayersUnsubscribe) {
+      matchPlayersUnsubscribe = api.onValue(api.ref(db, `${roomPath}/players`), snapshot => {
+        roomCache = roomCache && typeof roomCache === 'object' ? roomCache : {};
+        roomCache.players = snapshot.val() || {};
+      });
+    }
+    if (!matchStatusUnsubscribe) {
+      matchStatusUnsubscribe = api.onValue(api.ref(db, `${roomPath}/status`), snapshot => {
+        roomCache = roomCache && typeof roomCache === 'object' ? roomCache : {};
+        roomCache.status = snapshot.val() || roomCache.status || 'playing';
+      });
+    }
+    if (!matchControlUnsubscribe) {
+      matchControlUnsubscribe = api.onValue(api.ref(db, matchControlPath()), snapshot => {
+        handleMatchControlValue(snapshot.val());
+      }, error => reportOnlineError(error, 'Se perdió el control de revancha'));
+    }
     startSyncLoop();
   }
 
@@ -1335,7 +1919,8 @@
     if (ui.badgeText) ui.badgeText.textContent = `PVP conectado · J${playerSlot} · rev ${lastKnownRevision}`;
     applyArenaToBattle(room.arenaId);
 
-    if (!room.game?.snapshot) {
+    const authoritative = getAuthoritativeGameState(room);
+    if (!authoritative?.snapshot) {
       void configureLobbyDisconnects(room);
       showWaitingRoom();
       renderRoomLobby(room);
@@ -1356,38 +1941,20 @@
         }
       } else {
         stopLobbyCountdown();
-        if (!room.guestUid) {
-          setStatus('Lobby abierto. Esperando que uno de tus amigos se una.', 'working');
-        } else if (!bothConnected) {
-          setStatus('El segundo jugador está en el lobby, pero todavía no terminó de conectar.', 'working');
-        } else if (!p1?.loadout || !p2?.loadout) {
-          setStatus('Ambos están conectados. Falta seleccionar uno o más Spellbooks.', 'working');
-        } else if (!p1?.ready || !p2?.ready) {
-          setStatus('Configuración lista. Ambos jugadores deben pulsar LISTO.', 'working');
-        } else {
-          setStatus('Preparando cuenta regresiva…', 'working');
-        }
+        if (!room.guestUid) setStatus('Lobby abierto. Esperando que uno de tus amigos se una.', 'working');
+        else if (!bothConnected) setStatus('El segundo jugador está en el lobby, pero todavía no terminó de conectar.', 'working');
+        else if (!p1?.loadout || !p2?.loadout) setStatus('Ambos están conectados. Falta seleccionar uno o más Spellbooks.', 'working');
+        else if (!p1?.ready || !p2?.ready) setStatus('Configuración lista. Ambos jugadores deben pulsar LISTO.', 'working');
+        else setStatus('Preparando cuenta regresiva…', 'working');
       }
       return;
     }
 
     stopLobbyCountdown();
     void cancelLobbyDisconnects();
-    const game = room.game;
-    const revision = Number(game.revision || 0);
-    const writerUid = String(game.writerUid || '');
-    if (!localStateReady || (writerUid !== uid && revision > lastKnownRevision)) {
-      applyBattleSnapshot(game.snapshot, revision, writerUid);
-    } else {
-      lastKnownRevision = Math.max(lastKnownRevision, revision);
-    }
-
-    closeLobby();
-    showBattleScreen();
-    setStatus(`Partida activa · Jugador ${playerSlot}.`, 'ok');
-
-    if (room.game?.interaction) await handleIncomingInteraction(room.game.interaction);
-    handleIncomingPriorityAction(room.game?.priorityAction || null);
+    handleAuthoritativeValue(authoritative);
+    const api = await loadFirebase();
+    attachMatchListeners(api);
   }
 
   async function startFreshOnlineBattleAsHost() {
@@ -1418,6 +1985,7 @@
       state.semiAutoMovement = localSemiAutoMovement;
       state.aiEnabled = false;
       state.gameOver = false;
+      state.matchSerial = 1;
       LOCAL_PLAYER_ID = 1;
       ROK_ONLINE_MATCH_ACTIVE = true;
       mainMenuBattleStarted = true;
@@ -1433,18 +2001,31 @@
       initializeElementDecks();
       if (typeof prepareStartingElementStocks === 'function') prepareStartingElementStocks();
       enterPhase(true, true);
-      localStateReady = true;
+      localStateReady = false;
       lastObservedPhaseKey = currentLocalPhaseKey();
       lastStartedPhaseKey = '';
       phaseDeliveryScheduledKey = '';
+      phaseDeliveryInFlightKey = '';
+      phaseDeliveryPromise = null;
       lastAnnouncedPhaseKey = '';
       pendingPhaseDeliveryContext = null;
       clearPhaseDeliveryRetry();
       showBattleScreen();
-      renderAll();
+      flushBattleRender('online-match-start');
+      localStateReady = true;
       await cancelLobbyDisconnects();
-      await publishSnapshot({ force: true, status: 'playing' });
-      try { const api = await loadFirebase(); await removeOpenRoomListing(api, roomCode, uid); } catch (_) {}
+      await publishSnapshot({ force: true, status: 'playing', barrierReason: 'match-start' });
+      try {
+        const api = await loadFirebase();
+        await api.set(api.ref(db, matchControlPath()), {
+          serial: currentMatchSerial(),
+          status: 'playing',
+          rematchVotes: null,
+          updatedAt: Date.now(),
+        });
+        matchControlCache = { serial: currentMatchSerial(), status: 'playing', rematchVotes: null, updatedAt: Date.now() };
+        await removeOpenRoomListing(api, roomCode, uid);
+      } catch (_) {}
       closeLobby();
       const introTransitions = [
         { text: 'INICIA EL COMBATE', playerId: 1, duration: 1050 },
@@ -1457,15 +2038,45 @@
       setStatus(readableFirebaseError(error), 'error');
     } finally {
       startingOnlineBattle = false;
-      if (!roomCache?.game?.snapshot) setStartButtonVisible(true, false);
+      if (!getAuthoritativeGameState(roomCache)?.snapshot) setStartButtonVisible(true, false);
+    }
+  }
+
+  function verifyPassiveClientConsistency(options = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !localStateReady || leavingRoom || applyingRemoteSnapshot) return true;
+    if (!lastAuthoritativeSnapshot || !lastAuthoritativeSnapshotText) return true;
+    if (Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) return true;
+    if (handledInteractionId || Date.now() < passiveConsistencySuspendUntil) return true;
+    consistencyStats.passiveChecks += 1;
+
+    const packet = makeBattleSnapshotPacket();
+    if (!packet.snapshot || !packet.text) return false;
+    if (packet.text === lastAuthoritativeSnapshotText) return true;
+
+    consistencyStats.lastIssue = `desviación pasiva rev ${lastKnownRevision}: local ${packet.hash} / autoridad ${lastAuthoritativeSnapshotHash}`;
+    if (options.repair === false) return false;
+
+    // Fuera de nuestro turno no debemos conservar mutaciones lógicas propias.
+    // Si no estamos resolviendo una interacción solicitada por el rival, la
+    // copia autoritativa confirmada por Firebase reemplaza cualquier deriva.
+    consistencyStats.passiveRepairs += 1;
+    try {
+      applyBattleSnapshot(deepClone(lastAuthoritativeSnapshot), lastKnownRevision, '__consistency_repair__');
+      try { window.ROK_DEBUG_RIBBON?.ok?.(`PvP reparó una divergencia local · rev ${lastKnownRevision}`); } catch (_) {}
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo reparar una divergencia PvP');
+      return false;
     }
   }
 
   function startSyncLoop() {
     stopSyncLoop();
     syncTimer = window.setInterval(() => {
-      void considerPublishingLocalState();
-    }, SYNC_INTERVAL_MS);
+      // Watchdog de baja frecuencia: solo como red de seguridad para una
+      // mutación que no haya emitido dirty. La ruta normal no serializa aquí.
+      void considerPublishingLocalState({ watchdog: true });
+    }, SYNC_WATCHDOG_MS);
   }
 
   function stopSyncLoop() {
@@ -1473,72 +2084,138 @@
     syncTimer = null;
     if (publishTimer) window.clearTimeout(publishTimer);
     publishTimer = null;
+    localStateDirty = false;
   }
 
-  function markTurnHandoffPending() {
+    function markTurnHandoffPending() {
     if (!ROK_ONLINE_MATCH_ACTIVE) return;
     turnHandoffPublishPending = true;
-    void considerPublishingLocalState();
+    localStateDirty = true;
+    localMutationSerial += 1;
+    void commitStateBarrier('turn-handoff');
   }
 
-  async function considerPublishingLocalState() {
-    if (!ROK_ONLINE_MATCH_ACTIVE || !roomCode || !localStateReady || applyingRemoteSnapshot || publishingSnapshot || leavingRoom) return;
+  function scheduleDirtyPublish(delay = SYNC_DEBOUNCE_MS) {
+    if (publishTimer) window.clearTimeout(publishTimer);
+    publishTimer = window.setTimeout(() => {
+      publishTimer = null;
+      void considerPublishingLocalState();
+    }, Math.max(0, Number(delay || 0)));
+  }
+
+  function markLocalStateDirty(reason = 'state-change') {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomCode || !localStateReady || applyingRemoteSnapshot || leavingRoom) return false;
     const ownsTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
-    // Fuera de turno solo se permite la escritura única que entrega el turno.
-    // Clics o teclas ya no abren una ventana para sobrescribir el snapshot rival.
-    if (!ownsTurn && !turnHandoffPublishPending) return;
-    const nextSnapshot = makeBattleSnapshot();
-    const nextText = snapshotText(nextSnapshot);
-    if (!nextText || nextText === lastSnapshotText) return;
-    await publishSnapshot({ snapshot: nextSnapshot, snapshotTextValue: nextText });
+    if (!ownsTurn && !turnHandoffPublishPending) return false;
+    localStateDirty = true;
+    localMutationSerial += 1;
+    scheduleDirtyPublish();
+    return true;
   }
 
-  async function publishSnapshot(options = {}) {
-    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot || publishingSnapshot || applyingRemoteSnapshot) return false;
+  async function considerPublishingLocalState(options = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomCode || !localStateReady || applyingRemoteSnapshot || leavingRoom) return false;
+    const ownsTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
+    if (!ownsTurn && !turnHandoffPublishPending) {
+      if (options.watchdog) verifyPassiveClientConsistency({ repair: true });
+      return false;
+    }
+    // La ruta normal solo serializa cuando existe una mutación marcada. El
+    // watchdog conserva una comprobación periódica para código legado que aún
+    // no haya pasado por el marcador de estado.
+    if (!localStateDirty && !turnHandoffPublishPending && !options.watchdog) return true;
+    const packet = makeBattleSnapshotPacket();
+    const nextSnapshot = packet.snapshot;
+    const nextText = packet.text;
+    if (!nextSnapshot || !nextText) return false;
+    if (nextText === lastSnapshotText) {
+      localStateDirty = false;
+      lastPublishedMutationSerial = localMutationSerial;
+      return true;
+    }
+    const committed = await publishSnapshot({ snapshot: nextSnapshot, snapshotTextValue: nextText });
+    if (committed) {
+      localStateDirty = localMutationSerial !== lastPublishedMutationSerial;
+      if (localStateDirty) scheduleDirtyPublish();
+    }
+    return committed;
+  }
+
+  async function performPublishSnapshot(options = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot || applyingRemoteSnapshot || leavingRoom) return false;
     publishingSnapshot = true;
     try {
       const api = await loadFirebase();
-      const nextSnapshot = options.snapshot || makeBattleSnapshot();
-      const nextText = options.snapshotTextValue || snapshotText(nextSnapshot);
-      if (!nextText) return false;
-      const gameRef = api.ref(db, `${roomPath}/game`);
+      let nextSnapshot = options.snapshot || null;
+      let nextText = options.snapshotTextValue || '';
+      let nextHash = options.snapshotHashValue || '';
+      if (!nextSnapshot) {
+        const packet = makeBattleSnapshotPacket();
+        nextSnapshot = packet.snapshot;
+        nextText = packet.text;
+        nextHash = packet.hash;
+      } else {
+        nextSnapshot = normalizeAuthoritativeSnapshot(nextSnapshot);
+        const report = auditSnapshotSource(nextSnapshot, { repair: false });
+        if (!report.ok) {
+          consistencyStats.rejectedOutgoing += 1;
+          consistencyStats.lastIssue = formatIntegrityIssue(report);
+          reportOnlineError(new Error(consistencyStats.lastIssue), 'Estado PvP local inválido');
+          return false;
+        }
+        if (!nextText) nextText = snapshotText(nextSnapshot);
+        if (!nextHash) nextHash = hashSnapshotText(nextText);
+      }
+      const snapshotMutationSerial = localMutationSerial;
+      if (!nextSnapshot || !nextText || !nextHash) return false;
+      if (!options.force && nextText === lastSnapshotText) {
+        lastPublishedMutationSerial = snapshotMutationSerial;
+        localStateDirty = false;
+        return true;
+      }
+      const gameRef = api.ref(db, authoritativeGamePath());
       let committedRevision = 0;
       const result = await api.runTransaction(gameRef, current => {
         const currentRevision = Number(current?.revision || 0);
         const currentWriter = String(current?.writerUid || '');
-        if (!options.force && currentRevision > lastKnownRevision && currentWriter && currentWriter !== uid) return;
+        // Nunca pisar silenciosamente una revisión del rival que todavía no hemos aplicado.
+        if (currentRevision > lastKnownRevision && currentWriter && currentWriter !== uid) return;
         committedRevision = currentRevision + 1;
-        const nextGame = {
+        return {
           revision: committedRevision,
+          parentRevision: currentRevision,
           writerUid: uid,
           writerPlayer: playerSlot,
           phaseKey: phaseKeyFromSnapshot(nextSnapshot),
+          matchSerial: Math.max(1, Number(nextSnapshot.matchSerial || 1)),
           schemaVersion: ONLINE_SNAPSHOT_SCHEMA_VERSION,
+          snapshotHash: nextHash,
           snapshot: nextSnapshot,
           updatedAt: Date.now(),
+          barrier: options.barrierReason ? String(options.barrierReason) : null,
         };
-        // La interacción vive dentro de /game porque las reglas no permiten
-        // hijos adicionales en la raíz de la sala. Se conserva durante cada
-        // transacción de sincronización para que no desaparezca a mitad de J2.
-        if (current?.interaction) nextGame.interaction = deepClone(current.interaction);
-        if (current?.priorityAction) nextGame.priorityAction = deepClone(current.priorityAction);
-        // Los FX online viajan como eventos efímeros separados del snapshot.
-        // La transacción autoritativa no debe borrarlos mientras otro cliente
-        // todavía está reproduciendo una animación.
-        if (current?.fxEvents) nextGame.fxEvents = deepClone(current.fxEvents);
-        return nextGame;
       }, { applyLocally: false });
-      if (!result.committed) return false;
+      if (!result.committed) {
+        // Forzar una lectura rápida permite aplicar la revisión rival y reintentar por la ruta normal.
+        try {
+          const latest = await api.get(gameRef);
+          const value = latest.val();
+          if (value?.snapshot) handleAuthoritativeValue(value);
+        } catch (_) {}
+        return false;
+      }
       lastKnownRevision = Math.max(lastKnownRevision, committedRevision);
       lastSnapshotText = nextText;
+      lastAuthoritativeSnapshot = deepClone(nextSnapshot);
+      lastAuthoritativeSnapshotText = nextText;
+      lastAuthoritativeSnapshotHash = nextHash;
+      lastPublishedMutationSerial = snapshotMutationSerial;
       lastObservedPhaseKey = phaseKeyFromSnapshot(nextSnapshot) || lastObservedPhaseKey;
       if (turnHandoffPublishPending && Number(nextSnapshot.activePlayer) !== Number(LOCAL_PLAYER_ID)) {
         turnHandoffPublishPending = false;
       }
-      if (options.status) {
-        if (playerSlot === 1 && ['waiting', 'ready', 'playing', 'finished'].includes(options.status)) {
-          await api.set(api.ref(db, `${roomPath}/status`), options.status);
-        }
+      if (options.status && playerSlot === 1 && ['waiting', 'ready', 'playing', 'finished'].includes(options.status)) {
+        await api.set(api.ref(db, `${roomPath}/status`), options.status);
       }
       return true;
     } catch (error) {
@@ -1549,45 +2226,227 @@
     }
   }
 
+  function publishSnapshot(options = {}) {
+    const request = { ...options };
+    const run = () => performPublishSnapshot(request);
+    publishQueueTail = publishQueueTail.then(run, run);
+    return publishQueueTail;
+  }
+
+  function commitStateBarrier(reason = 'critical-state') {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !localStateReady) return Promise.resolve(false);
+    if (publishTimer) {
+      window.clearTimeout(publishTimer);
+      publishTimer = null;
+    }
+    localStateDirty = true;
+    localMutationSerial += 1;
+    return publishSnapshot({ force: true, barrierReason: reason }).then(committed => {
+      if (committed) {
+        localStateDirty = localMutationSerial !== lastPublishedMutationSerial;
+        if (localStateDirty) scheduleDirtyPublish();
+      }
+      return committed;
+    });
+  }
+
+
+  function clearNetworkCleanupTimers() {
+    networkCleanupTimers.forEach(timer => { try { window.clearTimeout(timer); } catch (_) {} });
+    networkCleanupTimers.clear();
+    if (fxCleanupTimer) { try { window.clearTimeout(fxCleanupTimer); } catch (_) {} }
+    fxCleanupTimer = null;
+    pendingFxCleanupEntries.clear();
+  }
+
+  function scheduleFxCleanupSweep() {
+    if (fxCleanupTimer) return;
+    const run = async () => {
+      fxCleanupTimer = null;
+      if (!pendingFxCleanupEntries.size) return;
+      const now = Date.now();
+      const due = [];
+      let nextAt = Infinity;
+      pendingFxCleanupEntries.forEach((entry, id) => {
+        if (Number(entry.deleteAfter || 0) <= now) due.push([id, entry]);
+        else nextAt = Math.min(nextAt, Number(entry.deleteAfter || 0));
+      });
+      if (due.length) {
+        try {
+          const api = await loadFirebase();
+          await Promise.allSettled(due.map(([id, entry]) => api.remove(api.ref(db, `${entry.roomPath}/game/fxEvents/${id}`))));
+        } catch (_) {}
+        due.forEach(([id]) => pendingFxCleanupEntries.delete(id));
+      }
+      if (pendingFxCleanupEntries.size) {
+        const wait = Number.isFinite(nextAt) ? Math.max(250, nextAt - Date.now()) : ONLINE_FX_RETENTION_MS;
+        fxCleanupTimer = window.setTimeout(run, wait);
+      }
+    };
+    let nextAt = Infinity;
+    pendingFxCleanupEntries.forEach(entry => { nextAt = Math.min(nextAt, Number(entry.deleteAfter || 0)); });
+    const wait = Number.isFinite(nextAt) ? Math.max(250, nextAt - Date.now()) : ONLINE_FX_RETENTION_MS;
+    fxCleanupTimer = window.setTimeout(run, wait);
+  }
+
+  function queueFxCleanup(roomPathValue, id) {
+    if (!roomPathValue || !id) return;
+    pendingFxCleanupEntries.set(String(id), { roomPath: String(roomPathValue), deleteAfter: Date.now() + ONLINE_FX_RETENTION_MS });
+    scheduleFxCleanupSweep();
+  }
+
+  function cancelPendingInteractionWaits() {
+    const aborters = Array.from(pendingInteractionAborters);
+    pendingInteractionAborters.clear();
+    aborters.forEach(abort => { try { abort(); } catch (_) {} });
+  }
+
+  function resetOnlineMatchEphemeralTracking(options = {}) {
+    clearNetworkCleanupTimers();
+    if (options.cancelPendingInteractions !== false) cancelPendingInteractionWaits();
+    handledFxEventIds.clear();
+    lastFxSequenceByAuthor.clear();
+    outboundFxPublishTail = Promise.resolve(true);
+    outboundFxSequence = 0;
+    activeParallelFxPlaybacks.clear();
+    handledInteractionId = '';
+    handledInteractionIds.clear();
+    fxPlaybackGeneration += 1;
+    remoteFxPlaybackTail = Promise.resolve();
+    fxListenerStartedAt = Date.now();
+    try { window.ROK_PRIORITY_ACTION?.clearRemote?.(''); } catch (_) {}
+    turnHandoffPublishPending = false;
+    localStateDirty = false;
+    phaseDeliveryScheduledKey = '';
+    phaseDeliveryInFlightKey = '';
+    phaseDeliveryPromise = null;
+    lastStartedPhaseKey = '';
+    lastAnnouncedPhaseKey = '';
+    pendingPhaseDeliveryContext = null;
+    clearPhaseDeliveryRetry();
+  }
+
+  async function clearRemoteMatchEphemera(api = null) {
+    if (!roomPath) return false;
+    const firebase = api || await loadFirebase();
+    clearNetworkCleanupTimers();
+    cancelPendingInteractionWaits();
+    const results = await Promise.allSettled([
+      firebase.remove(firebase.ref(db, `${roomPath}/game/fxEvents`)),
+      firebase.remove(firebase.ref(db, interactionsPath())),
+      firebase.remove(firebase.ref(db, `${roomPath}/game/priorityAction`)),
+    ]);
+    const failed = results.filter(result => result.status === 'rejected');
+    if (failed.length) {
+      reportOnlineError(failed[0].reason || new Error('No se pudieron limpiar todos los canales efímeros.'), 'Limpieza PvP incompleta');
+    }
+    resetOnlineMatchEphemeralTracking({ cancelPendingInteractions: false });
+    return failed.length === 0;
+  }
 
   function trimHandledFxEvents() {
-    if (handledFxEventIds.size <= 160) return;
-    const keep = Array.from(handledFxEventIds).slice(-80);
+    if (handledFxEventIds.size <= 320) return;
+    const keep = Array.from(handledFxEventIds).slice(-160);
     handledFxEventIds.clear();
     keep.forEach(id => handledFxEventIds.add(id));
   }
 
-  async function emitVisualEvent(type, payload = {}) {
-    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot || !localStateReady || applyingRemoteSnapshot || leavingRoom) return false;
-    const safeType = String(type || '').trim();
-    if (!safeType) return false;
+  function getFxPolicy(type) {
+    try {
+      const policy = window.ROK_ONLINE_FX?.getPolicy?.(String(type || ''));
+      if (policy && typeof policy === 'object') return policy;
+    } catch (_) {}
+    return null;
+  }
+
+  function serverNowMs() {
+    return Date.now() + Number(firebaseServerTimeOffsetMs || 0);
+  }
+
+  async function performEmitVisualEvent(request) {
+    const { safeType, payload, phaseKey, matchSerial, baseRevision, sequence, roomPathValue } = request;
     try {
       const api = await loadFirebase();
-      const eventRef = api.push(api.ref(db, `${roomPath}/game/fxEvents`));
+      if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot || !localStateReady || applyingRemoteSnapshot || leavingRoom) return false;
+      if (!roomPathValue || roomPathValue !== roomPath || Number(matchSerial) !== Number(currentMatchSerial())) return false;
+      const policy = getFxPolicy(safeType);
+      if (!policy) {
+        fxStats.skippedUnsupported += 1;
+        return false;
+      }
+      const eventRef = api.push(api.ref(db, `${roomPathValue}/game/fxEvents`));
       const id = String(eventRef.key || `fx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
       const event = {
         id,
+        schemaVersion: ONLINE_FX_SCHEMA_VERSION,
         type: safeType,
         authorUid: uid,
         authorPlayer: playerSlot,
-        createdAt: Date.now(),
-        phaseKey: currentLocalPhaseKey(),
-        payload: deepClone(payload || {}),
+        authorSequence: sequence,
+        createdAt: api.serverTimestamp(),
+        clientCreatedAt: Date.now(),
+        phaseKey,
+        matchSerial,
+        baseRevision,
+        playbackMode: policy.playbackMode === 'parallel' ? 'parallel' : 'serial',
+        payload,
       };
       handledFxEventIds.add(id);
       trimHandledFxEvents();
       await api.set(eventRef, event);
-      // Los eventos solo sirven para reproducir el instante visual. Mantenerlos
-      // unos segundos permite absorber latencia/reconexiones sin convertirlos
-      // en parte persistente del estado de batalla.
-      const eventRoomPath = roomPath;
-      window.setTimeout(() => {
-        if (!eventRoomPath) return;
-        void loadFirebase().then(apiNow => apiNow.remove(apiNow.ref(db, `${eventRoomPath}/game/fxEvents/${id}`))).catch(() => {});
-      }, 18000);
+      fxStats.emitted += 1;
+      queueFxCleanup(roomPathValue, id);
       return true;
     } catch (error) {
+      fxStats.emitFailed += 1;
       reportOnlineError(error, `No se pudo sincronizar FX ${safeType}`);
+      return false;
+    }
+  }
+
+  function emitVisualEvent(type, payload = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot || !localStateReady || applyingRemoteSnapshot || leavingRoom) return Promise.resolve(false);
+    const safeType = String(type || '').trim();
+    if (!safeType) return Promise.resolve(false);
+    const policy = getFxPolicy(safeType);
+    if (!policy) {
+      fxStats.skippedUnsupported += 1;
+      return Promise.resolve(false);
+    }
+    const request = {
+      safeType,
+      payload: deepClone(payload || {}),
+      phaseKey: currentLocalPhaseKey(),
+      matchSerial: currentMatchSerial(),
+      baseRevision: Math.max(0, Number(lastKnownRevision || 0)),
+      sequence: ++outboundFxSequence,
+      roomPathValue: roomPath,
+    };
+    const publishOne = () => performEmitVisualEvent(request);
+    outboundFxPublishTail = outboundFxPublishTail.then(publishOne, publishOne);
+    return outboundFxPublishTail;
+  }
+
+  async function playIncomingVisualEvent(rawEvent, id, playbackGeneration) {
+    if (playbackGeneration !== fxPlaybackGeneration) return false;
+    const requiredRevision = Math.max(0, Number(rawEvent.baseRevision || 0));
+    if (requiredRevision > lastKnownRevision) {
+      fxStats.revisionWaits += 1;
+      const ready = await ensureAuthoritativeRevision(requiredRevision);
+      if (!ready) {
+        fxStats.revisionWaitFailures += 1;
+        return false;
+      }
+    }
+    if (playbackGeneration !== fxPlaybackGeneration) return false;
+    try {
+      const player = window.ROK_ONLINE_FX?.play;
+      if (typeof player !== 'function') return false;
+      await player({ ...deepClone(rawEvent), id });
+      fxStats.played += 1;
+      return true;
+    } catch (error) {
+      reportOnlineError(error, `Error reproduciendo FX ${rawEvent.type || ''}`);
       return false;
     }
   }
@@ -1595,34 +2454,99 @@
   function handleIncomingVisualEvent(rawEvent, key = '') {
     if (!rawEvent || typeof rawEvent !== 'object') return;
     const id = String(rawEvent.id || key || '');
-    if (!id || handledFxEventIds.has(id)) return;
+    if (!id) return;
+    fxStats.received += 1;
+    if (handledFxEventIds.has(id)) {
+      fxStats.skippedDuplicate += 1;
+      return;
+    }
     const authorUid = String(rawEvent.authorUid || '');
-    const createdAt = Number(rawEvent.createdAt || 0);
+    const eventMatchSerial = Math.max(1, Number(rawEvent.matchSerial || 1));
+    if (eventMatchSerial !== currentMatchSerial()) {
+      fxStats.skippedMatch += 1;
+      return;
+    }
+    const policy = getFxPolicy(rawEvent.type);
+    if (!policy) {
+      fxStats.skippedUnsupported += 1;
+      handledFxEventIds.add(id);
+      trimHandledFxEvents();
+      return;
+    }
     handledFxEventIds.add(id);
     trimHandledFxEvents();
-    if (authorUid && authorUid === uid) return;
-    // onChildAdded entrega también el historial al conectar. Solo se reproducen
-    // eventos nacidos alrededor de esta sesión activa para no repetir ataques
-    // viejos después de recargar la página.
-    if (fxListenerStartedAt && createdAt && createdAt < fxListenerStartedAt - 1800) return;
-    try {
-      const player = window.ROK_ONLINE_FX?.play;
-      if (typeof player === 'function') {
-        Promise.resolve(player({ ...deepClone(rawEvent), id })).catch(error => reportOnlineError(error, `Error reproduciendo FX ${rawEvent.type || ''}`));
-      }
-    } catch (error) {
-      reportOnlineError(error, `Error reproduciendo FX ${rawEvent.type || ''}`);
+    if (authorUid && authorUid === uid) {
+      fxStats.skippedOwn += 1;
+      return;
     }
+
+    const authorSequence = Math.max(0, Number(rawEvent.authorSequence || 0));
+    if (authorUid && authorSequence > 0) {
+      const previousSequence = Math.max(0, Number(lastFxSequenceByAuthor.get(authorUid) || 0));
+      if (authorSequence <= previousSequence) {
+        fxStats.skippedDuplicate += 1;
+        return;
+      }
+      lastFxSequenceByAuthor.set(authorUid, authorSequence);
+    }
+
+    const createdAt = Number(rawEvent.createdAt || 0);
+    const maxReplayAgeMs = Math.max(1000, Number(policy.maxReplayAgeMs || ONLINE_FX_DEFAULT_MAX_REPLAY_AGE_MS));
+    if (createdAt > 0 && serverNowMs() - createdAt > maxReplayAgeMs) {
+      fxStats.skippedStale += 1;
+      return;
+    }
+
+    const playbackGeneration = fxPlaybackGeneration;
+    const playOne = () => playIncomingVisualEvent(rawEvent, id, playbackGeneration);
+    if (policy.playbackMode === 'parallel') {
+      fxStats.parallelPlayed += 1;
+      const promise = Promise.resolve().then(playOne).finally(() => activeParallelFxPlaybacks.delete(promise));
+      activeParallelFxPlaybacks.add(promise);
+      return;
+    }
+    fxStats.serialPlayed += 1;
+    remoteFxPlaybackTail = remoteFxPlaybackTail.then(playOne, playOne);
   }
 
-  function attachFxListener(api) {
+  async function attachFxListener(api) {
     if (fxUnsubscribe) {
       try { fxUnsubscribe(); } catch (_) {}
       fxUnsubscribe = null;
     }
     handledFxEventIds.clear();
+    lastFxSequenceByAuthor.clear();
     fxListenerStartedAt = Date.now();
-    fxUnsubscribe = api.onChildAdded(api.ref(db, `${roomPath}/game/fxEvents`), snapshot => {
+    const listenerGeneration = ++fxListenerGeneration;
+    const fxRef = api.ref(db, `${roomPath}/game/fxEvents`);
+    let floorKey = '';
+    try {
+      const offsetSnapshot = await api.get(api.ref(db, '.info/serverTimeOffset'));
+      firebaseServerTimeOffsetMs = Number(offsetSnapshot.val() || 0);
+      // Si el navegador anterior se cerró antes de ejecutar su barrido local,
+      // cualquier cliente que vuelva a entrar limpia los FX vencidos.
+      const staleCutoff = serverNowMs() - ONLINE_FX_RETENTION_MS;
+      const staleSnapshot = await api.get(api.query(
+        fxRef,
+        api.orderByChild('createdAt'),
+        api.endAt(staleCutoff),
+        api.limitToFirst(120),
+      ));
+      const staleRemovals = [];
+      staleSnapshot.forEach(child => {
+        if (child.key) staleRemovals.push(api.remove(api.ref(db, `${roomPath}/game/fxEvents/${child.key}`)));
+      });
+      if (staleRemovals.length) await Promise.allSettled(staleRemovals);
+      const lastSnapshot = await api.get(api.query(fxRef, api.orderByKey(), api.limitToLast(1)));
+      lastSnapshot.forEach(child => { floorKey = String(child.key || floorKey); });
+    } catch (_) {}
+    if (listenerGeneration !== fxListenerGeneration || leavingRoom || !roomPath) return;
+    fxListenerFloorKey = floorKey;
+    const listenRef = floorKey
+      ? api.query(fxRef, api.orderByKey(), api.startAfter(floorKey))
+      : fxRef;
+    fxUnsubscribe = api.onChildAdded(listenRef, snapshot => {
+      if (listenerGeneration !== fxListenerGeneration) return;
       handleIncomingVisualEvent(snapshot.val(), snapshot.key || '');
     }, error => reportOnlineError(error, 'Se perdió el canal de efectos visuales'));
   }
@@ -1631,6 +2555,8 @@
   function handleIncomingPriorityAction(priorityAction) {
     const active = Boolean(priorityAction && priorityAction.status === 'active');
     const ownerPlayer = Number(priorityAction?.ownerPlayer || 0);
+    const actionMatchSerial = Math.max(1, Number(priorityAction?.matchSerial || 1));
+    if (priorityAction && actionMatchSerial !== currentMatchSerial()) return false;
     if (active && ownerPlayer && ownerPlayer !== Number(LOCAL_PLAYER_ID)) {
       window.ROK_PRIORITY_ACTION?.activateRemote?.(priorityAction);
       return true;
@@ -1652,6 +2578,7 @@
       unitId: payload.unitId || null,
       startedAt: Number(payload.startedAt || Date.now()),
       updatedAt: Date.now(),
+      matchSerial: currentMatchSerial(),
     };
     try {
       const api = await loadFirebase();
@@ -1705,11 +2632,12 @@
   }
 
   async function requestRemoteCasterDefense(defenderId, source, amount, options = {}) {
-    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || Number(defenderId) === Number(LOCAL_PLAYER_ID)) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || Number(defenderId) === Number(LOCAL_PLAYER_ID)) {
       return showCasterDefenseMenu(defenderId, source, amount, options);
     }
     const api = await loadFirebase();
-    await publishSnapshot({ force: true });
+    const barrierCommitted = await commitStateBarrier('before-caster-defense');
+    if (!barrierCommitted) return 'defend';
     const interactionId = `def_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const interaction = {
       id: interactionId,
@@ -1718,6 +2646,9 @@
       requesterUid: uid,
       requesterPlayer: playerSlot,
       targetPlayer: Number(defenderId),
+      baseRevision: lastKnownRevision,
+      matchSerial: currentMatchSerial(),
+      phaseKey: currentLocalPhaseKey(),
       createdAt: Date.now(),
       payload: {
         source: sourceToInteractionPayload(source),
@@ -1727,7 +2658,7 @@
         isDirectAttack: Boolean(options.isDirectAttack),
       },
     };
-    const interactionRef = api.ref(db, `${roomPath}/game/interaction`);
+    const interactionRef = api.ref(db, `${interactionsPath()}/${interactionId}`);
     await api.set(interactionRef, interaction);
     try { log(`Esperando la respuesta defensiva del Jugador ${defenderId}…`); } catch (_) {}
 
@@ -1738,11 +2669,14 @@
       const finish = async choice => {
         if (settled) return;
         settled = true;
+        pendingInteractionAborters.delete(aborter);
         if (unsubscribe) unsubscribe();
         if (timeoutId) window.clearTimeout(timeoutId);
         try { await api.remove(interactionRef); } catch (_) {}
         resolve(['defend', 'counter', 'special-counter'].includes(choice) ? choice : 'defend');
       };
+      const aborter = () => { void finish('defend'); };
+      pendingInteractionAborters.add(aborter);
       unsubscribe = api.onValue(interactionRef, snapshot => {
         const value = snapshot.val();
         if (!value) return;
@@ -1753,8 +2687,26 @@
     });
   }
 
-  function applyRemoteActionWindowState(snapshot) {
+  function applyRemoteActionWindowState(snapshot, expectedHash = '') {
     if (!snapshot || typeof snapshot !== 'object' || !snapshot.players) return false;
+    const normalizedSnapshot = normalizeAuthoritativeSnapshot(snapshot);
+    const report = auditSnapshotSource(normalizedSnapshot, { repair: false });
+    if (!report.ok) {
+      consistencyStats.actionWindowRejected += 1;
+      consistencyStats.lastIssue = formatIntegrityIssue(report);
+      reportOnlineError(new Error(consistencyStats.lastIssue), 'Respuesta PvP inconsistente');
+      return false;
+    }
+    const normalizedText = snapshotText(normalizedSnapshot);
+    const normalizedHash = hashSnapshotText(normalizedText);
+    if (expectedHash && String(expectedHash) !== normalizedHash) {
+      consistencyStats.actionWindowRejected += 1;
+      consistencyStats.hashMismatch += 1;
+      consistencyStats.lastIssue = `action-window hash ${expectedHash} != ${normalizedHash}`;
+      reportOnlineError(new Error(consistencyStats.lastIssue), 'Respuesta PvP inconsistente');
+      return false;
+    }
+    snapshot = normalizedSnapshot;
     const localHudMode = state.hudMode;
     const localSemiAutoMovement = state.semiAutoMovement;
     const localActiveTab = state.activeTab;
@@ -1793,8 +2745,8 @@
       ROK_ONLINE_MATCH_ACTIVE = true;
       LOCAL_PLAYER_ID = playerSlot;
       localStateReady = true;
-      lastSnapshotText = snapshotText(makeBattleSnapshot());
-      try { renderAll(); } catch (_) {}
+      lastSnapshotText = makeBattleSnapshotPacket().text;
+      flushBattleRender('remote-action-result');
       return true;
     } finally {
       applyingRemoteSnapshot = false;
@@ -1809,11 +2761,10 @@
     const safeKind = String(kind || '').trim();
     if (!safeKind) return { result: 'none', applied: false };
     const api = await loadFirebase();
-    // El dueño de la acción congela primero el estado autoritativo. El rival
-    // resuelve su ventana sobre esa misma fotografía y devuelve el resultado.
-    await publishSnapshot({ force: true });
+    const barrierCommitted = await commitStateBarrier(`before-action-window:${safeKind}`);
+    if (!barrierCommitted) return { result: 'sync-conflict', applied: false };
     const interactionId = `act_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    const interactionRef = api.ref(db, `${roomPath}/game/interaction`);
+    const interactionRef = api.ref(db, `${interactionsPath()}/${interactionId}`);
     const interaction = {
       id: interactionId,
       type: 'action-window',
@@ -1822,6 +2773,9 @@
       requesterUid: uid,
       requesterPlayer: playerSlot,
       targetPlayer: targetId,
+      baseRevision: lastKnownRevision,
+      matchSerial: currentMatchSerial(),
+      phaseKey: currentLocalPhaseKey(),
       createdAt: Date.now(),
       payload: deepClone(payload || {}),
     };
@@ -1831,20 +2785,34 @@
       let settled = false;
       let unsubscribe = null;
       let timeoutId = null;
-      const finish = async response => {
+      const finish = async (response, finishOptions = {}) => {
         if (settled) return;
         settled = true;
+        pendingInteractionAborters.delete(aborter);
         if (unsubscribe) unsubscribe();
         if (timeoutId) window.clearTimeout(timeoutId);
         let applied = false;
         const returnedSnapshot = response?.snapshot;
-        if (returnedSnapshot && typeof returnedSnapshot === 'object') {
-          applied = applyRemoteActionWindowState(returnedSnapshot);
-          if (applied) await publishSnapshot({ force: true });
+        const responseMatchSerial = Math.max(1, Number(response?.matchSerial || interaction.matchSerial || 1));
+        const responseBaseRevision = Math.max(0, Number(response?.baseRevision ?? interaction.baseRevision ?? 0));
+        const responsePhaseKey = String(response?.phaseKey || interaction.phaseKey || '');
+        const expectedPhaseKey = String(interaction.phaseKey || '');
+        const responseMetadataValid = responseMatchSerial === currentMatchSerial()
+          && responseBaseRevision === Math.max(0, Number(interaction.baseRevision || 0))
+          && (!expectedPhaseKey || responsePhaseKey === expectedPhaseKey)
+          && (!expectedPhaseKey || phaseKeyFromSnapshot(returnedSnapshot) === expectedPhaseKey);
+        if (!finishOptions.skipApply && returnedSnapshot && typeof returnedSnapshot === 'object' && responseMetadataValid) {
+          applied = applyRemoteActionWindowState(returnedSnapshot, String(response?.snapshotHash || ''));
+          if (applied) await commitStateBarrier(`action-window-result:${safeKind}`);
+        } else if (!finishOptions.skipApply && returnedSnapshot && !responseMetadataValid) {
+          consistencyStats.actionWindowRejected += 1;
+          consistencyStats.lastIssue = `action-window metadata desfasada (${responseBaseRevision}/${responseMatchSerial})`;
         }
         try { await api.remove(interactionRef); } catch (_) {}
         resolve({ result: String(response?.result || 'skipped'), applied });
       };
+      const aborter = () => { void finish({ result: 'match-reset' }, { skipApply: true }); };
+      pendingInteractionAborters.add(aborter);
       unsubscribe = api.onValue(interactionRef, snapshot => {
         const value = snapshot.val();
         if (!value || value.id !== interactionId || value.status !== 'resolved') return;
@@ -1854,74 +2822,123 @@
     });
   }
 
+  async function ensureAuthoritativeRevision(requiredRevision = 0) {
+    const required = Math.max(0, Number(requiredRevision || 0));
+    if (!required || lastKnownRevision >= required) return true;
+    try {
+      const api = await loadFirebase();
+      const latest = await api.get(api.ref(db, authoritativeGamePath()));
+      const value = latest.val();
+      if (value?.snapshot && Number(value.revision || 0) >= required) {
+        handleAuthoritativeValue(value);
+      }
+    } catch (_) {}
+    if (lastKnownRevision >= required) return true;
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 3500) {
+      await new Promise(resolve => window.setTimeout(resolve, 40));
+      if (lastKnownRevision >= required) return true;
+    }
+    return lastKnownRevision >= required;
+  }
+
   async function handleIncomingInteraction(interaction) {
     if (!interaction || interaction.status !== 'pending') return;
+    if (Math.max(1, Number(interaction.matchSerial || 1)) !== currentMatchSerial()) return;
     if (Number(interaction.targetPlayer) !== Number(LOCAL_PLAYER_ID)) return;
-    if (interaction.id === handledInteractionId) return;
-    handledInteractionId = interaction.id;
+    const interactionId = String(interaction.id || '');
+    if (!interactionId || handledInteractionIds.has(interactionId)) return;
+    handledInteractionId = interactionId;
+    handledInteractionIds.add(interactionId);
+    trimHandledInteractions();
+    try {
+      const api = await loadFirebase();
+      const interactionRef = api.ref(db, `${interactionsPath()}/${interactionId}`);
+      const revisionReady = await ensureAuthoritativeRevision(interaction.baseRevision);
+      if (!revisionReady) {
+        reportOnlineError(new Error(`No llegó la revisión ${Number(interaction.baseRevision || 0)} antes de la interacción ${interactionId}.`), 'Ventana online desfasada');
+        return;
+      }
 
-    if (interaction.type === 'action-window') {
+      if (interaction.type === 'action-window') {
+        try {
+          const runner = window.ROK_ONLINE_ACTION_WINDOW?.run;
+          const result = typeof runner === 'function'
+            ? await runner(String(interaction.kind || ''), deepClone(interaction.payload || {}))
+            : 'unsupported';
+          const responsePacket = makeBattleSnapshotPacket();
+          if (!responsePacket.snapshot) throw new Error(`La ventana ${interactionId} produjo un estado inválido.`);
+          await api.runTransaction(interactionRef, current => {
+            if (!current || current.id !== interactionId || current.status !== 'pending') return;
+            return {
+              ...current,
+              status: 'resolved',
+              response: {
+                result: typeof result === 'string' ? result : String(result?.result || 'completed'),
+                snapshot: responsePacket.snapshot,
+                snapshotHash: responsePacket.hash,
+                baseRevision: Math.max(0, Number(interaction.baseRevision || 0)),
+                matchSerial: currentMatchSerial(),
+                phaseKey: String(interaction.phaseKey || currentLocalPhaseKey()),
+                uid,
+                player: playerSlot,
+                resolvedAt: Date.now(),
+              },
+            };
+          }, { applyLocally: false });
+        } catch (error) {
+          reportOnlineError(error, `Error en ventana remota ${interaction.kind || ''}`);
+          try {
+            const fallbackPacket = makeBattleSnapshotPacket();
+            await api.update(interactionRef, {
+              status: 'resolved',
+              response: {
+                result: 'error',
+                snapshot: fallbackPacket.snapshot,
+                snapshotHash: fallbackPacket.hash,
+                baseRevision: Math.max(0, Number(interaction.baseRevision || 0)),
+                matchSerial: currentMatchSerial(),
+                phaseKey: String(interaction.phaseKey || currentLocalPhaseKey()),
+                uid,
+                player: playerSlot,
+                resolvedAt: Date.now(),
+                fallback: true,
+              },
+            });
+          } catch (_) {}
+        }
+        return;
+      }
+
+      if (interaction.type !== 'caster-defense') return;
       try {
-        const runner = window.ROK_ONLINE_ACTION_WINDOW?.run;
-        const result = typeof runner === 'function'
-          ? await runner(String(interaction.kind || ''), deepClone(interaction.payload || {}))
-          : 'unsupported';
-        const responseSnapshot = makeBattleSnapshot();
-        const api = await loadFirebase();
-        await api.runTransaction(api.ref(db, `${roomPath}/game/interaction`), current => {
-          if (!current || current.id !== interaction.id || current.status !== 'pending') return;
+        const payload = interaction.payload || {};
+        const source = reconstructInteractionSource(payload.source || {});
+        const choice = await showCasterDefenseMenu(LOCAL_PLAYER_ID, source, Number(payload.amount || 0), {
+          isDistanceAttack: Boolean(payload.isDistanceAttack),
+          allowCounter: payload.allowCounter !== false,
+          isDirectAttack: Boolean(payload.isDirectAttack),
+        });
+        await api.runTransaction(interactionRef, current => {
+          if (!current || current.id !== interactionId || current.status !== 'pending') return;
           return {
             ...current,
             status: 'resolved',
-            response: {
-              result: typeof result === 'string' ? result : String(result?.result || 'completed'),
-              snapshot: responseSnapshot,
-              uid,
-              player: playerSlot,
-              resolvedAt: Date.now(),
-            },
+            response: { choice: choice || 'defend', uid, player: playerSlot, resolvedAt: Date.now() },
           };
         }, { applyLocally: false });
       } catch (error) {
-        reportOnlineError(error, `Error en ventana remota ${interaction.kind || ''}`);
+        reportOnlineError(error, 'Error en la defensa remota del Kaster');
         try {
-          const api = await loadFirebase();
-          await api.update(api.ref(db, `${roomPath}/game/interaction`), {
+          await api.update(interactionRef, {
             status: 'resolved',
-            response: { result: 'error', snapshot: makeBattleSnapshot(), uid, player: playerSlot, resolvedAt: Date.now(), fallback: true },
+            response: { choice: 'defend', uid, player: playerSlot, resolvedAt: Date.now(), fallback: true },
           });
         } catch (_) {}
       }
-      return;
-    }
-
-    if (interaction.type !== 'caster-defense') return;
-    try {
-      const payload = interaction.payload || {};
-      const source = reconstructInteractionSource(payload.source || {});
-      const choice = await showCasterDefenseMenu(LOCAL_PLAYER_ID, source, Number(payload.amount || 0), {
-        isDistanceAttack: Boolean(payload.isDistanceAttack),
-        allowCounter: payload.allowCounter !== false,
-        isDirectAttack: Boolean(payload.isDirectAttack),
-      });
-      const api = await loadFirebase();
-      await api.runTransaction(api.ref(db, `${roomPath}/game/interaction`), current => {
-        if (!current || current.id !== interaction.id || current.status !== 'pending') return;
-        return {
-          ...current,
-          status: 'resolved',
-          response: { choice: choice || 'defend', uid, player: playerSlot, resolvedAt: Date.now() },
-        };
-      }, { applyLocally: false });
-    } catch (error) {
-      reportOnlineError(error, 'Error en la defensa remota del Kaster');
-      try {
-        const api = await loadFirebase();
-        await api.update(api.ref(db, `${roomPath}/game/interaction`), {
-          status: 'resolved',
-          response: { choice: 'defend', uid, player: playerSlot, resolvedAt: Date.now(), fallback: true },
-        });
-      } catch (_) {}
+    } finally {
+      if (interaction.type === 'action-window') passiveConsistencySuspendUntil = Date.now() + 5000;
+      if (handledInteractionId === interactionId) handledInteractionId = '';
     }
   }
 
@@ -1940,16 +2957,43 @@
   }
 
   async function detachRoomListener() {
-    if (roomUnsubscribe) {
-      try { roomUnsubscribe(); } catch (_) {}
-      roomUnsubscribe = null;
+    for (const unsubscribe of [
+      roomUnsubscribe,
+      authoritativeUnsubscribe,
+      interactionUnsubscribe,
+      priorityActionUnsubscribe,
+      matchPlayersUnsubscribe,
+      matchStatusUnsubscribe,
+      matchControlUnsubscribe,
+      fxUnsubscribe,
+    ]) {
+      if (unsubscribe) { try { unsubscribe(); } catch (_) {} }
     }
-    if (fxUnsubscribe) {
-      try { fxUnsubscribe(); } catch (_) {}
-      fxUnsubscribe = null;
-    }
+    roomUnsubscribe = null;
+    authoritativeUnsubscribe = null;
+    interactionUnsubscribe = null;
+    priorityActionUnsubscribe = null;
+    matchPlayersUnsubscribe = null;
+    matchStatusUnsubscribe = null;
+    matchControlUnsubscribe = null;
+    fxUnsubscribe = null;
+    fxListenerGeneration += 1;
+    fxListenerFloorKey = '';
     fxListenerStartedAt = 0;
+    clearNetworkCleanupTimers();
+    cancelPendingInteractionWaits();
     handledFxEventIds.clear();
+    lastFxSequenceByAuthor.clear();
+    handledInteractionId = '';
+    passiveConsistencySuspendUntil = 0;
+    handledInteractionIds.clear();
+    remoteFxPlaybackTail = Promise.resolve();
+    outboundFxPublishTail = Promise.resolve(true);
+    activeParallelFxPlaybacks.clear();
+    matchControlCache = null;
+    lastAuthoritativeSnapshot = null;
+    lastAuthoritativeSnapshotText = '';
+    lastAuthoritativeSnapshotHash = '';
     if (presenceDisconnect) {
       try { await presenceDisconnect.cancel(); } catch (_) {}
       presenceDisconnect = null;
@@ -1965,7 +3009,7 @@
     const oldRoomCode = roomCode;
     const oldSlot = playerSlot;
     const oldRoom = roomCache;
-    const wasPlaying = Boolean(oldRoom?.game?.snapshot || oldRoom?.status === 'playing');
+    const wasPlaying = Boolean(getAuthoritativeGameState(oldRoom)?.snapshot || oldRoom?.status === 'playing');
     try {
       if (oldRoomPath && oldSlot) {
         try { await clearPriorityAction('', 'leave-room'); } catch (_) {}
@@ -1997,12 +3041,19 @@
       lastObservedPhaseKey = '';
       lastStartedPhaseKey = '';
       phaseDeliveryScheduledKey = '';
+      phaseDeliveryInFlightKey = '';
+      phaseDeliveryPromise = null;
       lastAnnouncedPhaseKey = '';
       pendingPhaseDeliveryContext = null;
       clearPhaseDeliveryRetry();
       turnHandoffPublishPending = false;
       localStateReady = false;
       handledInteractionId = '';
+      handledInteractionIds.clear();
+      localStateDirty = false;
+      publishQueueTail = Promise.resolve(false);
+      startingOnlineRematch = false;
+      matchControlCache = null;
       clearSession();
       ROK_ONLINE_MATCH_ACTIVE = false;
       LOCAL_PLAYER_ID = 1;
@@ -3582,12 +4633,16 @@
     leaveRoom,
     requestRemoteCasterDefense,
     requestRemoteActionWindow,
+    notifyMatchFinished,
+    requestRematch,
     setPriorityAction,
     clearPriorityAction,
     emitVisualEvent,
     markPhaseStarted,
     markTurnHandoffPending,
     publishNow: () => publishSnapshot({ force: true }),
+    commitStateBarrier,
+    markStateDirty: markLocalStateDirty,
     getSession: () => ({
       roomCode,
       playerSlot,
@@ -3597,7 +4652,21 @@
       observedPhaseKey: lastObservedPhaseKey,
       startedPhaseKey: lastStartedPhaseKey,
       handoffPending: turnHandoffPublishPending,
+      matchSerial: currentMatchSerial(),
+      matchStatus: String(matchControlCache?.status || ''),
+      pendingInteractionWaits: pendingInteractionAborters.size,
+      pendingFxCleanupTimers: pendingFxCleanupEntries.size,
+      fxListenerFloorKey,
+      fxStats: { ...fxStats },
+      consistency: {
+        ...consistencyStats,
+        authoritativeHash: lastAuthoritativeSnapshotHash,
+        localHash: makeBattleSnapshotPacket().hash,
+        authoritativeRevision: lastKnownRevision,
+      },
     }),
+    verifyConsistency: () => verifyPassiveClientConsistency({ repair: false }),
+    auditLocalState: () => window.ROK_STATE_INTEGRITY?.audit?.(state, { repair: false }) || { ok: true, issues: [], warnings: [] },
   };
 
   window.addEventListener('DOMContentLoaded', bindUi);

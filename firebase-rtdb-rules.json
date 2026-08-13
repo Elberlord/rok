@@ -36,7 +36,37 @@
         },
         "game": {
           ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)"
+          "authoritative": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
+            ".validate": "!newData.exists() || (newData.hasChildren(['revision','parentRevision','writerUid','writerPlayer','phaseKey','matchSerial','schemaVersion','snapshotHash','snapshot','updatedAt']) && newData.child('revision').isNumber() && newData.child('revision').val() >= 1 && newData.child('parentRevision').isNumber() && newData.child('parentRevision').val() >= 0 && newData.child('revision').val() === newData.child('parentRevision').val() + 1 && newData.child('parentRevision').val() === (data.exists() ? data.child('revision').val() : 0) && newData.child('writerUid').val() === auth.uid && newData.child('writerPlayer').isNumber() && ((newData.child('writerPlayer').val() === 1 && root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid) || (newData.child('writerPlayer').val() === 2 && root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)) && newData.child('schemaVersion').val() === 4 && newData.child('snapshotHash').isString() && newData.child('snapshotHash').val().length === 8 && newData.child('matchSerial').isNumber() && newData.child('matchSerial').val() >= 1 && newData.child('snapshot').hasChildren(['players','activePlayer','phaseIndex','turnSerial','matchSerial','openingElementsDealt','openingExtractionSkippedByPlayer']) && newData.child('snapshot').child('players').hasChildren(['1','2']) && newData.child('snapshot').child('activePlayer').isNumber() && (newData.child('snapshot').child('activePlayer').val() === 1 || newData.child('snapshot').child('activePlayer').val() === 2) && newData.child('snapshot').child('phaseIndex').isNumber() && newData.child('snapshot').child('turnSerial').isNumber() && newData.child('snapshot').child('matchSerial').val() === newData.child('matchSerial').val() && newData.child('snapshot').child('openingElementsDealt').isBoolean() && newData.child('snapshot').child('openingExtractionSkippedByPlayer').hasChildren(['1','2']) && newData.child('snapshot').child('openingExtractionSkippedByPlayer').child('1').isBoolean() && newData.child('snapshot').child('openingExtractionSkippedByPlayer').child('2').isBoolean() && newData.child('updatedAt').isNumber())"
+          },
+          "interactions": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
+            "$interactionId": {
+              ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
+              ".validate": "!newData.exists() || (newData.child('id').val() === $interactionId && newData.child('type').isString() && newData.child('status').isString() && newData.child('targetPlayer').isNumber() && (newData.child('targetPlayer').val() === 1 || newData.child('targetPlayer').val() === 2) && newData.child('matchSerial').isNumber() && newData.child('matchSerial').val() >= 1 && newData.child('baseRevision').isNumber() && newData.child('baseRevision').val() >= 0 && newData.child('phaseKey').isString() && newData.child('createdAt').isNumber())"
+            }
+          },
+          "priorityAction": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)"
+          },
+          "fxEvents": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
+            "$fxId": {
+              ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
+              ".validate": "!newData.exists() || (newData.child('id').val() === $fxId && newData.child('schemaVersion').val() === 2 && newData.child('type').isString() && newData.child('authorUid').val() === auth.uid && newData.child('authorPlayer').isNumber() && newData.child('authorSequence').isNumber() && newData.child('authorSequence').val() >= 1 && newData.child('matchSerial').isNumber() && newData.child('matchSerial').val() >= 1 && newData.child('baseRevision').isNumber() && newData.child('baseRevision').val() >= 0 && newData.child('playbackMode').isString() && (newData.child('playbackMode').val() === 'serial' || newData.child('playbackMode').val() === 'parallel') && newData.child('createdAt').isNumber())"
+            },
+            ".indexOn": [
+              "createdAt"
+            ]
+          },
+          "matchControl": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || root.child('rooms').child($roomCode).child('guestUid').val() === auth.uid)",
+            ".validate": "!newData.exists() || (newData.child('serial').isNumber() && newData.child('serial').val() >= 1 && newData.child('status').isString() && (newData.child('status').val() === 'playing' || newData.child('status').val() === 'finished' || newData.child('status').val() === 'starting') && newData.child('updatedAt').isNumber())"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
         "$other": {
           ".validate": false
@@ -122,58 +152,9 @@
     },
     "avatarJobs": {
       "$uid": {
-        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".read": "auth != null && auth.uid === $uid",
         "$jobId": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
-          ".validate": "newData.hasChildren(['uid','status','createdAt','updatedAt']) && newData.child('uid').val() === $uid && newData.child('status').isString() && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber()",
-          "uid": {
-            ".validate": "newData.val() === $uid"
-          },
-          "status": {
-            ".validate": "newData.isString() && (newData.val() === 'queued' || newData.val() === 'processing' || newData.val() === 'completed' || newData.val() === 'failed')"
-          },
-          "sourcePath": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "sourceContentType": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "promptVersion": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "mode": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "resultUrl": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "mock": {
-            ".validate": "!newData.exists() || newData.isBoolean()"
-          },
-          "completedAt": {
-            ".validate": "!newData.exists() || newData.isNumber()"
-          },
-          "errorMessage": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "$other": {
-            ".validate": false
-          },
-          "sourceImageData": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "sourceImageMime": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "sourceImageWidth": {
-            ".validate": "!newData.exists() || newData.isNumber()"
-          },
-          "sourceImageHeight": {
-            ".validate": "!newData.exists() || newData.isNumber()"
-          },
-          "sourceImageBytes": {
-            ".validate": "!newData.exists() || newData.isNumber()"
-          }
+          ".write": "auth != null && auth.uid === $uid"
         }
       }
     }
