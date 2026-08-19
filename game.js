@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.7.324';
+const GAME_VERSION = 'v5.7.325';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -492,6 +492,7 @@ window.ROK_ONLINE_FX = {
 };
 
 const PATCH_NOTES = [
+  'v542: Restaura los Spellbooks base permanentes Deck básico Hattori (27/30) y Deck básico Tokugawa (30/30). Los presets se fusionan con los Spellbooks locales aunque localStorage esté vacío, aparecen en Mis Spellbooks, Player vs Bot y Versus Online, y son utilizables como mazos de prueba sin exigir colección. Los presets son de solo lectura para evitar que se pierdan; se pueden duplicar para editar. El almacenamiento local conserva únicamente mazos creados por el usuario y evita duplicados históricos por nombre/id.',
   'v541: Segunda calibración experimental de Estasis de Spellbook para cartas iniciales/baratas. La duración base por Costo se mantiene (0→5, 1→4, 2→3, 3→2, 4→1, 5+→0), pero el descuento PB se escala linealmente desde 5 fases=-800 hasta 0 fases=0: 4=-640, 3=-480, 2=-320 y 1=-160. El objetivo es que el tempo barato no convierta por sí solo cartas comunes en rarezas altas.',
   'v540: Calibración experimental de Estasis de Spellbook para reducir la inflación de PB en Invocaciones de bajo costo. La duración base por Costo no cambia (0→5, 1→4, 2→3, 3→2, 4→1, 5+→0 fases), pero el descuento PB se vuelve más agresivo: 5 fases=-450, 4=-350, 3=-250, 2=-150, 1=-50 y 0=0. Costo, Kasteo y Restauración conservan sus curvas positivas actuales; este ajuste se prueba antes de seguir recalibrando rarezas carta por carta.',
   'v539: Junkai butai #2 sustituye Parálisis 2 por Atadura 2. Atadura usa dos comprobaciones PDA por cambio de fase —Movimiento y Ataque— con el mismo margen del nivel, mantiene duración por nivel y usa el nuevo icono de cadenas. Velocidad de ataque y Atadura usan modales semánticos normalizados y PB Universal.',
@@ -9724,6 +9725,76 @@ const SPELLBOOK_FORCED_LIMITS_TRAIT_ID = 'limitesForzados';
 const SPELLBOOK_LEGACY_ADAPTATION_TRAIT_ID = 'adaptacion';
 const SPELLBOOK_ELEMENT_MAX_TOTAL = 60;
 
+// ROK v8.42 · Spellbooks base del juego.
+// Son presets de prueba permanentes: siempre aparecen aunque localStorage esté vacío,
+// no dependen de la colección del usuario y no se guardan dentro del almacenamiento
+// editable. Para modificarlos, el usuario duplica el preset y trabaja sobre la copia.
+const BUILT_IN_SPELLBOOK_IDS = Object.freeze({
+  hattori: 'builtin_deck_basico_hattori',
+  tokugawa: 'builtin_deck_basico_tokugawa',
+});
+
+const BUILT_IN_SPELLBOOK_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: BUILT_IN_SPELLBOOK_IDS.hattori,
+    name: 'Deck básico Hattori',
+    casterCardId: 'kasterHanzoDark',
+    // Lista base definida para pruebas: 27/30.
+    cards: Object.freeze([
+      'ninjaKurayami',
+      'ninjaMinokageNoKurai',
+      'ninjaIchikawaGoemon',
+      'ninjaJunkaiButai1',
+      'ninjaKurokagiButai3',
+      'ninjaJunkaiButai1',
+      'ninjaJunkaiButai2',
+      'ninjaSaqueadorNovato',
+      'ninjaYasuganaHattori',
+      'abilityShirahadori', 'abilityShirahadori',
+      'spellEmboscada', 'spellEmboscada',
+      'spellInterceptar', 'spellInterceptar',
+      'spellKageNoMichi', 'spellKageNoMichi',
+      'spellNagayoru', 'spellNagayoru',
+      'spellTacticaGuerra', 'spellTacticaGuerra',
+      'naitoSutoka', 'naitoSutoka',
+      'ninjaOjoDeBuho', 'ninjaOjoDeBuho',
+      'gioshoninMercaderErrante',
+      'ninjaNaitoSutoka',
+    ]),
+    // Fuente de prueba para cubrir Oscuridad + los hechizos de Agua del preset.
+    elementDistribution: Object.freeze({ oscuridad: 30, agua: 30 }),
+  }),
+  Object.freeze({
+    id: BUILT_IN_SPELLBOOK_IDS.tokugawa,
+    name: 'Deck básico Tokugawa',
+    casterCardId: 'kasterTokugawaLight',
+    // Lista base definida para pruebas: 30/30.
+    // “Shinlo Nobuchi”, como fue dictado originalmente, corresponde en la
+    // biblioteca actual a Samurai Shiro no Bushi.
+    cards: Object.freeze([
+      'samuraiTakedaShingen',
+      'samuraiKaguya', 'samuraiKaguya',
+      'samuraiNobunagaOda',
+      'samuraiKarunobuTaicho', 'samuraiKarunobuTaicho',
+      'samuraiShinraHitokiri',
+      'samuraiShiroNoBushi',
+      'samuraiBushiHonorable',
+      'samuraiOSenseiUeshiba',
+      'samuraiRegenteKishimoto',
+      'miyamotoMusashi',
+      'samuraiBushiIniciado', 'samuraiBushiIniciado', 'samuraiBushiIniciado', 'samuraiBushiIniciado',
+      'spellCargaReal', 'spellCargaReal',
+      'abilityShirahadori', 'abilityShirahadori',
+      'spellDespliegueAnticipado', 'spellDespliegueAnticipado',
+      'spellKouuten', 'spellKouuten',
+      'spellGurenGan', 'spellGurenGan',
+      'spellTentorou', 'spellTentorou',
+      'spellGloriaLatente', 'spellGloriaLatente',
+    ]),
+    elementDistribution: Object.freeze({ luz: 30, fuego: 30 }),
+  }),
+]);
+
 const CARD_TRAIT_DB = {
   limitesforzados: {
     id: SPELLBOOK_FORCED_LIMITS_TRAIT_ID,
@@ -12146,6 +12217,7 @@ function handleBoosterStoreContentClick(event) {
 }
 
 function getRokUserSpellbookCollectionIssue(spellbook) {
+  if (spellbook?.builtIn === true) return '';
   if (!isRokUserModeActive()) return '';
   const counts = new Map();
   (spellbook?.cards || []).filter(Boolean).forEach(cardId => counts.set(cardId, (counts.get(cardId) || 0) + 1));
@@ -16386,7 +16458,44 @@ function normalizeSavedSpellbook(raw) {
     createdAt: Number(raw.createdAt) || Date.now(),
     updatedAt: Number(raw.updatedAt) || Date.now(),
     schemaVersion: SPELLBOOK_SCHEMA_VERSION,
+    builtIn: raw.builtIn === true,
+    readOnly: raw.readOnly === true || raw.builtIn === true,
   };
+}
+
+function getBuiltInSpellbooks() {
+  const baseTimestamp = 1;
+  return BUILT_IN_SPELLBOOK_DEFINITIONS
+    .map((definition, index) => normalizeSavedSpellbook({
+      ...definition,
+      cards: [...definition.cards],
+      elementDistribution: { ...definition.elementDistribution },
+      elementDistributionConfigured: true,
+      createdAt: baseTimestamp + index,
+      updatedAt: baseTimestamp + index,
+      builtIn: true,
+      readOnly: true,
+    }))
+    .filter(Boolean);
+}
+
+function sortSpellbookCollection(entries = []) {
+  return [...entries].sort((a, b) => {
+    const builtInDelta = Number(Boolean(b?.builtIn)) - Number(Boolean(a?.builtIn));
+    if (builtInDelta) return builtInDelta;
+    return Number(b?.updatedAt || 0) - Number(a?.updatedAt || 0);
+  });
+}
+
+function mergeBuiltInSpellbooks(userEntries = []) {
+  const builtIns = getBuiltInSpellbooks();
+  const builtInIds = new Set(builtIns.map(entry => entry.id));
+  const builtInNames = new Set(builtIns.map(entry => String(entry.name || '').trim().toLocaleLowerCase('es')));
+  const user = (userEntries || []).filter(entry => {
+    if (!entry || builtInIds.has(entry.id)) return false;
+    return !builtInNames.has(String(entry.name || '').trim().toLocaleLowerCase('es'));
+  });
+  return sortSpellbookCollection([...builtIns, ...user]);
 }
 
 
@@ -16423,6 +16532,7 @@ function serializeSpellbookMatchLoadout(spellbook) {
     elementDistribution: normalizeSpellbookElementDistribution(normalized.elementDistribution),
     elementDistributionConfigured: normalized.elementDistributionConfigured === true,
     schemaVersion: SPELLBOOK_SCHEMA_VERSION,
+    builtIn: normalized.builtIn === true,
   };
 }
 
@@ -16747,28 +16857,30 @@ window.ROK_SPELLBOOK_MATCH = {
 
 function loadSpellbookStorage() {
   const raw = safeLocalStorageGet(SPELLBOOK_STORAGE_KEY);
-  if (!raw) {
-    savedSpellbooks = [];
-    return;
+  let userSpellbooks = [];
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      userSpellbooks = (Array.isArray(parsed) ? parsed : [])
+        .map(normalizeSavedSpellbook)
+        .filter(Boolean)
+        .map(entry => ({ ...entry, builtIn: false, readOnly: false }));
+    } catch (error) {
+      console.warn('[ROK Spellbooks] Datos guardados inválidos; se cargarán los Spellbooks base.', error);
+      userSpellbooks = [];
+    }
   }
-  try {
-    const parsed = JSON.parse(raw);
-    savedSpellbooks = (Array.isArray(parsed) ? parsed : [])
-      .map(normalizeSavedSpellbook)
-      .filter(Boolean)
-      .sort((a, b) => b.updatedAt - a.updatedAt);
-  } catch (error) {
-    console.warn('[ROK Spellbooks] Datos guardados inválidos; se conservará una colección vacía.', error);
-    savedSpellbooks = [];
-  }
+  savedSpellbooks = mergeBuiltInSpellbooks(userSpellbooks);
 }
 
 function persistSpellbookStorage() {
-  savedSpellbooks = savedSpellbooks
-    .map(normalizeSavedSpellbook)
+  const userSpellbooks = savedSpellbooks
+    .filter(entry => !entry?.builtIn)
+    .map(entry => normalizeSavedSpellbook({ ...entry, builtIn: false, readOnly: false }))
     .filter(Boolean)
     .sort((a, b) => b.updatedAt - a.updatedAt);
-  return safeLocalStorageSet(SPELLBOOK_STORAGE_KEY, JSON.stringify(savedSpellbooks));
+  savedSpellbooks = mergeBuiltInSpellbooks(userSpellbooks);
+  return safeLocalStorageSet(SPELLBOOK_STORAGE_KEY, JSON.stringify(userSpellbooks));
 }
 
 function createSpellbookId() {
@@ -17436,6 +17548,11 @@ function renderSpellbooksCollection() {
     const card = document.createElement('article');
     card.className = 'saved-spellbook-card';
     card.dataset.spellbookId = spellbook.id;
+    if (spellbook.builtIn) {
+      card.classList.add('built-in');
+      card.dataset.spellbookBuiltIn = 'true';
+      card.title = 'Spellbook base de prueba incluido con R.O.K Lite.';
+    }
 
     const visual = document.createElement('div');
     visual.className = 'saved-spellbook-caster';
@@ -17568,12 +17685,18 @@ function renderSpellbooksCollection() {
       button.addEventListener('click', handler);
       return button;
     };
-    actions.append(
-      makeButton('Editar', 'saved-spellbook-action primary', () => openLibraryBuilderScreen({ mode: 'edit', spellbook })),
-      makeButton('Duplicar', 'saved-spellbook-action', () => duplicateSavedSpellbook(spellbook.id)),
-      makeButton('Cambiar nombre', 'saved-spellbook-action', () => openSpellbookNameModal('rename', spellbook)),
-      makeButton('Borrar', 'saved-spellbook-action danger', () => deleteSavedSpellbook(spellbook.id)),
-    );
+    if (spellbook.builtIn) {
+      actions.append(
+        makeButton('Duplicar para editar', 'saved-spellbook-action primary', () => duplicateSavedSpellbook(spellbook.id)),
+      );
+    } else {
+      actions.append(
+        makeButton('Editar', 'saved-spellbook-action primary', () => openLibraryBuilderScreen({ mode: 'edit', spellbook })),
+        makeButton('Duplicar', 'saved-spellbook-action', () => duplicateSavedSpellbook(spellbook.id)),
+        makeButton('Cambiar nombre', 'saved-spellbook-action', () => openSpellbookNameModal('rename', spellbook)),
+        makeButton('Borrar', 'saved-spellbook-action danger', () => deleteSavedSpellbook(spellbook.id)),
+      );
+    }
 
     card.append(visual, info, actions);
     els.spellbooksCollectionGrid.appendChild(card);
@@ -17591,6 +17714,8 @@ function duplicateSavedSpellbook(id) {
     cards: [...source.cards],
     elementDistribution: { ...(source.elementDistribution || {}) },
     elementDistributionConfigured: source.elementDistributionConfigured === true,
+    builtIn: false,
+    readOnly: false,
     createdAt: now,
     updatedAt: now,
   });
@@ -17604,6 +17729,10 @@ function duplicateSavedSpellbook(id) {
 function deleteSavedSpellbook(id) {
   const target = getSavedSpellbookById(id);
   if (!target) return;
+  if (target.builtIn) {
+    showSpellbooksCollectionNotice('Los Spellbooks base no se borran. Duplica el preset si quieres crear una versión editable.');
+    return;
+  }
   const accepted = window.confirm(`¿Borrar el Spellbook “${target.name}”? Esta acción no se puede deshacer.`);
   if (!accepted) return;
 
@@ -39243,6 +39372,7 @@ function getCardInfoSpellbookTargetCandidates() {
     });
   }
   savedSpellbooks.forEach(spellbook => {
+    if (spellbook?.builtIn) return;
     if (libraryBuilderState.mode === 'build' && libraryBuilderState.currentSpellbookId && spellbook.id === libraryBuilderState.currentSpellbookId) return;
     targets.push({
       key: spellbook.id,

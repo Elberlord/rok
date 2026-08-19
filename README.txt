@@ -1,3 +1,12 @@
+R.O.K LITE — v8.42 / game v5.7.325 — Spellbooks base permanentes restaurados
+
+- Restaura dos presets incluidos con el juego: Deck básico Hattori (27/30) y Deck básico Tokugawa (30/30).
+- Los presets aparecen aunque localStorage esté vacío y se fusionan con los Spellbooks creados por el usuario sin sobrescribirlos.
+- Los Spellbooks base son de solo lectura para que no puedan perderse accidentalmente; “Duplicar para editar” crea una copia normal editable.
+- Los presets están disponibles en Mis Spellbooks, Player vs Bot y Versus Online y no exigen poseer las cartas en la colección del usuario, porque son mazos de prueba incluidos por el juego.
+- El almacenamiento local persiste únicamente los Spellbooks creados por el usuario; los presets se reconstruyen desde la definición canónica al cargar.
+- Se recupera la composición base de Hattori 27/30 y la composición final de Tokugawa 30/30, incluyendo 4 Bushi iniciado y los pares de Carga Real, Shirahadori, Despliegue anticipado, Kouuten, Guren Gan, Tentorou y Gloria latente.
+
 R.O.K LITE — v8.41 / game v5.7.324 — Estasis PB + auditoría PvP Online para repo
 
 - Segunda prueba de Estasis/PB: 5 fases=-800, 4=-640, 3=-480, 2=-320, 1=-160, 0=0. La duración base por Costo no cambia.

@@ -1,0 +1,52 @@
+R.O.K LITE v8.42 — SPELLBOOKS BASE
+
+OBJETIVO
+Los Spellbooks de prueba incluidos con el juego no dependen de localStorage. Se reconstruyen en cada carga, se fusionan con los mazos del usuario y se pueden seleccionar en Mis Spellbooks, Player vs Bot y Versus Online. Son de solo lectura; para modificarlos se usa “Duplicar para editar”.
+
+DECK BÁSICO HATTORI — 27/30
+1 Kurayami
+1 Minokage no Kurai
+1 Ichikawa Goemon
+2 Junkai Butai #1
+1 Kurokage
+1 Junkai Butai #2
+1 Saqueador Novato
+1 Yasugana Hattori
+2 Shirahadori
+2 Emboscada
+2 Interceptar
+2 Kage no Michi
+2 Nagayoru
+2 Táctica de Guerra
+2 Kagero
+2 Ojo de Búho / Fukurō
+1 Mercader Errante
+1 Naito Sutoka
+Fuente de prueba: 30 Oscuridad + 30 Agua.
+
+DECK BÁSICO TOKUGAWA — 30/30
+1 Takeda Shingen
+2 Kaguya
+1 Oda Nobunaga
+2 Karunobu Taichō
+1 Shinra Hitokiri
+1 Shiro no Bushi
+1 Bushi Honorable
+1 O-sensei Ueshiba
+1 Regente Kishimoto
+1 Miyamoto Musashi
+4 Bushi iniciado
+2 Carga Real
+2 Shirahadori
+2 Despliegue Anticipado
+2 Kouuten
+2 Guren Gan
+2 Tentorou
+2 Gloria Latente
+Fuente de prueba: 30 Luz + 30 Fuego.
+
+NOTAS DE PERSISTENCIA
+- `savedSpellbooks` en runtime contiene presets base + mazos del usuario.
+- `rokLite.spellbooks.v1` guarda solamente mazos del usuario.
+- Los ids/nombres de presets base se filtran al leer almacenamiento antiguo para evitar duplicados históricos.
+- Los presets base omiten la restricción de colección al entrar a combate porque su finalidad es prueba del juego.
