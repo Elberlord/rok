@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.7.327';
+const GAME_VERSION = 'v5.7.328';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -492,6 +492,7 @@ window.ROK_ONLINE_FX = {
 };
 
 const PATCH_NOTES = [
+  'v545: PvP Online · corrige el bloqueo real que todavía impedía seleccionar Piedra/Papel/Tijera. La compuerta global blockPlayerInputWhileOpponentAction se ejecuta en fase capture sobre document y, durante la pausa de iniciativa, consumía pointerdown/mousedown/touchstart/click antes de que alcanzaran las cartas RPS. El overlay de iniciativa queda ahora declarado como superficie interactiva prioritaria y atraviesa ese bloqueo aunque actionExecutionLock/opponentActionResolving sigan activos. Se añade además una guardia explícita al menú de batalla para que ningún control situado debajo del overlay pueda apropiarse del pointerdown por coordenadas.',
   'v544: PvP Online · la presentación VS ahora recibe los registros reales Host/Guest resueltos por UID y usa exactamente el Kaster y las cartas del Spellbook seleccionado por cada jugador; deja de caer en los placeholders genéricos por intentar leer room.players[1/2] cuando Firebase almacena room.players[uid]. Piedra/Papel/Tijera gana prioridad de interacción absoluta durante la iniciativa: limpia el escudo/estado residual de reacción rápida, los capturadores globales de clic ignoran el overlay RPS y las cartas de elección reciben pointer-events/touch explícitos por encima de cualquier capa de batalla.',
   'v543: PvP Online · corrige la compuerta real de inicio. Al entrar ambos jugadores en LISTO, la presentación VS pasa al frente y el lobby se oculta durante la cinemática. Piedra/Papel/Tijera se vuelve una pausa local explícita del gameplay online y la guardia de inactividad queda desactivada hasta terminar iniciativa + introducción de elementos. El cliente invitado ya infiere correctamente el estado awaiting-initiative desde openingElementsDealt=false, por lo que también abre RPS en la primera partida. La compuerta de intro se identifica por sala+matchSerial para que una sala nueva con serial 1 no herede el bloqueo de una partida anterior. Tras resolver RPS, ambos clientes establecen localmente opening-intro, esperan el reparto autoritativo y desbloquean la partida solo al concluir la introducción inicial.',
   'v542: Restaura los Spellbooks base permanentes Deck básico Hattori (27/30) y Deck básico Tokugawa (30/30). Los presets se fusionan con los Spellbooks locales aunque localStorage esté vacío, aparecen en Mis Spellbooks, Player vs Bot y Versus Online, y son utilizables como mazos de prueba sin exigir colección. Los presets son de solo lectura para evitar que se pierdan; se pueden duplicar para editar. El almacenamiento local conserva únicamente mazos creados por el usuario y evita duplicados históricos por nombre/id.',
@@ -14343,6 +14344,14 @@ function ensureRpsInitiativeOverlay() {
     </div>
     <div class="rps-choice-tray" id="rpsChoiceTray" aria-label="Selecciona Piedra, Papel o Tijera"></div>
   `;
+  // El overlay es modal durante la iniciativa. Se permite que el evento llegue
+  // a sus botones, pero no que siga burbujeando hacia controles del combate.
+  ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach(type => {
+    root.addEventListener(type, event => {
+      if (!root.classList.contains('open')) return;
+      event.stopPropagation();
+    });
+  });
   document.body.appendChild(root);
   return root;
 }
@@ -35973,7 +35982,20 @@ function isManualPowerTargetSurfaceAllowedDuringBusyFlow(target) {
   return false;
 }
 
+function isRpsInitiativeInteractiveEvent(event) {
+  const target = event?.target;
+  return Boolean(
+    rpsInitiativeRuntime?.active
+    && document.getElementById('rpsInitiativeOverlay')?.classList?.contains('open')
+    && target?.closest?.('#rpsInitiativeOverlay')
+  );
+}
+
 function blockPlayerInputWhileOpponentAction(event) {
+  // RPS es precisamente la interfaz que debe seguir recibiendo input mientras
+  // el gameplay permanece bloqueado. Este listener vive en document/capture,
+  // así que la excepción debe ocurrir ANTES de preventDefault/stopImmediatePropagation.
+  if (isRpsInitiativeInteractiveEvent(event)) return;
   if (!shouldBlockLocalInputForBusyFlow()) return;
   const target = event?.target;
   const localQuickReactionUiOpen = Boolean(
@@ -51296,6 +51318,9 @@ function closeGameMenu() {
 }
 
 function priorityGameMenuPointerDown(event) {
+  // La iniciativa RPS es modal. El botón de menú que permanece debajo no debe
+  // capturar el gesto solo porque sus coordenadas coincidan con el pointer.
+  if (isRpsInitiativeInteractiveEvent(event)) return;
   if (!document.body.classList.contains('rok-battle-mode') || !els.gameMenuBtn || event.button > 0) return;
   const rect = els.gameMenuBtn.getBoundingClientRect();
   const x = Number(event.clientX);

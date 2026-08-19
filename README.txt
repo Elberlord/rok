@@ -239,3 +239,9 @@ ROK v8.43 / game v5.7.326 — PvP Online · lobby → VS → RPS → inicio real
 
 
 v8.44: PvP Online corrige la procedencia de Kaster/carta fuerte en VS (players por UID -> slots) y restablece clic/touch fiable sobre Piedra/Papel/Tijera evitando que Quick Reaction capture el input.
+
+
+v8.45 · PvP Online RPS input capture fix
+- El bloqueo global de input en document/capture ahora exceptúa la superficie RPS.
+- Se protege RPS también del capturador por coordenadas del menú de batalla.
+- El overlay RPS aísla sus eventos del combate sin impedir el click de las cartas.

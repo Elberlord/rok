@@ -1,0 +1,17 @@
+R.O.K Lite v8.45 · PvP Online · RPS input capture fix
+
+Problema reproducido por inspección del flujo de eventos:
+- blockPlayerInputWhileOpponentAction está registrado en document con capture=true para click, pointerdown, mousedown y touchstart.
+- Durante RPS el juego queda correctamente pausado, pero esa misma pausa mantiene un busy-flow/action lock.
+- El capturador global ejecutaba preventDefault + stopImmediatePropagation antes de que el evento alcanzara .rps-choice-card.
+- Por eso aumentar z-index/pointer-events en v8.44 no podía resolver el problema: el botón era visualmente superior pero el evento moría en document/capture.
+
+Corrección v8.45:
+1. El overlay #rpsInitiativeOverlay abierto se reconoce como superficie de input prioritaria.
+2. blockPlayerInputWhileOpponentAction retorna antes de bloquear un evento originado dentro de RPS.
+3. priorityGameMenuPointerDown tampoco puede apropiarse de un pointerdown durante RPS por coincidencia de coordenadas.
+4. El overlay detiene la propagación en fase bubble, después de permitir que el botón reciba su evento, para aislar RPS del resto del combate.
+5. Se conserva la pausa del gameplay: únicamente RPS recibe input hasta resolver la iniciativa.
+
+Flujo esperado:
+Lobby -> VS -> RPS visible -> cualquiera de las 3 cartas puede seleccionarse -> elección se registra en Firebase -> se espera rival -> reveal -> ganador -> elementos iniciales -> inicio de partida.
