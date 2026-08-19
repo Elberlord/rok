@@ -90344,7 +90344,9 @@ body.rok-game-menu-paused .global-fx-layer * {
 .rps-initiative-overlay {
   position: fixed;
   inset: 0;
-  z-index: 2147482500;
+  /* Por encima del escudo de reacción rápida (2147483000) y del menú de
+     batalla durante la compuerta de iniciativa. */
+  z-index: 2147483400;
   display: none;
   overflow: hidden;
   pointer-events: none;
@@ -90396,6 +90398,8 @@ body.rok-game-menu-paused .global-fx-layer * {
 .rps-choice-tray {
   position: absolute;
   z-index: 8;
+  pointer-events: auto;
+  touch-action: manipulation;
   left: 50%;
   bottom: 5.5%;
   transform: translateX(-50%);
@@ -90421,6 +90425,10 @@ body.rok-game-menu-paused .global-fx-layer * {
   padding: 0;
   background: transparent;
   cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  position: relative;
+  z-index: 1;
   opacity: 0;
   transform: translateY(85px) rotate(calc((var(--rps-index) - 1) * 4deg)) scale(.84);
   transition: filter .18s ease, transform .18s ease;

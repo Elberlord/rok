@@ -236,3 +236,6 @@ ROK v8.43 / game v5.7.326 — PvP Online · lobby → VS → RPS → inicio real
 - Piedra/Papel/Tijera adquiere una pausa local explícita del gameplay online. La inactividad no corre mientras faltan los elementos iniciales, durante awaiting-initiative, RPS ni opening-intro.
 - Tras resolver RPS, el Host publica jugador inicial + elementos; el invitado espera ese estado autoritativo y entra localmente en opening-intro. Ambos desbloquean la partida solo al terminar la animación de elementos.
 - Corrige el caso en el que la ventana de inactividad podía aparecer debajo de RPS y quedar imposible de clicar.
+
+
+v8.44: PvP Online corrige la procedencia de Kaster/carta fuerte en VS (players por UID -> slots) y restablece clic/touch fiable sobre Piedra/Papel/Tijera evitando que Quick Reaction capture el input.

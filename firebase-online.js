@@ -838,9 +838,23 @@
       ui.countdown.setAttribute('aria-hidden', 'true');
     }
     const arena = getArenaOption(roomCache?.arenaId);
+    // Firebase indexa room.players por UID, no por slot 1/2. La pantalla VS de
+    // game.js trabaja por lados visuales, así que le entregamos una vista por
+    // slots construida a partir de hostUid/guestUid y los loadouts exactos que
+    // cada jugador dejó en LISTO.
+    const introP1 = getRoomPlayerRecord(roomCache, 1) || {};
+    const introP2 = getRoomPlayerRecord(roomCache, 2) || {};
+    const introRoom = {
+      ...roomCache,
+      players: { 1: introP1, 2: introP2 },
+    };
+    const localIntroRecord = Number(playerSlot) === 2 ? introP2 : introP1;
+    const rivalIntroRecord = Number(playerSlot) === 2 ? introP1 : introP2;
     const shown = Boolean(window.ROK_VERSUS_INTRO?.showOnline?.({
-      room: roomCache,
+      room: introRoom,
       localPlayerSlot: playerSlot,
+      localLoadout: localIntroRecord?.loadout || null,
+      rivalLoadout: rivalIntroRecord?.loadout || null,
       arena,
       startAt: target,
     }));

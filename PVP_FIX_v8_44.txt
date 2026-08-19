@@ -1,0 +1,17 @@
+R.O.K Lite v8.44 · PvP Online — VS loadout real + clic RPS
+
+1. Presentación VS
+- Firebase guarda room.players por UID.
+- La presentación esperaba players[1] y players[2], por lo que recibía registros vacíos y mostraba fallbacks.
+- firebase-online.js ahora resuelve Host/Guest con getRoomPlayerRecord() y construye una vista por slots para la cinemática.
+- También entrega localLoadout/rivalLoadout explícitos.
+- game.js prioriza esos loadouts explícitos para Kaster, cualidades dominantes y la invocación con mayor PB del Spellbook seleccionado.
+
+2. Piedra / Papel / Tijera
+- El overlay RPS ahora tiene prioridad visual/interactiva por encima del escudo de reacción rápida.
+- Las cartas/tray tienen pointer-events y touch-action explícitos.
+- Los capturadores globales de Quick Reaction ignoran los gestos mientras RPS está abierto.
+- Al abrir RPS se limpia cualquier escudo/supresión residual local de Quick Reaction.
+
+Flujo esperado:
+Lobby -> VS con los dos Kasters reales + carta más fuerte de cada Spellbook -> RPS clicable en ambos clientes -> reparto inicial -> fase jugable.

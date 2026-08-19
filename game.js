@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.7.326';
+const GAME_VERSION = 'v5.7.327';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -492,6 +492,7 @@ window.ROK_ONLINE_FX = {
 };
 
 const PATCH_NOTES = [
+  'v544: PvP Online · la presentación VS ahora recibe los registros reales Host/Guest resueltos por UID y usa exactamente el Kaster y las cartas del Spellbook seleccionado por cada jugador; deja de caer en los placeholders genéricos por intentar leer room.players[1/2] cuando Firebase almacena room.players[uid]. Piedra/Papel/Tijera gana prioridad de interacción absoluta durante la iniciativa: limpia el escudo/estado residual de reacción rápida, los capturadores globales de clic ignoran el overlay RPS y las cartas de elección reciben pointer-events/touch explícitos por encima de cualquier capa de batalla.',
   'v543: PvP Online · corrige la compuerta real de inicio. Al entrar ambos jugadores en LISTO, la presentación VS pasa al frente y el lobby se oculta durante la cinemática. Piedra/Papel/Tijera se vuelve una pausa local explícita del gameplay online y la guardia de inactividad queda desactivada hasta terminar iniciativa + introducción de elementos. El cliente invitado ya infiere correctamente el estado awaiting-initiative desde openingElementsDealt=false, por lo que también abre RPS en la primera partida. La compuerta de intro se identifica por sala+matchSerial para que una sala nueva con serial 1 no herede el bloqueo de una partida anterior. Tras resolver RPS, ambos clientes establecen localmente opening-intro, esperan el reparto autoritativo y desbloquean la partida solo al concluir la introducción inicial.',
   'v542: Restaura los Spellbooks base permanentes Deck básico Hattori (27/30) y Deck básico Tokugawa (30/30). Los presets se fusionan con los Spellbooks locales aunque localStorage esté vacío, aparecen en Mis Spellbooks, Player vs Bot y Versus Online, y son utilizables como mazos de prueba sin exigir colección. Los presets son de solo lectura para evitar que se pierdan; se pueden duplicar para editar. El almacenamiento local conserva únicamente mazos creados por el usuario y evita duplicados históricos por nombre/id.',
   'v541: Segunda calibración experimental de Estasis de Spellbook para cartas iniciales/baratas. La duración base por Costo se mantiene (0→5, 1→4, 2→3, 3→2, 4→1, 5+→0), pero el descuento PB se escala linealmente desde 5 fases=-800 hasta 0 fases=0: 4=-640, 3=-480, 2=-320 y 1=-160. El objetivo es que el tempo barato no convierta por sí solo cartas comunes en rarezas altas.',
@@ -14074,8 +14075,12 @@ function showOnlineVersusIntro(config = {}) {
   const players = room.players || {};
   const localRecord = players[localSlot] || players[String(localSlot)] || {};
   const rivalRecord = players[rivalSlot] || players[String(rivalSlot)] || {};
-  const localLoadout = localRecord.loadout || null;
-  const rivalLoadout = rivalRecord.loadout || null;
+  // En PvP real Firebase guarda room.players indexado por UID. El caller online
+  // normaliza esos registros a slots y, además, puede entregar los loadouts de
+  // forma explícita. Priorizarlos evita que la presentación VS caiga en un
+  // Kaster/carta placeholder cuando room.players no está indexado por 1/2.
+  const localLoadout = config.localLoadout || localRecord.loadout || null;
+  const rivalLoadout = config.rivalLoadout || rivalRecord.loadout || null;
   const localCardIds = getLoadoutSpellbookCardIds(localLoadout);
   const rivalCardIds = getLoadoutSpellbookCardIds(rivalLoadout);
   const localEntries = getAdventureDominantEntries({}, localCardIds);
@@ -14486,6 +14491,21 @@ async function runInitiativeSelection(options = {}) {
     try { markBattleActivity('initiative-rps-open'); } catch (_) {}
   }
   const root = ensureRpsInitiativeOverlay();
+  // Una ventana rápida de la fase anterior puede conservar por unas décimas su
+  // escudo/captura global. La iniciativa debe ser el único dueño del input hasta
+  // que ambos jugadores elijan, así que limpiamos únicamente ese residuo local.
+  try { hideQuickReactionInputShield({ force: true }); } catch (_) {}
+  try {
+    if (state.quickReactionWindow) {
+      state.quickReactionWindow.suppressGlobalClickUntil = 0;
+      state.quickReactionWindow.locked = false;
+      state.quickReactionWindow.executing = false;
+    }
+    els.quickReactionWindow?.classList?.remove('visible');
+    els.quickReactionWindow?.setAttribute?.('aria-hidden', 'true');
+    els.quickReactionModal?.classList?.remove('visible');
+    els.quickReactionModal?.setAttribute?.('aria-hidden', 'true');
+  } catch (_) {}
   const flyer = root.querySelector('#rpsInitiativeFlyer');
   const result = root.querySelector('#rpsInitiativeResult');
   const rivalLocked = root.querySelector('#rpsRivalLockedCard');
@@ -38205,6 +38225,9 @@ function isLocalQuickReactionPromptCapturable() {
 
 function captureQuickReactionWindowFromGlobalLeftClick(event) {
   if (!event) return;
+  // La iniciativa RPS es una compuerta superior al sistema de ventanas rápidas.
+  // Ningún prompt residual puede capturar el gesto destinado a Piedra/Papel/Tijera.
+  if (document.getElementById('rpsInitiativeOverlay')?.classList?.contains('open')) return;
   if (event.target?.closest?.('#cancelActionBtn')) return;
   if (event.target?.closest?.('.quick-reaction-card-indicator')) return;
   const isTouchGesture = event.type === 'touchend' || String(event.pointerType || '').toLowerCase() === 'touch';
@@ -38241,6 +38264,7 @@ function captureQuickReactionWindowFromGlobalLeftClick(event) {
 }
 
 function suppressCapturedQuickReactionClick(event) {
+  if (document.getElementById('rpsInitiativeOverlay')?.classList?.contains('open')) return;
   const until = Number(state.quickReactionWindow?.suppressGlobalClickUntil || 0);
   if (!until || Date.now() > until) return;
   event.preventDefault?.();
