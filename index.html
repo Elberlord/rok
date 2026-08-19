@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>R.O.K LITE</title>
-  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=549-pvp-oculto-privacy-v1" />
+  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=rok-v8-41-repo-online-audit" />
   <link rel="icon" href="assets/kast-cell-icon.jpg" />
 </head>
 <body>
@@ -86,13 +86,13 @@
         <span class="rok-resource-divider" aria-hidden="true"></span>
         <span class="rok-resource-chip rarity" data-user-rarity="ordinary" title="Ordinaria"><img src="assets/rarities/rarity-ordinary.png" alt="Ordinaria"><strong>0</strong></span>
         <span class="rok-resource-chip rarity" data-user-rarity="uncommon" title="Poco ordinaria"><img src="assets/rarities/rarity-uncommon.png" alt="Poco ordinaria"><strong>0</strong></span>
-        <span class="rok-resource-chip rarity" data-user-rarity="extraordinary" title="Extra ordinaria"><img src="assets/rarities/rarity-extraordinary.png" alt="Extra ordinaria"><strong>0</strong></span>
-        <span class="rok-resource-chip rarity" data-user-rarity="singular" title="Singular"><img src="assets/rarities/rarity-singular.png" alt="Singular"><strong>0</strong></span>
-        <span class="rok-resource-chip rarity" data-user-rarity="infrequent" title="Infrecuente"><img src="assets/rarities/rarity-infrequent.png" alt="Infrecuente"><strong>0</strong></span>
-        <span class="rok-resource-chip rarity" data-user-rarity="unusual" title="Inhabitual"><img src="assets/rarities/rarity-unusual.png" alt="Inhabitual"><strong>0</strong></span>
-        <span class="rok-resource-chip rarity" data-user-rarity="strange" title="Extraña"><img src="assets/rarities/rarity-strange.png" alt="Extraña"><strong>0</strong></span>
-        <span class="rok-resource-chip rarity" data-user-rarity="mythic" title="Mítica"><img src="assets/rarities/rarity-mythic.png" alt="Mítica"><strong>0</strong></span>
-        <span class="rok-resource-chip rarity" data-user-rarity="legendary" title="Legendaria"><img src="assets/rarities/rarity-legendary.png" alt="Legendaria"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="infrequent" title="Infrecuente"><img src="assets/rarities/rarity-extraordinary.png" alt="Infrecuente"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="unusual" title="Inhabitual"><img src="assets/rarities/rarity-singular.png" alt="Inhabitual"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="extraordinary" title="Extraordinaria"><img src="assets/rarities/rarity-infrequent.png" alt="Extraordinaria"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="strange" title="Extraña"><img src="assets/rarities/rarity-unusual.png" alt="Extraña"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="singular" title="Singular"><img src="assets/rarities/rarity-strange.png" alt="Singular"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="legendary" title="Legendaria"><img src="assets/rarities/rarity-mythic.png" alt="Legendaria"><strong>0</strong></span>
+        <span class="rok-resource-chip rarity" data-user-rarity="mythic" title="Mítica"><img src="assets/rarities/rarity-legendary.png" alt="Mítica"><strong>0</strong></span>
       </div>
       <div id="mainMenuUserHudMenu" class="main-menu-user-hud-menu" aria-hidden="true">
         <div id="mainMenuAccountIdentity" class="main-menu-account-identity profile-menu-identity">
@@ -113,6 +113,10 @@
       <span>Modo Usuario</span>
       <small id="mainMenuUserModeState">Desactivado</small>
     </button>
+    <button id="mainMenuVsLayoutBtn" class="main-menu-vs-layout-btn" type="button" title="Calibrar Kasters e invocaciones en la ventana Versus">
+      <span>Ajuste de ventana de Versus</span>
+      <small>Editor visual</small>
+    </button>
     <div class="main-menu-buttons" aria-label="Opciones principales">
       <button id="mainMenuStoryBtn" class="main-menu-btn" type="button" aria-label="Modo Historia próximamente" data-menu-role="story">
         <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-story.png" alt=""></span></span>
@@ -121,6 +125,10 @@
       <button id="mainMenuAdventureBtn" class="main-menu-btn" type="button" aria-label="Abrir Modo Aventura" data-menu-role="adventure">
         <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-adventure.png" alt=""></span></span>
         <span class="main-menu-btn-label">Aventura</span>
+      </button>
+      <button id="mainMenuTutorialBtn" class="main-menu-btn main-menu-tutorial-btn" type="button" aria-label="Abrir Tutorial" data-menu-role="tutorial">
+        <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><span class="main-menu-btn-emoji" aria-hidden="true">📜</span></span></span>
+        <span class="main-menu-btn-label">Tutorial</span>
       </button>
       <button id="mainMenuBotBtn" class="main-menu-btn" type="button" aria-label="Jugar 1 vs 1 Bot" data-menu-role="bot">
         <span class="main-menu-btn-orb" aria-hidden="true"><span class="main-menu-btn-orb-inner"><img src="assets/menu/icon-bot.png" alt=""></span></span>
@@ -150,7 +158,158 @@
     <div id="mainMenuNotice" class="main-menu-notice" aria-live="polite"></div>
   </section>
 
+  <section id="vsLayoutEditorScreen" class="vs-layout-editor-screen" aria-hidden="true" aria-label="Ajuste de ventana de Versus">
+    <div class="vs-layout-editor-shell">
+      <aside class="vs-layout-editor-controls">
+        <header class="vs-layout-editor-head">
+          <div>
+            <span>HERRAMIENTA VISUAL</span>
+            <h2>Ajuste de ventana de Versus</h2>
+            <p>Selecciona un Kaster o una invocación. El lado derecho reproduce la animación real de la ventana VS.</p>
+          </div>
+          <button id="vsLayoutEditorCloseBtn" class="vs-layout-editor-close" type="button">Volver</button>
+        </header>
 
+        <div class="vs-layout-editor-selectors">
+          <label class="vs-layout-editor-field">
+            <span>Seleccionar Kaster existente</span>
+            <select id="vsLayoutCasterSelect"><option value="">— Ningún Kaster —</option></select>
+          </label>
+          <label class="vs-layout-editor-field">
+            <span>Seleccionar invocación existente</span>
+            <select id="vsLayoutInvocationSelect"><option value="">— Ninguna invocación —</option></select>
+          </label>
+        </div>
+
+        <section class="vs-layout-editor-adjustments" aria-label="Controles de tamaño y posición">
+          <div class="vs-layout-editor-current">
+            <small>EDITANDO</small>
+            <strong id="vsLayoutCurrentName">Selecciona un elemento</strong>
+            <span id="vsLayoutCurrentKind">—</span>
+          </div>
+
+          <label class="vs-layout-editor-slider">
+            <span><b>Tamaño</b><output id="vsLayoutScaleValue">100%</output></span>
+            <input id="vsLayoutScaleRange" type="range" min="0.35" max="1.80" step="0.01" value="1">
+          </label>
+          <label class="vs-layout-editor-slider">
+            <span><b>Posición X</b><output id="vsLayoutXValue">0 px</output></span>
+            <input id="vsLayoutXRange" type="range" min="-320" max="320" step="1" value="0">
+          </label>
+          <label class="vs-layout-editor-slider">
+            <span><b>Posición Y</b><output id="vsLayoutYValue">0 px</output></span>
+            <input id="vsLayoutYRange" type="range" min="-260" max="260" step="1" value="0">
+          </label>
+
+          <div class="vs-layout-editor-actions">
+            <button id="vsLayoutReplayBtn" type="button">Reproducir animación</button>
+            <button id="vsLayoutResetBtn" type="button">Restablecer</button>
+            <button id="vsLayoutSaveBtn" class="primary" type="button">Guardar ajuste</button>
+          </div>
+        </section>
+
+        <section class="vs-layout-editor-universal-grid" aria-label="Controles universales separados">
+          <section class="vs-layout-editor-adjustments vs-layout-editor-universal" aria-label="Controles universales de Kaster">
+            <div class="vs-layout-editor-current">
+              <small>AJUSTE UNIVERSAL · KASTER</small>
+              <strong>Todos los Kasters VS</strong>
+              <span>Se suma a la calibración individual de cada Kaster.</span>
+            </div>
+            <label class="vs-layout-editor-slider">
+              <span><b>Tamaño Kaster</b><output id="vsLayoutCasterUniversalScaleValue">100%</output></span>
+              <input id="vsLayoutCasterUniversalScaleRange" type="range" min="0.60" max="1.40" step="0.01" value="1">
+            </label>
+            <label class="vs-layout-editor-slider">
+              <span><b>Posición X Kaster</b><output id="vsLayoutCasterUniversalXValue">0 px</output></span>
+              <input id="vsLayoutCasterUniversalXRange" type="range" min="-320" max="320" step="1" value="0">
+            </label>
+            <label class="vs-layout-editor-slider">
+              <span><b>Posición Y Kaster</b><output id="vsLayoutCasterUniversalYValue">0 px</output></span>
+              <input id="vsLayoutCasterUniversalYRange" type="range" min="-260" max="260" step="1" value="0">
+            </label>
+            <div class="vs-layout-editor-actions vs-layout-editor-universal-actions">
+              <button id="vsLayoutCasterUniversalResetBtn" type="button">Restablecer Kaster</button>
+              <button id="vsLayoutCasterUniversalSaveBtn" class="primary" type="button">Guardar Kaster</button>
+            </div>
+          </section>
+
+          <section class="vs-layout-editor-adjustments vs-layout-editor-universal" aria-label="Controles universales de invocación destacada">
+            <div class="vs-layout-editor-current">
+              <small>AJUSTE UNIVERSAL · INVOCACIÓN</small>
+              <strong>Invocaciones destacadas VS</strong>
+              <span>Se suma a la calibración individual de cada invocación.</span>
+            </div>
+            <label class="vs-layout-editor-slider">
+              <span><b>Tamaño invocación</b><output id="vsLayoutInvocationUniversalScaleValue">100%</output></span>
+              <input id="vsLayoutInvocationUniversalScaleRange" type="range" min="0.60" max="1.40" step="0.01" value="1">
+            </label>
+            <label class="vs-layout-editor-slider">
+              <span><b>Posición X invocación</b><output id="vsLayoutInvocationUniversalXValue">0 px</output></span>
+              <input id="vsLayoutInvocationUniversalXRange" type="range" min="-320" max="320" step="1" value="0">
+            </label>
+            <label class="vs-layout-editor-slider">
+              <span><b>Posición Y invocación</b><output id="vsLayoutInvocationUniversalYValue">0 px</output></span>
+              <input id="vsLayoutInvocationUniversalYRange" type="range" min="-260" max="260" step="1" value="0">
+            </label>
+            <div class="vs-layout-editor-actions vs-layout-editor-universal-actions">
+              <button id="vsLayoutInvocationUniversalResetBtn" type="button">Restablecer invocación</button>
+              <button id="vsLayoutInvocationUniversalSaveBtn" class="primary" type="button">Guardar invocación</button>
+            </div>
+          </section>
+        </section>
+
+        <section class="vs-layout-editor-guide-tools" aria-label="Guía cuadriculada de calibración">
+          <div class="vs-layout-editor-guide-head">
+            <div>
+              <strong>Guía cuadriculada</strong>
+              <small>16 × 18 · celdas de referencia sobre el preview</small>
+            </div>
+            <label class="vs-layout-editor-grid-switch">
+              <input id="vsLayoutGridToggle" type="checkbox">
+              <span>Mostrar</span>
+            </label>
+          </div>
+          <div class="vs-layout-editor-guide-actions">
+            <button id="vsLayoutGridPaintBtn" type="button" aria-pressed="false">Pintar: desactivado</button>
+            <button id="vsLayoutGridClearBtn" type="button">Limpiar pintura</button>
+            <button id="vsLayoutGridSaveCssBtn" type="button">Guardar guía en CSS</button>
+          </div>
+          <div id="vsLayoutGridPalette" class="vs-layout-editor-grid-palette" aria-label="Colores de pintura">
+            <button type="button" class="is-selected" data-vs-grid-color="cyan" title="Cian" aria-label="Cian"></button>
+            <button type="button" data-vs-grid-color="gold" title="Dorado" aria-label="Dorado"></button>
+            <button type="button" data-vs-grid-color="magenta" title="Magenta" aria-label="Magenta"></button>
+            <button type="button" data-vs-grid-color="green" title="Verde" aria-label="Verde"></button>
+            <button type="button" class="eraser" data-vs-grid-color="erase" title="Borrar celda" aria-label="Borrar celda">×</button>
+          </div>
+          <p class="vs-layout-editor-guide-note">Activa <b>Pintar</b> y haz clic o arrastra sobre la cuadrícula. La guía queda detrás de los tokens para no taparlos.</p>
+        </section>
+
+        <section class="vs-layout-editor-file-tools" aria-label="Persistencia de ajustes">
+          <p>Guardar conserva la calibración en este navegador. Si quieres escribirla también en el archivo fuente, vincula el <code>style.css</code> del proyecto.</p>
+          <div>
+            <button id="vsLayoutBindCssBtn" type="button">Vincular style.css</button>
+            <button id="vsLayoutExportCssBtn" type="button">Exportar CSS</button>
+          </div>
+          <small id="vsLayoutSaveStatus">Sin cambios pendientes.</small>
+        </section>
+      </aside>
+
+      <main class="vs-layout-editor-preview-wrap" aria-label="Vista previa del lado derecho de Versus">
+        <div class="vs-layout-editor-preview-label"><span>PREVIEW REAL · LADO DERECHO</span><small>La configuración se espeja automáticamente cuando el personaje aparece como rival.</small></div>
+        <div id="vsLayoutEditorIntro" class="adventure-battle-intro vs-layout-editor-preview" aria-hidden="false">
+          <div class="adventure-intro-bg" aria-hidden="true"></div>
+          <div id="vsLayoutEditorSide" class="adventure-intro-side adventure-intro-player">
+            <div id="vsLayoutGuideGrid" class="vs-layout-guide-grid" aria-hidden="true"></div>
+            <img id="vsLayoutEditorChampion" class="adventure-intro-champion" alt="Invocación de prueba">
+            <img id="vsLayoutEditorCaster" class="adventure-intro-caster" alt="Kaster de prueba">
+            <div class="adventure-intro-name"><small>AJUSTE VISUAL</small><strong id="vsLayoutEditorPreviewName">Selecciona un elemento</strong></div>
+            <div class="adventure-intro-side-flyer adventure-intro-side-flyer-player" aria-hidden="true"></div>
+            <div class="adventure-intro-dominants" aria-hidden="true"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </section>
 
 
   <section id="adventureScreen" class="adventure-screen" aria-hidden="true" aria-label="Modo Aventura">
@@ -175,7 +334,7 @@
           <div class="adventure-panel-title">
             <small>CONTINENTE DE ELHIE</small>
             <strong>Zonas</strong>
-            <span>Coloca el cursor sobre una región para localizarla en el mapa.</span>
+            <span>Coloca el cursor para previsualizar una región y haz clic para entrar si está disponible.</span>
           </div>
           <div id="adventureZoneList" class="adventure-option-list" role="listbox" aria-label="Regiones elementales"></div>
         </aside>
@@ -183,7 +342,7 @@
         <section class="adventure-world-main">
           <div class="adventure-map-frame adventure-world-map-frame">
             <div class="adventure-map-canvas adventure-world-map-canvas">
-              <img class="adventure-map-image" src="assets/adventure/elhie-world-map.png" alt="Mapa del continente de Elhie">
+              <img class="adventure-map-image" src="assets/adventure/elhie-world-map.webp" alt="Mapa del continente de Elhie">
               <img id="adventureWorldMarker" class="adventure-map-marker" src="assets/adventure/zone-marker.png" alt="" aria-hidden="true">
               <div class="adventure-map-shade" aria-hidden="true"></div>
             </div>
@@ -198,7 +357,6 @@
             </div>
             <div class="adventure-domain-line"><b>Composición del dominio</b><span id="adventureZoneDomain">Agua · Conocimiento</span></div>
             <p id="adventureZoneDescription"></p>
-            <button id="adventureEnterZoneBtn" class="adventure-primary-btn" type="button">Entrar al área de Agua</button>
           </article>
         </section>
       </div>
@@ -208,7 +366,7 @@
           <div class="adventure-panel-title">
             <small>AGUA · CONOCIMIENTO</small>
             <strong>Enfrentamientos</strong>
-            <span>Selecciona un Kaster para localizar su zona de combate.</span>
+            <span>Coloca el cursor para previsualizar un Kaster y haz clic para preparar el combate.</span>
           </div>
           <div id="adventureCasterList" class="adventure-option-list adventure-caster-list" role="listbox" aria-label="Kasters de Agua"></div>
         </aside>
@@ -217,7 +375,7 @@
           <div class="adventure-water-top">
             <div class="adventure-map-frame adventure-water-map-frame">
               <div id="adventureWaterMapCanvas" class="adventure-map-canvas adventure-water-map-canvas">
-                <img class="adventure-map-image" src="assets/adventure/water-region-map.png" alt="Mapa del área de Agua">
+                <img class="adventure-map-image" src="assets/adventure/water-region-map.webp" alt="Mapa del área de Agua">
                 <img id="adventureWaterMarker" class="adventure-map-marker adventure-water-marker" src="assets/adventure/zone-marker.png" alt="" aria-hidden="true">
                 <div class="adventure-map-shade" aria-hidden="true"></div>
               </div>
@@ -235,7 +393,7 @@
               </div>
               <div class="adventure-caster-caption">
                 <small id="adventureCasterDomain">AGUA · CONOCIMIENTO</small>
-                <h2 id="adventureCasterName">Primera aprendiz de Enigma</h2>
+                <div class="adventure-caster-title-row"><h2 id="adventureCasterName">Kiara, Primera Aprendiz de Nigma</h2><span id="adventureCasterLevel" class="adventure-caster-level-badge">NIVEL 1</span></div>
                 <div id="adventureCasterQualities" class="adventure-quality-tags"></div>
               </div>
             </article>
@@ -251,7 +409,6 @@
             </div>
             <p id="adventureCasterDescription"></p>
             <div id="adventureCasterRoles" class="adventure-role-summary"></div>
-            <button id="adventureStartEncounterBtn" class="adventure-primary-btn adventure-start-btn" type="button">Preparar combate</button>
           </article>
         </section>
       </div>
@@ -261,21 +418,20 @@
           <div class="adventure-prep-versus-grid">
             <article class="adventure-prep-side adventure-prep-rival-side">
               <span class="adventure-prep-side-kicker">KASTER RIVAL</span>
-              <button id="adventurePrepRivalCard" class="adventure-prep-caster-card adventure-prep-caster-card-rival" type="button" aria-label="Ver ficha del Kaster rival">
+              <div id="adventurePrepRivalCard" class="adventure-prep-caster-card adventure-prep-caster-card-rival">
                 <span class="adventure-prep-art-wrap"><img id="adventurePrepRivalImage" alt="Kaster rival"></span>
                 <span class="adventure-prep-caster-copy">
                   <strong id="adventurePrepRivalName">Kaster rival</strong>
-                  <small>Dominantes del Spellbook</small>
-                  <span id="adventurePrepRivalDominants" class="adventure-prep-dominants"></span>
+                  <small id="adventurePrepRivalLevel" class="adventure-prep-caster-level">NIVEL 1</small>
                 </span>
-              </button>
+              </div>
             </article>
 
             <section class="adventure-prep-center" aria-label="Versus y configuración">
               <div class="adventure-prep-vs" aria-hidden="true"><span>V</span><span>S</span></div>
               <article class="adventure-prep-arena-card">
                 <div class="adventure-prep-arena-visual">
-                  <img id="adventurePrepArenaImage" src="assets/adventure/arenas/kiara-preview.png" alt="Previsualización de la arena de Kiara">
+                  <img id="adventurePrepArenaImage" src="assets/adventure/arenas/kiara-preview.webp" alt="Previsualización de la arena de Kiara">
                   <span id="adventurePrepArenaBadge" class="adventure-prep-arena-badge">PREVISUALIZACIÓN</span>
                 </div>
                 <div class="adventure-prep-arena-copy">
@@ -296,14 +452,12 @@
 
             <article class="adventure-prep-side adventure-prep-player-side">
               <span class="adventure-prep-side-kicker">TU KASTER</span>
-              <button id="adventurePrepPlayerCard" class="adventure-prep-caster-card adventure-prep-caster-card-player" type="button" aria-label="Ver ficha de tu Kaster">
+              <div id="adventurePrepPlayerCard" class="adventure-prep-caster-card adventure-prep-caster-card-player">
                 <span class="adventure-prep-art-wrap"><img id="adventurePrepPlayerImage" src="assets/adventure/player/default-player-kaster.png" alt="Kaster del jugador"></span>
                 <span class="adventure-prep-caster-copy">
                   <strong id="adventurePrepPlayerName">Lioren</strong>
-                  <small>Dominantes del Spellbook</small>
-                  <span id="adventurePrepPlayerDominants" class="adventure-prep-dominants"></span>
                 </span>
-              </button>
+              </div>
               <div class="adventure-player-caster-picker">
                 <small>SELECCIONA TU KASTER</small>
                 <div id="adventurePlayerCasterList" class="adventure-player-caster-list"></div>
@@ -313,25 +467,6 @@
           <button id="adventureCombatBtn" class="adventure-primary-btn adventure-combat-btn" type="button">Combatir</button>
         </section>
       </div>
-
-      <section id="adventureCasterDetailOverlay" class="adventure-caster-detail-overlay" aria-hidden="true">
-        <article class="adventure-caster-detail-shell" role="dialog" aria-modal="true" aria-labelledby="adventureCasterDetailName">
-          <button id="adventureCasterDetailCloseBtn" class="adventure-modal-close" type="button" aria-label="Cerrar">×</button>
-          <div class="adventure-caster-detail-art">
-            <img id="adventureCasterDetailImage" alt="Kaster">
-          </div>
-          <div class="adventure-caster-detail-copy">
-            <small id="adventureCasterDetailKicker">TU KASTER</small>
-            <h2 id="adventureCasterDetailName">Kaster</h2>
-            <div id="adventureCasterDetailIdentity" class="adventure-caster-detail-identity"></div>
-            <div id="adventureCasterDetailStats" class="adventure-caster-detail-stats"></div>
-            <div class="adventure-caster-detail-dominant-block">
-              <small>CUALIDADES DOMINANTES DEL SPELLBOOK</small>
-              <div id="adventureCasterDetailDominants" class="adventure-caster-detail-dominants"></div>
-            </div>
-          </div>
-        </article>
-      </section>
 
       <section id="adventureSpellbookOverlay" class="adventure-spellbook-overlay" aria-hidden="true">
         <article class="adventure-spellbook-shell" role="dialog" aria-modal="true" aria-labelledby="adventureSpellbookTitle">
@@ -349,15 +484,19 @@
 
       <section id="adventureBattleIntro" class="adventure-battle-intro" aria-hidden="true">
         <div class="adventure-intro-bg" aria-hidden="true"></div>
-        <div class="adventure-intro-side adventure-intro-rival">
+        <div id="adventureIntroRivalSide" class="adventure-intro-side adventure-intro-rival">
+          <img id="adventureIntroRivalChampion" class="adventure-intro-champion" alt="Invocación rival destacada" draggable="false">
           <img id="adventureIntroRivalImage" class="adventure-intro-caster" alt="Kaster rival">
           <div class="adventure-intro-name"><small>RIVAL</small><strong id="adventureIntroRivalName">Kaster rival</strong></div>
+          <div class="adventure-intro-side-flyer adventure-intro-side-flyer-rival" aria-hidden="true"></div>
           <div id="adventureIntroRivalDominants" class="adventure-intro-dominants"></div>
         </div>
-        <div class="adventure-intro-vs" aria-hidden="true"><span class="intro-v">V</span><span class="intro-s">S</span></div>
-        <div class="adventure-intro-side adventure-intro-player">
+        <div class="adventure-intro-vs" aria-hidden="true"><div class="adventure-intro-sigil intro-sigil-v" aria-hidden="true"><span class="intro-sigil-glow"></span><img class="intro-sigil-img" src="assets/fx/circulo-invocacion.png" alt="" draggable="false"><span class="intro-sigil-tint"></span></div><div class="adventure-intro-sigil intro-sigil-s" aria-hidden="true"><span class="intro-sigil-glow"></span><img class="intro-sigil-img" src="assets/fx/circulo-invocacion.png" alt="" draggable="false"><span class="intro-sigil-tint"></span></div><div class="adventure-intro-vs-clash" aria-hidden="true"><div class="adventure-intro-vs-clash-emitter clash-top"><span class="clash-ray ray-1"></span><span class="clash-ray ray-2"></span><span class="clash-ray ray-3"></span><span class="clash-ray ray-4"></span><span class="clash-ray ray-5"></span><span class="clash-particle p-1"></span><span class="clash-particle p-2"></span><span class="clash-particle p-3"></span><span class="clash-particle p-4"></span><span class="clash-particle p-5"></span><span class="clash-particle p-6"></span></div><div class="adventure-intro-vs-clash-emitter clash-bottom"><span class="clash-ray ray-1"></span><span class="clash-ray ray-2"></span><span class="clash-ray ray-3"></span><span class="clash-ray ray-4"></span><span class="clash-ray ray-5"></span><span class="clash-particle p-1"></span><span class="clash-particle p-2"></span><span class="clash-particle p-3"></span><span class="clash-particle p-4"></span><span class="clash-particle p-5"></span><span class="clash-particle p-6"></span></div><span class="clash-core"></span></div><span class="intro-v">V</span><span class="intro-s">S</span></div>
+        <div id="adventureIntroPlayerSide" class="adventure-intro-side adventure-intro-player">
+          <img id="adventureIntroPlayerChampion" class="adventure-intro-champion" alt="Invocación destacada del jugador" draggable="false">
           <img id="adventureIntroPlayerImage" class="adventure-intro-caster" alt="Kaster del jugador">
           <div class="adventure-intro-name"><small>JUGADOR</small><strong id="adventureIntroPlayerName">Kaster inicial</strong></div>
+          <div class="adventure-intro-side-flyer adventure-intro-side-flyer-player" aria-hidden="true"></div>
           <div id="adventureIntroPlayerDominants" class="adventure-intro-dominants"></div>
         </div>
         <div id="adventureIntroCountdown" class="adventure-intro-countdown" aria-live="assertive"></div>
@@ -611,19 +750,33 @@
           </article>
         </div>
 
-        <div class="online-room-setup-grid">
-          <section class="online-room-setup-panel">
-            <span class="online-room-label">TU SPELLBOOK</span>
-            <strong id="onlineLocalSpellbookName">Sin seleccionar</strong>
-            <button id="onlineSelectSpellbookBtn" type="button">Seleccionar Spellbook</button>
+        <div class="online-room-setup-grid online-room-carousel-grid">
+          <section class="online-room-setup-panel online-spellbook-panel">
+            <div class="online-setup-panel-head">
+              <span class="online-room-label">TU SPELLBOOK</span>
+              <strong id="onlineLocalSpellbookName">Sin seleccionar</strong>
+            </div>
+            <div class="online-spellbook-carousel" aria-label="Selector de Spellbook">
+              <button id="onlineSpellbookPrevBtn" class="online-carousel-arrow online-carousel-arrow-vertical" type="button" aria-label="Spellbook anterior">⌃</button>
+              <div id="onlineSpellbookCarouselViewport" class="online-spellbook-carousel-viewport">
+                <div class="online-carousel-empty">No hay Spellbooks disponibles.</div>
+              </div>
+              <button id="onlineSpellbookNextBtn" class="online-carousel-arrow online-carousel-arrow-vertical" type="button" aria-label="Spellbook siguiente">⌄</button>
+            </div>
           </section>
           <section class="online-room-setup-panel online-arena-panel">
-            <span class="online-room-label">ARENA · ELIGE EL HOST</span>
-            <div class="online-arena-preview"><img id="onlineArenaPreview" src="assets/arena.webp" alt="Arena seleccionada"></div>
-            <select id="onlineArenaSelect" aria-label="Seleccionar arena">
-              <option value="classic">Arena clásica</option>
-              <option value="egypt">Arena Egipto</option>
-            </select>
+            <div class="online-setup-panel-head">
+              <span class="online-room-label">ARENA · ELIGE EL HOST</span>
+              <strong id="onlineArenaName">Arena Japonesa</strong>
+            </div>
+            <div class="online-arena-carousel" aria-label="Selector de arena">
+              <button id="onlineArenaPrevBtn" class="online-carousel-arrow" type="button" aria-label="Arena anterior">‹</button>
+              <div id="onlineArenaPreviewWrap" class="online-arena-preview">
+                <img id="onlineArenaPreview" src="assets/arenas/previews/japan.webp" alt="Arena seleccionada">
+              </div>
+              <button id="onlineArenaNextBtn" class="online-carousel-arrow" type="button" aria-label="Arena siguiente">›</button>
+            </div>
+            <button id="onlineArenaRandomBtn" class="online-arena-random-btn" type="button" aria-pressed="false">🎲 RANDOM</button>
           </section>
         </div>
 
@@ -637,10 +790,39 @@
     </div>
   </section>
 
+  <section id="onlineVersusIntro" class="adventure-battle-intro online-versus-intro" aria-hidden="true">
+    <div id="onlineIntroBackground" class="adventure-intro-bg online-intro-bg" aria-hidden="true"></div>
+    <div id="onlineIntroRivalSide" class="adventure-intro-side adventure-intro-rival">
+      <img id="onlineIntroRivalChampion" class="adventure-intro-champion" alt="Invocación rival destacada" draggable="false">
+      <img id="onlineIntroRivalImage" class="adventure-intro-caster" alt="Kaster rival">
+      <div class="adventure-intro-name"><small id="onlineIntroRivalKicker">KASTER RIVAL</small><strong id="onlineIntroRivalName">Jugador rival</strong></div>
+      <div class="adventure-intro-side-flyer adventure-intro-side-flyer-rival" aria-hidden="true"></div>
+      <div id="onlineIntroRivalDominants" class="adventure-intro-dominants"></div>
+    </div>
+    <div class="adventure-intro-vs" aria-hidden="true"><div class="adventure-intro-sigil intro-sigil-v" aria-hidden="true"><span class="intro-sigil-glow"></span><img class="intro-sigil-img" src="assets/fx/circulo-invocacion.png" alt="" draggable="false"><span class="intro-sigil-tint"></span></div><div class="adventure-intro-sigil intro-sigil-s" aria-hidden="true"><span class="intro-sigil-glow"></span><img class="intro-sigil-img" src="assets/fx/circulo-invocacion.png" alt="" draggable="false"><span class="intro-sigil-tint"></span></div><div class="adventure-intro-vs-clash" aria-hidden="true"><div class="adventure-intro-vs-clash-emitter clash-top"><span class="clash-ray ray-1"></span><span class="clash-ray ray-2"></span><span class="clash-ray ray-3"></span><span class="clash-ray ray-4"></span><span class="clash-ray ray-5"></span><span class="clash-particle p-1"></span><span class="clash-particle p-2"></span><span class="clash-particle p-3"></span><span class="clash-particle p-4"></span><span class="clash-particle p-5"></span><span class="clash-particle p-6"></span></div><div class="adventure-intro-vs-clash-emitter clash-bottom"><span class="clash-ray ray-1"></span><span class="clash-ray ray-2"></span><span class="clash-ray ray-3"></span><span class="clash-ray ray-4"></span><span class="clash-ray ray-5"></span><span class="clash-particle p-1"></span><span class="clash-particle p-2"></span><span class="clash-particle p-3"></span><span class="clash-particle p-4"></span><span class="clash-particle p-5"></span><span class="clash-particle p-6"></span></div><span class="clash-core"></span></div><span class="intro-v">V</span><span class="intro-s">S</span></div>
+    <div id="onlineIntroPlayerSide" class="adventure-intro-side adventure-intro-player">
+      <img id="onlineIntroPlayerChampion" class="adventure-intro-champion" alt="Invocación destacada del jugador" draggable="false">
+      <img id="onlineIntroPlayerImage" class="adventure-intro-caster" alt="Kaster del jugador">
+      <div class="adventure-intro-name"><small id="onlineIntroPlayerKicker">TU KASTER</small><strong id="onlineIntroPlayerName">Jugador</strong></div>
+      <div class="adventure-intro-side-flyer adventure-intro-side-flyer-player" aria-hidden="true"></div>
+      <div id="onlineIntroPlayerDominants" class="adventure-intro-dominants"></div>
+    </div>
+    <div id="onlineIntroCountdown" class="adventure-intro-countdown" aria-live="assertive"></div>
+    <div class="adventure-intro-combat-flyer">COMBATE</div>
+  </section>
+
   <aside id="onlineMatchBadge" class="online-match-badge" aria-hidden="true">
     <span class="online-match-dot" aria-hidden="true"></span>
     <div><small>ONLINE</small><strong id="onlineMatchBadgeText">Sala ------</strong></div>
     <button id="onlineLeaveRoomBtn" type="button">Salir</button>
+  </aside>
+
+  <aside id="onlineReconnectNotice" class="online-reconnect-notice" aria-hidden="true">
+    <div class="online-reconnect-notice-copy">
+      <small>CONEXIÓN INTERRUMPIDA</small>
+      <strong id="onlineReconnectNoticeText">El rival se ha desconectado. Esperando reconexión…</strong>
+    </div>
+    <div class="online-reconnect-countdown"><span>Tiempo restante</span><b id="onlineReconnectSeconds">60</b></div>
   </aside>
 
 
@@ -737,7 +919,7 @@
                   <option value="all">Todas las rarezas</option>
                   <option value="ordinary">Ordinaria</option>
                   <option value="uncommon">Poco ordinaria</option>
-                  <option value="extraordinary">Extra ordinaria</option>
+                  <option value="extraordinary">Extraordinaria</option>
                   <option value="singular">Singular</option>
                   <option value="infrequent">Infrecuente</option>
                   <option value="unusual">Inhabitual</option>
@@ -977,6 +1159,20 @@
           <div id="battleCenterLine" class="arena-line battle-center-line"></div>
         </div>
       </div>
+      <section id="inactivityPrompt" class="inactivity-prompt" aria-hidden="true">
+        <div class="inactivity-prompt-shell" role="status" aria-live="polite">
+          <div class="inactivity-prompt-copy">
+            <strong>INACTIVIDAD DETECTADA</strong>
+            <span id="inactivityPromptText">¿Vas a continuar con esta fase?</span>
+          </div>
+          <div class="inactivity-prompt-countdown" aria-label="Tiempo restante">
+            <span>Avance automático en</span>
+            <b id="inactivityPromptSeconds">10</b>
+          </div>
+          <button id="inactivityPromptContinueBtn" type="button">Sí</button>
+          <div class="inactivity-prompt-track" aria-hidden="true"><span id="inactivityPromptFill"></span></div>
+        </div>
+      </section>
     </section>
 
     <section class="phase-rail panel">
@@ -1005,7 +1201,13 @@
           <div id="cardInfoPreview" class="card-info-preview"></div>
           <div class="card-info-text">
             <h2 id="cardInfoName">Carta</h2>
-            <p id="cardInfoType">Invocación</p>
+            <div class="card-info-type-level-row">
+              <p id="cardInfoType">Invocación</p>
+              <div id="cardInfoCasterLevel" class="caster-level-progress" hidden aria-label="Nivel del Kaster">
+                <div class="caster-level-progress-head"><strong>NIVEL 1</strong><span>0 / 30 XP</span></div>
+                <div class="caster-level-progress-track"><i style="width:0%"></i></div>
+              </div>
+            </div>
             <div id="cardInfoMetaIcons" class="card-info-meta-icons"></div>
             <div id="cardInfoSummaryTags" class="card-info-summary-tags"></div>
             <div id="cardInfoTraits" class="card-info-traits" hidden></div>
@@ -1289,6 +1491,16 @@
           <button id="cardCreatorDecomposeBtn" class="library-builder-action danger card-creator-decompose-btn" type="button" disabled>Descomponer</button>
         </div>
         <div id="cardCreatorNotice" class="library-builder-notice card-creator-notice" aria-live="polite"></div>
+
+        <section id="casterAbilityCloneModule" class="caster-ability-clone-module" aria-label="Clonación de habilidad base de Kaster">
+          <div class="caster-ability-clone-icon" aria-hidden="true">✦</div>
+          <div class="caster-ability-clone-copy">
+            <span>ALQUIMIA DE KASTER</span>
+            <strong>Clonar habilidad base</strong>
+            <p>Reserva del sistema: una habilidad base podrá extraerse como copia y convertirse en una carta de Habilidad de Kaster. El Kaster original conserva siempre su habilidad.</p>
+          </div>
+          <button id="casterAbilityCloneReservedBtn" class="library-builder-action" type="button" disabled>Proceso por definir</button>
+        </section>
       </div>
     </section>
   </div>
@@ -1444,8 +1656,8 @@
       });
     }());
   </script>
-  <script src="rok-layout-scale.js?v=528-smoke-action-window-cast-geometry"></script>
-  <script src="game.js?v=549-pvp-oculto-privacy-v1"></script>
-  <script src="firebase-online.js?v=547-stage8-rtdb-canonical-hash-v5"></script>
+  <script src="rok-layout-scale.js?v=rok-v8-41-repo-online-audit"></script>
+  <script src="game.js?v=rok-v8-41-repo-online-audit"></script>
+  <script src="firebase-online.js?v=rok-v8-41-repo-online-audit"></script>
 </body>
 </html>

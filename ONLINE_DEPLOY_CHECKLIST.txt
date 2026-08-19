@@ -1,0 +1,42 @@
+R.O.K LITE v8.41 — CHECKLIST DE DESPLIEGUE / PRUEBA PVP ONLINE
+
+ARCHIVOS WEB QUE DEBEN SUBIR AL REPO/HOST
+- index.html
+- style.css
+- game.js
+- firebase-online.js
+- rok-layout-scale.js
+- assets/ completo
+- dominion-color-palette.json
+- PB_UNIVERSAL_v1.txt (documentación; no es requerido por runtime)
+
+FIREBASE
+1. Proyecto configurado en firebase-online.js: risin96ames.
+2. Authentication: debe estar habilitado Email/Password. El PvP rechaza cuentas anónimas.
+3. Realtime Database: debe existir la instancia indicada por databaseURL.
+4. Reglas RTDB: el archivo firebase-rtdb-rules.json NO se aplica por subirlo al repo.
+   - Si las reglas publicadas en Firebase ya son idénticas a este archivo, no hay que volver a publicarlas.
+   - Si no lo sabes o vienes de una versión anterior, publica el contenido de firebase-rtdb-rules.json en Realtime Database > Rules, o despliega ese archivo mediante Firebase CLI.
+5. Si el sitio se sirve desde GitHub Pages u otro dominio, revisa Authentication > Settings > Authorized domains y agrega el dominio que sirve la página si Firebase lo requiere para tu flujo de autenticación.
+
+COHERENCIA DE ESTA VERSIÓN
+- firebase-online.js: ONLINE_SNAPSHOT_SCHEMA_VERSION = 5.
+- firebase-online.js: ONLINE_SNAPSHOT_HASH_VERSION = 2.
+- firebase-rtdb-rules.json exige schemaVersion 5 y hashVersion 2 para game/authoritative.
+- `farolPortals` está incluido en el snapshot autoritativo y en las colecciones con default [].
+- La lista de arenas PvP de game.js coincide con los arenaId permitidos por las reglas: classic, egypt, kiara, kaelor, sahrkel, ilyan, aurek, random.
+- Firebase JS queda fijado en 12.16.0.
+
+PRUEBA MANUAL RECOMENDADA (DOS NAVEGADORES / DOS CUENTAS)
+A. Cuenta A y Cuenta B deben ser cuentas distintas y amigas dentro del sistema social.
+B. A crea lobby; B debe verlo en Unirse.
+C. Ambos seleccionan Spellbook, pulsan LISTO, se ejecuta countdown y VS.
+D. Comprobar RPS, reparto inicial, cambio de fases y handoff de turno.
+E. Realizar al menos una acción con ventana remota y una defensa/reacción.
+F. Probar una carta con FX persistente (Cortina de humo) y, si está disponible, Farolera/portal.
+G. Recargar uno de los navegadores durante partida y comprobar reconexión dentro de 60 s.
+H. Probar revancha.
+I. Salir del lobby antes de empezar y comprobar que la sala/listado se libera.
+
+NOTA
+Esta revisión es estática/local del paquete. La prueba definitiva de permisos requiere ejecutar ambos clientes contra el proyecto Firebase real, porque las reglas efectivamente publicadas viven en Firebase y no pueden deducirse del repo.

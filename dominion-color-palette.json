@@ -1,0 +1,42 @@
+{
+  "schema": "ROK_LITE_DOMINION_COLOR_PALETTE_V1",
+  "meaning": "Fuente canónica para cualquier estética o lógica de color por Dominion en R.O.K Lite.",
+  "domains": {
+    "agua": {
+      "dominant": "#00FFE4",
+      "secondary": "#00FF8A"
+    },
+    "tierra": {
+      "dominant": "#CCFF00",
+      "secondary": "#67400D"
+    },
+    "viento": {
+      "dominant": "#57B569",
+      "secondary": "#FFFFFF"
+    },
+    "luz": {
+      "dominant": "#D7A803",
+      "secondary": "#FFFFFF"
+    },
+    "oscuridad": {
+      "dominant": "#5400FF",
+      "secondary": "#000000"
+    },
+    "fuego": {
+      "dominant": "#FF0000",
+      "secondary": "#FF0000"
+    },
+    "muerte": {
+      "dominant": "#FF0090",
+      "secondary": "#000000"
+    },
+    "sonido": {
+      "dominant": "#FE94EE",
+      "secondary": "#FFFFFF"
+    },
+    "rayo": {
+      "dominant": "#FFDE00",
+      "secondary": "#00FFFC"
+    }
+  }
+}

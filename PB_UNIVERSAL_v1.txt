@@ -1,0 +1,91 @@
+R.O.K LITE · PB UNIVERSAL v1
+
+Esquema mínimo de un efecto estructurado:
+{
+  operation: "increase|decrease|damage|heal|grant|destroy|push|...",
+  property: "attack|life|damage|speed|precision|stun|burn|...",
+  magnitude: 1,
+  polarity: "positive|negative",
+  target: { type: "invocation|card|entity|...", side: "allied|enemy|self|all", count: 1|"all"|"scalable", practicalMax: 12 },
+  duration: { type: "instant|phases|turns|untilRestore|whileActive|permanent", value: N },
+  frequency: "once|oncePerTurn|oncePerPhase|everyAttack|everyHit|continuous|passive",
+  probability: 0..1,
+  conditions: []
+}
+
+Cantidad de objetivos · aporte marginal:
+1=1.00, 2=0.32, 3=0.40, 4=0.45, 5=0.45, 6=1.00, 7=1.50, 8=2.00, 9=1.50, 10=1.00, 11=0.60, 12=0.25, 13=0.00.
+
+El valor acumulado siempre crece hasta 12; desde 13 no añade PB.
+Los efectos positivos sobre aliados y negativos sobre rivales suman al 100%.
+El beneficio concedido al rival o perjuicio propio/aliado resta con peso colateral acotado.
+
+Migración carta por carta:
+- Agregar pbEffects al poder/perfil/efecto.
+- Si esos pbEffects ya incluyen los factores del poder, marcar pbEffectsCoverFactors: true para no duplicar.
+- Eliminar el fallback legado de ese poder/ability cuando la migración esté validada.
+
+ESTASIS DE SPELLBOOK · RELACIÓN CANÓNICA CON COSTO
+Costo 0 -> Estasis 5 fases -> -800 PB
+Costo 1 -> Estasis 4 fases -> -640 PB
+Costo 2 -> Estasis 3 fases -> -480 PB
+Costo 3 -> Estasis 2 fases -> -320 PB
+Costo 4 -> Estasis 1 fase  -> -160 PB
+Costo 5+ -> Estasis 0 fases -> 0 PB
+
+La duración base de Estasis sigue derivándose directamente del costo. Para esta prueba, el descuento PB usa una escala lineal mucho más fuerte: cada fase base de Estasis equivale a -160 PB, con un máximo de -800 PB a 5 fases. La curva queda en prueba durante la revisión carta por carta para empujar las Invocaciones iniciales/baratas hacia rarezas más comunes cuando sus efectos no justifican una rareza superior.
+
+
+ETAPA 4 · TAXONOMÍA DE FACTORES
+- Cadena obligatoria de modal: Factor → activación → categoría → orientación → enfoque.
+- Factor, activación y categoría son conceptos consultables.
+- Los enfoques son metadata de clasificación reutilizable por búsqueda/perfil general de carta.
+- Golpe crítico: activación=PDA, categoría=Físico, orientación=Ofensivo, enfoque=Daño.
+- El PB del Factor Golpe crítico usa multiplicador crítico y probabilidad PDA; si un Poder distribuye ese Factor a varios objetivos, la cantidad de objetivos debe declararse en los pbEffects de ese Poder y no se duplica dentro del Factor base.
+
+============================================================
+ETAPA 5 · PODERES MÚLTIPLES Y APLICACIÓN DE FACTORES
+============================================================
+- Una carta puede declarar `powers: [{id}, ...]` para representar varios Poderes reales.
+- `power` se conserva como referencia primaria de runtime mientras las lógicas antiguas sigan dependiendo de un único Poder principal.
+- Cada Poder migrado usa `semanticBranches` con la secuencia:
+  Poder → activación → categoría → orientación → enfoque(s).
+- Cada Poder puntúa sus propios `pbEffects`; ya no comparte un valor manual por nombre.
+- `factorApplications` registra cuándo un Poder transporta/aplica un Factor a N objetivos.
+  * Si `inheritedBase: true`, el Factor ya existe de forma nativa en la carta y solo se suma el escalado marginal adicional por objetivos por encima de 1.
+  * Si `inheritedBase: false`, el Poder recibe el valor completo del Factor escalado por objetivos.
+  * Esto evita duplicar Golpe crítico 5 en Kurayami: su carta ya tiene el Factor nativo y Shizukesa no Shi-in lo aplica a 1 objetivo.
+  * Si un Poder futuro distribuye el mismo Factor sobre 5, 8 o 12 objetivos, el multiplicador marginal de objetivos añade el valor correspondiente.
+- Un bypass semántico puede referirse a tags, por ejemplo `Físico + Defensivo`, en vez de enumerar Factor por Factor.
+
+v1.1 · Recursos / Habilidades semánticas
+- property: resource representa ganancia o pérdida de elementos del stock.
+- Un robo se modela como dos efectos ligados al mismo disparador/probabilidad: pérdida en el rival + ganancia en el usuario.
+- Las Habilidades migradas pueden declarar semanticBranches y pbEffects igual que los Poderes.
+- Ejemplo Botín valioso: Habilidad → Pasiva → Virtual → Táctica → Saqueo; 3 PDA = probabilidad 0.5; objetivo funcional: stock del Kaster rival/usuario.
+
+v1.2 · Desarmar / Buki Utsushi
+- Desarmar se mantiene hasta recuperar el arma; Restauración no forma parte de su definición semántica.
+- La semántica PB de Desarmar usa su PDA real como probabilidad y duración `untilWeaponRecovered`.
+- Un `pdaOverride` en la entrada de Factor permite declarar una probabilidad específica sin alterar el nivel nominal del Factor.
+- Buki Utsushi usa una sola rama semántica compuesta: Poder → Disparador / Activa → Físico → Táctico → Desarmar.
+- Sus tres etapas pertenecen al mismo Poder: disparador de Desarmar al dañar, captura activa de un arma desarmada y alternancia activa entre armas disponibles.
+- La propagación de Desarmar a varias invocaciones se valora mediante `factorApplications`; no se duplica el valor base del Factor ya nativo.
+
+v1.2 · Desarmar / Buki Utsushi
+- Desarmar se mantiene hasta recuperar el arma; Restauración no forma parte de su definición semántica.
+- La semántica PB de Desarmar usa su PDA real como probabilidad y duración `untilWeaponRecovered`.
+- Un `pdaOverride` en la entrada de Factor permite declarar una probabilidad específica sin alterar el nivel nominal del Factor.
+- Buki Utsushi usa una sola rama semántica compuesta: Poder → Disparador / Activa → Físico → Táctico → Desarmar.
+- Sus tres etapas pertenecen al mismo Poder: disparador de Desarmar al dañar, captura activa de un arma desarmada y alternancia activa entre armas disponibles.
+- La propagación de Desarmar a varias invocaciones se valora mediante `factorApplications`; no se duplica el valor base del Factor ya nativo.
+
+
+v8.39 · ATADURA
+- Factor global nuevo: Atadura.
+- Usa dos comprobaciones PDA distintas, Movimiento y Ataque, resueltas juntas en cada cambio de fase.
+- Ambas usan el mismo margen PDA del nivel.
+- Acierto de Movimiento: bloquea solo movimiento durante esa fase.
+- Acierto de Ataque: bloquea solo ataque durante esa fase.
+- Nivel 1..5: PDA 2/3/4/5/6; duración 3/5/7/9/11 fases.
+- PB Universal valora Movimiento y Ataque como dos efectos probabilísticos separados con la misma duración.

@@ -22,7 +22,7 @@
         },
         "arenaId": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && newData.parent().child('hostUid').val() === auth.uid",
-          ".validate": "newData.isString() && (newData.val() === 'classic' || newData.val() === 'egypt')"
+          ".validate": "newData.isString() && (newData.val() === 'classic' || newData.val() === 'egypt' || newData.val() === 'kiara' || newData.val() === 'kaelor' || newData.val() === 'sahrkel' || newData.val() === 'ilyan' || newData.val() === 'aurek' || newData.val() === 'random')"
         },
         "startAt": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && data.parent().child('hostUid').val() === auth.uid",

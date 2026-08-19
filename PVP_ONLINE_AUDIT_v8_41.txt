@@ -1,0 +1,37 @@
+R.O.K LITE v8.41 — AUDITORÍA ESTÁTICA PVP ONLINE
+
+RESULTADO GENERAL
+El paquete está coherente para subir al repo y comenzar una prueba real con dos cuentas. No se detectaron referencias de assets faltantes ni errores de sintaxis JS/JSON. Sí se detectaron dos inconsistencias de despliegue/sincronización y se corrigieron en esta versión.
+
+CORRECCIONES HECHAS
+1) FAROL ENLAZADO / PVP
+   - game.js mantenía `state.farolPortals` como estado persistente de batalla.
+   - firebase-online.js NO lo incluía en SNAPSHOT_KEYS ni SNAPSHOT_ARRAY_KEYS.
+   - Consecuencia: un portal podía existir en un navegador y no formar parte del snapshot autoritativo del rival.
+   - v8.41: `farolPortals` ya se sincroniza y se reconstruye como [] cuando RTDB elimina una colección vacía.
+
+2) CACHE DE HOSTING ESTÁTICO
+   - index.html seguía cargando style.css/game.js/firebase-online.js con query strings de versiones antiguas (v8.14/v8.20).
+   - En un hosting/CDN eso podía servir una copia cacheada aunque el repo ya tuviera archivos nuevos.
+   - v8.41: todos los recursos principales usan `?v=rok-v8-41-repo-online-audit`.
+
+COMPROBACIONES AUTOMÁTICAS
+- `node --check game.js`: OK.
+- `node --check firebase-online.js`: OK.
+- `firebase-rtdb-rules.json`: JSON válido.
+- `dominion-color-palette.json`: JSON válido.
+- Referencias estáticas detectadas a assets: 342; faltantes: 0.
+- Todas las colecciones raíz persistentes de RUNTIME_ROOT_ARRAY_KEYS están incluidas en SNAPSHOT_KEYS y SNAPSHOT_ARRAY_KEYS.
+- Raíces RTDB usadas por firebase-online.js tienen reglas: rooms, openRooms, socialProfiles, friendCodes, friendRequests, sentFriendRequests, friends, avatarJobs.
+- Arenas PvP del registro: classic, egypt, kiara, kaelor, sahrkel, ilyan, aurek; todas están permitidas por firebase-rtdb-rules.json, además de random.
+- ONLINE_SNAPSHOT_SCHEMA_VERSION=5 y ONLINE_SNAPSHOT_HASH_VERSION=2 coinciden con las validaciones de `game/authoritative` en las reglas.
+- No hay service account/private key en el paquete; solo existe la configuración pública del cliente Web de Firebase.
+
+LO QUE NO PUEDE VALIDARSE SOLO DESDE EL ZIP
+- Qué versión de firebase-rtdb-rules.json está actualmente PUBLICADA en el proyecto Firebase.
+- Que Email/Password esté habilitado en Authentication.
+- Que el dominio final del repo/hosting esté autorizado cuando corresponda.
+- Una partida real completa entre dos conexiones/UID distintos. Esa prueba requiere el backend Firebase real y dos cuentas.
+
+RECOMENDACIÓN PARA LA PRUEBA
+Subir v8.41 al repo/hosting, comprobar la configuración Firebase indicada en ONLINE_DEPLOY_CHECKLIST.txt y realizar la secuencia de prueba de dos navegadores. Si las reglas del proyecto no son exactamente las de este paquete, publicar firebase-rtdb-rules.json antes de la prueba.

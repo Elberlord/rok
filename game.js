@@ -39,7 +39,7 @@ const HATTORI_ABILITY_PURE_COST_PER_TARGET = 3;
 const TOKUGAWA_ABILITY_PURE_COST = 3;
 const HATTORI_ABILITY_STASIS_PHASES = 6;
 const HATTORI_ACTION_WINDOW_LEAD_MS = 8000;
-const PURE_ELEMENT_CASTING_INTERVAL = 3;
+const PURE_ELEMENT_TRIGGER_PHASE = 'extraction';
 const KAGUYA_CHARGED_SHOT_CHANNEL_PHASES = 5;
 const MINOKAGE_SHIPPU_CHANNEL_PHASES = 3;
 const MINOKAGE_SHIPPU_TARGET_RANGE = 6;
@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.7.279';
+const GAME_VERSION = 'v5.7.324';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -492,6 +492,39 @@ window.ROK_ONLINE_FX = {
 };
 
 const PATCH_NOTES = [
+  'v541: Segunda calibración experimental de Estasis de Spellbook para cartas iniciales/baratas. La duración base por Costo se mantiene (0→5, 1→4, 2→3, 3→2, 4→1, 5+→0), pero el descuento PB se escala linealmente desde 5 fases=-800 hasta 0 fases=0: 4=-640, 3=-480, 2=-320 y 1=-160. El objetivo es que el tempo barato no convierta por sí solo cartas comunes en rarezas altas.',
+  'v540: Calibración experimental de Estasis de Spellbook para reducir la inflación de PB en Invocaciones de bajo costo. La duración base por Costo no cambia (0→5, 1→4, 2→3, 3→2, 4→1, 5+→0 fases), pero el descuento PB se vuelve más agresivo: 5 fases=-450, 4=-350, 3=-250, 2=-150, 1=-50 y 0=0. Costo, Kasteo y Restauración conservan sus curvas positivas actuales; este ajuste se prueba antes de seguir recalibrando rarezas carta por carta.',
+  'v539: Junkai butai #2 sustituye Parálisis 2 por Atadura 2. Atadura usa dos comprobaciones PDA por cambio de fase —Movimiento y Ataque— con el mismo margen del nivel, mantiene duración por nivel y usa el nuevo icono de cadenas. Velocidad de ataque y Atadura usan modales semánticos normalizados y PB Universal.',
+  'v581: Revisión de Kurokage · Kurokagi butai #3 pasa a llamarse Kurokage. Buki Utsushi migra al sistema semántico como un único Poder dividido en tres etapas: disparador de Desarmar al dañar, captura activa de un arma caída y cambio activo entre armas disponibles. Usa Poder → Disparador / Activa → Físico → Táctico → Desarmar y pbEffects universales; el escalado multiobjetivo de Desarmar se declara mediante factorApplications. Desarmar deja de indicar que Restauración recupera el arma: permanece hasta recuperarla, elimina la línea redundante de Probabilidad en su modal y Kurokage ya no requiere Kusarigama conjuntamente para habilitarlo; Asesino continúa como fuente. Desarmar 3 de Kurokage usa 3 PDA de forma explícita.',
+  'v580: Revisión de Junkai butai #1 · pasa a Ataque 3 / Vida 3, Costo 0, Kasteo 0 y Restauración 0; conserva Golpe 1 al quedar sin Espada, Golpe crítico 1 y Penetración de armadura 1. Penetración de armadura usa su icono correcto aportado por el usuario. El PB Universal incorpora la capacidad de Habilidades como +35 PB por cada slot disponible para todas las cartas; el antiguo +35 provisional por Habilidad legada deja de duplicarse. Golpe crítico se normaliza para no multiplicar el daño cuando una defensa Física efectiva sigue interponiéndose, salvo efectos que ignoren Factores Físicos Defensivos como Shizukesa no Shi-in.',
+  'v579: Revisión de Ichikawa Goemon · Densetsu no Sennyū migra al sistema semántico como Poder → Disparador → Virtual → Táctico → Movilidad y deja de mostrar prosa técnica de rutas, estelas o sinergias. Botín valioso migra como Habilidad → Pasiva → Virtual → Táctica → Saqueo, elimina la descripción visual y usa pbEffects universales para el robo de 1 recurso con 3 PDA tras causar al menos 1 de daño real al Kaster rival. Goemon deja de usar PB legado para Poder/Habilidad y su tag general deriva Movilidad · Saqueo. La taxonomía añade Habilidad, Táctico como orientación y los enfoques Movilidad/Saqueo. El segundo Poder de Kurayami recibe el nombre Shinobi no Kōshin.',
+  'v578: Estasis de Spellbook recibe modal informativo propio y reutilizable bajo Estadística de casteo → Estasis de Spellbook. El chip ahora es clicable incluso cuando la Estasis base es 0 en una Invocación, explica la relación inversa con el Costo, separa Estasis de Restauración y muestra por separado la base y los modificadores aprendidos. La fila de Costo / Tiempo de casteo / Restauración / Estasis se normaliza a cuatro posiciones alineadas para que la Estasis no caiga visualmente por debajo de las otras estadísticas.',
+  'v577: Etapa 6 · reemplaza el perfil general estimado por tags semánticos reales. Daño/Vida solo aportan Daño o Resistencia cuando cumplen los umbrales acordados (diferencia de 5 o ambos valores fuertes), Velocidad aporta tag únicamente desde 6, y los Enfoques finales de Factores y Poderes semánticos se incorporan automáticamente sin duplicados. Se eliminan el ranking arbitrario, los modificadores focusScoreModifiers, el relleno forzado a tres tags y los fallbacks Resistencia/Movilidad/Tempo. Habilidades quedan preparadas para entrar al mismo sistema cuando reciban semanticBranches. La búsqueda de Biblioteca incorpora la taxonomía semántica de Factores/Poderes, incluyendo orientación Ofensivo/Defensivo y sus alias naturales.',
+  'v576: Etapa 5 · Poderes semánticos y PB Universal de Kurayami. La carta puede exponer varios Poderes independientes sin romper la referencia primaria usada por combate. Shizukesa no Shi-in queda como Poder activo y la antigua aura Ninja se separa como segundo Poder pasivo con nombre técnico provisional hasta recibir nombre canónico. Cada Poder usa Poder → activación → categoría → orientación → enfoque(s), y el calculador PB suma efectos estructurados por Poder, incluyendo costos, canalización, Oculto, daño, bypass físico-defensivo, ejecución, enfriamiento y los bonos de Velocidad/Precisión. Las aplicaciones de Factores dentro de Poderes soportan escalado adicional por cantidad de objetivos sin duplicar el valor base de un Factor ya nativo.',
+  'v575: Etapa 4 de normalización de modales · los Factores usan una taxonomía global Factor → activación → categoría → orientación → enfoque, con las tres primeras capas consultables y colores jerárquicos derivados del Dominion de la carta. Se elimina Clasificación y el listado legado de tags del modal de Factor. Golpe crítico adopta Factor → PDA → Físico → Ofensivo → Daño y su explicación integra PDA/multiplicador sin repetir Probabilidad de acierto. Se deja una base semántica reutilizable para todos los Factores y para filtros/perfiles posteriores.',
+  'v574: Etapa 3 de normalización de modales · unifica Costo, Tiempo de casteo y Restauración bajo Estadística de casteo; separa Restauración de Estasis de Spellbook y corrige su definición al retorno al Nexo tras combate/ataque al Kaster. Movilidad, Velocidad y Biotipo pasan a Estadística de desplazamiento. La Movilidad describe el patrón de desplazamiento, Velocidad cuántas casillas puede recorrer al aplicarlo y Biotipo únicamente la adaptación al entorno propio sin mezclar penalizaciones de otros biomas. El modal de Tiempo de casteo aclara que mientras el Kaster ejecuta el casteo no puede atacar ni defenderse.',
+  'v573: Etapa 2 de normalización de modales · unifica la línea ofensiva y Vida bajo tags semánticos reutilizables. Arma/Ataque distingue arma base de ataque nativo, elimina Consumo en armas base no consumibles y deja Espada como Arma → Base → Cuerpo a cuerpo. Modo de combate usa un único tag con su modo; Alcance y Precisión usan Estadística ofensiva → propiedad, con Precisión explicada mediante PDA. Tipo y aplicación de daño también reducen sus tags a una cadena semántica estable. Vida usa Estadística defensiva → Vida máxima, elimina la repetición del valor base y aclara curación frente a Vida máxima.',
+  'v572: Etapa 1 de normalización de modales · establece una base reutilizable para Tipo de carta, Familia, Raza y Cualidad; el modal de Tipo deja de mostrar datos de arma y usa definiciones del ruling, Raza deja de superponer el género sobre su icono y Raza/Cualidad eliminan Clasificación redundante. Los tags identitarios pasan a jerarquía semántica (Familia → nombre → enfoques, Raza → nombre → enfoques, Cualidad → nombre → enfoques). Kurayami cambia de Humano a Demonio y Asesino recibe descripción global no dependiente de una carta concreta.',
+  'v571: Corrige Estasis de Spellbook según la relación inversa canónica con el costo: Costo 0→5 fases, 1→4, 2→3, 3→2, 4→1 y 5+→0. El descuento PB usa la misma curva de Costo en sentido inverso por duración: 5 fases=-200, 4=-160, 3=-120, 2=-85, 1=-55 y 0=0. Así una invocación de Costo 1 muestra Estasis 4 y descuenta -160 PB.',
+  'v570: PB universal v1 · reemplaza la valoración aislada de Factores por un motor semántico común para efectos, Poderes y Habilidades estructuradas. Daño+Vida pasan a una sola curva combinada hasta 70; Precisión escala hasta 15; Velocidad suma desde 1 hasta 10; Costo/Kasteo/Restauración conservan curvas independientes y Estasis de Spellbook aplica la curva inversa acordada. La cantidad de objetivos usa una curva marginal con crecimiento fuerte en 6–8 y caída de aporte hasta 0 en el objetivo 13; aliados/rivales se valoran algebraicamente según si el efecto es positivo o negativo. Duración, frecuencia, probabilidad, condiciones y cobertura de tipo actúan como moduladores acotados. Poderes/Habilidades todavía no migrados conservan un fallback legado identificado en DEBUG PB hasta revisarlos carta por carta. La rareza visual de cartas normales vuelve a salir exclusivamente del PB calculado; forceRarityId queda reservado para muestras/debug explícitos.',
+  'v569: Rarezas · actualiza la jerarquía lógica canónica a 1 Ordinaria, 2 Poco ordinaria, 3 Infrecuente, 4 Inhabitual, 5 Extraordinaria, 6 Extraña, 7 Singular, 8 Legendaria y 9 Mítica. Conserva los sprites/íconos actuales sin añadir numeración visual. Los rangos PB, bonos, orden de sorteo y pesos de booster se reasignan por nivel. El ícono de rareza del modal de carta ahora abre una consulta informativa con nivel, grupo y descripción.',
+  'v568: Ajustar Tokens · corrige el fallo de render al combinar una misma pieza visual presente en ambos jugadores: el conjunto de propietarios se normaliza a Array antes de componer la etiqueta Tuyo / Rival. El panel ya no interrumpe renderAll ni rompe la arena al refrescar su listado.',
+  'v568: Ajustar Tokens · elimina por completo el foil/clon y cualquier clase de selección aplicada a la ficha durante la edición. La pieza seleccionada conserva exactamente su render y tamaño real; el editor solo añade una pequeña burbuja azul como indicador, sin wrappers ni transformaciones adicionales.',
+  'v567: Editor VS · el ajuste universal de Kasters e invocaciones se refleja inmediatamente incluso sobre la pieza individual seleccionada, combinando en vivo universal + ajuste individual sin guardar. La invocación destacada del Spellbook deja de usar transparencia al completar su entrada y el Kaster recibe una sombra paralela coloreada según su Dominion.',
+  'v567: Ajustar Tokens deja de transformar el contenedor completo de la ficha: escala/offset afectan únicamente al sprite y a su hitbox compartiendo las mismas variables, sin alterar estadísticas ni overlays. La selección del editor usa foil + indicador azul sin cambiar geometría. El rango de escala sube a x6. Abrir la herramienta adquiere pausa global de gameplay y pausa las animaciones de arena hasta cerrarla.',
+  'v566: Corrige la herramienta Ajustar Tokens: ahora enumera las piezas visibles de ambos jugadores (Kasters, invocaciones y Guardianes/estructuras presentes en arena), y la transformación visual se aplica de forma aislada a cada .unit completa para que cambiar la selección nunca transfiera ni multiplique la escala/offset de otra ficha. Token e hitbox se escalan y desplazan juntos. Guardar CSS exporta la nueva lógica estable.',
+  'v565: Farolera · Farol Enlazado usa una sola miniatura/persistente de acción para ambas etapas: el mismo botón cambia entre Poder · Etapa 1 y Poder · Etapa 2 y la ventana permanece capturada hasta confirmar/cancelar cada targeting. Se evita cualquier duplicado por unidad. Regla global: una invocación que ya atacó en la Resolución no recupera movimiento al restaurarse, incluso con Restauración 0.',
+  'v564: Etapa 3/4 · sustituye por completo el proyectil visual de Magia: ya no reutiliza la flecha del ataque a distancia. Los ataques mágicos disparan un orbe-cometa circular con núcleo luminoso, varias estelas/afterimages y una pequeña explosión arcana al impactar.',
+  'v564: Etapa 4/4 · Herramienta temporal de ajuste de tokens: botón superior izquierdo durante combate, listado de Kaster/invocaciones/estructuras/Guardianes relevantes del jugador local, escala y offsets X/Y en vivo para token + hitbox, persistencia local y exportación mediante Guardar CSS.',
+  'v561: Farolera del Umbral · Farol Enlazado pasa a dos activaciones reales: Etapa 1 fija solo el círculo y conserva movilidad; Etapa 2 abre después la selección del farol, lo lanza con vuelo desde la Farolera y escala +35% a mitad de trayectoria, y bloquea nuevas activaciones al completar el portal. El círculo se reduce 30% y sus FX persistentes ya no reinician en cada render. Los ataques con Magia usan ahora un orbe-cometa con estela e impacto mágico en lugar de la flecha genérica. El HUD compacto muestra Kiara sin el subtítulo largo.',
+  'v560: Kiara · integra Farolera del Umbral como primera invocación Hechicero de Agua: 2/2, Magia a distancia, alcance 3, PDA 4, velocidad 2, costo 0 y 1 slot. Farol Enlazado crea un círculo en su casilla y permite lanzar la lámpara a radio 4; cualquier invocación Hechicero que ENTRE al círculo se teletransporta a la lámpara. Reutiliza el círculo de invocación, sprite dedicado de lámpara y vínculo mágico con lógica de color.',
+  'v559: Revancha · unifica el ciclo de vida de Player vs Bot y PvP Online: al terminar un match se cancelan inmediatamente los runtimes pendientes; la revancha reconstruye el estado completo y Piedra/Papel/Tijera vuelve a ejecutarse antes de repartir elementos o entrar en Extracción. Aventura muestra el nivel asignado del Kaster rival también en la ficha y Preparar combate.',
+  'v558: Aventura · completa la base de progresión/recompensas de Kaster: XP por primera victoria y repetición, recompensa única con booster elemental Nivel 1 reservado + carta aleatoria del Spellbook rival, y recompensas repetibles de recurso elemental + 2 rarezas aleatorias. La recompensa queda preparada para conectarse al cierre real del combate.',
+  'v557: Aventura · la selección de Kaster en la dungeon muestra el nivel de cada rival. En la primera campaña de Agua, los encuentros 1–4 son nivel 1 y el jefe Aurek es nivel 4.',
+  'v556: Aventura · navegación directa: las tarjetas de región disponibles entran al área al hacer clic y las tarjetas de Kaster disponibles abren Preparar combate directamente. Se eliminan los botones redundantes Entrar al área y Preparar combate; hover/focus conserva la previsualización sin navegar.',
+  'v552: Estabiliza los elementos agrupados del HUD rival. El layout agrupado/individual se decide en una sonda invisible antes de tocar el HUD visible, evitando que cada render muestre primero los elementos sueltos y un frame después vuelva a agruparlos.',
+  'v551: Etapa 1 completa · todas las acciones activas de invocaciones implementadas usan una sola ventana de oportunidad y el mismo stack persistente Info/Poder. Yasugana, Kurokagi, Gioshonin y Kishimoto se integran al flujo unificado; se retira la ventana heredada independiente de Mercancía de guerra y los modales encadenados conservan el bloqueo hasta resolver o cancelar.',
+  'v550: Etapa 1 · unifica las ventanas de acción de invocaciones: Kaguya, Minokage y cualquier unidad elegible ya no crean una segunda miniatura. Al capturar la oportunidad se resaltan simultáneamente todas las fichas elegibles y se usan sus miniaturas persistentes normales con Info/Poder; el flujo permanece único hasta activar o descartar y libera correctamente la fase.',
   'v549: PvP · Oculto se vuelve privacidad real de combate: la invocación rival no genera token ni capas persistentes, queda fuera de toda selección directa (ataques, poderes, Emboscada e Interceptar) y no revela daño/retorno visual al oponente; los impactos indirectos de área, barrido o trayectoria siguen resolviendo normalmente.',
   'v548: Aventura · Kiara recibe una arena propia con preview dedicado en Preparar combate y arte cenital de batalla; el sistema de encuentros queda preparado para asignar preview/arena individual a cada Kaster. El Kaster inicial del jugador pasa a llamarse Lioren.',
   'v534: Restaura la composición canónica de la zona de kasteo sobre el lienzo lógico 1600x900: carril de 150 px, slots 100x138, miniaturas 58x74/54x54, reloj y contador en tamaño original, ACTIVO/COLA por encima del token y cola sin scrollbar interno.',
@@ -635,7 +668,7 @@ const PATCH_NOTES = [
   'v312: Densetsu no Sennyū deja de medir la casilla de Goemon contra la casilla del Kaster: ahora calcula la ruta válida hasta una casilla adyacente de ataque y se activa cuando esa ruta requiere de 1 a 3 movimientos. Botín valioso queda temporalmente en 6 PDA para pruebas; su valor de diseño queda registrado en 3 PDA.',
   'v311: Densetsu no Sennyū se comprueba globalmente cada vez que cambia o se redibuja la arena, por lo que Goemon lo activa al entrar, ser desplazado o cuando el Kaster rival queda a 3 casillas; Botín valioso conserva el origen atacante a través de la defensa del Kaster y vuelve a ejecutar el dropeo/transferencia de recursos.',
   'v310: Densetsu no Sennyū reproduce el desplazamiento de Goemon más lentamente para mostrar el rastro de sombras; Botín valioso reutiliza la caída, flotación y viaje visual del Elemento puro; Goemon y Kurayami cuestan 0 temporalmente para pruebas.',
-  'v308: Restaura los costos normales de Yasugana Hattori, Naito Sutoka y Kurokagi butai #3; Kurokagi vuelve a Desarmar 3, Junkai butai #2 conserva Parálisis 2 y costo 1; las miniaturas de Miyamoto Musashi dejan de mostrar el caption redundante.',
+  'v308: Restaura los costos normales de Yasugana Hattori, Naito Sutoka y Kurokagi butai #3; Kurokagi vuelve a Desarmar 3, Junkai butai #2 conserva Atadura 2 y costo 1; las miniaturas de Miyamoto Musashi dejan de mostrar el caption redundante.',
   'v307: Agrega Kurayami con Shizukesa no Shi-in, persecución canalizada, ataque que ignora defensas, ejecución a 3 de vida, aura Ninja en lado rival; Kaguya baja a 9 de vida y Kurayami usa Golpe crítico 5 para pruebas.',
   'v306: Agrega Ichikawa Goemon con carta/ficha correctas, poder pasivo Densetsu no Sennyū (+2 velocidad y movilidad completa a 4 casillas del Kaster rival) y habilidad Botín valioso para robar hasta 2 elementos del stock rival al dañar al Kaster con 4 PDA.',
   'v304: La ventana de acción rápida también se abre con clic derecho. Se agrega Junkai butai #1 con carta/ficha correctas, Espada 2, Golpe 1, Crítico 1 y Penetración de armadura 1.',
@@ -650,7 +683,7 @@ const PATCH_NOTES = [
   'v289: Kurokagi butai #3 conserva costo 0 para pruebas y vuelve a usar exactamente el flujo estándar de movimiento de las demás invocaciones: sin recargas, seriales ni hitbox especial.',
   'v288: Kurokagi butai #3 cuesta 0 para pruebas y recupera su movimiento de Resolución si entró con movesLeft en 0; el seguro por serial evita recargar movimiento después de haberlo usado.',
   'v286: Corrige la asignación carta/ficha de Kurokagi butai #3, amplía su hitbox para poder seleccionarlo y atacar con normalidad, y eleva temporalmente Desarmar a nivel 5 para probar Buki Utsushi.',
-  'v285: Agrega Kurokagi butai #3 con Kusarigama, Oscilación parcial, Desarmar 3 y Buki Utsushi: captura el arma desarmada, copia solo su perfil básico y permite alternar entre la Kusarigama y el arma capturada. Junkai butai #2 queda únicamente con Parálisis 2.',
+  'v285: Agrega Kurokagi butai #3 con Kusarigama, Oscilación parcial, Desarmar 3 y Buki Utsushi: captura el arma desarmada, copia solo su perfil básico y permite alternar entre la Kusarigama y el arma capturada. Junkai butai #2 queda únicamente con Atadura 2.',
   'v284: Oscilación parcial separa visualmente ataque, daño objetivo por objetivo y Parálisis: la atadura solo comienza después de retirar el barrido y terminar todos los daños permitidos hasta el objetivo que detuvo la secuencia.',
   'v283: Parálisis muestra su duración exacta por nivel, cancela Disparo energizado y otros estados activos que dependen de atacar o desplazarse, y bloquea Evasión, Esquive, Desvío y respuestas equivalentes sin desactivar Armadura, escudos ni poderes que no requieren movimiento o ataque.',
   'v281: El efecto persistente de Parálisis de Junkai elimina el candado visual y cambia sus cadenas, aros y resplandores de azul a morado.',
@@ -813,8 +846,8 @@ const CAST_ENTRY_ICON_INLINE_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" vi
 
 const SMOKE_BOMB_ICON_ASSET = 'assets/weapons/smoke-bomb.svg';
 const HIDDEN_FACTOR_ICON_ASSET = 'assets/factors/factor-oculto.png';
-const KAGUYA_CHARGED_SHOT_IMAGE_ASSET = 'assets/powers/kaguya-disparo-energizado.png';
-const SUTOKA_SMOKE_BOMB_IMAGE_ASSET = 'assets/powers/sutoka-bomba-de-humo.png';
+const KAGUYA_CHARGED_SHOT_IMAGE_ASSET = 'assets/powers/kaguya-disparo-energizado.webp';
+const SUTOKA_SMOKE_BOMB_IMAGE_ASSET = 'assets/powers/sutoka-bomba-de-humo.webp';
 const EXTRA_ATTACK_FACTOR_ICON_ASSET = 'assets/factors/factor-ataque-extra.png';
 const ATTACK_SPEED_FACTOR_ICON_ASSET = 'assets/factors/factor-atacar-primero.svg';
 
@@ -841,19 +874,57 @@ const RESTORE_ICON_INLINE_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewB
 
 
 const DOMAIN_CARD_BACKGROUND_ASSETS = {
+  agua: 'assets/card-bg-water-domain.png',
   oscuridad: 'assets/card-bg-darkness.jpg',
   luz: 'assets/card-bg-light-domain.webp',
   fuego: 'assets/card-bg-fire-domain.webp',
   catalizadora: 'assets/card-bg-darkness.jpg',
 };
 
+const DOMINION_COLOR_PALETTE = Object.freeze({
+  agua: Object.freeze({ id: 'agua', label: 'Agua', dominant: '#00FFE4', secondary: '#00FF8A' }),
+  tierra: Object.freeze({ id: 'tierra', label: 'Tierra', dominant: '#CCFF00', secondary: '#67400D' }),
+  viento: Object.freeze({ id: 'viento', label: 'Viento', dominant: '#57B569', secondary: '#FFFFFF' }),
+  luz: Object.freeze({ id: 'luz', label: 'Luz', dominant: '#D7A803', secondary: '#FFFFFF' }),
+  oscuridad: Object.freeze({ id: 'oscuridad', label: 'Oscuridad', dominant: '#5400FF', secondary: '#000000' }),
+  fuego: Object.freeze({ id: 'fuego', label: 'Fuego', dominant: '#FF0000', secondary: '#FF0000' }),
+  muerte: Object.freeze({ id: 'muerte', label: 'Muerte', dominant: '#FF0090', secondary: '#000000' }),
+  sonido: Object.freeze({ id: 'sonido', label: 'Sonido', dominant: '#FE94EE', secondary: '#FFFFFF' }),
+  rayo: Object.freeze({ id: 'rayo', label: 'Rayo', dominant: '#FFDE00', secondary: '#00FFFC' }),
+});
+
+const DOMINION_ID_BY_LABEL = Object.freeze(Object.fromEntries(
+  Object.values(DOMINION_COLOR_PALETTE).map(entry => [entry.label.toLocaleLowerCase('es'), entry.id])
+));
+
+function normalizeDominionId(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const normalized = raw.toLocaleLowerCase('es');
+  if (DOMINION_COLOR_PALETTE[normalized]) return normalized;
+  return DOMINION_ID_BY_LABEL[normalized] || '';
+}
+
+function getDominionPalette(domainId, fallbackId = 'oscuridad') {
+  const id = normalizeDominionId(domainId);
+  return DOMINION_COLOR_PALETTE[id] || DOMINION_COLOR_PALETTE[fallbackId] || DOMINION_COLOR_PALETTE.oscuridad;
+}
+
+function getDominionPrimaryColor(domainId, fallbackId = 'oscuridad') {
+  return getDominionPalette(domainId, fallbackId).dominant;
+}
+
+function getDominionSecondaryColor(domainId, fallbackId = 'oscuridad') {
+  return getDominionPalette(domainId, fallbackId).secondary;
+}
+
+function getDominionIdFromElementLabel(label = '') {
+  return normalizeDominionId(label);
+}
+
 const ELEMENTS = [
-  { id: 'oscuridad', label: 'Oscuridad', color: '#9b4dff' },
-  { id: 'luz', label: 'Luz', color: '#c9a64a' },
-  { id: 'fuego', label: 'Fuego', color: '#ff5a1f' },
-  { id: 'agua', label: 'Agua', color: '#28d7ff' },
-  { id: 'tierra', label: 'Tierra', color: '#7cb342' },
-  { id: 'catalizadora', label: 'Catalizadora', color: '#f7f7f7' },
+  ...Object.values(DOMINION_COLOR_PALETTE).map(entry => ({ id: entry.id, label: entry.label, color: entry.dominant, secondaryColor: entry.secondary })),
+  { id: 'catalizadora', label: 'Catalizadora', color: '#f7f7f7', secondaryColor: '#ff73d4' },
 ];
 
 const DOMAIN_THEME_DB = {
@@ -876,10 +947,10 @@ const DOMAIN_THEME_DB = {
     label: 'Oscuridad',
     attributeId: 'misterio',
     attributeLabel: 'Misterio',
-    primary: '#050208',
-    secondary: '#9b4dff',
-    accent: '#caa7ff',
-    glow: 'rgba(155,77,255,.62)',
+    primary: getDominionPrimaryColor('oscuridad'),
+    secondary: getDominionSecondaryColor('oscuridad'),
+    accent: getDominionPrimaryColor('oscuridad'),
+    glow: 'rgba(84,0,255,.62)',
     costIcon: 'assets/cost-icons/cost-darkness.png',
     skinImage: 'assets/card-skin-darkness.png',
     bgImage: 'assets/element-card-bg.webp',
@@ -889,10 +960,10 @@ const DOMAIN_THEME_DB = {
     label: 'Luz',
     attributeId: 'revelacion',
     attributeLabel: 'Revelación',
-    primary: '#fff7df',
-    secondary: '#c9a64a',
-    accent: '#e0c16a',
-    glow: 'rgba(201,166,74,.72)',
+    primary: getDominionPrimaryColor('luz'),
+    secondary: getDominionSecondaryColor('luz'),
+    accent: getDominionPrimaryColor('luz'),
+    glow: 'rgba(215,168,3,.72)',
     costIcon: 'assets/cost-icons/cost-light.png',
     skinImage: 'assets/card-skin-light.png',
     bgImage: 'assets/domain/domain-element-light.webp',
@@ -904,10 +975,10 @@ const DOMAIN_THEME_DB = {
     label: 'Fuego',
     attributeId: 'destruccion',
     attributeLabel: 'Destrucción',
-    primary: '#2a0500',
-    secondary: '#ff5a1f',
-    accent: '#ff9b1f',
-    glow: 'rgba(255,90,31,.62)',
+    primary: getDominionPrimaryColor('fuego'),
+    secondary: getDominionSecondaryColor('fuego'),
+    accent: getDominionPrimaryColor('fuego'),
+    glow: 'rgba(255,0,0,.62)',
     costIcon: 'assets/cost-icons/cost-fire.png',
     skinImage: 'assets/card-skin-fire.png',
     bgImage: 'assets/domain/domain-element-fire.png',
@@ -932,6 +1003,14 @@ const CASTER_VISUAL_ASSET_DB = {
     cardId: 'kasterTokugawaLight',
     artImage: 'assets/tokugawa-light-art.webp',
     tokenImage: 'assets/tokugawa-light-token.webp',
+  },
+  kiaraWater: {
+    id: 'kiaraWater',
+    name: 'Kiara, Décima Aprendiz de Enigma',
+    domainId: 'agua',
+    cardId: 'kasterKiaraWater',
+    artImage: 'assets/kiara/kiara-decima-aprendiz-enigma-art.png',
+    tokenImage: 'assets/adventure/casters/enigma-apprentice.png',
   },
 };
 
@@ -960,6 +1039,18 @@ const CASTER_LIBRARY = {
     tokenImage: 'assets/tokugawa-light-token.webp',
     stats: { atk: 2, def: CASTER_DEFENSE_VALUE, life: 15, maxLife: 15, mov: 2, pureBase: 0, pureCadence: 2, pureMax: 8 },
   },
+  kiaraWater: {
+    id: 'kiaraWater',
+    cardId: 'kasterKiaraWater',
+    name: 'Kiara, Décima Aprendiz de Enigma',
+    title: 'Kaster de Agua',
+    domainId: 'agua',
+    attributeId: 'conocimiento',
+    attributeLabel: 'Conocimiento',
+    artImage: 'assets/kiara/kiara-decima-aprendiz-enigma-art.png',
+    tokenImage: 'assets/adventure/casters/enigma-apprentice.png',
+    stats: { atk: 1, def: 1, life: 8, maxLife: 8, mov: 2, pureBase: 0, pureCadence: 2, pureMax: 6, startingSpecialCounters: 0 },
+  },
 };
 
 function getCasterDefinition(caster) {
@@ -973,6 +1064,12 @@ function getCasterDefinition(caster) {
 
 function getCasterDisplayName(caster, fallback = 'Kaster') {
   return getCasterDefinition(caster)?.name || caster?.name || fallback;
+}
+
+function getCasterCompactDisplayName(caster, fallback = 'Kaster') {
+  const def = getCasterDefinition(caster);
+  const card = caster?.cardId ? CARD_LIBRARY[caster.cardId] : null;
+  return def?.shortName || card?.shortName || caster?.shortName || def?.name || caster?.name || fallback;
 }
 
 function getCasterTokenImage(caster, fallback = 'assets/caster-hanzo.png') {
@@ -1006,6 +1103,13 @@ function isTokugawaCaster(playerId) {
 }
 
 function getNativeCasterAbilityId(playerId) {
+  const caster = state?.players?.[playerId]?.caster;
+  const casterCard = caster?.cardId ? CARD_LIBRARY[caster.cardId] : null;
+  const inferredLevel = casterCard ? (getCasterMatchProgress(casterCard)?.level || 1) : 1;
+  const effectiveLevel = Math.max(1, Number(caster?.effectiveLevel || inferredLevel || 1));
+  // La primera habilidad de Kaster se desbloquea globalmente en nivel 4.
+  // En PvP/Bot el runtime ya se normaliza a nivel 10.
+  if (effectiveLevel < 4) return null;
   if (isHattoriCaster(playerId)) return 'ansatsuNoKokuin';
   if (isTokugawaCaster(playerId)) return 'jinchiTenkan';
   const card = getCasterCardForPlayer(playerId);
@@ -1028,6 +1132,7 @@ function ensureCasterRuntime(playerId) {
   caster.pureElement = Math.max(0, Math.min(caster.pureMax, Number(caster.pureElement ?? caster.pureBase)));
   caster.pureCastingVisitCount = Math.max(0, Number(caster.pureCastingVisitCount ?? 0));
   caster.pureCastingLastKey = String(caster.pureCastingLastKey || '');
+  caster.pureExtractionLastKey = String(caster.pureExtractionLastKey || '');
   caster.specialCounterProgress = Math.max(0, Math.min(CASTER_SPECIAL_COUNTER_DAMAGE_THRESHOLD, Number(caster.specialCounterProgress ?? 0)));
   caster.specialCounters = Math.max(0, Number(caster.specialCounters ?? 0));
   return caster;
@@ -1119,6 +1224,7 @@ function getPlayerDomainTheme(playerId) {
 }
 
 const GUARDIAN_DOMAIN_ASSETS = {
+  agua: 'assets/guardian-water.png',
   oscuridad: 'assets/guardian-darkness.png',
   luz: 'assets/guardian-light.webp',
 };
@@ -1222,7 +1328,7 @@ function renderGuardianResistanceFeatureChip(guardian, playerId) {
 }
 
 function renderGuardianMiniTextChip(text, playerId = null) {
-  const color = playerId != null ? getPlayerElementColor(playerId) : '#9b4dff';
+  const color = playerId != null ? getPlayerElementColor(playerId) : '#5400FF';
   return `<span class="card-info-text-chip guardian-mini-text-chip" style="--guardian-info-color:${color}">${text}</span>`;
 }
 
@@ -1468,6 +1574,10 @@ function isUnitSlowedByEnemyGuardianAura(playerId, unit) {
 function getUnitResolutionMoveAllowance(playerId, unit) {
   if (!unit) return 0;
   if (unit.campeoAnchored) return 0;
+  // Regla global: atacar cierra el movimiento restante de esa invocación en
+  // esta Resolución. Una restauración inmediata (Restauración 0) no devuelve
+  // la oportunidad de movimiento ni permite que prepareResolutionMoves la reponga.
+  if (unitHasAttackSpentThisResolution(unit)) return 0;
   return getUnitBaseMoveValue(unit);
 }
 
@@ -1528,7 +1638,11 @@ function refreshKurayamiNinjaEnemySideBonus(playerId, unit, options = {}) {
   const previous = Boolean(unit.kurayamiNinjaEnemySideBonusActive);
   unit.kurayamiNinjaEnemySideBonusActive = bonus.active;
   if (previous === bonus.active) return bonus.active;
-  unit.movesLeft = Math.max(0, Number(unit.movesLeft ?? 0) + (bonus.active ? 1 : -1));
+  if (unitHasAttackSpentThisResolution(unit)) {
+    unit.movesLeft = 0;
+  } else {
+    unit.movesLeft = Math.max(0, Number(unit.movesLeft ?? 0) + (bonus.active ? 1 : -1));
+  }
   if (options.announce !== false) {
     showFloatingTextAt(unit.row, unit.col, bonus.active ? 'NINJA +1 VEL' : 'BONO NINJA FIN', bonus.active ? 'floating-combat buff' : 'floating-combat');
   }
@@ -2174,7 +2288,7 @@ const WEAPON_DB = {
     label: "Espada",
     slug: "espada",
     icon: "assets/weapons/ataque-espada.svg",
-    category: "ataque nativo",
+    category: "arma",
     // v520 · La familia Espada puede participar en Shirahadori, pero el perfil
     // concreto de la carta también debe declararse compatible explícitamente.
     shirahadoriWeaponFamily: true,
@@ -2182,7 +2296,7 @@ const WEAPON_DB = {
     description: "Arma de cuerpo a cuerpo equilibrada y directa. Maneja alcance entre 1 y 2, precisión 6 y no trae un efecto de daño adicional nativo. Su función es ofrecer un perfil ofensivo estable, confiable y flexible para combate cercano sin depender de efectos secundarios.",
     consumableDefault: false,
     canBeConsumable: true,
-    tags: ["ataque", "nativo", "arma", "cuerpo a cuerpo", "alcance", "precisión alta", "daño"],
+    tags: ["arma", "base", "cuerpo a cuerpo"],
   },
   dagas: {
     id: "dagas",
@@ -2391,20 +2505,30 @@ function getWeaponInfoProfile(weaponId) {
   return weapon;
 }
 
+function getWeaponSemanticContext(weapon, card = null, options = {}) {
+  const categoryText = String(weapon?.category || '').toLocaleLowerCase('es');
+  const isNativeAttack = categoryText.includes('ataque nativo') || weapon?.semanticKind === 'attack';
+  const root = isNativeAttack ? 'Ataque' : 'Arma';
+  const role = options.extra ? 'Extra' : (isNativeAttack ? 'Nativo' : 'Base');
+  const mode = card ? getCombatModeProfile(card) : null;
+  return {
+    root,
+    role,
+    mode,
+    levels: [root, role, ...(mode?.label ? [mode.label] : [])],
+  };
+}
+
 function buildWeaponInfoHtml(weapon, card = null) {
   const condition = card ? (card.weaponConditions?.[weapon.id] || card.attackProfile?.weaponCondition || null) : null;
   const damageNature = card ? getDamageNatureProfile(card) : null;
-  const baseAttack = card ? getBaseAttackCard(card) : null;
-  const baseWeapon = baseAttack ? getWeaponProfile(baseAttack) : null;
+  const semantic = getWeaponSemanticContext(weapon, card);
   const damageText = damageNature
     ? `<p><strong>Tipo de daño de esta carta:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="damageNature" data-info-id="${damageNature.id}"><span class="card-info-letter-badge">${damageNature.letter}</span><span>${damageNature.label}</span></button></p>`
     : '';
   const extraWeapons = card ? getCardExtraWeapons(card) : [];
   const principalText = card && (card.weaponType === weapon.id || card.attackProfile?.weaponType === weapon.id)
-    ? `<p><strong>Arma principal de esta carta:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="weaponDetail" data-info-id="${weapon.id}"><img src="${weapon.icon}" alt="${weapon.label}"><span>${weapon.label}</span></button></p>`
-    : '';
-  const baseDamageText = baseAttack && baseWeapon
-    ? `<p><strong>Arma base de esta carta:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="baseAttack" data-info-id="base"><img src="${baseWeapon.icon}" alt="${baseWeapon.label}"><span>${baseWeapon.label}</span></button></p>`
+    ? `<p><strong>${semantic.root === 'Arma' ? 'Arma' : 'Ataque'} principal de esta carta:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="weaponDetail" data-info-id="${weapon.id}"><img src="${weapon.icon}" alt="${weapon.label}"><span>${weapon.label}</span></button></p>`
     : '';
   const extraWeaponText = extraWeapons.length ? `<p><strong>Factor:</strong> ${extraWeapons.map(extraWeapon => {
     const extraWeaponInfo = getWeaponInfoProfile(extraWeapon.weaponType);
@@ -2414,18 +2538,21 @@ function buildWeaponInfoHtml(weapon, card = null) {
   }).join('')}</p>` : '';
   const jointFactors = card ? getCardAttackFactors(card).filter(entry => (entry?.sourceWeapon || entry?.requiresWeaponType) === weapon.id) : [];
   const jointFactorsHtml = jointFactors.length ? `<p><strong>Factores habilitados conjuntamente con la cualidad compatible:</strong> ${jointFactors.map(entry => { const factor = getFactorProfile(entry.id); return `<button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="${entry.id}" data-factor-level="${entry.level || 1}" data-factor-source="${entry.source || ''}"><img src="${factor?.icon || ''}" alt="${factor?.label || entry.id}"><span>${factor?.label || entry.id} ${entry.level || 1}</span></button>`; }).join('')}</p><p>El arma no concede estos factores por sí sola: requiere también la cualidad indicada en la carta.</p>` : '';
+  // Un arma/ataque base no necesita explicar que no se consume. Solo se documenta
+  // el consumo cuando esta versión concreta sí tiene una condición consumible.
   const conditionText = condition?.consumable
-    ? `<p><strong>Condición especial:</strong> Esta carta usa ${weapon.label} como consumible. ${condition.note || ''}</p>`
-    : `<p><strong>Consumo:</strong> El arma base no se consume por defecto. Si una carta lanza, gasta o transforma esta arma, esa condición se define en la carta, equipo, habilidad o efecto que la aplica.</p>${condition?.note ? `<p><strong>Regla de esta carta:</strong> ${condition.note}</p>` : ''}`;
-  return `<p><strong>Resumen:</strong> ${weapon.summary || 'Tipo de ataque disponible.'}</p>${buildTagListHtml(weapon.tags)}${principalText}${damageText}${baseDamageText}${extraWeaponText}${jointFactorsHtml}${conditionText}`;
+    ? `<p><strong>Condición especial:</strong> Esta carta consume ${weapon.label} al utilizarlo. ${condition.note || ''}</p>`
+    : '';
+  return `<p><strong>Resumen:</strong> ${weapon.summary || 'Tipo de ofensiva disponible.'}</p>${buildSemanticTagChainHtml(semantic.levels)}${principalText}${damageText}${extraWeaponText}${jointFactorsHtml}${conditionText}`;
 }
 
 function buildWeaponDetailHtml(weapon, card = null) {
   const condition = card ? (card.weaponConditions?.[weapon.id] || card.attackProfile?.weaponCondition || null) : null;
+  const semantic = getWeaponSemanticContext(weapon, card);
   const conditionText = condition?.consumable
-    ? `<p><strong>Condición especial:</strong> Esta carta usa ${weapon.label} como consumible. ${condition.note || ''}</p>`
-    : `<p><strong>Consumo:</strong> Esta arma no se consume por defecto. Si una carta la lanza, gasta o transforma, esa condición se define en la carta, equipo, habilidad o efecto que la aplica.</p>`;
-  return `<p><strong>Resumen:</strong> ${weapon.summary || 'Tipo de arma disponible.'}</p>${buildTagListHtml(weapon.tags)}<p>${weapon.description}</p>${conditionText}`;
+    ? `<p><strong>Condición especial:</strong> Esta carta consume ${weapon.label} al utilizarlo. ${condition.note || ''}</p>`
+    : '';
+  return `<p><strong>Resumen:</strong> ${weapon.summary || 'Tipo de ofensiva disponible.'}</p>${buildSemanticTagChainHtml(semantic.levels)}<p>${weapon.description}</p>${conditionText}`;
 }
 
 function getBaseAttackCard(card) {
@@ -2848,7 +2975,7 @@ function beginKurokagiBukiPickup(playerId, unitId) {
     log('Buki Utsushi no tiene armas desarmadas disponibles para recoger.');
     return false;
   }
-  closeKurokagiWeaponModal();
+  closeKurokagiWeaponModal({ preserveQuickReaction: true });
   closeKurokagiDroppedWeaponChoiceModal();
   clearCombatMenus();
   state.selectedTarget = null;
@@ -2872,7 +2999,10 @@ async function resolveKurokagiDroppedWeaponChoice(dropId) {
   const playerId = Number(pending.playerId);
   const unitId = pending.unitId;
   const sourceUnit = getUnitById(playerId, unitId);
-  if (!sourceUnit || sourceUnit.status === 'restoring') return false;
+  if (!sourceUnit || sourceUnit.status === 'restoring') {
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'kurokagiWeaponShift', unitId, playerId });
+    return false;
+  }
 
   state.pendingPowerAction = null;
   closeKurokagiDroppedWeaponChoiceModal();
@@ -2899,6 +3029,7 @@ async function resolveKurokagiDroppedWeaponChoice(dropId) {
         restoreInvocation(playerId, liveSource, captured ? 'Buki Utsushi' : 'Buki Utsushi sin captura');
       }
     }
+    resolveQuickReactionDeferredInvocationAction(captured ? 'activated' : 'cancelled', { actionId: 'kurokagiWeaponShift', unitId, playerId });
     return captured;
   } finally {
     setActionExecutionLock(false, 'kurokagi-buki-pickup');
@@ -2925,7 +3056,7 @@ function openKurokagiDroppedWeaponChoiceModal(candidate) {
       <h3>${candidate.capturedProfile?.label || weapon.label || 'Arma caída'}</h3>
       <p class="kurokagi-drop-choice-coordinate">Caída en ${coordLabel(candidate.dropCell.row, candidate.dropCell.col)}</p>
       <div class="kurokagi-drop-choice-damage"><span>DAÑO</span><strong>${damage}</strong></div>
-      <p>Al recogerla, Kurokagi copiará su tipo de ataque, alcance, precisión, daño y naturaleza. No copiará factores, aplicaciones especiales, habilidades ni poderes.</p>
+      <p>Al recogerla, Kurokage copiará su tipo de ataque, alcance, precisión, daño y naturaleza. No copiará factores, aplicaciones especiales, habilidades ni poderes.</p>
       <button type="button" class="kurokagi-drop-choice-confirm" data-action="pick">RECOGER ESTA ARMA</button>
     </section>`;
   overlay.addEventListener('pointerdown', event => event.stopPropagation());
@@ -2973,7 +3104,7 @@ const POWER_SOURCE_OWNER_BY_ID = {
   mercanciaDeGuerra: { cardId: 'gioshoninMercaderErrante', label: 'Gioshonin' },
   genyutsuShinigamiKarasu: { cardId: 'ninjaYasuganaHattori', label: 'Yasugana Hattori' },
   sabotajeApresurado: { cardId: 'ninjaSaqueadorNovato', label: 'Saqueador novato' },
-  bukiUtsushi: { cardId: 'ninjaKurokagiButai3', label: 'Kurokagi butai #3' },
+  bukiUtsushi: { cardId: 'ninjaKurokagiButai3', label: 'Kurokage' },
 };
 
 function getPowerGrantedSourceProfile(powerId = '') {
@@ -3076,7 +3207,7 @@ const DAMAGE_NATURE_DB = {
     letter: 'F',
     label: 'Daño físico',
     focus: 'Daño convencional',
-    tags: ['tipo de daño', 'físico', 'convencional', 'ofensivo'],
+    tags: ['Tipo de daño', 'Físico'],
     summary: 'Enfoque de daño físico estándar o convencional.',
     description: 'Enfoque de daño físico o convencional. Representa el daño normal de un ataque y no puede ser reducido, bloqueado ni negado por cartas que solo interactúan con efectos mágicos o elementales. Funciona como la forma estándar de daño ofensivo dentro del combate.',
   },
@@ -3085,7 +3216,7 @@ const DAMAGE_NATURE_DB = {
     letter: 'M',
     label: 'Daño mágico',
     focus: 'Fuente arcana o sobrenatural',
-    tags: ['tipo de daño', 'mágico', 'arcano', 'especial'],
+    tags: ['Tipo de daño', 'Mágico'],
     summary: 'Enfoque de daño especial vinculado a efectos mágicos.',
     description: 'Enfoque de daño especial vinculado a efectos mágicos. Este daño no puede ser reducido, bloqueado ni negado por cartas que solo interactúan con efectos físicos o elementales. Se utiliza para representar ataques cuya fuente principal es arcana, mental o sobrenatural.',
   },
@@ -3094,7 +3225,7 @@ const DAMAGE_NATURE_DB = {
     letter: 'E',
     label: 'Daño elemental',
     focus: 'Fuente elemental',
-    tags: ['tipo de daño', 'elemental', 'afinidad', 'especial'],
+    tags: ['Tipo de daño', 'Elemental'],
     summary: 'Enfoque de daño ligado al dominio elemental de la invocación o del efecto.',
     description: 'Enfoque de daño especial asociado al dominio elemental de la invocación o del efecto que lo genera. No puede ser reducido, bloqueado ni negado por cartas que solo interactúan con daño físico o mágico. Su valor estratégico depende además de las fortalezas y debilidades elementales del objetivo.',
   },
@@ -3103,7 +3234,7 @@ const DAMAGE_NATURE_DB = {
     letter: 'D',
     label: 'Daño directo',
     focus: 'Impacto garantizado',
-    tags: ['tipo de daño', 'directo', 'irresistible', 'impacto'],
+    tags: ['Tipo de daño', 'Directo'],
     summary: 'Daño que no puede reducirse una vez aplicado.',
     description: 'Enfoque de daño que, una vez determinado y aplicado el cálculo correspondiente, no puede ser reducido de ninguna forma. Su función es garantizar impacto real sobre el objetivo, saltándose mitigaciones posteriores y aumentando la fiabilidad ofensiva del ataque o efecto.',
   },
@@ -3112,7 +3243,7 @@ const DAMAGE_NATURE_DB = {
     letter: 'C',
     label: 'Daño condicional',
     focus: 'Naturaleza adaptable',
-    tags: ['tipo de daño', 'condicional', 'adaptable'],
+    tags: ['Tipo de daño', 'Condicional'],
     summary: 'Daño cuya naturaleza cambia según la condición definida por la carta.',
     description: 'Enfoque de daño adaptable cuya naturaleza puede pasar a ser física, mágica o elemental según la invocación objetivo atacada o la condición definida por la carta. Su valor estratégico radica en ajustar el tipo de daño a la situación para mejorar la eficiencia ofensiva.',
   },
@@ -3124,7 +3255,7 @@ const COMBAT_MODE_DB = {
     label: 'Cuerpo a cuerpo',
     icon: 'assets/combat-modes/combat-mode-melee.png',
     focus: 'Combate cercano',
-    tags: ['modo de combate', 'cuerpo a cuerpo', 'contacto', 'frontal'],
+    tags: ['Cuerpo a cuerpo'],
     summary: 'Modo de combate orientado al contacto cercano.',
     description: 'Forma de aplicación de daño orientada al combate cercano. La invocación ataca objetivos dentro de un alcance corto, normalmente entre 1 y 2 casillas, y se especializa en impactos directos a corta distancia. Este tipo de aplicación favorece enfrentamientos inmediatos y puede interactuar con efectos que alteran o aprovechan el combate frontal.',
   },
@@ -3133,7 +3264,7 @@ const COMBAT_MODE_DB = {
     label: 'Distancia',
     icon: 'assets/combat-modes/combat-mode-distance.png',
     focus: 'Proyección a larga distancia',
-    tags: ['modo de combate', 'distancia', 'proyección', 'seguridad'],
+    tags: ['Distancia'],
     summary: 'Modo de combate para atacar desde posiciones alejadas sin contacto cercano.',
     description: 'Forma de aplicación de daño que permite atacar a una invocación o kaster ubicado dentro del área de alcance del atacante sin necesidad de contacto cercano. Su enfoque se basa en proyectar daño hacia casillas alejadas, habilitando presión ofensiva desde posiciones seguras o estratégicas dentro de la arena.',
   },
@@ -3142,7 +3273,7 @@ const COMBAT_MODE_DB = {
     label: 'Rango',
     icon: 'assets/combat-modes/combat-mode-range.png',
     focus: 'Media distancia táctica',
-    tags: ['modo de combate', 'rango', 'media distancia', 'presión táctica'],
+    tags: ['Rango'],
     summary: 'Modo de combate de media distancia entre cuerpo a cuerpo y distancia larga.',
     description: 'El modo de combate de rango representa ataques que no necesitan contacto inmediato, pero tampoco funcionan como disparos de distancia extrema. Se usa para presión de media distancia, ventanas tácticas de alcance intermedio y ataques que proyectan ofensiva con más seguridad que el cuerpo a cuerpo, sin llegar al comportamiento de alcance largo.',
   },
@@ -3312,9 +3443,9 @@ function getAttackRangeMeta(card) {
     label: `Alcance ${profile.range}`,
     icon: 'assets/attack-meta/attack-range.svg',
     focus: 'Distancia efectiva',
-    tags: ['estadística ofensiva', 'alcance', 'rango efectivo', mode.label.toLowerCase()],
+    semanticTags: ['Estadística ofensiva', 'Alcance'],
     summary: `Esta carta puede proyectar su ofensiva a ${profile.range} casilla${profile.range === 1 ? '' : 's'}.`,
-    description: `El alcance define cuántas casillas puede cubrir este ataque desde su punto de origen. En esta carta, el alcance efectivo es de ${profile.range} casilla${profile.range === 1 ? '' : 's'}, lo que debe interpretarse junto con el modo de combate ${mode.label} y la aplicación de daño seleccionada.`
+    description: `El alcance define cuántas casillas puede cubrir este ataque desde su punto de origen. En esta carta, el alcance efectivo es de ${profile.range} casilla${profile.range === 1 ? '' : 's'}, y se interpreta junto con su modo de combate ${mode.label} y la aplicación de daño que corresponda.`
   };
 }
 
@@ -3325,9 +3456,9 @@ function getAttackPrecisionMeta(card) {
     label: `Precisión ${profile.precision}`,
     icon: 'assets/attack-meta/attack-precision.svg',
     focus: 'Fiabilidad ofensiva',
-    tags: ['estadística ofensiva', 'precisión', 'consistencia', 'ataque'],
+    semanticTags: ['Estadística ofensiva', 'Precisión'],
     summary: `Esta carta maneja una precisión base de ${profile.precision}.`,
-    description: `La precisión representa la consistencia con la que el ataque logra su ejecución esperada. En esta carta la precisión base es ${profile.precision}, por lo que sirve como referencia para equilibrar la seguridad del golpe frente a otras armas, modos de combate o efectos ofensivos.`
+    description: `La Precisión determina la fiabilidad con la que un ataque supera su comprobación de PDA. Cuanto mayor sea la Precisión, mayor es la posibilidad de acertar el PDA del ataque. En esta carta la Precisión base es ${profile.precision}.`
   };
 }
 
@@ -3336,28 +3467,28 @@ const CARD_TYPE_DB = {
     id: 'invocation',
     label: 'Invocación',
     icon: 'assets/card-types/card-type-invocation.svg',
-    focus: 'Unidad convocada',
-    tags: ['tipo de carta', 'conjuro', 'unidad', 'reciclable', 'arena', 'combate'],
-    summary: 'Carta de conjuro que materializa una unidad en la arena.',
-    description: 'Las invocaciones son conjuros que entran a la arena como unidades controlables. Pueden moverse, atacar, recibir daño y participar en combate. En la lógica base de ROK, cuando una invocación es eliminada no desaparece para siempre: entra en restauración y puede volver al ciclo del Spellbook según su tiempo de restauración y kasteo.',
+    focus: 'Conjuro que se manifiesta como unidad en la arena',
+    tags: ['tipo de carta', 'invocación'],
+    summary: 'Conjuro que se manifiesta en la arena de batalla como una unidad.',
+    description: 'Las Invocaciones son conjuros que se manifiestan en la arena de batalla. Su objetivo general es avanzar y aplicar daño al Kaster rival, aunque sus cualidades, poderes y demás propiedades pueden modificar por completo esa función. Permanecen en la arena mientras sigan activas y poseen un Nexo que define su coordenada de ingreso y de restauración.',
   },
   spell: {
     id: 'spell',
     label: 'Hechizo',
     icon: 'assets/card-types/card-type-spell.svg',
-    focus: 'Utilidad del Kaster · efecto consumible',
-    tags: ['tipo de carta', 'hechizo', 'conjuro', 'caster', 'consumible', 'efecto', 'kasteo'],
-    summary: 'Carta de conjuro aplicada por el Kaster para producir un efecto y normalmente consumirse.',
-    description: 'Los hechizos son utilidades del Kaster: de forma regular solo el Kaster puede lanzarlos para afectarse a sí mismo, afectar otros Kasters o modificar la arena mediante daño, control, alteraciones de campo, protección o cambios de recursos. Algunas cartas pueden romper esta regla y permitir que invocaciones soporten o participen en el lanzamiento, pero esa excepción debe estar escrita por la propia carta. A diferencia de las invocaciones, los hechizos normalmente se consumen después de resolverse.',
+    focus: 'Conjuro transitorio que aplica un efecto',
+    tags: ['tipo de carta', 'hechizo'],
+    summary: 'Conjuro utilizado para afectar cartas, recursos, Kasters o condiciones de juego de forma positiva o negativa.',
+    description: 'Los Hechizos son conjuros que transmiten su poder sobre otros conjuros, recursos, Kasters u objetivos definidos por la propia carta. Su uso es normalmente transitorio: se kastean, aplican o resuelven su efecto y después siguen el ciclo indicado por sus reglas de enfriamiento y regreso al Spellbook. No poseen Nexo propio.',
   },
   ability: {
     id: 'ability',
     label: 'Habilidad',
     icon: 'assets/card-types/card-type-ability.svg',
-    focus: 'Capacidad compartible',
-    tags: ['tipo de carta', 'habilidad', 'equipable', 'universal', 'sinergia'],
-    summary: 'Carta o capacidad que puede ser compartida entre invocaciones.',
-    description: 'Las habilidades son capacidades reutilizables o transferibles entre cartas. Una invocación puede traer habilidades nativas y también recibir habilidades externas, según sus espacios disponibles. Sirven como módulos mecánicos que diferentes cartas pueden compartir.',
+    focus: 'Conjuro complementario de aplicación rápida',
+    tags: ['tipo de carta', 'habilidad'],
+    summary: 'Carta complementaria para crear estrategias rápidas y modificar capacidades de Invocaciones o Kasters.',
+    description: 'Las Habilidades son cartas complementarias orientadas a estrategias de aplicación rápida. Pueden mejorar, alterar o habilitar capacidades de Invocaciones o Kasters según sus requisitos. De forma normal no requieren tiempo de kasteo, su aplicación es transitoria y, después de resolver su poder, cumplen el enfriamiento que corresponda antes de volver al Spellbook.',
   },
   artifact: {
     id: 'artifact',
@@ -3372,10 +3503,10 @@ const CARD_TYPE_DB = {
     id: 'structure',
     label: 'Estructura',
     icon: 'assets/card-types/card-type-structure.svg',
-    focus: 'Presencia fija o defensiva',
-    tags: ['tipo de carta', 'estructura', 'defensivo', 'resistencia', 'zona'],
-    summary: 'Carta o entidad fija que ocupa espacio y modifica la arena.',
-    description: 'Las estructuras son entidades fijas o semipermanentes que alteran la arena, protegen zonas, bloquean rutas o generan efectos. Los guardianes actuales usan esta lógica como estructura defensiva con resistencia.',
+    focus: 'Conjuro fijo de estrategia prolongada',
+    tags: ['tipo de carta', 'estructura'],
+    summary: 'Conjuro especial que permanece fijo en una coordenada mientras conserve Resistencia.',
+    description: 'Las Estructuras son conjuros de estrategia a largo plazo. Permanecen fijas en la coordenada donde son kasteadas mientras conserven puntos de Resistencia y pueden proyectar sus poderes sobre la arena mediante el alcance que determine cada carta. No poseen Nexo y, de forma normal, al ser destruidas son exiliadas del match.',
   },
   event: {
     id: 'event',
@@ -3399,10 +3530,10 @@ const CARD_TYPE_DB = {
     id: 'kaster',
     label: 'Kaster',
     icon: 'assets/card-types/card-type-kaster.svg',
-    focus: 'Núcleo del jugador',
-    tags: ['tipo de carta', 'kaster', 'líder', 'núcleo', 'derrota'],
-    summary: 'Entidad principal del jugador y centro de kasteo.',
-    description: 'El Kaster es el núcleo del jugador. Desde su posición se ejecuta el kasteo y su vida define la condición principal de derrota. Puede moverse en la arena, defenderse y quedar vulnerable si cruza o permanece en zonas peligrosas.',
+    focus: 'Avatar del jugador',
+    tags: ['tipo de carta', 'kaster'],
+    summary: 'Avatar del jugador y carta principal del match.',
+    description: 'Los Kasters representan directamente a cada jugador y son la carta central del duelo. Permanecen en la arena desde el inicio del match, no poseen Nexo y su Vida determina la condición principal de derrota. Pueden atacar o defenderse según las reglas de combate y utilizan sus propias Habilidades de Kaster y recursos de Elemento puro cuando corresponda.',
   },
 };
 
@@ -3561,6 +3692,118 @@ const CARD_LIBRARY = {
     biotype: 'terrestre',
     summary: 'Kaster de Luz de la familia Samurai y cualidad Caudillo, especializado en reposicionamiento territorial.',
   },
+  kasterKiaraWater: {
+    id: 'kasterKiaraWater',
+    name: 'Kiara, Décima Aprendiz de Enigma',
+    shortName: 'Kiara',
+    type: 'kaster',
+    cardType: 'kaster',
+    bgImage: 'assets/element-card-bg.webp',
+    artImage: 'assets/kiara/kiara-decima-aprendiz-enigma-art.png',
+    skinImage: 'assets/card-skin-water.png',
+    tokenImage: 'assets/adventure/casters/enigma-apprentice.png',
+    domain: { elementId: 'agua', attributeId: 'conocimiento' },
+    cost: {},
+    castPhases: 0,
+    rarity: 'caster',
+    gender: 'female',
+    races: ['human'],
+    qualities: ['hechicero'],
+    allowedInvocationQualities: ['attraction', 'extractor', 'gelido', 'hechicero', 'summoner', 'healer', 'sage', 'tracker', 'supernatural', 'telepath'],
+    builderFocus: 'Kiara, Décima Aprendiz de Enigma, es una Kaster de Agua enfocada en magia y control adaptable. Su Spellbook admite invocaciones con Atracción, Extractor, Gélido, Hechicero, Invocador, Sanador, Sabio, Rastreador, Sobrenatural o Telépata.',
+    stats: { atk: 1, def: 1, damage: 1, life: 8, maxLife: 8, mov: 2, restore: 0, pureBase: 0, pureCadence: 2, pureMax: 6, startingSpecialCounters: 0 },
+    weaponType: 'magia',
+    shirahadoriCompatible: false,
+    attackProfile: {
+      type: 'distance',
+      combatMode: 'distance',
+      label: 'A distancia',
+      range: 2,
+      precision: 4,
+      damage: 1,
+      damageNature: 'magic',
+      applicationId: null,
+      modifiers: [],
+      factors: [],
+    },
+    weaponConditions: {
+      magia: { consumable: false, note: 'Ataque básico mágico de Kiara; no representa un arma física equipada.' },
+    },
+    baseAttackProfile: {
+      weaponType: 'magia',
+      combatMode: 'distance',
+      range: 2,
+      precision: 4,
+      damage: 1,
+      damageNature: 'magic',
+      applicationId: null,
+      modifiers: [],
+    },
+    abilitySlots: 3,
+    abilities: [],
+    power: null,
+    movementType: 'complete',
+    biotype: 'terrestre',
+    summary: 'Kaster de Agua, Humana y Hechicera. Ataque básico Magia a distancia con daño mágico.',
+  },
+  kiaraFaroleraUmbral: {
+    id: 'kiaraFaroleraUmbral',
+    name: 'Farolera del Umbral',
+    shortName: 'Farolera del Umbral',
+    type: 'invocation',
+    cardType: 'invocation',
+    bgImage: 'assets/element-card-bg.webp',
+    artImage: 'assets/kiara/farolera-del-umbral-art.png',
+    skinImage: 'assets/card-skin-water.png',
+    tokenImage: 'assets/kiara/farolera-del-umbral-token.png',
+    domain: { elementId: 'agua', attributeId: 'conocimiento' },
+    cost: {},
+    castPhases: 0,
+    rarity: 'common',
+    forceRarityId: 'ordinary',
+    gender: 'female',
+    genderMark: 'female',
+    races: ['human'],
+    qualities: ['hechicero'],
+    upcoming: false,
+    libraryVisible: true,
+    spellbookLocked: false,
+    stats: { atk: 2, def: 0, damage: 2, life: 2, mov: 2, restore: 0 },
+    weaponType: 'magia',
+    shirahadoriCompatible: false,
+    attackProfile: {
+      type: 'distance',
+      combatMode: 'distance',
+      label: 'A distancia',
+      range: 3,
+      precision: 4,
+      damage: 2,
+      damageNature: 'magic',
+      applicationId: null,
+      modifiers: [],
+      factors: [],
+    },
+    weaponConditions: {
+      magia: { consumable: false, note: 'Ataque básico Magia. No representa un arma física equipada.' },
+    },
+    baseAttackProfile: {
+      weaponType: 'magia',
+      combatMode: 'distance',
+      range: 3,
+      precision: 4,
+      damage: 2,
+      damageNature: 'magic',
+      applicationId: null,
+      modifiers: [],
+    },
+    abilitySlots: 1,
+    abilities: [],
+    power: { id: 'farolEnlazado', throwRange: 4 },
+    movementType: 'basic',
+    biotype: 'terrestre',
+    summary: 'Hechicera de Agua de retaguardia. Combate a distancia con Magia y abre un portal táctico mediante un círculo enlazado a su farol.',
+  },
+
   naitoSutoka: {
     id: 'naitoSutoka',
     name: 'Kagero, Ichisoku (Ninja)',
@@ -4020,7 +4263,7 @@ const CARD_LIBRARY = {
     skinImage: 'assets/card-skin-darkness.png',
     tokenImage: 'assets/junkai-butai-1-token.png',
     domain: { elementId: 'oscuridad', attributeId: 'misterio' },
-    cost: { oscuridad: 1 },
+    cost: {},
     castPhases: 0,
     rarity: 'common',
     origin: 'japon',
@@ -4031,7 +4274,7 @@ const CARD_LIBRARY = {
     upcoming: false,
     libraryVisible: true,
     spellbookLocked: false,
-    stats: { atk: 2, def: 0, damage: 2, life: 1, mov: 3, restore: 2 },
+    stats: { atk: 3, def: 0, damage: 3, life: 3, mov: 3, restore: 0 },
     weaponType: 'espada',
     shirahadoriCompatible: true,
     attackProfile: {
@@ -4042,7 +4285,7 @@ const CARD_LIBRARY = {
       label: 'Cuerpo a cuerpo',
       range: 1,
       precision: 6,
-      damage: 2,
+      damage: 3,
       damageNature: 'physical',
       applicationId: null,
       modifiers: [],
@@ -4052,7 +4295,7 @@ const CARD_LIBRARY = {
       ],
     },
     weaponConditions: {
-      espada: { consumable: false, note: 'Espada principal. Daño físico 2, cuerpo a cuerpo, alcance 1 y precisión 6.' },
+      espada: { consumable: false, note: 'Espada principal. Daño físico 3, cuerpo a cuerpo, alcance 1 y precisión 6.' },
     },
     baseAttackProfile: {
       weaponType: 'golpe',
@@ -4075,7 +4318,7 @@ const CARD_LIBRARY = {
     power: null,
     movementType: 'basic',
     biotype: 'terrestre',
-    summary: 'Ninja humano de Oscuridad con Espada 2 y Golpe 1. Sus ataques poseen Golpe crítico 1 y Penetración de armadura 1.',
+    summary: 'Ninja humano de Oscuridad con Espada 3 y Golpe 1. Sus ataques poseen Golpe crítico 1 y Penetración de armadura 1.',
   },
 
   ninjaJunkaiButai2: {
@@ -4117,17 +4360,17 @@ const CARD_LIBRARY = {
       factors: [
         { id: 'attackSpeed', level: 1, source: 'native', sourceType: 'card' },
         { id: 'extraWeapon', level: 1, source: 'human', sourceRace: 'human', sourceType: 'race' },
-        { id: 'paralysis', level: 2, source: 'assassin', sourceQuality: 'assassin', sourceWeapon: 'armaConCadena', requiresWeaponType: 'armaConCadena', sourceType: 'qualityWeaponJoint' },
+        { id: 'binding', level: 2, source: 'assassin', sourceQuality: 'assassin', sourceWeapon: 'armaConCadena', requiresWeaponType: 'armaConCadena', sourceType: 'qualityWeaponJoint' },
       ],
     },
     weaponConditions: {
       armaConCadena: {
         consumable: true,
-        note: 'Arma inicial y principal. Daño físico 1, alcance 3 y Oscilación parcial. En combinación con Asesino habilita Parálisis 2. El barrido se detiene en el primer objetivo paralizado y ese objetivo pasa a ser el objetivo real del combate.',
+        note: 'Arma inicial y principal. Daño físico 1, alcance 3 y Oscilación parcial. En combinación con Asesino habilita Atadura 2. El barrido se detiene en el primer objetivo alcanzado por la Atadura.',
       },
       espada: {
         consumable: false,
-        note: 'Arma secundaria de daño físico 1, cuerpo a cuerpo, alcance 1 y precisión 6. No habilita Oscilación parcial ni Parálisis.',
+        note: 'Arma secundaria de daño físico 1, cuerpo a cuerpo, alcance 1 y precisión 6. No habilita Oscilación parcial ni Atadura.',
       },
     },
     extraWeapons: [
@@ -4164,7 +4407,7 @@ const CARD_LIBRARY = {
     power: null,
     movementType: 'basic',
     biotype: 'terrestre',
-    summary: 'Asesino de Oscuridad que inicia con arma con cadena. Su Oscilación parcial puede aplicar Parálisis 2; al activarse, el barrido se detiene y fija el combate en ese objetivo durante 5 fases.',
+    summary: 'Asesino de Oscuridad que inicia con arma con cadena. Su Oscilación parcial aplica Atadura 2 al primer objetivo válido alcanzado; durante 5 fases, Movimiento y Ataque se comprueban por separado en cada cambio de fase.',
   },
 
 
@@ -4209,7 +4452,7 @@ const CARD_LIBRARY = {
       factors: [],
     },
     weaponConditions: {
-      espada: { consumable: false, note: 'Espada principal. Daño físico 1, cuerpo a cuerpo, alcance 1 y precisión 6.' },
+      espada: { consumable: false, note: 'Arma base de Ichikawa Goemon.' },
     },
     baseAttackProfile: {
       weaponType: 'golpe',
@@ -4231,13 +4474,13 @@ const CARD_LIBRARY = {
     power: { id: 'densetsuNoSennyu' },
     movementType: 'basic',
     biotype: 'terrestre',
-    summary: 'Héroe bandido de Oscuridad. Cuando necesita de 1 a 3 movimientos para alcanzar una casilla de ataque junto al Kaster rival, activa Densetsu no Sennyū y completa automáticamente ese recorrido. Después, si daña al Kaster, puede robar 1 elemento del stock enemigo.',
+    summary: 'Héroe Bandido de Oscuridad especializado en infiltración y saqueo. Densetsu no Sennyū le permite cerrar automáticamente la distancia con el Kaster rival y Botín valioso puede robar recursos cuando logra dañarlo.',
   },
 
   ninjaKurokagiButai3: {
     id: 'ninjaKurokagiButai3',
-    name: 'Kurokagi butai #3',
-    shortName: 'Kurokagi butai #3',
+    name: 'Kurokage',
+    shortName: 'Kurokage',
     family: 'ninja',
     familyPosition: 'prefix',
     type: 'invocation',
@@ -4272,13 +4515,13 @@ const CARD_LIBRARY = {
       modifiers: [],
       factors: [
         { id: 'extraWeapon', level: 1, source: 'human', sourceRace: 'human', sourceType: 'race' },
-        { id: 'disarm', level: 3, source: 'assassin', sourceQuality: 'assassin', sourceWeapon: 'kusarigama', requiresWeaponType: 'kusarigama', sourceType: 'qualityWeaponJoint' },
+        { id: 'disarm', level: 3, pdaOverride: 3, source: 'assassin', sourceQuality: 'assassin', sourceType: 'quality' },
       ],
     },
     weaponConditions: {
       kusarigama: {
         consumable: false,
-        note: 'Arma inicial y principal. Daño físico 2, alcance 2 y Oscilación parcial. En combinación con Asesino habilita Desarmar 3.',
+        note: 'Arma inicial y principal. Daño físico 2, alcance 2 y Oscilación parcial.',
       },
     },
     extraWeapons: [],
@@ -4298,7 +4541,7 @@ const CARD_LIBRARY = {
     power: { id: 'bukiUtsushi' },
     movementType: 'basic',
     biotype: 'terrestre',
-    summary: 'Asesino Ninja de Oscuridad con Kusarigama y Oscilación parcial. Desarmar 3 puede soltar varias armas durante el barrido; Buki Utsushi permite escoger una, equiparla y alternarla con su arma principal.',
+    summary: 'Asesino Ninja de Oscuridad con Kusarigama y Oscilación parcial. Desarmar 3 puede inutilizar las armas de las invocaciones dañadas; Buki Utsushi permite capturar una de esas armas y alternarla con su arma principal.',
   },
 
   spellKageNoMichi: {
@@ -4410,9 +4653,9 @@ const CARD_LIBRARY = {
     cardType: 'spell',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/spell-despliegue-anticipado.png',
-    spellIcon: 'assets/spell-despliegue-anticipado.png',
-    bgImage: 'assets/spell-despliegue-anticipado.png',
+    thumbnailImage: 'assets/spell-despliegue-anticipado.webp',
+    spellIcon: 'assets/spell-despliegue-anticipado.webp',
+    bgImage: 'assets/spell-despliegue-anticipado.webp',
     skinImage: 'assets/card-skin-fire.png',
     domain: { elementId: 'fuego', attributeId: 'destruccion' },
     cost: { fuego: 2, random: 1 },
@@ -4606,9 +4849,9 @@ const CARD_LIBRARY = {
     cardType: 'spell',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/spell-gloria-latente.png',
-    spellIcon: 'assets/spell-gloria-latente.png',
-    bgImage: 'assets/spell-gloria-latente.png',
+    thumbnailImage: 'assets/spell-gloria-latente.webp',
+    spellIcon: 'assets/spell-gloria-latente.webp',
+    bgImage: 'assets/spell-gloria-latente.webp',
     skinImage: 'assets/card-skin-light.png',
     domain: { elementId: 'luz', attributeId: 'gloria' },
     cost: { luz: 1 },
@@ -4791,9 +5034,9 @@ const CARD_LIBRARY = {
     cardType: 'spell',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/spell-emboscada.png',
-    spellIcon: 'assets/spell-emboscada.png',
-    bgImage: 'assets/spell-emboscada.png',
+    thumbnailImage: 'assets/spell-emboscada.webp',
+    spellIcon: 'assets/spell-emboscada.webp',
+    bgImage: 'assets/spell-emboscada.webp',
     skinImage: 'assets/card-skin-water.png',
     domain: { elementId: 'agua', attributeId: 'knowledge' },
     cost: {},
@@ -4880,9 +5123,9 @@ const CARD_LIBRARY = {
     cardType: 'spell',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/spell-interceptar.png',
-    spellIcon: 'assets/spell-interceptar.png',
-    bgImage: 'assets/spell-interceptar.png',
+    thumbnailImage: 'assets/spell-interceptar.webp',
+    spellIcon: 'assets/spell-interceptar.webp',
+    bgImage: 'assets/spell-interceptar.webp',
     skinImage: 'assets/card-skin-water.png',
     domain: { elementId: 'agua', attributeId: 'knowledge' },
     cost: { agua: 2 },
@@ -4979,9 +5222,9 @@ const CARD_LIBRARY = {
     cardType: 'ability',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/ability-shirahadori.png',
-    spellIcon: 'assets/ability-shirahadori.png',
-    bgImage: 'assets/ability-shirahadori.png',
+    thumbnailImage: 'assets/ability-shirahadori.webp',
+    spellIcon: 'assets/ability-shirahadori.webp',
+    bgImage: 'assets/ability-shirahadori.webp',
     skinImage: CATALYST_SKIN_ASSET,
     domain: { elementId: 'catalizadora', attributeId: 'universal', universal: true },
     isCatalyst: true,
@@ -5064,9 +5307,9 @@ const CARD_LIBRARY = {
     cardType: 'spell',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/spell-nagayoru.png',
-    spellIcon: 'assets/spell-nagayoru.png',
-    bgImage: 'assets/spell-nagayoru.png',
+    thumbnailImage: 'assets/spell-nagayoru.webp',
+    spellIcon: 'assets/spell-nagayoru.webp',
+    bgImage: 'assets/spell-nagayoru.webp',
     skinImage: 'assets/card-skin-darkness.png',
     domain: { elementId: 'oscuridad', attributeId: 'misterio' },
     cost: { oscuridad: 4, random: 2 },
@@ -5163,9 +5406,9 @@ const CARD_LIBRARY = {
     cardType: 'spell',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/spell-tentorou.png',
-    spellIcon: 'assets/spell-tentorou.png',
-    bgImage: 'assets/spell-tentorou.png',
+    thumbnailImage: 'assets/spell-tentorou.webp',
+    spellIcon: 'assets/spell-tentorou.webp',
+    bgImage: 'assets/spell-tentorou.webp',
     skinImage: 'assets/card-skin-light.png',
     domain: { elementId: 'luz', attributeId: 'proteccion' },
     cost: { luz: 2 },
@@ -5258,9 +5501,9 @@ const CARD_LIBRARY = {
     cardType: 'spell',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/spell-kouuten.png',
-    spellIcon: 'assets/spell-kouuten.png',
-    bgImage: 'assets/spell-kouuten.png',
+    thumbnailImage: 'assets/spell-kouuten.webp',
+    spellIcon: 'assets/spell-kouuten.webp',
+    bgImage: 'assets/spell-kouuten.webp',
     skinImage: 'assets/card-skin-fire.png',
     domain: { elementId: 'fuego', attributeId: 'destruccion' },
     cost: { fuego: 1 },
@@ -5352,9 +5595,9 @@ const CARD_LIBRARY = {
     cardType: 'spell',
     composition: 'backgroundSkin',
     usesArtLayer: false,
-    thumbnailImage: 'assets/spell-guren-gan.png',
-    spellIcon: 'assets/spell-guren-gan.png',
-    bgImage: 'assets/spell-guren-gan.png',
+    thumbnailImage: 'assets/spell-guren-gan.webp',
+    spellIcon: 'assets/spell-guren-gan.webp',
+    bgImage: 'assets/spell-guren-gan.webp',
     skinImage: 'assets/card-skin-fire.png',
     domain: { elementId: 'fuego', attributeId: 'destruccion' },
     cost: { fuego: 4, random: 2 },
@@ -5513,7 +5756,7 @@ const CARD_LIBRARY = {
     origin: 'japon',
     gender: 'male',
     genderMark: 'male',
-    races: ['human'],
+    races: ['demon'],
     qualities: ['assassin'],
     upcoming: false,
     libraryVisible: true,
@@ -5553,10 +5796,14 @@ const CARD_LIBRARY = {
     },
     abilitySlots: 3,
     abilities: [],
+    // `power` conserva el Poder primario para toda la lógica de combate existente.
+    // `powers` es la representación semántica/UI reutilizable para cartas con más de un Poder real.
     power: { id: 'shizukesaNoShiin' },
+    powers: [{ id: 'shizukesaNoShiin' }, { id: 'kurayamiNinjaAura' }],
+    powerGroupSummary: 'Kurayami combina Shizukesa no Shi-in, un Poder activo de persecución y ejecución, con Shinobi no Kōshin, un Poder pasivo que potencia la ofensiva de los Ninja aliados que presionan el lado rival.',
     movementType: 'basic',
     biotype: 'terrestre',
-    summary: 'Asesino Ninja de Oscuridad. Shizukesa no Shi-in marca y persigue a un objetivo, ignora sus defensas, añade 1 de daño, ejecuta si queda con 3 de vida o menos y entra en enfriamiento durante 6 fases. Mientras Kurayami esté en arena, los Ninjas aliados en el lado rival ganan +1 velocidad y +2 precisión.',
+    summary: 'Asesino Ninja de Oscuridad con Golpe crítico 5. Shizukesa no Shi-in persigue y ejecuta a un objetivo, mientras Shinobi no Kōshin potencia la Velocidad y la Precisión de los Ninja aliados situados en el lado rival.',
   },
 
   ninjaMinokageNoKurai: {
@@ -6349,7 +6596,7 @@ const CARD_LIBRARY = {
     familyPosition: 'prefix',
     type: 'invocation',
     bgImage: 'assets/card-bg-light-domain.webp',
-    artImage: 'assets/shiro-no-bushi-card.png',
+    artImage: 'assets/shiro-no-bushi-card.webp',
     skinImage: 'assets/card-skin-light.png',
     tokenImage: 'assets/shiro-no-bushi-token.png',
     domain: { elementId: 'luz', attributeId: 'revelacion' },
@@ -6409,7 +6656,7 @@ const CARD_LIBRARY = {
     familyPosition: 'prefix',
     type: 'invocation',
     bgImage: 'assets/card-bg-light-domain.webp',
-    artImage: 'assets/shinra-hitokiri-card.png',
+    artImage: 'assets/shinra-hitokiri-card.webp',
     skinImage: 'assets/card-skin-light.png',
     tokenImage: 'assets/shinra-hitokiri-token.png',
     domain: { elementId: 'luz', attributeId: 'revelacion' },
@@ -6554,10 +6801,10 @@ const QUALITY_DB = {
     label: 'Asesino',
     icon: 'assets/qualities/quality-assassin.svg',
     focus: 'Eliminación rápida y eficiencia ofensiva',
-    classification: { applicationModes: [], applicationTags: [], natures: ['physical', 'tactical'], functionalCategories: ['offensive', 'execution', 'concealment'] },
+    classification: { applicationModes: [], applicationTags: [], natures: [], functionalCategories: ['offensive', 'execution', 'concealment'] },
     tags: ['cualidad', 'asesino', 'ofensivo', 'sigilo', 'letalidad', 'ejecución', 'daño directo', 'daño crítico', 'desarmar', 'parálisis', 'ataque doble', 'ataque rápido'],
     summary: 'Enfocada en eliminar o inutilizar objetivos con rapidez, sigilo y alta eficiencia ofensiva.',
-    description: 'La cualidad Asesino indica que la carta está enfocada en eliminar o inutilizar objetivos con rapidez, sigilo y alta eficiencia ofensiva. Puede habilitar factores como daño crítico, letalidad, Desarmar o Parálisis cuando la carta también posee el arma compatible que permite aplicar esa ventaja. En Junkai butai #2, Asesino y el arma con cadena trabajan conjuntamente: ninguno de los dos elementos concede por sí solo Desarmar 2 o Parálisis 5.',
+    description: 'La cualidad Asesino indica que la carta está enfocada en eliminar o inutilizar objetivos con rapidez, sigilo y alta eficiencia ofensiva. Las cartas con esta cualidad tienden a castigar objetivos vulnerables, reducir el tiempo de respuesta del rival y aprovechar ventanas de ejecución o remate. Asesino define un enfoque funcional y no obliga a que la carta sea física, mágica, elemental, virtual o de otra naturaleza concreta.',
   },
   bandit: {
     id: 'bandit',
@@ -6569,6 +6816,87 @@ const QUALITY_DB = {
     summary: 'Invocaciones tácticas enfocadas en hostigar, sabotear estructuras, saquear recursos o equipo y operar con ocultamiento propio.',
     description: 'La cualidad Bandido representa invocaciones orientadas al hostigamiento estratégico más que al combate frontal. Estas unidades suelen sabotear estructuras desactivando efectos temporalmente, causar daño adicional o progresivo a edificios, evitar quedar bloqueadas por combate, infiltrarse en zonas de riesgo enemigas para obtener recompensas adicionales, robar recursos, armas secundarias u objetos, y aprovechar rutas de escape. También tienden a acceder con facilidad a factores de ocultamiento, reabastecimiento y herramientas tácticas que les permiten operar sin depender siempre de otras invocaciones externas.',
   },
+  attraction: {
+    id: 'attraction',
+    label: 'Atracción',
+    icon: 'assets/qualities/quality-attraction.svg',
+    focus: 'Atracción, provocación y manipulación de objetivos',
+    classification: { applicationModes: [], applicationTags: ['standard'], natures: ['magical', 'virtual'], functionalCategories: ['control', 'strategic'] },
+    tags: ['cualidad', 'atracción', 'control', 'sugestión', 'objetivos'],
+    summary: 'Manipula la selección de objetivos y la conducta de invocaciones rivales mediante atracción o sugestión.',
+    description: 'La cualidad Atracción reúne capacidades enfocadas en alterar a quién persiguen, seleccionan o atacan las invocaciones rivales, utilizando efectos de seducción, provocación o manipulación mental.',
+  },
+  extractor: {
+    id: 'extractor',
+    label: 'Extractor',
+    icon: 'assets/qualities/quality-extractor.svg',
+    focus: 'Extracción y aceleración de recursos elementales',
+    classification: { applicationModes: [], applicationTags: ['standard'], natures: ['magical', 'virtual'], functionalCategories: ['support', 'resource'] },
+    tags: ['cualidad', 'extractor', 'elementos', 'extracción', 'recursos'],
+    summary: 'Especialista en aumentar, reciclar o acelerar el acceso a recursos elementales.',
+    description: 'La cualidad Extractor identifica cartas orientadas a mejorar la extracción, el reciclaje o la disponibilidad de elementos, generando ventaja de recursos para sostener el kasteo.',
+  },
+  gelido: {
+    id: 'gelido',
+    label: 'Gélido',
+    icon: 'assets/qualities/quality-gelido.png',
+    focus: 'Frío, congelamiento y ralentización',
+    classification: { applicationModes: [], applicationTags: ['standard'], natures: ['magical'], functionalCategories: ['control', 'slow'] },
+    tags: ['cualidad', 'gélido', 'agua', 'congelamiento', 'posma'],
+    summary: 'Especialista de Agua en ralentización, Posma y efectos de congelamiento.',
+    description: 'La cualidad Gélido representa usuarios de frío capaces de ralentizar el movimiento, provocar Posma y desarrollar efectos de Congelamiento mediante ataques, auras o disparadores.',
+  },
+  hechicero: {
+    id: 'hechicero',
+    label: 'Hechicero',
+    icon: 'assets/qualities/quality-hechicero.png',
+    focus: 'Magia, control arcano y efectos de hechizo',
+    classification: { applicationModes: [], applicationTags: ['standard'], natures: ['magical'], functionalCategories: ['offensive', 'control', 'support'] },
+    tags: ['cualidad', 'hechicero', 'magia', 'silencio', 'purificar'],
+    summary: 'Especialista en combate y utilidad mágica, con acceso a control, defensa arcana y purificación.',
+    description: 'La cualidad Hechicero identifica cartas cuya función principal depende de efectos mágicos, incluyendo presión arcana, Silencio, inmunidad mágica temporal y herramientas de purificación.',
+  },
+  healer: {
+    id: 'healer',
+    label: 'Sanador',
+    icon: 'assets/qualities/quality-sanador.svg',
+    focus: 'Curación, sostenimiento y protección',
+    classification: { applicationModes: [], applicationTags: ['standard'], natures: ['magical'], functionalCategories: ['support', 'healing', 'defensive'] },
+    tags: ['cualidad', 'sanador', 'curación', 'vida', 'escudo'],
+    summary: 'Especialista en restaurar resistencia, sostener aliados y convertir curación en ventaja defensiva.',
+    description: 'La cualidad Sanador reúne capacidades de recuperación de vida, sostenimiento de aliados y protección derivada de efectos de curación.',
+  },
+  sage: {
+    id: 'sage',
+    label: 'Sabio',
+    icon: 'assets/qualities/quality-sabio.svg',
+    focus: 'Control del tempo y optimización de kasteos',
+    classification: { applicationModes: [], applicationTags: ['standard'], natures: ['magical', 'virtual'], functionalCategories: ['support', 'control', 'accelerator'] },
+    tags: ['cualidad', 'sabio', 'kasteo', 'enfriamiento', 'movilidad'],
+    summary: 'Controla el ritmo del juego modificando límites, kasteos, enfriamientos y movilidad.',
+    description: 'La cualidad Sabio representa cartas centradas en conocimiento y control del tempo, capaces de ampliar opciones de kasteo, alterar enfriamientos o modificar reglas de movilidad.',
+  },
+  tracker: {
+    id: 'tracker',
+    label: 'Rastreador',
+    icon: 'assets/qualities/quality-rastreador.svg',
+    focus: 'Detección, revelado y fijación de objetivos ocultos',
+    classification: { applicationModes: [], applicationTags: ['standard'], natures: ['magical', 'virtual'], functionalCategories: ['control', 'detection'] },
+    tags: ['cualidad', 'rastreador', 'detección', 'oculto', 'trampas'],
+    summary: 'Especialista en revelar conjuros ocultos y neutralizar amenazas detectadas.',
+    description: 'La cualidad Rastreador está orientada a detectar, revelar y fijar conjuros ocultos, además de interactuar con trampas y otras amenazas que dependen del ocultamiento.',
+  },
+  telepath: {
+    id: 'telepath',
+    label: 'Telépata',
+    icon: 'assets/qualities/quality-telepata.svg',
+    focus: 'Control mental e interferencia de kasteo',
+    classification: { applicationModes: [], applicationTags: ['standard'], natures: ['magical', 'virtual'], functionalCategories: ['control', 'slow'] },
+    tags: ['cualidad', 'telépata', 'control mental', 'sugestión', 'telepatía'],
+    summary: 'Manipula invocaciones rivales e interfiere el kasteo mediante control mental y telepatía.',
+    description: 'La cualidad Telépata representa usuarios de control mental, Sugestión y Telepatía capaces de tomar control temporal de invocaciones o interferir acciones de kasteo.',
+  },
+
   vampire: {
     id: 'vampire',
     label: 'Vampiro',
@@ -6814,14 +7142,14 @@ const FACTOR_DB = {
     icon: ATTACK_SPEED_FACTOR_ICON_ASSET,
     classification: { applicationModes: ['passive'], applicationTags: [], natures: ['physical'], functionalCategories: ['offensive', 'initiative'] },
     tags: ['factor', 'velocidad de ataque', 'atacar primero', 'iniciativa', 'ofensivo', 'combate', 'niveles'],
-    summary: 'La invocación con el nivel más alto de Velocidad de ataque golpea primero en combate.',
+    summary: 'Determina la prioridad de ataque entre invocaciones que participan en el mismo combate.',
     maxLevel: 5,
     descriptions: {
-      1: 'Pasiva · Físico · Ofensivo. Velocidad de ataque 1. Ataca antes que una invocación sin este factor.',
-      2: 'Pasiva · Físico · Ofensivo. Velocidad de ataque 2. Ataca antes que niveles 0 y 1.',
-      3: 'Pasiva · Físico · Ofensivo. Velocidad de ataque 3. Ataca antes que niveles inferiores.',
-      4: 'Pasiva · Físico · Ofensivo. Velocidad de ataque 4. Ataca antes que niveles inferiores.',
-      5: 'Pasiva · Físico · Ofensivo. Velocidad de ataque 5. Es el nivel máximo y ataca antes que cualquier nivel inferior.',
+      1: 'Velocidad de ataque 1 permite atacar antes que una invocación que no tenga este Factor.',
+      2: 'Velocidad de ataque 2 permite atacar antes que una invocación con Velocidad de ataque 0 o 1.',
+      3: 'Velocidad de ataque 3 permite atacar antes que niveles inferiores.',
+      4: 'Velocidad de ataque 4 permite atacar antes que niveles inferiores.',
+      5: 'Velocidad de ataque 5 es el nivel máximo y permite atacar antes que cualquier nivel inferior.',
     },
   },
   disarm: {
@@ -6830,7 +7158,7 @@ const FACTOR_DB = {
     icon: 'assets/factors/factor-desarmar.svg',
     classification: { applicationModes: ['passive'], applicationTags: ['pda'], natures: ['physical'], functionalCategories: ['offensive', 'control'] },
     tags: ['factor', 'desarmar', 'arma', 'PDA', 'control', 'asesino'],
-    summary: 'Puede inutilizar el arma activa del objetivo y obligarlo a usar su ataque base hasta restaurarse o recuperar el arma.',
+    summary: 'Puede inutilizar el arma activa del objetivo y obligarlo a usar su ataque base hasta recuperar el arma.',
     maxLevel: 5,
     pdaByLevel: { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6 },
     descriptions: {
@@ -6839,6 +7167,24 @@ const FACTOR_DB = {
       3: 'Pasiva/PDA · Físico · Control. Tiene 4 PDA para desarmar al objetivo impactado.',
       4: 'Pasiva/PDA · Físico · Control. Tiene 5 PDA para desarmar al objetivo impactado.',
       5: 'Pasiva/PDA · Físico · Control. Tiene 6 PDA para desarmar al objetivo impactado.',
+    },
+  },
+  binding: {
+    id: 'binding',
+    label: 'Atadura',
+    icon: 'assets/factors/factor-atadura.png',
+    classification: { applicationModes: ['passive'], applicationTags: ['pda'], natures: ['physical'], functionalCategories: ['offensive', 'control', 'progressive'] },
+    tags: ['factor', 'atadura', 'PDA', 'control', 'progresivo', 'movimiento', 'ataque'],
+    summary: 'Restringe el movimiento y el ataque mediante dos comprobaciones de PDA separadas que se resuelven juntas en cada cambio de fase.',
+    maxLevel: 5,
+    pdaByLevel: { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6 },
+    durationByLevel: { 1: 3, 2: 5, 3: 7, 4: 9, 5: 11 },
+    descriptions: {
+      1: 'Durante 3 fases, cada cambio de fase resuelve por separado Movimiento y Ataque con 2 PDA. Cada comprobación acertada de Atadura bloquea únicamente esa acción durante la fase.',
+      2: 'Durante 5 fases, cada cambio de fase resuelve por separado Movimiento y Ataque con 3 PDA. Cada comprobación acertada de Atadura bloquea únicamente esa acción durante la fase.',
+      3: 'Durante 7 fases, cada cambio de fase resuelve por separado Movimiento y Ataque con 4 PDA. Cada comprobación acertada de Atadura bloquea únicamente esa acción durante la fase.',
+      4: 'Durante 9 fases, cada cambio de fase resuelve por separado Movimiento y Ataque con 5 PDA. Cada comprobación acertada de Atadura bloquea únicamente esa acción durante la fase.',
+      5: 'Durante 11 fases, cada cambio de fase resuelve por separado Movimiento y Ataque con 6 PDA. Cada comprobación acertada de Atadura bloquea únicamente esa acción durante la fase.',
     },
   },
   paralysis: {
@@ -6993,16 +7339,16 @@ const FACTOR_DB = {
   armorPenetration: {
     id: 'armorPenetration',
     label: 'Penetración de armadura',
-    icon: 'assets/factors/factor-armadura.svg',
+    icon: 'assets/factors/factor-penetracion-armadura.png',
     classification: { applicationModes: ['passive'], applicationTags: [], natures: ['physical'], functionalCategories: ['offensive', 'armorPiercing'] },
     tags: ['factor', 'ofensivo', 'físico', 'penetración', 'armadura', 'reducción de armadura'],
     summary: 'Reduce la Armadura física efectiva del objetivo antes de calcular el daño.',
     descriptions: {
-      1: 'Pasiva · Física · Ofensiva. Los ataques del usuario ignoran 1 punto de Armadura física del objetivo.',
-      2: 'Pasiva · Física · Ofensiva. Los ataques del usuario ignoran 2 puntos de Armadura física del objetivo.',
-      3: 'Pasiva · Física · Ofensiva. Los ataques del usuario ignoran 3 puntos de Armadura física del objetivo.',
-      4: 'Pasiva · Física · Ofensiva. Los ataques del usuario ignoran 4 puntos de Armadura física del objetivo.',
-      5: 'Pasiva · Física · Ofensiva. Los ataques del usuario ignoran 5 puntos de Armadura física del objetivo.',
+      1: 'Los ataques del usuario ignoran 1 punto de Armadura física del objetivo.',
+      2: 'Los ataques del usuario ignoran 2 puntos de Armadura física del objetivo.',
+      3: 'Los ataques del usuario ignoran 3 puntos de Armadura física del objetivo.',
+      4: 'Los ataques del usuario ignoran 4 puntos de Armadura física del objetivo.',
+      5: 'Los ataques del usuario ignoran 5 puntos de Armadura física del objetivo.',
     },
   },
   criticalHit: {
@@ -7015,16 +7361,16 @@ const FACTOR_DB = {
     pdaByLevel: { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11 },
     multiplierByLevel: { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11 },
     descriptions: {
-      1: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 2 PDA para multiplicar x2 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      2: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 3 PDA para multiplicar x3 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      3: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 4 PDA para multiplicar x4 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      4: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 5 PDA para multiplicar x5 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      5: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 6 PDA para multiplicar x6 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      6: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 7 PDA para multiplicar x7 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      7: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 8 PDA para multiplicar x8 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      8: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 9 PDA para multiplicar x9 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      9: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 10 PDA para multiplicar x10 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
-      10: 'Pasivo/PDA · Físico · Ofensiva. Los ataques del usuario tendrán 11 PDA para multiplicar x11 el daño de sus ataques. El daño crítico no aplica si el ataque impacta en un escudo F o estructuras.',
+      1: 'Los ataques del usuario tienen 2 de PDA para multiplicar por 2 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      2: 'Los ataques del usuario tienen 3 de PDA para multiplicar por 3 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      3: 'Los ataques del usuario tienen 4 de PDA para multiplicar por 4 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      4: 'Los ataques del usuario tienen 5 de PDA para multiplicar por 5 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      5: 'Los ataques del usuario tienen 6 de PDA para multiplicar por 6 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      6: 'Los ataques del usuario tienen 7 de PDA para multiplicar por 7 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      7: 'Los ataques del usuario tienen 8 de PDA para multiplicar por 8 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      8: 'Los ataques del usuario tienen 9 de PDA para multiplicar por 9 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      9: 'Los ataques del usuario tienen 10 de PDA para multiplicar por 10 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
+      10: 'Los ataques del usuario tienen 11 de PDA para multiplicar por 11 el daño de sus ataques. Golpe crítico no se aplica a través de Factores Físicos Defensivos ni contra estructuras.',
     },
   },
   criticalDamage: {
@@ -7143,7 +7489,8 @@ function getFactorPda(factorId, level = 1) {
 }
 
 function getEffectiveFactorPda(factorId, level = 1, source = null, factorEntry = null) {
-  const base = getFactorPda(factorId, level);
+  const explicitOverride = Number(factorEntry?.pdaOverride ?? factorEntry?.pda);
+  const base = Number.isFinite(explicitOverride) ? Math.max(0, Math.min(6, explicitOverride)) : getFactorPda(factorId, level);
   const unit = source?.unit || null;
   const sourceCard = source?.card || CARD_LIBRARY[unit?.cardId];
   if (
@@ -7251,127 +7598,224 @@ function buildTagListHtml(tags = []) {
 }
 
 
-const CARD_FOCUS_LABELS = {
-  mobility: 'Movilidad',
-  tempo: 'Tempo',
-  damage: 'Daño',
-  resistance: 'Resistencia',
-  armor: 'Armadura',
-  control: 'Control',
-  stealth: 'Sigilo',
-  versatility: 'Versatilidad',
-  precision: 'Precisión',
-  reach: 'Alcance',
-  utility: 'Utilidad',
-};
+// v572 · Cadena semántica reutilizable. A diferencia del listado legado,
+// conserva la jerarquía explícita de cada nivel: raíz → identidad → enfoques.
+// Más adelante Factores/Poderes reutilizan el mismo componente con más capas.
+function buildSemanticTagChainHtml(levels = [], options = {}) {
+  const normalized = (Array.isArray(levels) ? levels : [])
+    .map((entry, index) => {
+      if (entry == null) return null;
+      if (typeof entry === 'string') return { label: entry, depth: index };
+      return { ...entry, label: String(entry.label || '').trim(), depth: index };
+    })
+    .filter(entry => entry && entry.label);
+  if (!normalized.length) return '';
+  const items = normalized.map((entry, index) => {
+    const interactive = entry.infoKind && entry.infoId;
+    const attrs = interactive
+      ? ` type="button" data-info-kind="${entry.infoKind}" data-info-id="${entry.infoId}"`
+      : '';
+    const tagName = interactive ? 'button' : 'span';
+    const cls = `meta-semantic-tag meta-semantic-tag-depth-${Math.min(index, 6)}${interactive ? ' meta-semantic-tag-link' : ''}`;
+    const node = `<${tagName}${attrs} class="${cls}" style="--semantic-depth:${index}">${entry.label}</${tagName}>`;
+    const arrow = index < normalized.length - 1 ? '<span class="meta-semantic-arrow" aria-hidden="true">›</span>' : '';
+    return node + arrow;
+  }).join('');
+  return `<div class="meta-semantic-tags${options.compact ? ' meta-semantic-tags-compact' : ''}">${items}</div>`;
+}
 
-function getCardFocusTags(card) {
+function getProfileFocusTags(profile = {}, rootLabel = '', identityLabel = '') {
+  const raw = Array.isArray(profile?.tags) ? profile.tags : [];
+  const excluded = new Set([rootLabel, identityLabel].filter(Boolean).map(value => String(value).trim().toLocaleLowerCase('es')));
+  return raw.filter(tag => !excluded.has(String(tag).trim().toLocaleLowerCase('es')));
+}
+
+
+// =========================================================
+// ETAPA 6 · TAG GENERAL AUTOMÁTICO DE CARTA
+// El perfil general deja de estimarse mediante una puntuación arbitraria de
+// stats. Se construye exclusivamente con reglas explícitas y con el ENFOQUE
+// semántico final de Factores/Poderes/Habilidades ya normalizados.
+// =========================================================
+const CARD_GENERAL_TAG_RULES = Object.freeze({
+  damageLifeDominanceGap: 5,
+  strongDamageLifeThreshold: 5,
+  fastSpeedThreshold: 6,
+});
+
+function normalizeGeneralTagKey(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('es');
+}
+
+function appendUniqueGeneralTag(target = [], seen = new Set(), label = '') {
+  const clean = String(label || '').trim();
+  const key = normalizeGeneralTagKey(clean);
+  if (!clean || !key || seen.has(key)) return;
+  seen.add(key);
+  target.push(clean);
+}
+
+function getCardBaseGeneralFocusTags(card = null) {
   if (!card) return [];
   const stats = card.stats || {};
   const attack = getAttackProfile(card) || {};
-  const modifiers = Array.isArray(attack.modifiers) ? attack.modifiers : [];
-  const runtime = card.__runtime || {};
-  const activeEffects = Array.isArray(runtime.effects) ? runtime.effects : [];
-  const score = {
-    mobility: 0,
-    tempo: 0,
-    damage: 0,
-    resistance: 0,
-    armor: 0,
-    control: 0,
-    stealth: 0,
-    versatility: 0,
-    precision: 0,
-    reach: 0,
-    utility: 0,
-  };
+  const damage = Math.max(0, Number(attack.damage ?? stats.damage ?? stats.atk ?? 0) || 0);
+  const life = Math.max(0, Number(stats.life ?? stats.def ?? 0) || 0);
+  const speed = Math.max(0, Number(stats.mov ?? 0) || 0);
+  const tags = [];
+  const seen = new Set();
+  const gap = CARD_GENERAL_TAG_RULES.damageLifeDominanceGap;
+  const strong = CARD_GENERAL_TAG_RULES.strongDamageLifeThreshold;
 
-  const lifeNow = Number(runtime.hp ?? stats.life ?? stats.def ?? 0);
-  const maxLife = Number(runtime.maxHp ?? stats.life ?? stats.def ?? lifeNow);
-  const defense = Number(stats.def ?? 0);
-  const speed = Number(stats.mov ?? 0);
-  const castPhases = Number(card.castPhases ?? 2);
-  const restore = Number(stats.restore ?? 2);
-  const attackDamage = Number(attack.damage ?? stats.damage ?? 0);
-  const attackRange = Number(attack.range ?? 1);
-  const precision = Number(attack.precision ?? 0);
+  // Ataque/Vida solo definen el perfil cuando existe una dominancia clara de
+  // 5 puntos o cuando AMBOS valores ya alcanzan el umbral fuerte. Kurayami
+  // (Daño 1 / Vida 2), por ejemplo, no recibe ni Daño ni Resistencia por stats.
+  if (damage >= strong && life >= strong) {
+    appendUniqueGeneralTag(tags, seen, 'Daño');
+    appendUniqueGeneralTag(tags, seen, 'Resistencia');
+  } else if (life - damage >= gap) {
+    appendUniqueGeneralTag(tags, seen, 'Resistencia');
+  } else if (damage - life >= gap) {
+    appendUniqueGeneralTag(tags, seen, 'Daño');
+  }
 
-  // Importante: estos tags NO leen el potencial abstracto de raza/cualidad.
-  // Solo miden lo que la copia realmente tiene ahora mismo: stats, perfil ofensivo,
-  // movimiento, estado activo y futuros buffs/debuffs guardados en __runtime.
-  score.resistance += lifeNow * 1.85;
-  score.resistance += maxLife >= 4 ? 0.7 : 0;
-  score.resistance -= lifeNow <= 1 ? 1.4 : 0;
+  // La Velocidad solo asciende al tag general cuando supera la franja normal
+  // establecida: 6 o más casillas de movimiento.
+  if (speed >= CARD_GENERAL_TAG_RULES.fastSpeedThreshold) {
+    appendUniqueGeneralTag(tags, seen, 'Velocidad');
+  }
+  return tags;
+}
 
-  score.damage += attackDamage * 2.15;
-  score.damage += attack.damageNature === 'direct' ? 1.1 : 0;
-  score.damage += attack.applicationId === 'penetration' ? 0.8 : 0;
-  score.damage += attack.applicationId === 'oscillationComplete' ? 0.95 : 0;
-  score.damage += attack.applicationId === 'oscillationPartial' ? 0.45 : 0;
-  score.damage += attackRange > 1 ? Math.min(1.2, (attackRange - 1) * 0.35) : 0;
+function getCardFactorGeneralFocusTags(card = null) {
+  if (!card) return [];
+  const tags = [];
+  const seen = new Set();
+  mergeFactorEntriesForDisplay(getCardAllFactors(card)).forEach(entry => {
+    getFactorSemanticFocusLabels(entry?.id || entry).forEach(label => appendUniqueGeneralTag(tags, seen, label));
+  });
+  return tags;
+}
 
-  score.mobility += speed * 1.15;
-  score.mobility += runtime.movesLeft > 0 ? 0.5 : 0;
-  score.mobility += /completa|mejorada|adaptable|equis|x/i.test(card.movementType || '') ? 1.15 : 0;
-  score.mobility += /sostenid|frontal/i.test(card.movementType || '') ? 0.25 : 0;
+function getCardPowerGeneralFocusTags(card = null) {
+  if (!card) return [];
+  const tags = [];
+  const seen = new Set();
+  getCardPowerProfiles(card).forEach(power => {
+    // Los Poderes heredados todavía no revisados NO alimentan el perfil desde
+    // su clasificación antigua. Solo entra una rama semántica explícita.
+    if (!Array.isArray(power?.semanticBranches) || !power.semanticBranches.length) return;
+    getPowerSemanticFocusLabels(power).forEach(label => appendUniqueGeneralTag(tags, seen, label));
+  });
+  return tags;
+}
 
-  score.tempo += castPhases <= 0 ? 2.2 : Math.max(0, 3 - castPhases) * 1.15;
-  score.tempo += restore <= 0 ? 1.7 : Math.max(0, 3 - restore) * 1.05;
-  score.tempo += runtime.status === 'active' ? 0.2 : 0;
-  score.tempo -= runtime.status === 'restoring' ? 2.0 : 0;
-
-  score.armor += defense * 1.9;
-  score.armor += defense >= 3 ? 0.8 : 0;
-
-  score.control += modifiers.includes('control') ? 2.0 : 0;
-  score.control += attack.applicationId === 'penetration' ? 0.5 : 0;
-  score.control += attack.applicationId === 'oscillationPartial' ? 0.35 : 0;
-
-  score.precision += Math.max(0, precision - 3) * 0.75;
-  score.precision += precision >= 6 ? 1.1 : 0;
-
-  score.reach += Math.max(0, attackRange - 1) * 1.7;
-  score.reach += attack.combatMode === 'distance' ? 1.3 : 0;
-  score.reach += attack.combatMode === 'range' ? 0.95 : 0;
-
-  score.versatility += Object.keys(card.weaponConditions || {}).length > 1 ? 1.4 : 0;
-  score.versatility += Array.isArray(card.extraWeapons) ? card.extraWeapons.length * 0.9 : 0;
-  score.versatility += modifiers.length > 1 ? 0.8 : 0;
-
-  score.utility += activeEffects.filter(e => e && (e.kind === 'utility' || e.tag === 'utility')).length * 1.25;
-  score.stealth += activeEffects.some(e => e && (e.id === 'sigilo' || e.tag === 'sigilo' || e.kind === 'stealth')) ? 3.0 : 0;
-
-  if (card.focusScoreModifiers && typeof card.focusScoreModifiers === 'object') {
-    Object.entries(card.focusScoreModifiers).forEach(([key, value]) => {
-      if (key in score) score[key] += Number(value) || 0;
+function getCardAbilityGeneralFocusTags(card = null) {
+  if (!card) return [];
+  const tags = [];
+  const seen = new Set();
+  (Array.isArray(card.abilities) ? card.abilities : []).forEach(entry => {
+    const profile = getAbilityProfile(entry?.id || entry);
+    // La infraestructura queda preparada para Habilidades migradas, pero no
+    // interpreta tags/prosa legados. Cuando una Habilidad reciba semanticBranches
+    // entrará automáticamente al mismo perfil sin reconstruir esta función.
+    const branches = Array.isArray(profile?.semanticBranches) ? profile.semanticBranches : [];
+    branches.forEach(branch => {
+      (Array.isArray(branch?.focuses) ? branch.focuses : []).forEach(focusId => {
+        const label = FACTOR_SEMANTIC_TAXONOMY?.focuses?.[focusId] || String(focusId || '');
+        appendUniqueGeneralTag(tags, seen, label);
+      });
     });
+  });
+  return tags;
+}
+
+function getCardFocusTags(card) {
+  if (!card) return [];
+  const tags = [];
+  const seen = new Set();
+
+  // Orden estable: stats realmente dominantes → Factores → Poderes → Habilidades.
+  // Los duplicados se colapsan; no se fuerzan tres tags ni se inventa Equilibrio.
+  [
+    ...getCardBaseGeneralFocusTags(card),
+    ...getCardFactorGeneralFocusTags(card),
+    ...getCardPowerGeneralFocusTags(card),
+    ...getCardAbilityGeneralFocusTags(card),
+  ].forEach(label => appendUniqueGeneralTag(tags, seen, label));
+
+  return tags;
+}
+
+function getCardSemanticSearchTerms(card = null) {
+  if (!card) return [];
+  const terms = [];
+  const seen = new Set();
+  const add = value => appendUniqueGeneralTag(terms, seen, value);
+
+  getCardFocusTags(card).forEach(add);
+
+  const family = getFamilyProfile?.(card.family);
+  if (family) {
+    add(family.label);
+    (Array.isArray(family.tags) ? family.tags : []).forEach(add);
   }
-  if (runtime.focusScoreModifiers && typeof runtime.focusScoreModifiers === 'object') {
-    Object.entries(runtime.focusScoreModifiers).forEach(([key, value]) => {
-      if (key in score) score[key] += Number(value) || 0;
+  (Array.isArray(card.races) ? card.races : []).forEach(id => {
+    const profile = getRaceProfile?.(id);
+    add(profile?.label || id);
+    (Array.isArray(profile?.tags) ? profile.tags : []).forEach(add);
+  });
+  (Array.isArray(card.qualities) ? card.qualities : []).forEach(id => {
+    const profile = getQualityProfile?.(id);
+    add(profile?.label || id);
+    (Array.isArray(profile?.tags) ? profile.tags : []).forEach(add);
+  });
+
+  mergeFactorEntriesForDisplay(getCardAllFactors(card)).forEach(entry => {
+    const semantic = getFactorSemanticProfile(entry?.id || entry);
+    add('Factor');
+    add(FACTOR_SEMANTIC_TAXONOMY.activations?.[semantic.activation]?.label || semantic.activation);
+    add(FACTOR_SEMANTIC_TAXONOMY.categories?.[semantic.category]?.label || semantic.category);
+    add(FACTOR_SEMANTIC_TAXONOMY.orientations?.[semantic.orientation]?.label || semantic.orientation);
+    getFactorSemanticFocusLabels(entry?.id || entry).forEach(add);
+  });
+
+  getCardPowerProfiles(card).forEach(power => {
+    if (!Array.isArray(power?.semanticBranches) || !power.semanticBranches.length) return;
+    add('Poder');
+    add(power.label || power.name);
+    getPowerSemanticBranches(power).forEach(branch => {
+      add(FACTOR_SEMANTIC_TAXONOMY.activations?.[branch.activation]?.label || branch.activation);
+      add(FACTOR_SEMANTIC_TAXONOMY.categories?.[branch.category]?.label || branch.category);
+      add(FACTOR_SEMANTIC_TAXONOMY.orientations?.[branch.orientation]?.label || branch.orientation);
+      (branch.focuses || []).forEach(id => add(FACTOR_SEMANTIC_TAXONOMY.focuses?.[id] || id));
     });
-  }
+  });
 
-  const ranked = Object.entries(score)
-    .filter(([, value]) => value > 0)
-    .sort((a, b) => b[1] - a[1]);
+  (Array.isArray(card.abilities) ? card.abilities : []).forEach(entry => {
+    const ability = getAbilityProfile?.(entry?.id || entry);
+    if (!Array.isArray(ability?.semanticBranches) || !ability.semanticBranches.length) return;
+    add('Habilidad');
+    add(ability.label || ability.name);
+    getAbilitySemanticBranches(ability).forEach(branch => {
+      add(FACTOR_SEMANTIC_TAXONOMY.activations?.[branch.activation]?.label || branch.activation);
+      add(FACTOR_SEMANTIC_TAXONOMY.categories?.[branch.category]?.label || branch.category);
+      add(branch.orientationLabel || FACTOR_SEMANTIC_TAXONOMY.orientations?.[branch.orientation]?.label || branch.orientation);
+      (branch.focuses || []).forEach(id => add(FACTOR_SEMANTIC_TAXONOMY.focuses?.[id] || id));
+    });
+  });
 
-  const selected = [];
-  for (const [id, value] of ranked) {
-    if (selected.length >= 3) break;
-    if (value < 1.85 && selected.length > 0) continue;
-    const label = CARD_FOCUS_LABELS[id];
-    if (!label) continue;
-    if (!selected.includes(label)) selected.push(label);
-  }
+  // Alias naturales para que buscar "ofensiva/defensiva" encuentre los tags
+  // canónicos Ofensivo/Defensivo sin duplicarlos visualmente en la carta.
+  const normalized = new Set(terms.map(normalizeGeneralTagKey));
+  if (normalized.has('ofensivo')) add('Ofensiva');
+  if (normalized.has('defensivo')) add('Defensiva');
 
-  if (selected.length === 0) selected.push('Equilibrio');
-  while (selected.length < 3) {
-    const fallback = ['Resistencia', 'Movilidad', 'Tempo'].find(tag => !selected.includes(tag));
-    if (!fallback) break;
-    selected.push(fallback);
-  }
-  return selected.slice(0, 3);
+  return terms;
 }
 
 function getUnitFromInfoMeta(meta = {}) {
@@ -7841,7 +8285,7 @@ function renderCardInfoSummaryTags(card) {
   }
   const color = getElementColorById(getCardElementId(card));
   const [primary, ...secondary] = tags;
-  els.cardInfoSummaryTags.style.setProperty('--summary-tag-color', color || '#9b4dff');
+  els.cardInfoSummaryTags.style.setProperty('--summary-tag-color', color || '#5400FF');
   els.cardInfoSummaryTags.innerHTML = `
     <div class="card-summary-tags">
       <span class="card-summary-tag card-summary-tag-primary">${primary}</span>
@@ -8005,7 +8449,7 @@ const ELEMENT_PROFILE_DB = {
     },
   },
   oscuridad: {
-    color: '#9b4dff',
+    color: '#5400FF',
     sections: {
       elementFlow: {
         title: 'Manejo de elementos',
@@ -8097,7 +8541,7 @@ const ELEMENT_PROFILE_DB = {
     },
   },
   agua: {
-    color: '#28d7ff',
+    color: '#00FFE4',
     sections: {
       elementFlow: {
         title: 'Manejo de elementos',
@@ -8247,7 +8691,7 @@ function getElementProfile(elementId) {
   return ELEMENT_PROFILE_DB[elementId] || ELEMENT_PROFILE_DB.oscuridad;
 }
 
-function buildElementMiniBarsHtml(bars = [], color = '#9b4dff', spectrum = false) {
+function buildElementMiniBarsHtml(bars = [], color = '#5400FF', spectrum = false) {
   return `<div class="element-mini-bars${spectrum ? ' element-profile-spectrum' : ''}" style="--element-profile-color:${color}" data-spectrum="${spectrum ? '1' : '0'}">
     ${bars.slice(0, 4).map(bar => `
       <span class="element-mini-bar" title="${bar.label}: ${bar.note || bar.value}">
@@ -8256,7 +8700,7 @@ function buildElementMiniBarsHtml(bars = [], color = '#9b4dff', spectrum = false
   </div>`;
 }
 
-function buildElementBarsHtml(bars = [], color = '#9b4dff', spectrum = false) {
+function buildElementBarsHtml(bars = [], color = '#5400FF', spectrum = false) {
   return `<div class="element-bars${spectrum ? ' element-profile-spectrum' : ''}" style="--element-profile-color:${color}" data-spectrum="${spectrum ? '1' : '0'}">
     ${bars.map(bar => `
       <div class="element-bar-row">
@@ -8366,6 +8810,8 @@ const DOMAIN_ART_DB = {
   },
   fuego: {
     elementLabel: 'Fuego',
+    color: getDominionPrimaryColor('fuego'),
+    secondaryColor: getDominionSecondaryColor('fuego'),
     attributeId: 'destruction',
     attributeLabel: 'Destrucción',
     elementArt: 'assets/domain/domain-element-fire.png',
@@ -8373,6 +8819,8 @@ const DOMAIN_ART_DB = {
   },
   agua: {
     elementLabel: 'Agua',
+    color: getDominionPrimaryColor('agua'),
+    secondaryColor: getDominionSecondaryColor('agua'),
     attributeId: 'knowledge',
     attributeLabel: 'Conocimiento',
     elementArt: 'assets/domain/domain-element-water.png',
@@ -8380,6 +8828,8 @@ const DOMAIN_ART_DB = {
   },
   tierra: {
     elementLabel: 'Tierra',
+    color: getDominionPrimaryColor('tierra'),
+    secondaryColor: getDominionSecondaryColor('tierra'),
     attributeId: 'life',
     attributeLabel: 'Vida',
     elementArt: 'assets/domain/domain-element-earth.png',
@@ -8387,6 +8837,8 @@ const DOMAIN_ART_DB = {
   },
   oscuridad: {
     elementLabel: 'Oscuridad',
+    color: getDominionPrimaryColor('oscuridad'),
+    secondaryColor: getDominionSecondaryColor('oscuridad'),
     attributeId: 'mystery',
     attributeLabel: 'Misterio',
     elementArt: 'assets/domain/domain-element-darkness.png',
@@ -8394,6 +8846,8 @@ const DOMAIN_ART_DB = {
   },
   luz: {
     elementLabel: 'Luz',
+    color: getDominionPrimaryColor('luz'),
+    secondaryColor: getDominionSecondaryColor('luz'),
     attributeId: 'revelation',
     attributeLabel: 'Revelación',
     elementArt: 'assets/domain/domain-element-light.webp',
@@ -8422,16 +8876,25 @@ function getPlayerElement(playerId) {
 
 function getPlayerElementColor(playerId) {
   const element = getPlayerElement(playerId);
-  return element?.color || '#9b4dff';
+  return element?.color || getDominionPrimaryColor('oscuridad');
 }
 
 function getElementById(elementId, fallbackId = 'oscuridad') {
   return ELEMENTS.find(el => el.id === elementId) || ELEMENTS.find(el => el.id === fallbackId) || ELEMENTS[0];
 }
 
-function getElementColorById(elementId, fallback = '#9b4dff') {
+function getElementColorById(elementId, fallback = getDominionPrimaryColor('oscuridad')) {
+  const id = normalizeDominionId(elementId);
+  if (id) return getDominionPrimaryColor(id);
   return getElementById(elementId)?.color || fallback;
 }
+
+function getElementSecondaryColorById(elementId, fallback = getDominionSecondaryColor('oscuridad')) {
+  const id = normalizeDominionId(elementId);
+  if (id) return getDominionSecondaryColor(id);
+  return getElementById(elementId)?.secondaryColor || fallback;
+}
+
 
 function getEffectiveCardElementId(card, playerId = null) {
   // Dominio real de la carta. El Kaster NO cambia costos, fondo, skin,
@@ -8480,7 +8943,7 @@ function markInvocationBurnTickFlash(playerId, unitId, duration = 920) {
   window.setTimeout(() => renderUnits(), duration + 60);
 }
 
-function createElementBurstAtViewport(x, y, color = '#9b4dff', options = {}) {
+function createElementBurstAtViewport(x, y, color = '#5400FF', options = {}) {
   const burst = document.createElement('div');
   burst.className = `element-burst-fx ${options.kind || ''}`.trim();
   burst.style.left = `${x}px`;
@@ -8518,6 +8981,351 @@ function buildExtractionCardDef(playerId, baseId, elementIdOverride = null) {
     sourceType: 'element',
   };
 }
+
+
+// =========================================================
+// ROK v5.7.283 · Guardia de inactividad de fase
+// 10 s sin progreso/entrada -> aviso; 10 s adicionales -> avance automático.
+// Este runtime es deliberadamente local y NO forma parte del snapshot PvP.
+// =========================================================
+const BATTLE_INACTIVITY_IDLE_MS = 10_000;
+const BATTLE_INACTIVITY_CONFIRM_MS = 10_000;
+const BATTLE_INACTIVITY_TICK_MS = 250;
+const battleInactivityRuntime = {
+  timer: null,
+  lastActivityAt: 0,
+  lastActivityReason: '',
+  phaseKey: '',
+  progressSignature: '',
+  promptActive: false,
+  promptDeadline: 0,
+  autoAdvancing: false,
+  autoAdvanceCount: 0,
+};
+
+function getBattleInactivityPhaseKey() {
+  return [
+    Number(state?.matchSerial || 1),
+    Number(state?.turnSerial || 1),
+    Number(state?.activePlayer || 0),
+    Number(state?.phaseIndex || 0),
+    Number(state?.phaseTransitionSerial || 0),
+  ].join(':');
+}
+
+function isLocalBattleTurnForInactivity() {
+  return Boolean(
+    isBattleHudScreenActive()
+    && !state?.gameOver
+    && Number(state?.activePlayer) === Number(LOCAL_PLAYER_ID)
+    && !(state?.aiEnabled && Number(state?.activePlayer) !== Number(LOCAL_PLAYER_ID))
+  );
+}
+
+function compactInactivityUnit(unit = null) {
+  if (!unit) return null;
+  return [
+    String(unit.id || ''), String(unit.cardId || ''),
+    Number(unit.row), Number(unit.col),
+    Number(unit.life ?? unit.resistance ?? unit.res ?? 0),
+    Number(unit.movesLeft ?? 0), String(unit.status || ''),
+    Number(unit.atk ?? unit.damage ?? 0), Number(unit.def ?? 0),
+    unit.hidden ? 1 : 0,
+  ];
+}
+
+function compactInactivityPlayer(player = null) {
+  if (!player) return null;
+  const caster = player.caster || {};
+  return {
+    life: Number(player.life ?? caster.life ?? 0),
+    caster: [
+      Number(caster.row), Number(caster.col), Number(caster.life ?? 0),
+      Number(caster.movesLeft ?? 0), String(caster.state || ''), Number(caster.pureElement ?? 0),
+    ],
+    resources: (player.resources || []).map(resource => `${String(resource?.id || '')}:${String(resource?.uid || '')}`),
+    castQueue: (player.castQueue || []).map(entry => [
+      String(entry?.cardId || ''), Number(entry?.remaining ?? entry?.timeLeft ?? entry?.castTime ?? 0),
+      String(entry?.id || entry?.uid || ''),
+    ]),
+    units: (player.units || []).map(compactInactivityUnit).sort((a, b) => String(a?.[0] || '').localeCompare(String(b?.[0] || ''))),
+  };
+}
+
+function getBattleInactivityProgressSignature() {
+  const quick = state?.quickReactionWindow || {};
+  const pending = state?.pendingPowerAction || null;
+  const offTurn = state?.offTurnCasterReposition || {};
+  const transitionVisible = Boolean(els?.transitionOverlay?.classList?.contains('show'));
+  const transitionTimers = Array.isArray(queueTransitions?.timers) ? queueTransitions.timers.length : 0;
+  const phaseFlowId = Number(schedulePhaseIntroFlow?.active?.flowId || 0);
+  const signature = {
+    phase: getBattleInactivityPhaseKey(),
+    selected: [
+      Number(state?.activeTab || 0),
+      state?.selectedCardSlot ?? null,
+      state?.selectedMover ? `${state.selectedMover.type || ''}:${state.selectedMover.playerId || ''}:${state.selectedMover.unitId || ''}` : '',
+      state?.selectedTarget ? `${state.selectedTarget.type || ''}:${state.selectedTarget.playerId || ''}:${state.selectedTarget.unitId || ''}` : '',
+      state?.pendingCard?.cardId || state?.pendingCard?.id || '',
+      state?.pendingPlacement ? `${state.pendingPlacement.row ?? ''}:${state.pendingPlacement.col ?? ''}` : '',
+    ],
+    pending: [
+      pending?.kind || '',
+      quick.active ? 1 : 0,
+      quick.locked ? 1 : 0,
+      quick.executing ? 1 : 0,
+      quick.actionSelectionActive ? 1 : 0,
+      quick.phaseIntro && !quick.phaseIntro.done ? 1 : 0,
+      state?.hattoriAbilitySelectionActive ? 1 : 0,
+      state?.hattoriReactionPromptActive ? 1 : 0,
+      state?.tokugawaAbilitySelectionActive ? 1 : 0,
+      offTurn.active ? 1 : 0,
+      offTurn.moving ? 1 : 0,
+      state?.randomCostPayment ? 1 : 0,
+      state?.gioshoninSupplyPrompt?.active ? 1 : 0,
+    ],
+    progress: [
+      state?.extractionAnimating ? 1 : 0,
+      state?.castTravelResolving ? 1 : 0,
+      Number(state?.pendingCastTravelCount || 0),
+      state?.semiAutoMovementAnimating ? 1 : 0,
+      state?.opponentActionResolving ? 1 : 0,
+      state?.actionExecutionLock ? 1 : 0,
+      String(state?.actionExecutionLockReason || ''),
+      state?.opponentActionNoticeAwaiting ? 1 : 0,
+      transitionVisible ? 1 : 0,
+      transitionTimers,
+      phaseFlowId,
+      Number(state?.resolutionSerial || 0),
+      Number(state?.arenaEntrySerial || 0),
+      Number(state?.pendingTimedAbilityResolutions?.length || 0),
+    ],
+    players: [compactInactivityPlayer(state?.players?.[1]), compactInactivityPlayer(state?.players?.[2])],
+  };
+  try { return JSON.stringify(signature); }
+  catch (_) { return `${signature.phase}:${Date.now()}`; }
+}
+
+function hideBattleInactivityPrompt(reason = 'hidden') {
+  battleInactivityRuntime.promptActive = false;
+  battleInactivityRuntime.promptDeadline = 0;
+  if (els?.inactivityPrompt) {
+    els.inactivityPrompt.classList.remove('visible');
+    els.inactivityPrompt.setAttribute('aria-hidden', 'true');
+    els.inactivityPrompt.dataset.closeReason = String(reason || 'hidden');
+  }
+}
+
+function updateBattleInactivityPromptCopy() {
+  if (!els?.inactivityPrompt) return;
+  const phaseLabel = currentPhase?.()?.label || 'esta fase';
+  if (els.inactivityPromptText) els.inactivityPromptText.textContent = `¿Vas a continuar con ${phaseLabel}?`;
+}
+
+function markBattleActivity(reason = 'gameplay', options = {}) {
+  const now = Date.now();
+  battleInactivityRuntime.lastActivityAt = now;
+  battleInactivityRuntime.lastActivityReason = String(reason || 'gameplay');
+  battleInactivityRuntime.phaseKey = getBattleInactivityPhaseKey();
+  try { battleInactivityRuntime.progressSignature = getBattleInactivityProgressSignature(); } catch (_) {}
+  if (battleInactivityRuntime.promptActive && options.keepPrompt !== true) hideBattleInactivityPrompt(`activity:${reason}`);
+  return now;
+}
+
+function resetBattleInactivityRuntime(reason = 'reset') {
+  battleInactivityRuntime.phaseKey = '';
+  battleInactivityRuntime.progressSignature = '';
+  battleInactivityRuntime.autoAdvancing = false;
+  hideBattleInactivityPrompt(reason);
+  markBattleActivity(reason);
+}
+
+function showBattleInactivityPrompt() {
+  if (!isLocalBattleTurnForInactivity() || battleInactivityRuntime.promptActive) return false;
+  battleInactivityRuntime.promptActive = true;
+  battleInactivityRuntime.promptDeadline = Date.now() + BATTLE_INACTIVITY_CONFIRM_MS;
+  updateBattleInactivityPromptCopy();
+  if (els?.inactivityPromptSeconds) els.inactivityPromptSeconds.textContent = '10';
+  if (els?.inactivityPromptFill) els.inactivityPromptFill.style.width = '100%';
+  if (els?.inactivityPrompt) {
+    els.inactivityPrompt.classList.add('visible');
+    els.inactivityPrompt.setAttribute('aria-hidden', 'false');
+  }
+  log('Inactividad detectada. Confirma que continuarás o la fase avanzará automáticamente.');
+  return true;
+}
+
+function resolveInactivityBlockingFlows(reason = 'inactivity-timeout') {
+  // Invalida cualquier introducción asíncrona de la fase vieja. Sus awaits
+  // comprueban phaseFlowId y no podrán reactivar la fase después del salto.
+  try {
+    if (state.quickReactionWindow) {
+      state.quickReactionWindow.phaseFlowId = Math.max(0, Number(state.quickReactionWindow.phaseFlowId || 0)) + 1;
+    }
+  } catch (_) {}
+  try { clearTimeout(schedulePhaseStartActions.timer); schedulePhaseStartActions.timer = null; } catch (_) {}
+  try { clearQueuedTransitions(); } catch (_) {}
+  try { if (state.opponentActionNoticeAwaiting) confirmOpponentActionNotice(reason); } catch (_) {}
+  try { if (state.hattoriAbilitySelectionActive) closeHattoriAbilitySelection(reason); } catch (_) {}
+  try { if (state.offTurnCasterReposition?.active) finishOffTurnCasterReposition(reason); } catch (_) {}
+  try { if (state.gioshoninSupplyPrompt?.active) closeGioshoninSupplyPrompt('timeout'); } catch (_) {}
+  try { if (state.randomCostPayment) closeRandomCostSelector(); } catch (_) {}
+  try {
+    const pendingResolve = state.pendingPowerAction?.reactionResolve;
+    if (typeof pendingResolve === 'function') pendingResolve(reason);
+  } catch (_) {}
+  try {
+    if (state.quickReactionWindow?.phaseIntro || state.quickReactionWindow?.active || state.quickReactionWindow?.locked || state.quickReactionWindow?.executing || els?.quickReactionModal?.classList?.contains('visible')) {
+      closeQuickReactionModal(reason);
+    }
+  } catch (_) {}
+  try { hideQuickReactionWindow(); } catch (_) {}
+  try { clearQuickReactionActionSelection({ render: false }); } catch (_) {}
+  try { releaseGlobalGameplayPause(QUICK_REACTION_GAMEPLAY_PAUSE_TOKEN); } catch (_) {}
+  try { endGioshoninPriorityAction(reason); } catch (_) {}
+
+  state.pendingPowerAction = null;
+  state.selectedMover = null;
+  state.selectedTarget = null;
+  state.pendingCard = null;
+  state.pendingPlacement = null;
+  state.randomCostPayment = null;
+  state.hattoriAbilitySelectionActive = false;
+  state.hattoriReactionPromptActive = false;
+  state.tokugawaAbilitySelectionActive = false;
+  state.extractionAnimating = false;
+  state.castTravelResolving = false;
+  state.pendingCastTravelCount = 0;
+  state.pendingCastTravelPromises = [];
+  state.semiAutoMovementAnimating = false;
+  state.opponentActionResolving = false;
+  state.opponentActionLockReason = '';
+  state.opponentActionLockDepth = 0;
+  state.opponentActionPreviousAiThinking = false;
+  state.aiThinking = false;
+  state.actionExecutionLock = false;
+  state.actionExecutionLockReason = '';
+  try { renderPhaseUI(); } catch (_) {}
+}
+
+function forceAdvancePhaseFromInactivity() {
+  if (battleInactivityRuntime.autoAdvancing || !isLocalBattleTurnForInactivity()) return false;
+  battleInactivityRuntime.autoAdvancing = true;
+  const fromPhase = currentPhase()?.label || currentPhase()?.id || 'fase';
+  hideBattleInactivityPrompt('timeout');
+  try {
+    resolveInactivityBlockingFlows('inactivity-timeout');
+    log(`Inactividad: ${fromPhase} terminó automáticamente.`);
+    nextPhase(true);
+    battleInactivityRuntime.autoAdvanceCount += 1;
+    markBattleActivity('inactivity-auto-advance');
+    if (isOnlineMatchActive()) void commitOnlineStateBarrier(`inactivity-auto-advance:${fromPhase}`);
+    return true;
+  } catch (error) {
+    reportGameException(error, 'Avance automático por inactividad');
+    return false;
+  } finally {
+    battleInactivityRuntime.autoAdvancing = false;
+  }
+}
+
+function updateBattleInactivityPromptCountdown(now = Date.now()) {
+  if (!battleInactivityRuntime.promptActive) return;
+  const remaining = Math.max(0, battleInactivityRuntime.promptDeadline - now);
+  const seconds = Math.max(0, Math.ceil(remaining / 1000));
+  if (els?.inactivityPromptSeconds) els.inactivityPromptSeconds.textContent = String(seconds);
+  if (els?.inactivityPromptFill) {
+    const pct = Math.max(0, Math.min(100, (remaining / BATTLE_INACTIVITY_CONFIRM_MS) * 100));
+    els.inactivityPromptFill.style.width = `${pct}%`;
+  }
+  if (remaining <= 0) forceAdvancePhaseFromInactivity();
+}
+
+function battleInactivityWatchdogTick() {
+  const now = Date.now();
+  if (isGlobalGameplayPaused()) {
+    // Un menú offline pausado no debe consumir el temporizador de inactividad.
+    battleInactivityRuntime.lastActivityAt = now;
+    if (battleInactivityRuntime.promptActive) hideBattleInactivityPrompt('gameplay-paused');
+    return;
+  }
+  if (!isLocalBattleTurnForInactivity()) {
+    if (battleInactivityRuntime.promptActive) hideBattleInactivityPrompt('not-local-turn');
+    battleInactivityRuntime.phaseKey = '';
+    battleInactivityRuntime.progressSignature = '';
+    battleInactivityRuntime.lastActivityAt = now;
+    return;
+  }
+
+  const phaseKey = getBattleInactivityPhaseKey();
+  if (battleInactivityRuntime.phaseKey !== phaseKey) {
+    battleInactivityRuntime.phaseKey = phaseKey;
+    battleInactivityRuntime.progressSignature = getBattleInactivityProgressSignature();
+    markBattleActivity('phase-change');
+    return;
+  }
+
+  const progressSignature = getBattleInactivityProgressSignature();
+  if (progressSignature !== battleInactivityRuntime.progressSignature) {
+    battleInactivityRuntime.progressSignature = progressSignature;
+    markBattleActivity('state-progress');
+    return;
+  }
+
+  if (battleInactivityRuntime.promptActive) {
+    updateBattleInactivityPromptCountdown(now);
+    return;
+  }
+
+  if (!battleInactivityRuntime.lastActivityAt) battleInactivityRuntime.lastActivityAt = now;
+  if ((now - battleInactivityRuntime.lastActivityAt) >= BATTLE_INACTIVITY_IDLE_MS) showBattleInactivityPrompt();
+}
+
+function startBattleInactivityWatchdog() {
+  if (battleInactivityRuntime.timer) return;
+  battleInactivityRuntime.lastActivityAt = Date.now();
+  battleInactivityRuntime.timer = window.setInterval(battleInactivityWatchdogTick, BATTLE_INACTIVITY_TICK_MS);
+}
+
+function continueAfterInactivityPrompt(event = null) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (!battleInactivityRuntime.promptActive) return false;
+  hideBattleInactivityPrompt('confirmed');
+  markBattleActivity('inactivity-confirmed');
+  log('Inactividad: el jugador confirmó que continúa en la fase actual.');
+  return true;
+}
+
+function registerBattleActivityFromEvent(event) {
+  if (!isLocalBattleTurnForInactivity() || battleInactivityRuntime.autoAdvancing) return;
+  if (event?.type === 'keydown') {
+    if (event.repeat || ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(event.key)) return;
+    markBattleActivity(`input:key:${event.key || 'key'}`);
+    return;
+  }
+  const target = event?.target instanceof Element ? event.target : null;
+  if (!target || target.closest?.('#inactivityPrompt')) return;
+  const actionable = target.closest?.('button, input, select, textarea, .cell, .unit, .card-slot, [role="button"], .move-option, .target-access-btn');
+  if (!actionable || actionable.matches?.(':disabled,[aria-disabled="true"]')) return;
+  markBattleActivity(`input:${event.type || 'action'}`);
+}
+
+window.ROK_INACTIVITY_GUARD = {
+  markActivity: markBattleActivity,
+  reset: resetBattleInactivityRuntime,
+  forceAdvance: forceAdvancePhaseFromInactivity,
+  getState: () => ({
+    idleMs: BATTLE_INACTIVITY_IDLE_MS,
+    confirmMs: BATTLE_INACTIVITY_CONFIRM_MS,
+    phaseKey: battleInactivityRuntime.phaseKey,
+    lastActivityAt: battleInactivityRuntime.lastActivityAt,
+    lastActivityReason: battleInactivityRuntime.lastActivityReason,
+    promptActive: battleInactivityRuntime.promptActive,
+    promptDeadline: battleInactivityRuntime.promptDeadline,
+    autoAdvanceCount: battleInactivityRuntime.autoAdvanceCount,
+  }),
+};
 
 const state = {
   targetMenuGeneration: 0,
@@ -8559,6 +9367,7 @@ const state = {
   resolutionSerial: 0,
   arenaEntrySerial: 0,
   smokeZones: [],
+  farolPortals: [],
   celestialLamps: [],
   longNightEffects: [],
   activeSpellLinks: [],
@@ -8592,7 +9401,7 @@ const state = {
   enemyResolutionRunning: false,
   aiEnabled: true,
   matchMode: 'normal',
-  quickReactionWindow: { active: false, locked: false, candidates: [], resolver: null, phaseKey: '' },
+  quickReactionWindow: { active: false, locked: false, candidates: [], resolver: null, phaseKey: '', actionSelectionActive: false, actionSelectionCandidates: [], actionSelectionOtherCandidates: [] },
   globalGameplayPause: { tokens: {}, waiters: [], serial: 0 },
   quickReactionSpellbookFocus: null,
   gloriaLatenteQuickCastMode: null,
@@ -8654,6 +9463,7 @@ const INITIAL_BATTLE_STATE = JSON.parse(JSON.stringify(state));
 // de ejecución necesarias, sin alterar cartas, estadísticas ni reglas.
 const RUNTIME_ROOT_ARRAY_KEYS = [
   'smokeZones',
+  'farolPortals',
   'celestialLamps',
   'longNightEffects',
   'activeSpellLinks',
@@ -9255,16 +10065,42 @@ const ROK_ORIGIN_JAPAN_ICON = 'assets/origins/origin-japan.svg';
 const ROK_PURE_CRYSTAL_ASSET = 'assets/user/pure-crystal.png';
 const ROK_USER_INITIAL_PURE_CRYSTAL = 9000;
 const ROK_USER_RESOURCE_ELEMENT_IDS = Object.freeze(['oscuridad', 'luz', 'fuego', 'agua', 'tierra']);
-const ROK_USER_RESOURCE_RARITY_IDS = Object.freeze(['ordinary','uncommon','extraordinary','singular','infrequent','unusual','strange','mythic','legendary']);
+const ROK_USER_RESOURCE_RARITY_IDS = Object.freeze(['ordinary','uncommon','infrequent','unusual','extraordinary','strange','singular','legendary','mythic']);
 const ROK_USER_RESOURCE_RARITY_LABELS = Object.freeze({
-  ordinary: 'Ordinaria', uncommon: 'Poco ordinaria', extraordinary: 'Extra ordinaria', singular: 'Singular',
-  infrequent: 'Infrecuente', unusual: 'Inhabitual', strange: 'Extraña', mythic: 'Mítica', legendary: 'Legendaria',
+  ordinary: 'Ordinaria', uncommon: 'Poco ordinaria', infrequent: 'Infrecuente', unusual: 'Inhabitual',
+  extraordinary: 'Extraordinaria', strange: 'Extraña', singular: 'Singular', legendary: 'Legendaria', mythic: 'Mítica',
 });
 const ROK_USER_RESOURCE_ELEMENT_LABELS = Object.freeze({ oscuridad:'Oscuridad', luz:'Luz', fuego:'Fuego', agua:'Agua', tierra:'Tierra' });
 const ROK_BOOSTER_SINGLE_COST = 350;
 const ROK_BOOSTER_BUNDLE5_COST = 1500;
+const CASTER_MAX_LEVEL = 10;
+const CASTER_XP_BASE_REQUIREMENT = 30;
+const CASTER_XP_REQUIREMENT_STEP = 15;
+const CASTER_LEVEL_MILESTONES = Object.freeze({
+  2: Object.freeze({ life: 2 }),
+  3: Object.freeze({ life: 1, attack: 1 }),
+  4: Object.freeze({ nativeAbilitySlots: 1, unlockPureElement: true }),
+  5: Object.freeze({ life: 1, range: 1 }),
+  6: Object.freeze({ life: 1, defense: 1 }),
+  7: Object.freeze({ addedAbilitySlots: 1, pureGeneration: 1 }),
+  8: Object.freeze({ life: 1, precision: 1 }),
+  9: Object.freeze({ life: 1, specialCounters: 1 }),
+  10: Object.freeze({ addedAbilitySlots: 1, pureMax: 3 }),
+});
+
+const CASTER_ABILITY_CLONE_RULE = Object.freeze({
+  id: 'caster-base-ability-clone',
+  status: 'reserved',
+  location: 'alchemy',
+  originalAbilityRetained: true,
+  resultCardType: 'casterAbility',
+  targetUse: 'additionalCasterAbilitySlot',
+  extractionProcessDefined: false,
+  summary: 'La habilidad base se copia a una carta sin retirarla ni reemplazarla en el Kaster original.',
+});
+
 let rokUserModeActive = false;
-let rokUserProfile = { schemaVersion: 3, profileId: 'local_guest', collection: {}, boosters: {}, pureCrystal: ROK_USER_INITIAL_PURE_CRYSTAL, elements: {}, rarities: {}, updatedAt: 0 };
+let rokUserProfile = { schemaVersion: 4, profileId: 'local_guest', collection: {}, boosters: {}, pureCrystal: ROK_USER_INITIAL_PURE_CRYSTAL, elements: {}, rarities: {}, casterProgress: {}, clonedCasterAbilities: {}, updatedAt: 0 };
 
 function normalizeRokUserCollection(raw = {}) {
   const normalized = {};
@@ -9305,6 +10141,136 @@ function createEmptyRokUserRarityResources() {
   return normalizeRokUserResourceMap({}, ROK_USER_RESOURCE_RARITY_IDS);
 }
 
+function getCasterXpRequirement(level = 1) {
+  const safeLevel = Math.max(1, Math.min(CASTER_MAX_LEVEL, Math.floor(Number(level) || 1)));
+  if (safeLevel >= CASTER_MAX_LEVEL) return 0;
+  return CASTER_XP_BASE_REQUIREMENT + ((safeLevel - 1) * CASTER_XP_REQUIREMENT_STEP);
+}
+
+function normalizeCasterProgressEntry(raw = {}) {
+  const level = Math.max(1, Math.min(CASTER_MAX_LEVEL, Math.floor(Number(raw?.level) || 1)));
+  const requirement = getCasterXpRequirement(level);
+  const xp = level >= CASTER_MAX_LEVEL ? 0 : Math.max(0, Math.min(Math.max(0, requirement - 1), Math.floor(Number(raw?.xp) || 0)));
+  const totalXp = Math.max(xp, Math.floor(Number(raw?.totalXp) || 0));
+  return { level, xp, totalXp, updatedAt: Number(raw?.updatedAt) || 0 };
+}
+
+function normalizeCasterProgressMap(raw = {}) {
+  const normalized = {};
+  if (!raw || typeof raw !== 'object') return normalized;
+  Object.entries(raw).forEach(([cardId, entry]) => {
+    if (!CARD_LIBRARY[cardId] || getCardTypeId(CARD_LIBRARY[cardId]) !== 'kaster') return;
+    normalized[cardId] = normalizeCasterProgressEntry(entry);
+  });
+  return normalized;
+}
+
+function normalizeClonedCasterAbilityMap(raw = {}) {
+  const normalized = {};
+  if (!raw || typeof raw !== 'object') return normalized;
+  Object.entries(raw).forEach(([abilityId, amount]) => {
+    const count = Math.max(0, Math.floor(Number(amount) || 0));
+    if (count > 0) normalized[String(abilityId)] = count;
+  });
+  return normalized;
+}
+
+function getCasterProgress(cardOrId) {
+  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
+  if (!card || getCardTypeId(card) !== 'kaster') return normalizeCasterProgressEntry();
+  rokUserProfile.casterProgress = normalizeCasterProgressMap(rokUserProfile.casterProgress);
+  if (!rokUserProfile.casterProgress[card.id]) rokUserProfile.casterProgress[card.id] = normalizeCasterProgressEntry();
+  return { ...rokUserProfile.casterProgress[card.id] };
+}
+
+function getCasterLevelBonuses(level = 1) {
+  const safeLevel = Math.max(1, Math.min(CASTER_MAX_LEVEL, Math.floor(Number(level) || 1)));
+  const bonuses = { life:0, attack:0, range:0, defense:0, precision:0, specialCounters:0, pureGeneration:0, pureMax:0, nativeAbilitySlots:0, addedAbilitySlots:0, pureUnlocked:false };
+  for (let current = 2; current <= safeLevel; current += 1) {
+    const milestone = CASTER_LEVEL_MILESTONES[current] || {};
+    bonuses.life += Number(milestone.life || 0);
+    bonuses.attack += Number(milestone.attack || 0);
+    bonuses.range += Number(milestone.range || 0);
+    bonuses.defense += Number(milestone.defense || 0);
+    bonuses.precision += Number(milestone.precision || 0);
+    bonuses.specialCounters += Number(milestone.specialCounters || 0);
+    bonuses.pureGeneration += Number(milestone.pureGeneration || 0);
+    bonuses.pureMax += Number(milestone.pureMax || 0);
+    bonuses.nativeAbilitySlots += Number(milestone.nativeAbilitySlots || 0);
+    bonuses.addedAbilitySlots += Number(milestone.addedAbilitySlots || 0);
+    if (milestone.unlockPureElement) bonuses.pureUnlocked = true;
+  }
+  return bonuses;
+}
+
+function getCasterProgressedStats(cardOrId, progressOverride = null) {
+  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
+  if (!card || getCardTypeId(card) !== 'kaster') return null;
+  const progress = progressOverride ? normalizeCasterProgressEntry(progressOverride) : getCasterProgress(card);
+  const bonuses = getCasterLevelBonuses(progress.level);
+  const stats = card.stats || {};
+  const attackProfile = card.attackProfile || {};
+  const basePureGeneration = Math.max(0, Number(stats.pureCadence ?? 0));
+  const basePureMax = Math.max(0, Number(stats.pureMax ?? 0));
+  return {
+    level: progress.level, xp: progress.xp, totalXp: progress.totalXp, xpRequired: getCasterXpRequirement(progress.level),
+    life: Math.max(1, Number(stats.life ?? stats.maxLife ?? 1) + bonuses.life),
+    attack: Math.max(0, Number(stats.atk ?? stats.damage ?? attackProfile.damage ?? 0) + bonuses.attack),
+    defense: Math.max(0, Number(stats.def ?? 0) + bonuses.defense),
+    range: Math.max(0, Number(attackProfile.range ?? 1) + bonuses.range),
+    precision: Math.max(0, Number(attackProfile.precision ?? 0) + bonuses.precision),
+    startingSpecialCounters: Math.max(0, Number(stats.startingSpecialCounters ?? stats.specialCounters ?? 0) + bonuses.specialCounters),
+    pureUnlocked: bonuses.pureUnlocked,
+    pureGenerationBase: basePureGeneration,
+    pureGeneration: bonuses.pureUnlocked ? basePureGeneration + bonuses.pureGeneration : 0,
+    pureMaxBase: basePureMax,
+    pureMax: bonuses.pureUnlocked ? basePureMax + bonuses.pureMax : 0,
+    abilitySlotsUnlocked: bonuses.nativeAbilitySlots + bonuses.addedAbilitySlots,
+    bonuses,
+  };
+}
+
+function grantCasterExperience(cardOrId, amount = 0, options = {}) {
+  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
+  if (!card || getCardTypeId(card) !== 'kaster') return null;
+  const gain = Math.max(0, Math.floor(Number(amount) || 0));
+  const progress = getCasterProgress(card);
+  if (!gain) return progress;
+  progress.totalXp += gain;
+  if (progress.level < CASTER_MAX_LEVEL) progress.xp += gain;
+  const levelsGained = [];
+  while (progress.level < CASTER_MAX_LEVEL) {
+    const required = getCasterXpRequirement(progress.level);
+    if (required <= 0 || progress.xp < required) break;
+    progress.xp -= required;
+    progress.level += 1;
+    levelsGained.push(progress.level);
+  }
+  if (progress.level >= CASTER_MAX_LEVEL) progress.xp = 0;
+  progress.updatedAt = Date.now();
+  rokUserProfile.casterProgress[card.id] = normalizeCasterProgressEntry(progress);
+  if (options.persist !== false) persistRokUserProfile();
+  if (options.render !== false && state?.infoCard?.cardId === card.id && els.cardInfoOverlay?.classList.contains('open')) {
+    if (levelsGained.length && (state.infoCard?.source === 'libraryBuilder' || state.infoCard?.source === 'cardCreator')) {
+      openCardInfo(card.id, state.infoCard?.slotIndex ?? null, state.infoCard?.tab ?? null, { ...state.infoCard });
+    } else {
+      renderCasterLevelProgress(card);
+    }
+  }
+  return { ...rokUserProfile.casterProgress[card.id], gained: gain, levelsGained };
+}
+
+function setCasterLevelForTesting(cardOrId, level = 1) {
+  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
+  if (!card || getCardTypeId(card) !== 'kaster') return null;
+  const safeLevel = Math.max(1, Math.min(CASTER_MAX_LEVEL, Math.floor(Number(level) || 1)));
+  const previous = getCasterProgress(card);
+  rokUserProfile.casterProgress[card.id] = normalizeCasterProgressEntry({ level:safeLevel, xp:0, totalXp:previous.totalXp, updatedAt:Date.now() });
+  persistRokUserProfile();
+  if (state?.infoCard?.cardId === card.id && els.cardInfoOverlay?.classList.contains('open')) openCardInfo(card.id, null, null, state.infoCard || {});
+  return getCasterProgress(card);
+}
+
 function loadRokUserProfile() {
   const raw = safeLocalStorageGet(ROK_USER_PROFILE_STORAGE_KEY);
   if (raw) {
@@ -9312,7 +10278,7 @@ function loadRokUserProfile() {
       const parsed = JSON.parse(raw);
       const parsedPureCrystal = Number(parsed?.pureCrystal);
       rokUserProfile = {
-        schemaVersion: 3,
+        schemaVersion: 4,
         profileId: typeof parsed?.profileId === 'string' && parsed.profileId ? parsed.profileId : 'local_guest',
         collection: normalizeRokUserCollection(parsed?.collection),
         boosters: normalizeRokUserBoosters(parsed?.boosters),
@@ -9321,13 +10287,15 @@ function loadRokUserProfile() {
           : ROK_USER_INITIAL_PURE_CRYSTAL,
         elements: normalizeRokUserResourceMap(parsed?.elements, ROK_USER_RESOURCE_ELEMENT_IDS),
         rarities: normalizeRokUserResourceMap(parsed?.rarities, ROK_USER_RESOURCE_RARITY_IDS),
+        casterProgress: normalizeCasterProgressMap(parsed?.casterProgress),
+        clonedCasterAbilities: normalizeClonedCasterAbilityMap(parsed?.clonedCasterAbilities),
         updatedAt: Number(parsed?.updatedAt) || 0,
       };
     } catch (_) {
-      rokUserProfile = { schemaVersion: 3, profileId: 'local_guest', collection: {}, boosters: {}, pureCrystal: ROK_USER_INITIAL_PURE_CRYSTAL, elements: createEmptyRokUserElementResources(), rarities: createEmptyRokUserRarityResources(), updatedAt: 0 };
+      rokUserProfile = { schemaVersion: 4, profileId: 'local_guest', collection: {}, boosters: {}, pureCrystal: ROK_USER_INITIAL_PURE_CRYSTAL, elements: createEmptyRokUserElementResources(), rarities: createEmptyRokUserRarityResources(), casterProgress: {}, clonedCasterAbilities: {}, updatedAt: 0 };
     }
   } else {
-    rokUserProfile = { schemaVersion: 3, profileId: 'local_guest', collection: {}, boosters: {}, pureCrystal: ROK_USER_INITIAL_PURE_CRYSTAL, elements: createEmptyRokUserElementResources(), rarities: createEmptyRokUserRarityResources(), updatedAt: 0 };
+    rokUserProfile = { schemaVersion: 4, profileId: 'local_guest', collection: {}, boosters: {}, pureCrystal: ROK_USER_INITIAL_PURE_CRYSTAL, elements: createEmptyRokUserElementResources(), rarities: createEmptyRokUserRarityResources(), casterProgress: {}, clonedCasterAbilities: {}, updatedAt: 0 };
     safeLocalStorageSet(ROK_USER_PROFILE_STORAGE_KEY, JSON.stringify(rokUserProfile));
   }
   rokUserModeActive = safeLocalStorageGet(ROK_USER_MODE_STORAGE_KEY) === '1';
@@ -9513,13 +10481,15 @@ function toggleMainMenuUserHudMenu() {
 
 function resetRokUserProfileForTesting() {
   rokUserProfile = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     profileId: 'local_guest',
     collection: {},
     boosters: {},
     pureCrystal: ROK_USER_INITIAL_PURE_CRYSTAL,
     elements: createEmptyRokUserElementResources(),
     rarities: createEmptyRokUserRarityResources(),
+    casterProgress: {},
+    clonedCasterAbilities: {},
     updatedAt: Date.now(),
   };
   if (typeof cardCreatorState !== 'undefined') {
@@ -9581,23 +10551,21 @@ function toggleRokUserMode() {
 const CARD_CREATOR_MAX_QUEUE = 50;
 const CARD_CREATOR_SUPPORTED_TYPES = new Set(['invocation', 'spell', 'ability', 'artifact', 'equipment', 'structure']);
 const CARD_CREATOR_ELEMENT_COLORS = Object.freeze({
-  oscuridad: '#8256ff',
-  luz: '#ffe7a0',
-  fuego: '#ff6d43',
-  agua: '#56d5ff',
-  tierra: '#84c96c',
+  ...Object.fromEntries(Object.keys(DOMINION_COLOR_PALETTE).map(id => [id, getDominionPrimaryColor(id)])),
   catalizadora: '#f3eaff',
 });
 const CARD_CREATOR_RARITY_ASSETS = Object.freeze({
+  // Los nueve sprites conservan su secuencia visual histórica; lo que cambia es
+  // qué rareza lógica ocupa cada escalón de esa secuencia.
   ordinary:'assets/rarities/rarity-ordinary.png',
   uncommon:'assets/rarities/rarity-uncommon.png',
-  extraordinary:'assets/rarities/rarity-extraordinary.png',
-  singular:'assets/rarities/rarity-singular.png',
-  infrequent:'assets/rarities/rarity-infrequent.png',
-  unusual:'assets/rarities/rarity-unusual.png',
-  strange:'assets/rarities/rarity-strange.png',
-  mythic:'assets/rarities/rarity-mythic.png',
-  legendary:'assets/rarities/rarity-legendary.png',
+  infrequent:'assets/rarities/rarity-extraordinary.png',
+  unusual:'assets/rarities/rarity-singular.png',
+  extraordinary:'assets/rarities/rarity-infrequent.png',
+  strange:'assets/rarities/rarity-unusual.png',
+  singular:'assets/rarities/rarity-strange.png',
+  legendary:'assets/rarities/rarity-mythic.png',
+  mythic:'assets/rarities/rarity-legendary.png',
 });
 
 const cardCreatorState = {
@@ -10154,15 +11122,15 @@ function closeCardCreatorMode() {
 const ROK_BOOSTER_RARITY_WEIGHTS = Object.freeze({
   ordinary: 46,
   uncommon: 27,
-  extraordinary: 15,
-  singular: 7,
-  infrequent: 3.2,
-  unusual: 1.4,
-  strange: 0.55,
-  mythic: 0.16,
-  legendary: 0.025,
+  infrequent: 15,
+  unusual: 7,
+  extraordinary: 3.2,
+  strange: 1.4,
+  singular: 0.55,
+  legendary: 0.16,
+  mythic: 0.025,
 });
-const ROK_BOOSTER_RARITY_ORDER = Object.freeze(['ordinary','uncommon','extraordinary','singular','infrequent','unusual','strange','mythic','legendary']);
+const ROK_BOOSTER_RARITY_ORDER = Object.freeze(['ordinary','uncommon','infrequent','unusual','extraordinary','strange','singular','legendary','mythic']);
 const ROK_BOOSTER_TOKEN_CATEGORY_WEIGHTS = Object.freeze({ invocation: 70, structure: 20, kaster: 10 });
 const ROK_BOOSTER_COMPLEMENTARY_TYPES = Object.freeze(['spell', 'ability', 'artifact', 'equipment']);
 const ROK_BOOSTER_INCLUDE_KASTERS = false;
@@ -10173,7 +11141,7 @@ const ROK_BOOSTER_COLLECTIONS = Object.freeze({
     name: 'Japón',
     label: 'Colección Japón',
     originId: ROK_ORIGIN_JAPAN_ID,
-    boxImage: 'assets/boosters/japan-booster-box.png',
+    boxImage: 'assets/boosters/japan-booster-box.webp',
     packImage: 'assets/boosters/japan-booster-pack.png',
     openFrontImage: 'assets/boosters/japan-booster-open-front.png',
     openBackImage: 'assets/boosters/japan-booster-open-back.png',
@@ -10204,7 +11172,7 @@ function createBoosterDebugSampleCard({
   const debugRarityLabels = {
     ordinary: 'Ordinaria',
     uncommon: 'Poco ordinaria',
-    extraordinary: 'Extra ordinaria',
+    extraordinary: 'Extraordinaria',
     singular: 'Singular',
     infrequent: 'Infrecuente',
     unusual: 'Inhabitual',
@@ -10305,7 +11273,7 @@ function registerBoosterDebugSampleCards() {
       id: 'debugBoosterSampleOrdinary',
       name: 'Muestra de Rareza · Ordinaria',
       rarityId: 'ordinary',
-      thumbnailImage: 'assets/spell-gloria-latente.png',
+      thumbnailImage: 'assets/spell-gloria-latente.webp',
       skinImage: 'assets/card-skin-light.png',
       elementId: 'luz',
       attributeId: 'equilibrio',
@@ -10325,9 +11293,9 @@ function registerBoosterDebugSampleCards() {
     },
     {
       id: 'debugBoosterSampleExtraordinary',
-      name: 'Muestra de Rareza · Extra ordinaria',
+      name: 'Muestra de Rareza · Extraordinaria',
       rarityId: 'extraordinary',
-      thumbnailImage: 'assets/spell-emboscada.png',
+      thumbnailImage: 'assets/spell-emboscada.webp',
       skinImage: 'assets/card-skin-darkness.png',
       elementId: 'oscuridad',
       attributeId: 'acecho',
@@ -10338,7 +11306,7 @@ function registerBoosterDebugSampleCards() {
       id: 'debugBoosterSampleSingular',
       name: 'Muestra de Rareza · Singular',
       rarityId: 'singular',
-      thumbnailImage: 'assets/spell-nagayoru.png',
+      thumbnailImage: 'assets/spell-nagayoru.webp',
       skinImage: 'assets/card-skin-darkness.png',
       elementId: 'oscuridad',
       attributeId: 'noche',
@@ -10349,7 +11317,7 @@ function registerBoosterDebugSampleCards() {
       id: 'debugBoosterSampleInfrequent',
       name: 'Muestra de Rareza · Infrecuente',
       rarityId: 'infrequent',
-      thumbnailImage: 'assets/spell-kouuten.png',
+      thumbnailImage: 'assets/spell-kouuten.webp',
       skinImage: 'assets/card-skin-fire.png',
       elementId: 'fuego',
       attributeId: 'asalto',
@@ -10371,7 +11339,7 @@ function registerBoosterDebugSampleCards() {
       id: 'debugBoosterSampleStrange',
       name: 'Muestra de Rareza · Extraña',
       rarityId: 'strange',
-      thumbnailImage: 'assets/spell-interceptar.png',
+      thumbnailImage: 'assets/spell-interceptar.webp',
       skinImage: 'assets/card-skin-water.png',
       elementId: 'agua',
       attributeId: 'artimaña',
@@ -10382,7 +11350,7 @@ function registerBoosterDebugSampleCards() {
       id: 'debugBoosterSampleMythic',
       name: 'Muestra de Rareza · Mítica',
       rarityId: 'mythic',
-      thumbnailImage: 'assets/spell-guren-gan.png',
+      thumbnailImage: 'assets/spell-guren-gan.webp',
       skinImage: 'assets/card-skin-fire.png',
       elementId: 'fuego',
       attributeId: 'cataclismo',
@@ -10401,6 +11369,7 @@ function registerBoosterDebugSampleCards() {
       castPhases: 5,
     },
   ];
+  definitions.sort((a, b) => ROK_BOOSTER_RARITY_ORDER.indexOf(a.rarityId) - ROK_BOOSTER_RARITY_ORDER.indexOf(b.rarityId));
   definitions.forEach(def => {
     if (CARD_LIBRARY[def.id]) {
       CARD_LIBRARY[def.id].boosterDebugSample = true;
@@ -10482,7 +11451,8 @@ function consumeRokUserBoosters(collectionId, amount = 1) {
 }
 
 function getBoosterCardRarityId(card) {
-  if (card?.forceRarityId) return normalizeCardRarityId(card.forceRarityId);
+  const allowForcedRarity = card?.boosterDebugSample === true || card?.allowForcedRarity === true || card?.rarityOverrideMode === 'debug';
+  if (allowForcedRarity && card?.forceRarityId) return normalizeCardRarityId(card.forceRarityId);
   try { return getLibraryBuilderCardRarityId(card) || 'ordinary'; }
   catch (_) {
     try { return getCardVisualRarity(card)?.id || 'ordinary'; }
@@ -11211,6 +12181,23 @@ window.ROK_USER_COLLECTION = {
   getCreatorQueue: () => cardCreatorState.queue.map(entry => ({ cardId: entry.cardId, reward: JSON.parse(JSON.stringify(entry.reward || {})) })),
 };
 
+window.ROK_CASTER_PROGRESS = {
+  maxLevel: CASTER_MAX_LEVEL,
+  get: cardId => getCasterProgress(cardId),
+  getStats: cardId => getCasterProgressedStats(cardId),
+  getRequirement: level => getCasterXpRequirement(level),
+  getBonuses: level => getCasterLevelBonuses(level),
+  grantXP: (cardId, amount = 0) => grantCasterExperience(cardId, amount),
+  setLevelForTesting: (cardId, level = 1) => setCasterLevelForTesting(cardId, level),
+  milestones: CASTER_LEVEL_MILESTONES,
+};
+
+window.ROK_CASTER_ABILITY_CLONING = {
+  getRule: () => ({ ...CASTER_ABILITY_CLONE_RULE }),
+  getStoredCopies: () => ({ ...(rokUserProfile.clonedCasterAbilities || {}) }),
+  canClone: () => ({ ok:false, reason:'El proceso/costo de extracción todavía no está definido.' }),
+};
+
 const TEST_MATCH_MODE_ID = 'test';
 const TEST_BOT_CARD_ID = 'ninjaMinokageNoKurai'; // legado del escenario anterior; ya no forma parte del Spellbook de prueba.
 const TEST_BOT_TACTICA_CARD_ID = TACTICA_GUERRA_CARD_ID; // legado del escenario anterior.
@@ -11267,6 +12254,8 @@ function init() {
   buildPhaseBoxes();
   buildGrid();
   bindEvents();
+  installTokenTuningTool();
+  startBattleInactivityWatchdog();
   buildFountainFx();
   if (ROK_DEV_FORCE_LIBRARY_START && typeof openLibraryBuilderScreen === 'function') {
     openLibraryBuilderScreen();
@@ -11282,9 +12271,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Agua',
     domain: 'Conocimiento',
     available: true,
-    accent: '#58d9ff',
-    accentFrom: '#37dfff',
-    accentTo: '#0d6b67',
+    accent: getDominionPrimaryColor('agua'),
+    accentFrom: getDominionPrimaryColor('agua'),
+    accentTo: getDominionSecondaryColor('agua'),
     marker: { x: 86.6, y: 49.6 },
     description: 'Una región dedicada al dominio del Conocimiento. Sus Kasters controlan el avance de la partida mediante ralentización, Silencio, manipulación del kasteo y del consumo elemental. Sus Spellbooks suelen adaptar la arena a entornos acuáticos y recurren principalmente al daño mágico o elemental para imponer un juego defensivo, analítico y meticuloso.'
   },
@@ -11293,9 +12282,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Fuego',
     domain: 'Destrucción',
     available: false,
-    accent: '#ff7a36',
-    accentFrom: '#d83a2f',
-    accentTo: '#ff8b26',
+    accent: getDominionPrimaryColor('fuego'),
+    accentFrom: getDominionPrimaryColor('fuego'),
+    accentTo: getDominionSecondaryColor('fuego'),
     marker: { x: 52.4, y: 48.8 },
     description: 'El dominio de la Destrucción concentra ataques potentes, explosiones, Quemadura y presión directa. Sus Spellbooks buscan mantener una ofensiva constante, romper defensas y resolver la partida antes de que el rival pueda estabilizar su estrategia.'
   },
@@ -11304,9 +12293,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Tierra',
     domain: 'Vida',
     available: false,
-    accent: '#6e8f45',
-    accentFrom: '#5b7433',
-    accentTo: '#6c4932',
+    accent: getDominionPrimaryColor('tierra'),
+    accentFrom: getDominionPrimaryColor('tierra'),
+    accentTo: getDominionSecondaryColor('tierra'),
     marker: { x: 19.5, y: 48.2 },
     description: 'La Vida se especializa en sustentabilidad elemental, sobreproducción de recursos e invocaciones terrestres muy resistentes. La experiencia gira alrededor de fortalecer el campo y mantener una presencia difícil de eliminar durante combates prolongados.'
   },
@@ -11315,9 +12304,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Rayo',
     domain: 'Energía',
     available: false,
-    accent: '#e9dd67',
-    accentFrom: '#f4de2d',
-    accentTo: '#b9f1ff',
+    accent: getDominionPrimaryColor('rayo'),
+    accentFrom: getDominionPrimaryColor('rayo'),
+    accentTo: getDominionSecondaryColor('rayo'),
     marker: { x: 50.4, y: 80.1 },
     description: 'La Energía favorece ataques rápidos y precisos, velocidad superior y efectos de área capaces de paralizar, confundir o debilitar temporalmente. Es una región de ritmo dinámico, presión continua y aprovechamiento inmediato de las aperturas del rival.'
   },
@@ -11326,9 +12315,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Muerte',
     domain: 'Corrupción',
     available: false,
-    accent: '#be2f81',
-    accentFrom: '#cf2f97',
-    accentTo: '#0d0d12',
+    accent: getDominionPrimaryColor('muerte'),
+    accentFrom: getDominionPrimaryColor('muerte'),
+    accentTo: getDominionSecondaryColor('muerte'),
     marker: { x: 40.8, y: 47.7 },
     description: 'La Corrupción utiliza daño progresivo, resurrección, propagación de efectos negativos y robo de vida. Sus enfrentamientos exigen administrar riesgos elevados mientras el campo se llena de amenazas que pueden regresar o seguir debilitando al rival con el paso de las fases.'
   },
@@ -11337,9 +12326,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Luz',
     domain: 'Revelación',
     available: false,
-    accent: '#efd97c',
-    accentFrom: '#d8af32',
-    accentTo: '#ffffff',
+    accent: getDominionPrimaryColor('luz'),
+    accentFrom: getDominionPrimaryColor('luz'),
+    accentTo: getDominionSecondaryColor('luz'),
     marker: { x: 31.1, y: 20.4 },
     description: 'Revelación combina información táctica, purificación, curación y estructuras defensivas. Sus poderosas invocaciones voladoras recompensan la supervivencia hasta etapas avanzadas, donde la región puede transformar una defensa sólida en una ofensiva dominante.'
   },
@@ -11348,9 +12337,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Oscuridad',
     domain: 'Misterio',
     available: false,
-    accent: '#7b4cd3',
-    accentFrom: '#6a3fc8',
-    accentTo: '#08070c',
+    accent: getDominionPrimaryColor('oscuridad'),
+    accentFrom: getDominionPrimaryColor('oscuridad'),
+    accentTo: getDominionSecondaryColor('oscuridad'),
     marker: { x: 27.6, y: 62.7 },
     description: 'Misterio gira alrededor del sigilo, las trampas, la ocultación y el engaño. Sus invocaciones suelen tener mucho daño y poca vida, por lo que sobreviven mediante efectos que les permiten desaparecer, reaparecer y alterar la toma de decisiones del rival.'
   },
@@ -11359,9 +12348,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Viento',
     domain: 'Libertad',
     available: false,
-    accent: '#cbf6d2',
-    accentFrom: '#f8ffff',
-    accentTo: '#70be76',
+    accent: getDominionPrimaryColor('viento'),
+    accentFrom: getDominionPrimaryColor('viento'),
+    accentTo: getDominionSecondaryColor('viento'),
     marker: { x: 53.0, y: 15.5 },
     description: 'Libertad domina la movilidad y la ofensiva aérea. Los Kasters de Viento despliegan invocaciones rápidas, ágiles y difíciles de fijar, capaces de ignorar obstáculos terrestres y convertir el posicionamiento en su principal ventaja táctica.'
   },
@@ -11370,9 +12359,9 @@ const ADVENTURE_WORLD_ZONES = [
     element: 'Sonido',
     domain: 'Vibración',
     available: false,
-    accent: '#e7c5d6',
-    accentFrom: '#d9dadd',
-    accentTo: '#f0b8cb',
+    accent: getDominionPrimaryColor('sonido'),
+    accentFrom: getDominionPrimaryColor('sonido'),
+    accentTo: getDominionSecondaryColor('sonido'),
     marker: { x: 35.3, y: 75.7 },
     description: 'Vibración usa el sonido para desorientar, debilitar y manipular emocionalmente a las invocaciones rivales. Sus propias unidades no dependen de grandes estadísticas: sobreviven explotando control mental, Confusión y potenciaciones temporales.'
   },
@@ -11389,10 +12378,64 @@ const ADVENTURE_WORLD_ZONES = [
   }
 ];
 
+// Registro único de arenas. Aventura, PvP y Tutorial consumen la misma fuente
+// para evitar que preview y arena real se desincronicen entre modos.
+const ROK_ARENA_REGISTRY = Object.freeze({
+  classic: Object.freeze({
+    id: 'classic', label: 'Arena Japonesa',
+    previewImage: 'assets/arenas/previews/japan.webp', battleImage: 'assets/arena.webp',
+    pvp: true, adventure: false, tutorial: false,
+  }),
+  egypt: Object.freeze({
+    id: 'egypt', label: 'Arena Egipcia',
+    previewImage: 'assets/arenas/previews/egypt.webp', battleImage: 'assets/arena-egipto.webp',
+    pvp: true, adventure: false, tutorial: false,
+  }),
+  kiara: Object.freeze({
+    id: 'kiara', label: 'Arena de Kiara',
+    previewImage: 'assets/arenas/previews/kiara.webp', battleImage: 'assets/arenas/battle/kiara.png',
+    pvp: true, adventure: true, tutorial: false,
+  }),
+  kaelor: Object.freeze({
+    id: 'kaelor', label: 'Arena de Kaelor',
+    previewImage: 'assets/arenas/previews/kaelor.webp', battleImage: 'assets/arenas/battle/kaelor.png',
+    pvp: true, adventure: true, tutorial: false,
+  }),
+  sahrkel: Object.freeze({
+    id: 'sahrkel', label: 'Arena de Sahrkel',
+    previewImage: 'assets/arenas/previews/sahrkel.webp', battleImage: 'assets/arenas/battle/sahrkel.png',
+    pvp: true, adventure: true, tutorial: false,
+  }),
+  ilyan: Object.freeze({
+    id: 'ilyan', label: 'Arena de Ilyan',
+    previewImage: 'assets/arenas/previews/ilyan.webp', battleImage: 'assets/arenas/battle/ilyan.png',
+    pvp: true, adventure: true, tutorial: false,
+  }),
+  aurek: Object.freeze({
+    id: 'aurek', label: 'Arena de Aurek',
+    previewImage: 'assets/arenas/previews/aurek.png', battleImage: 'assets/arenas/battle/aurek.png',
+    pvp: true, adventure: true, tutorial: false,
+  }),
+  tutorial: Object.freeze({
+    id: 'tutorial', label: 'Arena de Tutorial',
+    previewImage: 'assets/arenas/previews/tutorial.webp', battleImage: 'assets/arenas/battle/tutorial.webp',
+    pvp: false, adventure: false, tutorial: true,
+  }),
+});
+window.ROK_ARENA_REGISTRY = ROK_ARENA_REGISTRY;
+window.ROK_ARENAS = {
+  get: id => ROK_ARENA_REGISTRY[String(id || '')] || null,
+  list: () => Object.values(ROK_ARENA_REGISTRY),
+  listPvp: () => Object.values(ROK_ARENA_REGISTRY).filter(arena => arena.pvp),
+  getTutorial: () => ROK_ARENA_REGISTRY.tutorial,
+};
+
 const ADVENTURE_WATER_ENCOUNTERS = [
   {
     id: 'enigma-apprentice',
+    level: 1,
     label: 'Kiara, Décima Aprendiz de Enigma',
+    cardId: 'kasterKiaraWater',
     subtitle: 'Control mágico adaptable',
     casterQualities: ['Hechicero'],
     raceId: 'human',
@@ -11401,43 +12444,35 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     available: true,
     marker: { x: 58.5, y: 58.0 },
     image: 'assets/adventure/casters/enigma-apprentice.png',
-    arena: {
-      label: 'Arena de Kiara',
-      previewImage: 'assets/adventure/arenas/kiara-preview.png',
-      battleImage: 'assets/adventure/arenas/kiara-arena.png',
-      previewFocusX: 50,
-      previewFocusY: 56,
-      battleFocusX: 50,
-      battleFocusY: 50
-    },
+    arenaId: 'kiara',
     domain: 'Agua · Conocimiento',
     domains: [
-      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
+      { element: 'Agua', domain: 'Conocimiento', tint: getDominionPrimaryColor('agua') }
     ],
     imageScale: 1.04,
     imageShiftX: '0%',
     imageShiftY: '0%',
     deckTitle: 'Control mágico adaptable',
     qualities: ['Telépata', 'Sabio', 'Hechicero'],
-    description: 'Su Spellbook de Agua está construido alrededor de Telépatas, Sabios y Hechiceros. No busca imponerse por fuerza bruta: analiza tu plan, interfiere tus kasteos, altera tiempos y convierte tus mejores jugadas en decisiones arriesgadas.',
+    description: 'Primera Aprendiz de Nigma. Su Spellbook de Agua se probará inicialmente alrededor de Telépatas, Sabios y Hechiceros mientras se termina de validar la lógica de sus cartas y del bot.',
     stats: {
       sections: [
         {
           title: 'Base',
           items: [
             { label: 'Ataque', value: 1, max: 10, display: '1', fillFrom: '#64ddff', fillTo: '#88f7ff' },
-            { label: 'Vida', value: 12, max: 20, display: '12', fillFrom: '#4bd3ff', fillTo: '#5ac4a2' },
-            { label: 'Alcance', value: 4, max: 8, display: '4', fillFrom: '#8ad0ff', fillTo: '#b4f3ff' },
-            { label: 'Movilidad', value: 2, max: 6, display: '2', fillFrom: '#8fd7ff', fillTo: '#c6f4ff' },
-            { label: 'Esc. especial', value: 1, max: 4, display: '1', fillFrom: '#c9e7ff', fillTo: '#89c7ff' },
-            { label: 'Esc. completo', value: 0, max: 1, display: '0', fillFrom: '#d4ddff', fillTo: '#9bc4ff' }
+            { label: 'Vida', value: 8, max: 20, display: '8', fillFrom: '#4bd3ff', fillTo: '#5ac4a2' },
+            { label: 'Defensa', value: 1, max: 10, display: '1', fillFrom: '#8fd7ff', fillTo: '#c6f4ff' },
+            { label: 'Alcance', value: 2, max: 8, display: '2', fillFrom: '#8ad0ff', fillTo: '#b4f3ff' },
+            { label: 'Precisión', value: 4, max: 10, display: '4 PDA', fillFrom: '#c9e7ff', fillTo: '#89c7ff' },
+            { label: 'Special Counter', value: 0, max: 4, display: '0', fillFrom: '#d4ddff', fillTo: '#9bc4ff' }
           ]
         },
         {
           title: 'Elemento puro',
           items: [
-            { label: 'EP por ciclo', value: 1, max: 5, display: '+1', fillFrom: '#5ef0de', fillTo: '#57bd8c' },
-            { label: 'EP máximo', value: 6, max: 10, display: '6', fillFrom: '#4fd8d6', fillTo: '#58bca8' }
+            { label: 'EP por Extracción rival', value: 0, max: 5, display: 'Bloqueado · N4', fillFrom: '#5ef0de', fillTo: '#57bd8c' },
+            { label: 'EP máximo', value: 0, max: 9, display: 'Bloqueado · N4', fillFrom: '#4fd8d6', fillTo: '#58bca8' }
           ]
         }
       ],
@@ -11456,18 +12491,20 @@ const ADVENTURE_WATER_ENCOUNTERS = [
   },
   {
     id: 'kaelor-rompiente',
+    level: 1,
     label: 'Kaelor de la Rompiente',
     subtitle: 'Formación de rompiente',
-    casterQualities: ['Guerrero'],
+    casterQualities: ['Caudillo'],
     raceId: 'human',
     raceLabel: 'Humano',
     gender: 'male',
     available: true,
     marker: { x: 58.0, y: 15.7 },
     image: 'assets/adventure/casters/kaelor-rompiente.png',
+    arenaId: 'kaelor',
     domain: 'Agua · Conocimiento',
     domains: [
-      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
+      { element: 'Agua', domain: 'Conocimiento', tint: getDominionPrimaryColor('agua') }
     ],
     imageScale: 1.03,
     imageShiftX: '0%',
@@ -11511,7 +12548,8 @@ const ADVENTURE_WATER_ENCOUNTERS = [
   },
   {
     id: 'sahrkel-oraculo-abisal',
-    label: "Sahr'kel, Oráculo Abisal",
+    level: 1,
+    label: 'Sahrkel, Oráculo Abisal',
     subtitle: 'Geoformación acuática',
     casterQualities: ['Hechicero'],
     raceId: '',
@@ -11520,16 +12558,17 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     available: true,
     marker: { x: 49.4, y: 34.5 },
     image: 'assets/adventure/casters/sahrkel-oraculo-abisal.png',
+    arenaId: 'sahrkel',
     domain: 'Agua · Conocimiento',
     domains: [
-      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' }
+      { element: 'Agua', domain: 'Conocimiento', tint: getDominionPrimaryColor('agua') }
     ],
     imageScale: 1.02,
     imageShiftX: '0%',
     imageShiftY: '0%',
     deckTitle: 'Bioma acuático progresivo',
     qualities: ['Gélido', 'Hechicero', 'Sanador'],
-    description: "Sahr'kel no domina el Agua solo como hechizo, sino como ecosistema. Convierte la arena en bioma acuático, favorece criaturas acuáticas y anfibias, y mezcla frío, Posma y sanación para pelear cada vez mejor dentro de su propio entorno.",
+    description: 'Sahrkel no domina el Agua solo como hechizo, sino como ecosistema. Convierte la arena en bioma acuático, favorece criaturas acuáticas y anfibias, y mezcla frío, Posma y sanación para pelear cada vez mejor dentro de su propio entorno.',
     stats: {
       sections: [
         {
@@ -11566,6 +12605,7 @@ const ADVENTURE_WATER_ENCOUNTERS = [
   },
   {
     id: 'ilyan-marea-electrica',
+    level: 1,
     label: 'Ilyan de la Marea Eléctrica',
     subtitle: 'Control y ataque rápido',
     casterQualities: ['Hechicero'],
@@ -11575,10 +12615,11 @@ const ADVENTURE_WATER_ENCOUNTERS = [
     available: true,
     marker: { x: 52.0, y: 74.0 },
     image: 'assets/adventure/casters/ilyan-marea-electrica.png',
+    arenaId: 'ilyan',
     domain: 'Agua · Conocimiento + Rayo · Energía',
     domains: [
-      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' },
-      { element: 'Rayo', domain: 'Energía', tint: '#f2da42' }
+      { element: 'Agua', domain: 'Conocimiento', tint: getDominionPrimaryColor('agua') },
+      { element: 'Rayo', domain: 'Energía', tint: getDominionPrimaryColor('rayo') }
     ],
     imageScale: 1.0,
     imageShiftX: '0%',
@@ -11622,20 +12663,23 @@ const ADVENTURE_WATER_ENCOUNTERS = [
   },
   {
     id: 'aurek-sabio-belico',
+    level: 4,
     label: 'Aurek Vhal, Sabio Bélico',
+    isBoss: true,
     subtitle: 'Guerra de información',
-    casterQualities: ['Sabio'],
+    casterQualities: ['Sabio', 'Maestro'],
     raceId: 'human',
     raceLabel: 'Humano',
     gender: 'male',
     available: true,
     marker: { x: 54.2, y: 89.2 },
     image: 'assets/adventure/casters/aurek-sabio-belico.png',
+    arenaId: 'aurek',
     domain: 'Agua · Conocimiento + Luz · Revelación + Oscuridad · Misterio',
     domains: [
-      { element: 'Agua', domain: 'Conocimiento', tint: '#58d9ff' },
-      { element: 'Luz', domain: 'Revelación', tint: '#e7ca62' },
-      { element: 'Oscuridad', domain: 'Misterio', tint: '#8b63f1' }
+      { element: 'Agua', domain: 'Conocimiento', tint: getDominionPrimaryColor('agua') },
+      { element: 'Luz', domain: 'Revelación', tint: getDominionPrimaryColor('luz') },
+      { element: 'Oscuridad', domain: 'Misterio', tint: getDominionPrimaryColor('oscuridad') }
     ],
     imageScale: 1.01,
     imageShiftX: '0%',
@@ -11691,7 +12735,7 @@ const ADVENTURE_PLAYER_CASTERS = [
     raceId: '',
     raceLabel: 'Raza por definir',
     gender: 'female',
-    domains: [],
+    domains: [{ element: 'Tierra', domain: 'Vida', tint: getDominionPrimaryColor('tierra') }],
     previewDominants: ['Guerrero', 'Extractor', 'Sanador'],
     stats: {
       sections: [
@@ -11730,7 +12774,7 @@ const adventureState = {
   encounterId: 'enigma-apprentice',
   playerCasterId: 'starter-player-kaster',
   playerSpellbookCardIds: [],
-  encounterSpellbooks: {},
+  encounterSpellbooks: { 'enigma-apprentice': ['kiaraFaroleraUmbral'] },
   noticeTimer: null,
   battleIntroTimer: null
 };
@@ -11744,22 +12788,82 @@ function getAdventureWaterEncounter(id) {
 }
 
 const ADVENTURE_QUALITY_META = {
-  'Hechicero': { icon: 'assets/qualities/adventure-hechicero.png', tint: '#63e2ff', summary: 'Presión y control mediante magia, Silencio, inmunidad mágica y purificación.', description: 'Hechicero representa una orientación intensiva al uso de efectos mágicos. En Aventura se usa para señalar Spellbooks que prefieren interferencia, control y respuestas arcanas por encima del combate físico.' },
-  'Telépata': { icon: 'assets/qualities/adventure-telepata.svg', tint: '#c0a8ff', summary: 'Control mental, Sugestión y negación de kasteos.', description: 'Telépata se especializa en alterar decisiones y acciones rivales mediante control mental, Sugestión y Telepatía.' },
-  'Sabio': { icon: 'assets/qualities/adventure-sabio.svg', tint: '#f1d676', summary: 'Optimización táctica, manipulación de tiempos y lectura del plan rival.', description: 'Sabio mejora la capacidad de juego mediante adaptación, análisis y modificación de tiempos de kasteo o enfriamiento.' },
-  'Guardián': { icon: 'assets/qualities/adventure-guardian.png', tint: '#84d8ff', summary: 'Protección de posiciones, cobertura y bloqueo del avance.', description: 'Guardián sostiene líneas defensivas y controla el acceso a zonas clave de la arena.' },
-  'Guerrero': { icon: 'assets/qualities/adventure-guerrero.png', tint: '#74c9ff', qualityId: 'warrior', summary: 'Combate físico equilibrado, evasión, agilidad y defensa.', description: 'Guerrero representa invocaciones preparadas para sostener combate directo sin renunciar a movilidad y defensas físicas.' },
-  'Caudillo': { icon: 'assets/qualities/adventure-caudillo.png', tint: '#d9bf74', qualityId: 'caudillo', summary: 'Mando, coordinación y reposicionamiento de aliados.', description: 'Caudillo dirige formaciones y convierte la colocación de las unidades en una herramienta estratégica.' },
-  'Gélido': { icon: 'assets/qualities/adventure-gelido.png', tint: '#95e9ff', summary: 'Ralentización, Posma, Congelamiento y control por frío.', description: 'Gélido es una cualidad de Agua orientada a limitar movilidad y acciones mediante frío progresivo.' },
-  'Sanador': { icon: 'assets/qualities/adventure-sanador.svg', tint: '#7fdcc6', summary: 'Curación, sobrecuración y recuperación sostenida.', description: 'Sanador mantiene invocaciones activas durante más tiempo y puede convertir curación excedente en protección.' },
-  'Extractor': { icon: 'assets/qualities/adventure-extractor.svg', tint: '#9fdc72', summary: 'Extracción, ciclado y aceleración de recursos elementales.', description: 'Extractor mejora la disponibilidad de elementos y la velocidad con la que vuelven a estar disponibles para nuevos kasteos.' },
-  'Sobrenatural': { icon: 'assets/qualities/adventure-sobrenatural.svg', tint: '#e8dc7b', qualityId: 'supernatural', summary: 'Interacciones anómalas y efectos fuera de patrones normales.', description: 'Sobrenatural habilita piezas con reglas no convencionales y sinergias que rompen expectativas de combate.' },
-  'Maestro': { icon: 'assets/qualities/adventure-maestro.svg', tint: '#e4c98a', qualityId: 'master', summary: 'Perfeccionamiento de técnicas y habilidades enseñadas.', description: 'Maestro recompensa disciplina, entrenamiento y mejora de las capacidades de otras piezas.' },
-  'Científico': { icon: 'assets/qualities/adventure-cientifico.svg', tint: '#85d4ff', summary: 'Equipos, trampas, artefactos y enseñanza de habilidades.', description: 'Científico convierte herramientas, trampas y equipamiento en parte central del plan táctico.' }
+  // Texto canónico: cualidades_wix_import.xlsx. Los iconos/tintes son solo UI.
+  'Hechicero': {
+    icon: 'assets/qualities/adventure-hechicero.png', tint: '#63e2ff',
+    summary: 'Unidad centrada en efectos mágicos de alto rendimiento, con presión táctica y menor dependencia del combate físico.',
+    description: 'La cualidad Hechicero indica que la carta está orientada al uso intensivo de habilidades, poderes o efectos mágicos como eje principal de su rendimiento. Esta cualidad suele favorecer la potencia, precisión, alcance, frecuencia o utilidad de sus efectos, además de permitir una mejor explotación de factores ofensivos, de control, debilitamiento o soporte según el enfoque de la carta. Las unidades con esta cualidad tienden a depender menos del combate físico directo y más de su capacidad para generar presión, ventaja o alteración táctica mediante recursos mágicos.'
+  },
+  'Telépata': {
+    icon: 'assets/qualities/adventure-telepata.svg', tint: '#c0a8ff',
+    summary: 'Intervención mental enfocada en percepción, sugestión, control, confusión y presión psíquica.',
+    description: 'La cualidad Telépata indica que la carta está orientada a la percepción, manipulación o intervención mental sobre otras unidades dentro de la arena. Esta cualidad suele favorecer habilidades, poderes o factores enfocados en detectar, alterar o condicionar pensamientos, intenciones, decisiones o estados mentales del objetivo, permitiendo aplicar control, confusión, sugestión, lectura anticipada o presión psíquica según el diseño de la carta. Las cartas con esta cualidad tienden a generar ventaja mediante interacción mental directa, debilitando la respuesta del enemigo o ampliando la capacidad estratégica del usuario a través de efectos que no dependen exclusivamente del contacto físico o del daño convencional.'
+  },
+  'Sabio': {
+    icon: 'assets/qualities/adventure-sabio.svg', tint: '#f1d676',
+    summary: 'Aumenta eficiencia táctica mediante conocimiento aplicado, cálculo, optimización y mejor lectura del combate.',
+    description: 'La cualidad Sabio indica que la carta está orientada al uso avanzado de conocimiento, cálculo y comprensión táctica para mejorar su eficiencia dentro de la partida. Esta cualidad suele favorecer la optimización de habilidades, poderes, factores o decisiones de juego, permitiendo una mejor adaptación a condiciones variables de la arena y una explotación más precisa de recursos, sinergias o ventanas de acción. Las cartas con esta cualidad tienden a generar ventaja mediante lectura estratégica, uso refinado de sus capacidades y acceso a interacciones que dependen más de conocimiento aplicado que de fuerza o resistencia bruta.'
+  },
+  'Guardián': {
+    icon: 'assets/qualities/adventure-guardian.png', tint: '#84d8ff',
+    summary: 'Especialista en escolta y protección localizada que rinde mejor cerca del objetivo que debe resguardar.',
+    description: 'La cualidad Guardián indica que la carta está orientada a la defensa activa de un objetivo específico, normalmente el kaster o una invocación designada. Esta cualidad suele favorecer la movilidad de la unidad alrededor de su objetivo a proteger y le otorga mejoras de estadísticas o rendimiento mientras permanezca cerca de él. Las cartas con esta cualidad tienden a funcionar mejor en tareas de escolta, cobertura, interceptación y protección localizada, aumentando su valor defensivo y táctico cuando operan dentro del radio de resguardo de su objetivo.'
+  },
+  'Guerrero': {
+    icon: 'assets/qualities/adventure-guerrero.png', tint: '#74c9ff', qualityId: 'warrior',
+    summary: 'Combatiente versátil de presión frontal con equilibrio entre daño, resistencia, precisión y respuesta defensiva.',
+    description: 'La cualidad Guerrero indica que la carta está orientada al combate directo con un balance sólido entre daño y resistencia. Esta cualidad suele favorecer un rendimiento estable en enfrentamientos frontales, con menor dependencia de armadura pesada y, en algunos casos, uso limitado de escudos. Las cartas con esta cualidad destacan por el buen manejo de una o varias armas, además de poder incorporar factores defensivos como evasión o esquive, junto con ataques rápidos y precisos. Su función es representar unidades versátiles de combate cercano o intermedio, capaces de sostener presión ofensiva sin perder eficiencia táctica ni capacidad de respuesta defensiva.'
+  },
+  'Caudillo': {
+    icon: 'assets/qualities/adventure-caudillo.png', tint: '#d9bf74', qualityId: 'caudillo',
+    summary: 'Liderazgo táctico que mejora, coordina y reposiciona invocaciones aliadas mediante mando, aura y soporte funcional.',
+    description: 'La cualidad Caudillo indica que la carta está orientada a la dirección táctica y a la creación de jugadas mediante la manipulación de invocaciones aliadas. Esta cualidad suele favorecer habilidades, poderes o factores enfocados en modificar la posición, el movimiento, la restauración y la interacción de otras unidades del mismo bando, además de potenciar sus estadísticas de forma individual, grupal o en área mediante auras y efectos de mando. Las cartas con esta cualidad tienden a desempeñar un rol estratégico dentro de la formación, facilitando combinaciones, mejorando la coordinación del equipo y aumentando el valor funcional de las invocaciones aliadas.'
+  },
+  'Gélido': {
+    icon: 'assets/qualities/adventure-gelido.png', tint: '#95e9ff',
+    summary: 'Aplica frío para ralentizar, debilitar restauración y limitar movilidad o reacción del objetivo.',
+    description: 'La cualidad Gélido indica que la carta está orientada a la aplicación de efectos de frío sobre unidades, zonas o interacciones del combate. Esta cualidad suele favorecer habilidades, poderes o factores enfocados en ralentizar, inmovilizar parcialmente, alterar la restauración, debilitar la respuesta del objetivo o condicionar su movilidad y desempeño mediante congelación, escarcha o descenso extremo de temperatura. Las cartas con esta cualidad tienden a generar ventaja mediante control progresivo, limitación del ritmo enemigo y creación de ventanas tácticas a partir de la reducción de reacción, desplazamiento o eficiencia del oponente.'
+  },
+  'Sanador': {
+    icon: 'assets/qualities/adventure-sanador.svg', tint: '#7fdcc6',
+    summary: 'Restaura vida, funcionalidad y permanencia aliada mediante curación, limpieza y soporte sostenido.',
+    description: 'La cualidad Sanador indica que la carta está orientada a restaurar vida, recuperar funcionalidad y sostener la permanencia de unidades aliadas dentro de la arena. Esta cualidad suele favorecer habilidades, poderes o factores enfocados en curación directa, curación progresiva, restauración parcial, limpieza de efectos perjudiciales o recuperación condicionada según el estado de la unidad objetivo. Las cartas con esta cualidad tienden a generar ventaja al prolongar la vida útil de invocaciones clave, reducir el desgaste del equipo y facilitar la continuidad táctica del jugador durante combates prolongados.'
+  },
+  'Extractor': {
+    icon: 'assets/qualities/adventure-extractor.svg', tint: '#9fdc72',
+    summary: 'Mejora la obtención, recuperación y conversión de recursos para sostener ritmo y eficiencia de juego.',
+    description: 'La cualidad Extractor indica que la carta está orientada a obtener, acelerar, recuperar o aprovechar recursos de forma más eficiente que una unidad convencional. Esta cualidad suele favorecer habilidades, poderes o factores enfocados en extraer elementos, generar recursos adicionales, recuperar recursos consumidos o convertir ciertas condiciones del combate en ventaja económica o funcional para el usuario. Las cartas con esta cualidad tienden a destacar por su capacidad de sostener el ritmo del jugador, ampliar su disponibilidad de recursos y facilitar jugadas que dependen de una mayor eficiencia en la obtención o administración de energía, materiales o reservas activas dentro de la partida.'
+  },
+  'Sobrenatural': {
+    icon: 'assets/qualities/adventure-sobrenatural.svg', tint: '#e8dc7b', qualityId: 'supernatural',
+    summary: 'Opera con propiedades anómalas que rompen patrones normales de combate y habilitan ventajas atípicas.',
+    description: 'La cualidad Sobrenatural indica que la carta opera mediante propiedades que exceden el comportamiento físico, biológico o técnico convencional dentro de la arena. Esta cualidad suele favorecer habilidades, poderes o factores que desafían interacciones normales del combate, permitiendo a la unidad acceder a efectos, resistencias, alteraciones o formas de intervención que no dependen de una lógica natural común. Las cartas con esta cualidad tienden a destacar por su capacidad de generar ventajas atípicas, romper patrones esperados de respuesta y ejecutar acciones cuya naturaleza se percibe como anómala, mística o fuera de regla frente a unidades de funcionamiento ordinario.'
+  },
+  'Maestro': {
+    icon: 'assets/qualities/adventure-maestro.svg', tint: '#e4c98a', qualityId: 'master',
+    summary: 'Dominio superior de una especialidad que mejora su propio rendimiento y puede perfeccionar otras invocaciones.',
+    description: 'La cualidad Maestro indica que la carta posee un dominio avanzado sobre una disciplina, estilo, técnica o función específica, permitiéndole ejecutar sus recursos con un nivel superior de precisión, eficiencia y control. Esta cualidad suele favorecer la mejora técnica de habilidades, poderes, factores o interacciones ligadas a su especialidad, aumentando su rendimiento, estabilidad o capacidad de explotación táctica. Además, las cartas con esta cualidad tienden a enfocarse en compartir, enseñar o transferir parte de sus conocimientos a otras invocaciones compatibles, ya sea mejorando factores existentes o permitiendo el acceso a habilidades que el propio maestro domina, según cómo esté formulada la carta. Su función es representar unidades de alto nivel técnico capaces no solo de rendir por sí mismas, sino también de elevar el desempeño de otras cartas mediante instrucción, transmisión o perfeccionamiento.'
+  },
+  'Científico': {
+    icon: 'assets/qualities/adventure-cientifico.svg', tint: '#85d4ff',
+    summary: 'Manipula equipos con uso avanzado, adaptación técnica y acceso excepcional a recursos fuera del flujo normal.',
+    description: 'La cualidad Científico indica que la carta está orientada a la manipulación, optimización y acceso avanzado al sistema de equipos. Esta cualidad suele favorecer efectos que permiten mejorar, duplicar, adaptar o utilizar equipos bajo condiciones especiales, incluso cuando estos se encuentran fuera del spellbook o no forman parte de la colección disponible del usuario. Su funcionamiento puede basarse en rasgos de adaptación, tipo de kasteo, categoría funcional o propiedades técnicas del equipo, permitiendo generar interacciones excepcionales con recursos que normalmente estarían fuera del alcance directo de la carta. Las unidades con esta cualidad tienden a destacar por su capacidad de ampliar las posibilidades tácticas del jugador mediante el uso no convencional de equipos.'
+  }
 };
+function getQualityProfileByIdOrLabel(value = '') {
+  const key = String(value || '').trim();
+  if (!key) return null;
+  const direct = getQualityProfile(key);
+  if (direct) return direct;
+  const normalized = key.toLocaleLowerCase('es');
+  return Object.values(QUALITY_DB).find(profile => String(profile?.label || '').trim().toLocaleLowerCase('es') === normalized) || null;
+}
+
 function getAdventureQualityMeta(name = '') {
   const label = String(name || '').trim();
   if (ADVENTURE_QUALITY_META[label]) return ADVENTURE_QUALITY_META[label];
+  const profile = getQualityProfileByIdOrLabel(label);
+  if (profile) return { icon: profile.icon || '', tint: '#8fb7c4', qualityId: profile.id };
   return { icon: '', tint: '#8fb7c4' };
 }
 
@@ -11779,8 +12883,13 @@ function renderAdventureRolePill(role = {}) {
 
 const ADVENTURE_DOMAIN_ID_BY_LABEL = {
   Agua: 'agua',
+  Tierra: 'tierra',
+  Viento: 'viento',
   Luz: 'luz',
   Oscuridad: 'oscuridad',
+  Fuego: 'fuego',
+  Muerte: 'muerte',
+  Sonido: 'sonido',
   Rayo: 'rayo'
 };
 
@@ -11848,37 +12957,130 @@ function renderAdventureCasterIdentity(entity = {}) {
   return parts.join('');
 }
 
-function openAdventureQualityInfo(name = '') {
-  const meta = getAdventureQualityMeta(name);
-  if (meta.qualityId && typeof getQualityProfile === 'function' && getQualityProfile(meta.qualityId)) {
-    openCardMetaInfo('quality', meta.qualityId, null);
-    return;
+function synchronizeAdventureQualityTextWithCanonicalSource() {
+  Object.entries(ADVENTURE_QUALITY_META).forEach(([label, meta]) => {
+    const existing = getQualityProfileByIdOrLabel(label);
+    if (!existing) return;
+    // El archivo de cualidades es la fuente canónica de resumen/descripción.
+    if (meta.summary) existing.summary = meta.summary;
+    if (meta.description) existing.description = meta.description;
+  });
+}
+synchronizeAdventureQualityTextWithCanonicalSource();
+
+function getAdventureQualityModalProfile(name = '') {
+  const label = String(name || '').trim();
+  if (!label) return null;
+  const meta = getAdventureQualityMeta(label);
+  const existing = getQualityProfileByIdOrLabel(label);
+  if (existing) {
+    if (meta.summary) existing.summary = meta.summary;
+    if (meta.description) existing.description = meta.description;
+    return existing;
   }
-  if (!els.cardMetaInfoOverlay) return;
-  if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = meta.icon ? `<img src="${meta.icon}" alt="${name}">` : '';
-  if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Cualidad: ${name}`;
-  if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = 'Cualidad · enfoque de jugabilidad';
-  if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${meta.summary || 'Cualidad de R.O.K.'}</p><p>${meta.description || 'Su descripción se completará cuando la cualidad quede definida en el sistema.'}</p>`;
-  els.cardMetaInfoOverlay.classList.add('open');
-  els.cardMetaInfoOverlay.setAttribute('aria-hidden', 'false');
+  const id = `adventure_${label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}`;
+  if (!QUALITY_DB[id]) {
+    QUALITY_DB[id] = {
+      id,
+      label,
+      icon: meta.icon || '',
+      focus: meta.summary || label,
+      classification: { applicationModes: [], applicationTags: [], natures: [], functionalCategories: [] },
+      tags: [],
+      summary: meta.summary || 'Cualidad de R.O.K.',
+      description: meta.description || '',
+      adventureSupplemental: true,
+    };
+  }
+  return QUALITY_DB[id];
+}
+
+function getAdventurePrimaryDomainId(encounter = getAdventureWaterEncounter(adventureState.encounterId)) {
+  const primary = Array.isArray(encounter?.domains) ? encounter.domains[0] : null;
+  return ADVENTURE_DOMAIN_ID_BY_LABEL[String(primary?.element || '').trim()] || 'agua';
+}
+
+function applyAdventureMetaInfoColor(domainId = getAdventurePrimaryDomainId()) {
+  const overlay = els.cardMetaInfoOverlay || document.getElementById('cardMetaInfoOverlay');
+  if (!overlay) return;
+  const normalized = normalizeDominionId(domainId) || 'agua';
+  overlay.classList.add('card-element-meta-theme');
+  overlay.dataset.metaTheme = normalized;
+  overlay.dataset.elementTheme = normalized;
+  overlay.style.setProperty('--meta-theme-color', getDominionPrimaryColor(normalized, 'agua'));
+  overlay.style.setProperty('--meta-theme-secondary-color', getDominionSecondaryColor(normalized, 'agua'));
+}
+
+function ensureAdventureSharedMetaInfoOverlay() {
+  const overlay = els.cardMetaInfoOverlay || document.getElementById('cardMetaInfoOverlay');
+  if (!overlay) return null;
+  // Aventura oculta .game-shell completa. El modal real de metainformación
+  // vive originalmente dentro de ese árbol, así que lo montamos en body para
+  // poder reutilizar EXACTAMENTE el mismo modal de las cartas sin duplicarlo.
+  if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
+  overlay.style.removeProperty('visibility');
+  overlay.style.removeProperty('pointer-events');
+  return overlay;
+}
+
+function openAdventureQualityInfo(name = '') {
+  const profile = getAdventureQualityModalProfile(name);
+  if (!profile) return;
+  if (!ensureAdventureSharedMetaInfoOverlay()) return;
+  // Reutiliza el modal real de las cartas, pero su color pertenece al dominio
+  // principal del Kaster que está siendo previsualizado en Aventura.
+  openCardMetaInfo('quality', profile.id, null);
+  applyAdventureMetaInfoColor(getAdventurePrimaryDomainId());
 }
 
 function openAdventureDomainInfo(domainId = '') {
   if (!domainId) return;
+  if (!ensureAdventureSharedMetaInfoOverlay()) return;
   openCardMetaInfo('domain', domainId, null);
+  applyAdventureMetaInfoColor(domainId);
 }
 
 function loadAdventureProgress() {
   try {
     const raw = safeLocalStorageGet(ADVENTURE_PROGRESS_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
+    const encounterWinCounts = {};
+    if (parsed?.encounterWinCounts && typeof parsed.encounterWinCounts === 'object') {
+      Object.entries(parsed.encounterWinCounts).forEach(([encounterId, amount]) => {
+        const count = Math.max(0, Math.floor(Number(amount) || 0));
+        if (count > 0) encounterWinCounts[String(encounterId)] = count;
+      });
+    }
+    const elementBoosterRewards = {};
+    if (parsed?.elementBoosterRewards && typeof parsed.elementBoosterRewards === 'object') {
+      Object.entries(parsed.elementBoosterRewards).forEach(([elementId, amount]) => {
+        const count = Math.max(0, Math.floor(Number(amount) || 0));
+        if (count > 0) elementBoosterRewards[String(elementId)] = count;
+      });
+    }
+    const firstVictoryRewards = {};
+    if (parsed?.firstVictoryRewards && typeof parsed.firstVictoryRewards === 'object') {
+      Object.entries(parsed.firstVictoryRewards).forEach(([encounterId, reward]) => {
+        if (!reward || typeof reward !== 'object') return;
+        firstVictoryRewards[String(encounterId)] = {
+          boosterElementId: String(reward.boosterElementId || ''),
+          boosterTier: Math.max(1, Math.floor(Number(reward.boosterTier) || 1)),
+          cardId: CARD_LIBRARY[reward.cardId] && getCardTypeId(CARD_LIBRARY[reward.cardId]) !== 'kaster' ? String(reward.cardId) : '',
+          cardPending: Boolean(reward.cardPending),
+          awardedAt: Math.max(0, Number(reward.awardedAt) || 0),
+        };
+      });
+    }
     return {
       defeatedEncounterIds: Array.isArray(parsed.defeatedEncounterIds) ? parsed.defeatedEncounterIds : [],
       unlockedCardIds: Array.isArray(parsed.unlockedCardIds) ? parsed.unlockedCardIds : [],
       spellbookCardIds: Array.isArray(parsed.spellbookCardIds) ? parsed.spellbookCardIds : [],
+      encounterWinCounts,
+      elementBoosterRewards,
+      firstVictoryRewards,
     };
   } catch (_) {
-    return { defeatedEncounterIds: [], unlockedCardIds: [], spellbookCardIds: [] };
+    return { defeatedEncounterIds: [], unlockedCardIds: [], spellbookCardIds: [], encounterWinCounts: {}, elementBoosterRewards: {}, firstVictoryRewards: {} };
   }
 }
 
@@ -11890,14 +13092,157 @@ function isAdventureSpellbookEditingUnlocked() {
   return loadAdventureProgress().defeatedEncounterIds.includes('enigma-apprentice');
 }
 
-function markAdventureEncounterDefeated(encounterId, rewardCardIds = []) {
+function getAdventureCasterVictoryXp(encounterId, previousWins = 0) {
+  const encounter = getAdventureWaterEncounter(encounterId);
+  const firstVictory = Math.max(0, Number(previousWins) || 0) <= 0;
+  if (encounter?.isBoss) return firstVictory ? 10 : 2;
+  return firstVictory ? 5 : 1;
+}
+
+function getAdventurePrimaryElementId(entity = null) {
+  const domains = Array.isArray(entity?.domains) ? entity.domains : [];
+  const label = String(domains[0]?.element || '').trim();
+  const mapped = ADVENTURE_DOMAIN_ID_BY_LABEL[label] || label.toLocaleLowerCase('es');
+  return ROK_USER_RESOURCE_ELEMENT_IDS.includes(mapped) ? mapped : '';
+}
+
+function getAdventurePlayerRewardElementId(options = {}) {
+  const explicit = String(options?.playerElementId || '').trim().toLocaleLowerCase('es');
+  if (ROK_USER_RESOURCE_ELEMENT_IDS.includes(explicit)) return explicit;
+  return getAdventurePrimaryElementId(getAdventurePlayerCaster());
+}
+
+function getAdventureEncounterRewardElementId(encounterId = '') {
+  return getAdventurePrimaryElementId(getAdventureWaterEncounter(encounterId));
+}
+
+function getAdventureEncounterSpellbookRewardPool(encounterId = '') {
+  const ids = Array.isArray(adventureState?.encounterSpellbooks?.[encounterId]) ? adventureState.encounterSpellbooks[encounterId] : [];
+  return [...new Set(ids.map(String))].filter(cardId => {
+    const card = CARD_LIBRARY[cardId];
+    return card && getCardTypeId(card) !== 'kaster';
+  });
+}
+
+function pickAdventureRivalRewardCardId(encounterId = '') {
+  const pool = getAdventureEncounterSpellbookRewardPool(encounterId);
+  if (!pool.length) return '';
+  return pool[Math.floor(Math.random() * pool.length)] || pool[0] || '';
+}
+
+function pickAdventureRandomRarityRewards(count = 2) {
+  const amount = Math.max(0, Math.floor(Number(count) || 0));
+  const rewards = [];
+  for (let index = 0; index < amount; index += 1) {
+    const rarityId = ROK_USER_RESOURCE_RARITY_IDS[Math.floor(Math.random() * ROK_USER_RESOURCE_RARITY_IDS.length)] || ROK_USER_RESOURCE_RARITY_IDS[0];
+    if (rarityId) rewards.push(rarityId);
+  }
+  return rewards;
+}
+
+function getAdventureVictoryRewardPreview(encounterId, previousWins = 0, options = {}) {
+  const firstVictory = Math.max(0, Number(previousWins) || 0) <= 0;
+  if (firstVictory) {
+    return {
+      kind: 'firstVictory',
+      xp: getAdventureCasterVictoryXp(encounterId, previousWins),
+      booster: { elementId: getAdventurePlayerRewardElementId(options), tier: 1, amount: 1, reserved: true },
+      rivalCard: { source: 'encounterSpellbook', random: true },
+    };
+  }
+  return {
+    kind: 'repeatVictory',
+    xp: getAdventureCasterVictoryXp(encounterId, previousWins),
+    elementResource: { elementId: getAdventureEncounterRewardElementId(encounterId), amount: 10 },
+    rarityResources: { amount: 2, random: true },
+  };
+}
+
+function resolvePendingAdventureFirstVictoryCardReward(encounterId = '') {
   const progress = loadAdventureProgress();
+  const record = progress.firstVictoryRewards?.[encounterId];
+  if (!record?.cardPending || record.cardId) return record || null;
+  const cardId = pickAdventureRivalRewardCardId(encounterId);
+  if (!cardId) return record;
+  grantRokUserCollectionCard(cardId, 1, { persist: false, render: false });
+  record.cardId = cardId;
+  record.cardPending = false;
+  progress.firstVictoryRewards[encounterId] = record;
+  saveAdventureProgress(progress);
+  persistRokUserProfile();
+  if (document.body.classList.contains('rok-library-mode')) renderLibraryBuilder();
+  return { ...record };
+}
+
+function grantAdventureVictoryRewards(encounterId, previousWins = 0, options = {}) {
+  const firstVictory = Math.max(0, Number(previousWins) || 0) <= 0;
+  if (firstVictory) {
+    const progress = loadAdventureProgress();
+    const existing = progress.firstVictoryRewards?.[encounterId];
+    if (existing?.awardedAt) return { kind: 'firstVictory', duplicateProtected: true, ...existing };
+    const boosterElementId = getAdventurePlayerRewardElementId(options);
+    if (boosterElementId) {
+      progress.elementBoosterRewards = { ...(progress.elementBoosterRewards || {}) };
+      progress.elementBoosterRewards[boosterElementId] = Math.max(0, Number(progress.elementBoosterRewards[boosterElementId]) || 0) + 1;
+    }
+    const cardId = pickAdventureRivalRewardCardId(encounterId);
+    if (cardId) grantRokUserCollectionCard(cardId, 1, { persist: false, render: false });
+    const rewardRecord = {
+      boosterElementId,
+      boosterTier: 1,
+      cardId,
+      cardPending: !cardId,
+      awardedAt: Date.now(),
+    };
+    progress.firstVictoryRewards = { ...(progress.firstVictoryRewards || {}), [encounterId]: rewardRecord };
+    saveAdventureProgress(progress);
+    persistRokUserProfile();
+    if (document.body.classList.contains('rok-library-mode')) renderLibraryBuilder();
+    return {
+      kind: 'firstVictory',
+      booster: boosterElementId ? { elementId: boosterElementId, tier: 1, amount: 1, reserved: true } : null,
+      cardId,
+      cardPending: !cardId,
+    };
+  }
+
+  const enemyElementId = getAdventureEncounterRewardElementId(encounterId);
+  const rarityIds = pickAdventureRandomRarityRewards(2);
+  if (enemyElementId) grantRokUserElementResource(enemyElementId, 10, { persist: false });
+  rarityIds.forEach(rarityId => grantRokUserRarityResource(rarityId, 1, { persist: false }));
+  persistRokUserProfile();
+  return {
+    kind: 'repeatVictory',
+    elementResource: enemyElementId ? { elementId: enemyElementId, amount: 10 } : null,
+    rarityIds,
+  };
+}
+
+function awardAdventureCasterExperience(casterCardId, encounterId, previousWins = null, options = {}) {
+  const casterCard = CARD_LIBRARY[casterCardId];
+  if (!casterCard || getCardTypeId(casterCard) !== 'kaster') return null;
+  const progress = loadAdventureProgress();
+  const winsBefore = previousWins == null
+    ? Math.max(0, Number(progress.encounterWinCounts?.[encounterId]) || 0)
+    : Math.max(0, Number(previousWins) || 0);
+  const xp = getAdventureCasterVictoryXp(encounterId, winsBefore);
+  return grantCasterExperience(casterCard, xp, { persist: options.persist !== false, render: options.render !== false });
+}
+
+function markAdventureEncounterDefeated(encounterId, rewardCardIds = [], options = {}) {
+  const progress = loadAdventureProgress();
+  const previousWins = Math.max(0, Number(progress.encounterWinCounts?.[encounterId]) || 0);
+  progress.encounterWinCounts = { ...(progress.encounterWinCounts || {}), [encounterId]: previousWins + 1 };
   if (!progress.defeatedEncounterIds.includes(encounterId)) progress.defeatedEncounterIds.push(encounterId);
   rewardCardIds.forEach(cardId => {
     if (CARD_LIBRARY[cardId] && !progress.unlockedCardIds.includes(cardId)) progress.unlockedCardIds.push(cardId);
   });
   saveAdventureProgress(progress);
+  const casterCardId = String(options?.playerCasterCardId || '');
+  const casterXpResult = casterCardId ? awardAdventureCasterExperience(casterCardId, encounterId, previousWins) : null;
+  const adventureRewardResult = grantAdventureVictoryRewards(encounterId, previousWins, options);
   renderAdventurePreparation();
+  return { encounterId, previousWins, currentWins: previousWins + 1, casterXpResult, adventureRewardResult };
 }
 
 function getAdventureSpellbookCardIds() {
@@ -11906,18 +13251,45 @@ function getAdventureSpellbookCardIds() {
   return adventureState.playerSpellbookCardIds.filter(id => CARD_LIBRARY[id]);
 }
 
-function getAdventureDominantQualitiesFromCardIds(cardIds = [], fallback = []) {
-  const counts = new Map();
-  cardIds.forEach(cardId => {
+function getSpellbookDominantQualityStatsFromCardIds(cardIds = [], fallback = []) {
+  const statsByQuality = new Map();
+  for (const cardId of Array.isArray(cardIds) ? cardIds : []) {
     const card = CARD_LIBRARY[cardId];
-    if (!card || card.type !== 'invocation') return;
-    (card.qualities || []).forEach(qualityId => counts.set(qualityId, (counts.get(qualityId) || 0) + 1));
+    if (!card || card.type !== 'invocation') continue;
+    const battlePoints = Math.max(0, Number(getCardBattlePointsValue(card) || 0));
+    const qualityIds = [...new Set(Array.isArray(card.qualities) ? card.qualities.filter(Boolean) : [])];
+    qualityIds.forEach(qualityId => {
+      const profile = getQualityProfileByIdOrLabel(qualityId);
+      const id = profile?.id || String(qualityId);
+      const current = statsByQuality.get(id) || {
+        id,
+        label: profile?.label || String(qualityId),
+        count: 0,
+        pbSum: 0,
+      };
+      current.count += 1;
+      current.pbSum += battlePoints;
+      statsByQuality.set(id, current);
+    });
+  }
+  const ranked = [...statsByQuality.values()].sort((a, b) =>
+    Number(b.count || 0) - Number(a.count || 0)
+    || Number(b.pbSum || 0) - Number(a.pbSum || 0)
+    || String(a.label || '').localeCompare(String(b.label || ''), 'es')
+  );
+  if (ranked.length) return ranked.slice(0, 3);
+  return (Array.isArray(fallback) ? fallback : []).slice(0, 3).map(value => {
+    const profile = getQualityProfileByIdOrLabel(value);
+    return { id: profile?.id || String(value), label: profile?.label || String(value), count: 0, pbSum: 0, preview: true };
   });
-  const result = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))
-    .slice(0, 3)
-    .map(([qualityId]) => getQualityProfile(qualityId)?.label || qualityId);
-  return result.length ? result : fallback.slice(0, 3);
+}
+
+function getAdventureDominantQualitiesFromCardIds(cardIds = [], fallback = []) {
+  return getSpellbookDominantQualityStatsFromCardIds(cardIds, fallback).map(entry => entry.label);
+}
+
+function getAdventureIntroTokenImage(card) {
+  return card?.tokenImage || '';
 }
 
 function getAdventureRepresentativeInvocationArt(qualityLabel, cardIds = [], fallbackIndex = 0) {
@@ -11928,47 +13300,155 @@ function getAdventureRepresentativeInvocationArt(qualityLabel, cardIds = [], fal
       const profile = getQualityProfile(qualityId);
       return (profile?.label || qualityId) === qualityLabel;
     });
-    if (matches) return card.tokenImage || card.artImage || ADVENTURE_PREVIEW_INVOCATION_ART[fallbackIndex % ADVENTURE_PREVIEW_INVOCATION_ART.length];
+    if (!matches) continue;
+    const tokenImage = getAdventureIntroTokenImage(card);
+    if (tokenImage) return tokenImage;
   }
   return ADVENTURE_PREVIEW_INVOCATION_ART[fallbackIndex % ADVENTURE_PREVIEW_INVOCATION_ART.length];
 }
 
 function getAdventureDominantEntries(entity, cardIds = []) {
   const fallback = entity?.previewDominants || entity?.qualities || [];
-  const qualities = getAdventureDominantQualitiesFromCardIds(cardIds, fallback);
-  return qualities.slice(0, 3).map((quality, index) => ({
-    quality,
-    image: getAdventureRepresentativeInvocationArt(quality, cardIds, index),
-    preview: !cardIds.length,
+  const ranked = getSpellbookDominantQualityStatsFromCardIds(cardIds, fallback);
+  return ranked.slice(0, 3).map((entry, index) => ({
+    quality: entry.label,
+    qualityId: entry.id,
+    count: Number(entry.count || 0),
+    pbSum: Number(entry.pbSum || 0),
+    image: getAdventureRepresentativeInvocationArt(entry.label, cardIds, index),
+    preview: !cardIds.length || entry.preview === true,
   }));
 }
 
-function renderAdventureDominantChips(entries = [], compact = false) {
-  return entries.map(entry => `<span class="adventure-dominant-chip${compact ? ' compact' : ''}">${renderAdventureQualityIcon(entry.quality)}<span>${entry.quality}</span>${entry.preview ? '<small>PREVIEW</small>' : ''}</span>`).join('');
+function renderAdventureDominantChips(entries = [], compact = false, interactive = false) {
+  return entries.map(entry => {
+    const className = `adventure-dominant-chip${compact ? ' compact' : ''}${interactive ? ' interactive' : ''}`;
+    const content = `${renderAdventureQualityIcon(entry.quality)}<span>${entry.quality}</span>`;
+    return interactive
+      ? `<button type="button" class="${className}" data-adventure-quality="${entry.quality}" aria-label="Abrir información de la cualidad ${entry.quality}">${content}</button>`
+      : `<span class="${className}">${content}</span>`;
+  }).join('');
 }
 
 function renderAdventureDominantFigures(entries = [], side = 'left') {
-  return entries.map((entry, index) => `<div class="adventure-intro-invocation adventure-intro-invocation-${side}" style="--intro-index:${index}"><img src="${entry.image}" alt="Previsualización ${entry.quality}"><span>${renderAdventureQualityIcon(entry.quality)}${entry.quality}</span></div>`).join('');
+  return entries.slice(0, 3).map((entry, index) => {
+    const meta = getAdventureQualityMeta(entry.quality);
+    const diagnostic = entry.count ? `${entry.quality} · ${entry.count} invocaciones · ${entry.pbSum} PB acumulados` : entry.quality;
+    return `<div class="adventure-intro-dominant-emblem adventure-intro-dominant-${side}" style="--intro-index:${index};--quality-tint:${meta.tint || '#8fb7c4'}" title="${diagnostic}" aria-label="${entry.quality}"><span class="adventure-intro-dominant-foil" aria-hidden="true"></span>${renderAdventureQualityIcon(entry.quality)}</div>`;
+  }).join('');
+}
+
+function getAdventureStrongestInvocationCard(cardIds = []) {
+  let best = null;
+  let bestScore = -Infinity;
+  for (const cardId of Array.isArray(cardIds) ? cardIds : []) {
+    const card = CARD_LIBRARY[cardId];
+    if (!card || card.type !== 'invocation') continue;
+    const score = Number(getCardBattlePointsValue(card) || 0);
+    if (!best || score > bestScore) {
+      best = card;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function getAdventureStrongestInvocationPreview(cardIds = [], options = {}) {
+  const card = getAdventureStrongestInvocationCard(cardIds);
+  const tokenImage = getAdventureIntroTokenImage(card);
+  if (tokenImage) {
+    return {
+      card,
+      image: tokenImage,
+      name: card.shortName || card.name || 'Invocación'
+    };
+  }
+  if (card) return null;
+  const fallbackImages = Array.isArray(options?.fallbackImages)
+    ? options.fallbackImages.filter(Boolean)
+    : [];
+  const image = fallbackImages[0] || ADVENTURE_PREVIEW_INVOCATION_ART[0] || '';
+  if (!image) return null;
+  return {
+    card: null,
+    image,
+    name: options?.fallbackName || 'Invocación destacada',
+    placeholder: true,
+  };
+}
+
+function normalizeIntroPalette(colors = []) {
+  const unique = [];
+  (Array.isArray(colors) ? colors : []).forEach(color => {
+    const value = String(color || '').trim();
+    if (value && !unique.includes(value)) unique.push(value);
+  });
+  while (unique.length < 3) unique.push(unique[unique.length - 1] || getDominionPrimaryColor('agua'));
+  return unique.slice(0, 3);
+}
+
+function getEntityDominionIds(entity = {}) {
+  const ids = [];
+  const pushId = value => {
+    const id = normalizeDominionId(value);
+    if (id && !ids.includes(id)) ids.push(id);
+  };
+  if (Array.isArray(entity?.domains)) {
+    entity.domains.forEach(entry => pushId(entry?.id || entry?.elementId || entry?.element));
+  }
+  pushId(entity?.domainId || entity?.elementId || entity?.element);
+  if (entity?.domain?.elementId) pushId(entity.domain.elementId);
+  return ids;
+}
+
+function getAdventureIntroPalette(entity = {}) {
+  const ids = getEntityDominionIds(entity);
+  if (!ids.length) return normalizeIntroPalette([getDominionPrimaryColor('oscuridad'), getDominionSecondaryColor('oscuridad')]);
+  const colors = ids.map(id => getDominionPrimaryColor(id));
+  colors.push(getDominionSecondaryColor(ids[0]));
+  return normalizeIntroPalette(colors);
+}
+
+function applyAdventureIntroPalette(sideEl, colors = []) {
+  if (!sideEl) return;
+  const palette = Array.isArray(colors) ? colors : [];
+  sideEl.style.setProperty('--intro-color-1', palette[0] || getDominionPrimaryColor('agua'));
+  sideEl.style.setProperty('--intro-color-2', palette[1] || palette[0] || getDominionSecondaryColor('agua'));
+  sideEl.style.setProperty('--intro-color-3', palette[2] || palette[1] || palette[0] || getDominionSecondaryColor('agua'));
+}
+
+function syncVersusLetterColors(introRoot, rivalSideEl, playerSideEl) {
+  if (!introRoot || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return;
+  const readPrimary = (sideEl, fallback) => {
+    if (!sideEl) return fallback;
+    return window.getComputedStyle(sideEl).getPropertyValue('--intro-color-1').trim() || fallback;
+  };
+  introRoot.style.setProperty('--vs-rival-color', readPrimary(rivalSideEl, getDominionPrimaryColor('agua')));
+  introRoot.style.setProperty('--vs-player-color', readPrimary(playerSideEl, getDominionPrimaryColor('tierra')));
 }
 
 function getAdventureArenaConfig(encounter) {
   const custom = encounter?.arena && typeof encounter.arena === 'object' ? encounter.arena : {};
+  const registryId = String(encounter?.arenaId || custom.id || '').trim();
+  const registered = ROK_ARENA_REGISTRY[registryId] || null;
   const fallbackLabel = `Arena de ${encounter?.label || 'Agua'}`;
   return {
-    label: custom.label || fallbackLabel,
-    previewImage: custom.previewImage || 'assets/adventure/water-region-map.png',
-    battleImage: custom.battleImage || 'assets/arena.webp',
-    previewFocusX: Number.isFinite(Number(custom.previewFocusX)) ? Number(custom.previewFocusX) : (encounter?.marker?.x || 50),
-    previewFocusY: Number.isFinite(Number(custom.previewFocusY)) ? Number(custom.previewFocusY) : (encounter?.marker?.y || 50),
+    id: registered?.id || registryId || '',
+    label: custom.label || registered?.label || fallbackLabel,
+    previewImage: custom.previewImage || registered?.previewImage || 'assets/adventure/water-region-map.webp',
+    battleImage: custom.battleImage || registered?.battleImage || 'assets/arena.webp',
+    previewFocusX: Number.isFinite(Number(custom.previewFocusX)) ? Number(custom.previewFocusX) : 50,
+    previewFocusY: Number.isFinite(Number(custom.previewFocusY)) ? Number(custom.previewFocusY) : 50,
     battleFocusX: Number.isFinite(Number(custom.battleFocusX)) ? Number(custom.battleFocusX) : 50,
     battleFocusY: Number.isFinite(Number(custom.battleFocusY)) ? Number(custom.battleFocusY) : 50,
-    custom: Boolean(custom.previewImage || custom.battleImage),
+    custom: Boolean(registered || custom.previewImage || custom.battleImage),
   };
 }
 
 function getAdventureArenaPreview(encounter) {
   const arena = getAdventureArenaConfig(encounter);
   return {
+    id: arena.id,
     label: arena.label,
     image: arena.previewImage,
     focusX: arena.previewFocusX,
@@ -11981,6 +13461,7 @@ function getAdventureArenaPreview(encounter) {
 function getAdventureBattleArena(encounter) {
   const arena = getAdventureArenaConfig(encounter);
   return {
+    id: arena.id,
     label: arena.label,
     image: arena.battleImage,
     focusX: arena.battleFocusX,
@@ -11995,19 +13476,27 @@ function renderAdventurePreparation() {
   const encounter = getAdventureWaterEncounter(adventureState.encounterId);
   const playerCaster = getAdventurePlayerCaster();
   const playerCardIds = getAdventureSpellbookCardIds();
-  const playerDominants = getAdventureDominantEntries({ previewDominants: playerCaster.previewDominants }, playerCardIds);
-  const rivalCardIds = adventureState.encounterSpellbooks[encounter.id] || [];
-  const rivalDominants = getAdventureDominantEntries(encounter, rivalCardIds);
   const arena = getAdventureArenaPreview(encounter);
+
+  const rivalPrepPalette = getAdventureIntroPalette(encounter);
+  const playerPrepPalette = getAdventureIntroPalette(playerCaster);
+  if (els.adventurePrepRivalCard) {
+    els.adventurePrepRivalCard.style.setProperty('--prep-domain-primary', rivalPrepPalette[0]);
+    els.adventurePrepRivalCard.style.setProperty('--prep-domain-secondary', rivalPrepPalette[1] || rivalPrepPalette[0]);
+  }
+  if (els.adventurePrepPlayerCard) {
+    els.adventurePrepPlayerCard.style.setProperty('--prep-domain-primary', playerPrepPalette[0]);
+    els.adventurePrepPlayerCard.style.setProperty('--prep-domain-secondary', playerPrepPalette[1] || playerPrepPalette[0]);
+  }
 
   if (els.adventurePrepRivalImage) els.adventurePrepRivalImage.src = encounter.image;
   if (els.adventurePrepRivalName) els.adventurePrepRivalName.textContent = encounter.label;
-  if (els.adventurePrepRivalDominants) els.adventurePrepRivalDominants.innerHTML = renderAdventureDominantChips(rivalDominants, true);
+  if (els.adventurePrepRivalLevel) els.adventurePrepRivalLevel.textContent = `NIVEL ${Math.max(1, Number(encounter.level) || 1)}`;
   if (els.adventurePrepPlayerImage) els.adventurePrepPlayerImage.src = playerCaster.image;
   if (els.adventurePrepPlayerName) els.adventurePrepPlayerName.textContent = playerCaster.label;
-  if (els.adventurePrepPlayerDominants) els.adventurePrepPlayerDominants.innerHTML = renderAdventureDominantChips(playerDominants, true);
   if (els.adventurePrepArenaImage) {
     els.adventurePrepArenaImage.src = arena.image;
+    els.adventurePrepArenaImage.alt = `Previsualización de ${arena.label}`;
     els.adventurePrepArenaImage.style.objectPosition = `${arena.focusX}% ${arena.focusY}%`;
     els.adventurePrepArenaImage.dataset.customArena = arena.custom ? 'true' : 'false';
   }
@@ -12106,14 +13595,40 @@ function startAdventureBattleIntro() {
   const encounter = getAdventureWaterEncounter(adventureState.encounterId);
   const playerCaster = getAdventurePlayerCaster();
   if (!els.adventureBattleIntro) return;
-  const rivalEntries = getAdventureDominantEntries(encounter, adventureState.encounterSpellbooks[encounter.id] || []);
-  const playerEntries = getAdventureDominantEntries({ previewDominants: playerCaster.previewDominants }, getAdventureSpellbookCardIds());
-  if (els.adventureIntroRivalImage) els.adventureIntroRivalImage.src = encounter.image;
+  const rivalCardIds = adventureState.encounterSpellbooks[encounter.id] || [];
+  const playerCardIds = getAdventureSpellbookCardIds();
+  els.adventureIntroRivalChampion = ensureVersusIntroChampionElement(
+    els.adventureIntroRivalSide, els.adventureIntroRivalChampion, 'adventureIntroRivalChampion', 'Invocación rival destacada'
+  );
+  els.adventureIntroPlayerChampion = ensureVersusIntroChampionElement(
+    els.adventureIntroPlayerSide, els.adventureIntroPlayerChampion, 'adventureIntroPlayerChampion', 'Invocación destacada del jugador'
+  );
+  const rivalEntries = getAdventureDominantEntries(encounter, rivalCardIds);
+  const playerEntries = getAdventureDominantEntries({ previewDominants: playerCaster.previewDominants }, playerCardIds);
+  if (els.adventureIntroRivalImage) {
+    els.adventureIntroRivalImage.src = encounter.image;
+    applyVsLayoutCalibrationToElement(els.adventureIntroRivalImage, `kaster:adventure:${encounter.id}`);
+  }
   if (els.adventureIntroRivalName) els.adventureIntroRivalName.textContent = encounter.label;
   if (els.adventureIntroRivalDominants) els.adventureIntroRivalDominants.innerHTML = renderAdventureDominantFigures(rivalEntries, 'left');
-  if (els.adventureIntroPlayerImage) els.adventureIntroPlayerImage.src = playerCaster.image;
+  if (els.adventureIntroPlayerImage) {
+    els.adventureIntroPlayerImage.src = playerCaster.image;
+    applyVsLayoutCalibrationToElement(els.adventureIntroPlayerImage, `kaster:adventure-player:${playerCaster.id}`);
+  }
   if (els.adventureIntroPlayerName) els.adventureIntroPlayerName.textContent = playerCaster.label;
   if (els.adventureIntroPlayerDominants) els.adventureIntroPlayerDominants.innerHTML = renderAdventureDominantFigures(playerEntries, 'right');
+  setVersusIntroChampion(els.adventureIntroRivalChampion, rivalCardIds, 'Invocación rival destacada', {
+    fallbackImages: [...rivalEntries.map(entry => entry.image).filter(Boolean), ...ADVENTURE_PREVIEW_INVOCATION_ART],
+    fallbackName: `Invocación de ${encounter.label || 'rival'}`,
+  });
+  setVersusIntroChampion(els.adventureIntroPlayerChampion, playerCardIds, 'Invocación destacada del jugador', {
+    fallbackImages: [...playerEntries.map(entry => entry.image).filter(Boolean), ...ADVENTURE_PREVIEW_INVOCATION_ART],
+    fallbackName: `Invocación de ${playerCaster.label || 'jugador'}`,
+  });
+  applyAdventureIntroPalette(els.adventureIntroRivalSide, getAdventureIntroPalette(encounter, rivalEntries));
+  applyAdventureIntroPalette(els.adventureIntroPlayerSide, getAdventureIntroPalette(playerCaster, playerEntries));
+  syncVersusLetterColors(els.adventureBattleIntro, els.adventureIntroRivalSide, els.adventureIntroPlayerSide);
+  startVersusIntroEnergy(els.adventureBattleIntro);
   els.adventureBattleIntro.setAttribute('aria-hidden', 'false');
   els.adventureBattleIntro.classList.remove('active', 'counting', 'combat-ready');
   void els.adventureBattleIntro.offsetWidth;
@@ -12123,34 +13638,923 @@ function startAdventureBattleIntro() {
   adventureState.battleIntroTimer = setTimeout(() => {
     els.adventureBattleIntro?.classList.add('counting');
     let count = 3;
-    if (els.adventureIntroCountdown) els.adventureIntroCountdown.textContent = String(count);
+    if (els.adventureIntroCountdown) {
+      els.adventureIntroCountdown.textContent = String(count);
+      triggerVersusIntroCountdownPulse(els.adventureIntroCountdown);
+    }
     const interval = setInterval(() => {
       count -= 1;
       if (count >= 1) {
-        if (els.adventureIntroCountdown) els.adventureIntroCountdown.textContent = String(count);
+        if (els.adventureIntroCountdown) {
+          els.adventureIntroCountdown.textContent = String(count);
+          triggerVersusIntroCountdownPulse(els.adventureIntroCountdown);
+        }
         return;
       }
       clearInterval(interval);
-      if (els.adventureIntroCountdown) els.adventureIntroCountdown.textContent = '';
+      if (els.adventureIntroCountdown) {
+        els.adventureIntroCountdown.textContent = '';
+        resetVersusIntroCountdownPulse(els.adventureIntroCountdown);
+      }
       els.adventureBattleIntro?.classList.add('combat-ready');
       setTimeout(() => launchPreparedAdventureBattle(), 1050);
-    }, 700);
+    }, 1000);
   }, 2600);
 }
+
+let onlineVersusIntroTimer = null;
+let onlineVersusIntroStartAt = 0;
+
+const versusIntroEnergyState = new WeakMap();
+
+function ensureVersusIntroEnergyLayer(sideEl, variant = 'streaks') {
+  if (!sideEl) return null;
+  const safeVariant = variant === 'particles' ? 'particles' : 'streaks';
+  const className = `adventure-intro-energy-layer adventure-intro-${safeVariant}-layer`;
+  let layer = sideEl.querySelector(`:scope > .adventure-intro-${safeVariant}-layer`);
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.className = className;
+    sideEl.insertBefore(layer, sideEl.firstChild || null);
+  }
+  return layer;
+}
+
+function parseIntroCssColor(color) {
+  const value = String(color || '').trim();
+  if (!value) return null;
+  if (value.startsWith('#')) {
+    const hex = value.slice(1);
+    if (hex.length === 3) {
+      return {
+        r: parseInt(hex[0] + hex[0], 16),
+        g: parseInt(hex[1] + hex[1], 16),
+        b: parseInt(hex[2] + hex[2], 16),
+      };
+    }
+    if (hex.length >= 6) {
+      return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16),
+      };
+    }
+  }
+  const match = value.match(/rgba?\(([^)]+)\)/i);
+  if (match) {
+    const parts = match[1].split(',').map(part => Number(part.trim()));
+    if (parts.length >= 3 && parts.every(num => Number.isFinite(num))) {
+      return { r: parts[0], g: parts[1], b: parts[2] };
+    }
+  }
+  return null;
+}
+
+function mixIntroColors(a, b, amount = 0.5) {
+  const alpha = Math.max(0, Math.min(1, Number(amount) || 0));
+  return {
+    r: Math.round(a.r + (b.r - a.r) * alpha),
+    g: Math.round(a.g + (b.g - a.g) * alpha),
+    b: Math.round(a.b + (b.b - a.b) * alpha),
+  };
+}
+
+function introColorToCss(colorObj) {
+  if (!colorObj) return getDominionPrimaryColor('agua');
+  return `rgb(${Math.max(0, Math.min(255, colorObj.r || 0))}, ${Math.max(0, Math.min(255, colorObj.g || 0))}, ${Math.max(0, Math.min(255, colorObj.b || 0))})`;
+}
+
+function getVersusIntroEnergyPalette(sideEl) {
+  if (!sideEl) return [getDominionPrimaryColor('agua'), getDominionSecondaryColor('agua')];
+  const computed = getComputedStyle(sideEl);
+  const raw = [1, 2, 3].map(index => computed.getPropertyValue(`--intro-color-${index}`).trim()).filter(Boolean);
+  const parsed = raw.map(parseIntroCssColor).filter(Boolean);
+  if (!parsed.length) return [getDominionPrimaryColor('agua'), getDominionSecondaryColor('agua')];
+  const colors = parsed.map(color => introColorToCss(color));
+  if (parsed.length === 1) {
+    const base = parsed[0];
+    const aqua = mixIntroColors(base, { r: 82, g: 255, b: 208 }, 0.28);
+    const light = mixIntroColors(base, { r: 214, g: 255, b: 248 }, 0.42);
+    return [introColorToCss(base), introColorToCss(aqua), introColorToCss(light)];
+  }
+  if (parsed.length === 2) {
+    const bridge = mixIntroColors(parsed[0], parsed[1], 0.5);
+    colors.push(introColorToCss(bridge));
+  }
+  return colors.slice(0, 3);
+}
+
+function getVersusIntroEnergyConfig(sideEl) {
+  return {
+    direction: sideEl?.classList.contains('adventure-intro-rival') ? 'left' : 'right',
+    palette: getVersusIntroEnergyPalette(sideEl),
+  };
+}
+
+function createVersusIntroStreak(layer, config = {}) {
+  if (!layer) return;
+  const streak = document.createElement('div');
+  const direction = config.direction === 'right' ? 'right' : 'left';
+  streak.className = `adventure-intro-streak ${direction}`;
+
+  const palette = Array.isArray(config.palette) && config.palette.length ? config.palette : [getDominionPrimaryColor('agua'), getDominionSecondaryColor('agua')];
+  const baseColor = palette[Math.floor(Math.random() * palette.length)] || getDominionPrimaryColor('agua');
+  const parsedBase = parseIntroCssColor(baseColor) || { r: 127, g: 200, b: 255 };
+  const mixed = Math.random() < 0.58
+    ? mixIntroColors(parsedBase, { r: 255, g: 255, b: 255 }, 0.08 + Math.random() * 0.24)
+    : parsedBase;
+  const width = 18 + Math.random() * 34;
+  const height = 2 + Math.random() * 6.5;
+  const top = 10 + Math.random() * 74;
+  const duration = 900 + Math.random() * 1100;
+  const peakOpacity = 0.7 + Math.random() * 0.3;
+  const blur = Math.random() * 1.4;
+
+  streak.style.top = `${top}%`;
+  streak.style.width = `${width}%`;
+  streak.style.height = `${height}px`;
+  streak.style.setProperty('--streak-color', introColorToCss(mixed));
+  streak.style.setProperty('--streak-duration', `${Math.round(duration)}ms`);
+  streak.style.setProperty('--peak-opacity', peakOpacity.toFixed(3));
+  streak.style.filter = `blur(${blur.toFixed(2)}px)`;
+
+  streak.addEventListener('animationend', () => streak.remove(), { once: true });
+  layer.appendChild(streak);
+}
+
+function createVersusIntroComet(layer, config = {}) {
+  if (!layer) return;
+  const particle = document.createElement('div');
+  const direction = config.direction === 'right' ? 'right' : 'left';
+  const isOrb = Math.random() < 0.34;
+  particle.className = `adventure-intro-comet ${direction}${isOrb ? ' is-orb' : ''}`;
+
+  const palette = Array.isArray(config.palette) && config.palette.length
+    ? config.palette
+    : [getDominionPrimaryColor('agua'), getDominionSecondaryColor('agua')];
+  const baseColor = palette[Math.floor(Math.random() * palette.length)] || getDominionPrimaryColor('agua');
+  const parsedBase = parseIntroCssColor(baseColor) || { r: 127, g: 200, b: 255 };
+  const mixed = Math.random() < 0.64
+    ? mixIntroColors(parsedBase, { r: 255, g: 255, b: 255 }, 0.05 + Math.random() * 0.22)
+    : parsedBase;
+
+  // Los orbes deben verse notablemente más pequeños que en v582 y con
+  // tamaños realmente variados. Además, evitamos usar la clase global
+  // `.orb` para que no hereden el tamaño fijo del sistema general.
+  const coreSize = isOrb ? 1.575 + Math.random() * 4.2 : 1.7 + Math.random() * 4.1;
+  const tailLength = isOrb ? 5.25 + Math.random() * 15.75 : 15 + Math.random() * 42;
+  const top = 7 + Math.random() * 84;
+  const opacity = isOrb ? 0.22 + Math.random() * 0.44 : 0.28 + Math.random() * 0.62;
+
+  // Lines run at ~900–2000 ms. Intentionally mix particles that are
+  // somewhat faster with others that are substantially slower.
+  const speedRoll = Math.random();
+  let duration;
+  if (speedRoll < 0.43) duration = 620 + Math.random() * 560;       // faster
+  else if (speedRoll < 0.70) duration = 1350 + Math.random() * 900; // around/just slower
+  else duration = 2800 + Math.random() * 2600;                     // much slower
+
+  particle.style.top = `${top}%`;
+  particle.style.width = `${tailLength.toFixed(1)}px`;
+  particle.style.height = `${coreSize.toFixed(1)}px`;
+  particle.style.setProperty('--comet-color', introColorToCss(mixed));
+  particle.style.setProperty('--comet-duration', `${Math.round(duration)}ms`);
+  particle.style.setProperty('--comet-opacity', opacity.toFixed(3));
+  particle.style.setProperty('--comet-core', `${coreSize.toFixed(1)}px`);
+  particle.style.setProperty('--comet-tail', `${tailLength.toFixed(1)}px`);
+
+  particle.addEventListener('animationend', () => particle.remove(), { once: true });
+  layer.appendChild(particle);
+}
+
+function triggerVersusIntroCountdownPulse(countdownEl) {
+  if (!countdownEl) return;
+  countdownEl.style.animation = 'none';
+  void countdownEl.offsetWidth;
+  countdownEl.style.animation = 'adventureCountPulse 1000ms ease forwards';
+}
+
+function resetVersusIntroCountdownPulse(countdownEl) {
+  if (!countdownEl) return;
+  countdownEl.style.animation = 'none';
+}
+
+function stopVersusIntroEnergy(introRoot) {
+  if (!introRoot) return;
+  const state = versusIntroEnergyState.get(introRoot);
+  if (state) {
+    state.active = false;
+    (state.timeouts || []).forEach(id => window.clearTimeout(id));
+    state.timeouts = [];
+  }
+  Array.from(introRoot.querySelectorAll('.adventure-intro-energy-layer')).forEach(layer => { layer.textContent = ''; });
+}
+
+function startVersusIntroEnergy(introRoot) {
+  if (!introRoot) return;
+  stopVersusIntroEnergy(introRoot);
+  const sideLayers = Array.from(introRoot.querySelectorAll('.adventure-intro-side')).map(sideEl => ({
+    sideEl,
+    streakLayer: ensureVersusIntroEnergyLayer(sideEl, 'streaks'),
+    particleLayer: ensureVersusIntroEnergyLayer(sideEl, 'particles'),
+    config: getVersusIntroEnergyConfig(sideEl),
+  })).filter(entry => entry.streakLayer && entry.particleLayer);
+  const state = { active: true, timeouts: [] };
+  versusIntroEnergyState.set(introRoot, state);
+
+  sideLayers.forEach(({ streakLayer, particleLayer, config }) => {
+    for (let i = 0; i < 4; i += 1) createVersusIntroStreak(streakLayer, config);
+    for (let i = 0; i < 5; i += 1) createVersusIntroComet(particleLayer, config);
+
+    const streakLoop = () => {
+      if (!state.active) return;
+      createVersusIntroStreak(streakLayer, config);
+      const delay = 85 + Math.random() * 190;
+      const timeoutId = window.setTimeout(streakLoop, delay);
+      state.timeouts.push(timeoutId);
+    };
+
+    const cometLoop = () => {
+      if (!state.active) return;
+      createVersusIntroComet(particleLayer, config);
+      const delay = 95 + Math.random() * 230;
+      const timeoutId = window.setTimeout(cometLoop, delay);
+      state.timeouts.push(timeoutId);
+    };
+
+    state.timeouts.push(window.setTimeout(streakLoop, 40 + Math.random() * 110));
+    state.timeouts.push(window.setTimeout(cometLoop, 55 + Math.random() * 160));
+  });
+}
+
+function getLoadoutSpellbookCardIds(loadout = null) {
+  if (!loadout || typeof loadout !== 'object') return [];
+  return normalizeSpellbookCardSlots(loadout.cards).filter(cardId => typeof cardId === 'string' && CARD_LIBRARY[cardId]);
+}
+
+function getLoadoutCasterIntroData(loadout = null, fallbackName = 'Kaster') {
+  const casterCard = CARD_LIBRARY[loadout?.casterCardId] || null;
+  const casterDef = casterCard ? getCasterRuntimeDefinitionFromCard(casterCard) : null;
+  const domains = [];
+  const pushDomainTint = domainId => {
+    const id = normalizeDominionId(domainId);
+    if (!id) return;
+    const tint = getDominionPrimaryColor(id);
+    if (tint && !domains.includes(tint)) domains.push(tint);
+  };
+  if (Array.isArray(casterDef?.domains)) {
+    casterDef.domains.forEach(entry => pushDomainTint(entry?.id || entry?.elementId));
+  }
+  if (Array.isArray(casterCard?.domains)) {
+    casterCard.domains.forEach(entry => pushDomainTint(entry?.id || entry?.elementId));
+  }
+  pushDomainTint(casterDef?.domainId || casterDef?.elementId || null);
+  pushDomainTint(casterCard?.domain?.elementId || casterCard?.elementId || null);
+  return {
+    card: casterCard,
+    name: casterCard?.name || casterDef?.name || fallbackName,
+    image: casterDef?.tokenImage || casterCard?.tokenImage || casterDef?.artImage || casterCard?.artImage || 'assets/caster-hanzo.png',
+    elementId: getCardElementId(casterCard),
+    domainColors: domains,
+    layoutKey: casterCard?.id ? `kaster:${casterCard.id}` : (casterDef?.cardId ? `kaster:${casterDef.cardId}` : ''),
+  };
+}
+
+function getOnlineIntroPalette(loadout = null) {
+  const caster = getLoadoutCasterIntroData(loadout);
+  const colors = Array.isArray(caster.domainColors) ? [...caster.domainColors] : [];
+  const primaryId = normalizeDominionId(caster.elementId);
+  if (primaryId) colors.push(getDominionSecondaryColor(primaryId));
+  return normalizeIntroPalette(colors);
+}
+
+function ensureVersusIntroChampionElement(sideEl, element, id, alt = 'Invocación destacada') {
+  if (element && element.isConnected) return element;
+  if (!sideEl) return null;
+  let resolved = id ? document.getElementById(id) : null;
+  if (resolved) return resolved;
+  resolved = document.createElement('img');
+  if (id) resolved.id = id;
+  resolved.className = 'adventure-intro-champion';
+  resolved.alt = alt;
+  resolved.draggable = false;
+  const caster = sideEl.querySelector('.adventure-intro-caster');
+  if (caster) sideEl.insertBefore(resolved, caster);
+  else sideEl.prepend(resolved);
+  return resolved;
+}
+
+function setVersusIntroChampion(element, cardIds = [], fallbackAlt = 'Invocación destacada', options = {}) {
+  if (!element) return null;
+  const champion = getAdventureStrongestInvocationPreview(cardIds, options);
+  if (!champion?.image) {
+    element.removeAttribute('src');
+    element.removeAttribute('title');
+    element.classList.remove('visible');
+    applyVsLayoutCalibrationToElement(element, '');
+    return null;
+  }
+  element.src = champion.image;
+  element.alt = champion.name || fallbackAlt;
+  const pb = champion.card ? Number(getCardBattlePointsValue(champion.card) || 0) : null;
+  element.title = champion.card
+    ? `${champion.name || fallbackAlt} · ${pb} PB`
+    : (champion.name || fallbackAlt);
+  element.classList.add('visible');
+  applyVsLayoutCalibrationToElement(element, champion.card ? getVsLayoutInvocationKey(champion.card) : '');
+  return champion;
+}
+
+function resetOnlineVersusIntroCountdown() {
+  if (onlineVersusIntroTimer) window.clearInterval(onlineVersusIntroTimer);
+  onlineVersusIntroTimer = null;
+}
+
+function hideOnlineVersusIntro() {
+  resetOnlineVersusIntroCountdown();
+  onlineVersusIntroStartAt = 0;
+  stopVersusIntroEnergy(els.onlineVersusIntro);
+  if (!els.onlineVersusIntro) return;
+  els.onlineVersusIntro.classList.remove('active', 'counting', 'combat-ready');
+  els.onlineVersusIntro.setAttribute('aria-hidden', 'true');
+  if (els.onlineIntroCountdown) { els.onlineIntroCountdown.textContent = ''; resetVersusIntroCountdownPulse(els.onlineIntroCountdown); }
+}
+
+function showOnlineVersusIntro(config = {}) {
+  if (!els.onlineVersusIntro) return false;
+  const room = config.room && typeof config.room === 'object' ? config.room : {};
+  const localSlot = Number(config.localPlayerSlot) === 2 ? 2 : 1;
+  const rivalSlot = localSlot === 1 ? 2 : 1;
+  const players = room.players || {};
+  const localRecord = players[localSlot] || players[String(localSlot)] || {};
+  const rivalRecord = players[rivalSlot] || players[String(rivalSlot)] || {};
+  const localLoadout = localRecord.loadout || null;
+  const rivalLoadout = rivalRecord.loadout || null;
+  const localCardIds = getLoadoutSpellbookCardIds(localLoadout);
+  const rivalCardIds = getLoadoutSpellbookCardIds(rivalLoadout);
+  const localEntries = getAdventureDominantEntries({}, localCardIds);
+  const rivalEntries = getAdventureDominantEntries({}, rivalCardIds);
+  const localCaster = getLoadoutCasterIntroData(localLoadout, 'Tu Kaster');
+  const rivalCaster = getLoadoutCasterIntroData(rivalLoadout, 'Kaster rival');
+
+  els.onlineIntroRivalChampion = ensureVersusIntroChampionElement(
+    els.onlineIntroRivalSide, els.onlineIntroRivalChampion, 'onlineIntroRivalChampion', 'Invocación rival destacada'
+  );
+  els.onlineIntroPlayerChampion = ensureVersusIntroChampionElement(
+    els.onlineIntroPlayerSide, els.onlineIntroPlayerChampion, 'onlineIntroPlayerChampion', 'Invocación destacada del jugador'
+  );
+
+  if (els.onlineIntroRivalImage) {
+    els.onlineIntroRivalImage.src = rivalCaster.image;
+    applyVsLayoutCalibrationToElement(els.onlineIntroRivalImage, rivalCaster.layoutKey);
+  }
+  if (els.onlineIntroPlayerImage) {
+    els.onlineIntroPlayerImage.src = localCaster.image;
+    applyVsLayoutCalibrationToElement(els.onlineIntroPlayerImage, localCaster.layoutKey);
+  }
+  if (els.onlineIntroRivalName) els.onlineIntroRivalName.textContent = config.rivalDisplayName || rivalRecord.displayName || 'Jugador rival';
+  if (els.onlineIntroPlayerName) els.onlineIntroPlayerName.textContent = config.localDisplayName || localRecord.displayName || 'Jugador';
+  if (els.onlineIntroRivalKicker) els.onlineIntroRivalKicker.textContent = config.rivalKicker || rivalCaster.name;
+  if (els.onlineIntroPlayerKicker) els.onlineIntroPlayerKicker.textContent = config.localKicker || localCaster.name;
+  if (els.onlineIntroRivalDominants) els.onlineIntroRivalDominants.innerHTML = renderAdventureDominantFigures(rivalEntries, 'left');
+  if (els.onlineIntroPlayerDominants) els.onlineIntroPlayerDominants.innerHTML = renderAdventureDominantFigures(localEntries, 'right');
+  setVersusIntroChampion(els.onlineIntroRivalChampion, rivalCardIds, 'Invocación rival destacada', {
+    fallbackImages: [...rivalEntries.map(entry => entry.image).filter(Boolean), ...ADVENTURE_PREVIEW_INVOCATION_ART],
+    fallbackName: 'Invocación rival destacada',
+  });
+  setVersusIntroChampion(els.onlineIntroPlayerChampion, localCardIds, 'Invocación destacada del jugador', {
+    fallbackImages: [...localEntries.map(entry => entry.image).filter(Boolean), ...ADVENTURE_PREVIEW_INVOCATION_ART],
+    fallbackName: 'Invocación destacada del jugador',
+  });
+  applyAdventureIntroPalette(els.onlineIntroRivalSide, getOnlineIntroPalette(rivalLoadout, rivalEntries));
+  applyAdventureIntroPalette(els.onlineIntroPlayerSide, getOnlineIntroPalette(localLoadout, localEntries));
+  syncVersusLetterColors(els.onlineVersusIntro, els.onlineIntroRivalSide, els.onlineIntroPlayerSide);
+
+  const arenaPreview = String(config.arena?.previewImage || config.arenaPreview || '').trim();
+  if (els.onlineIntroBackground) {
+    els.onlineIntroBackground.style.backgroundImage = arenaPreview
+      ? `linear-gradient(90deg, rgba(2,8,13,.72), rgba(4,5,9,.82) 49%, rgba(4,5,9,.82) 51%, rgba(12,8,4,.72)), url("${arenaPreview.replace(/"/g, '%22')}")`
+      : '';
+    els.onlineIntroBackground.style.backgroundSize = arenaPreview ? 'cover' : '';
+    els.onlineIntroBackground.style.backgroundPosition = arenaPreview ? 'center' : '';
+  }
+
+  const startAt = Math.max(1, Number(config.startAt || (Date.now() + 1000)));
+  const restartScene = onlineVersusIntroStartAt !== startAt || els.onlineVersusIntro.getAttribute('aria-hidden') !== 'false';
+  onlineVersusIntroStartAt = startAt;
+  if (restartScene) {
+    startVersusIntroEnergy(els.onlineVersusIntro);
+    els.onlineVersusIntro.setAttribute('aria-hidden', 'false');
+    els.onlineVersusIntro.classList.remove('active', 'counting', 'combat-ready');
+    void els.onlineVersusIntro.offsetWidth;
+    els.onlineVersusIntro.classList.add('active');
+  }
+
+  resetOnlineVersusIntroCountdown();
+  const paint = () => {
+    const remaining = startAt - Date.now();
+    let countText = '';
+    if (remaining <= 3200 && remaining > 2200) countText = '3';
+    else if (remaining <= 2200 && remaining > 1200) countText = '2';
+    else if (remaining <= 1200 && remaining > 200) countText = '1';
+    if (els.onlineIntroCountdown && els.onlineIntroCountdown.textContent !== countText) {
+      els.onlineIntroCountdown.textContent = countText;
+      if (countText) triggerVersusIntroCountdownPulse(els.onlineIntroCountdown);
+      else resetVersusIntroCountdownPulse(els.onlineIntroCountdown);
+    }
+    els.onlineVersusIntro.classList.toggle('counting', Boolean(countText));
+    if (remaining <= 200) els.onlineVersusIntro.classList.add('combat-ready');
+    if (remaining < -1500) resetOnlineVersusIntroCountdown();
+  };
+  paint();
+  onlineVersusIntroTimer = window.setInterval(paint, 100);
+  return true;
+}
+
+
+let localVersusIntroCompletionTimer = null;
+
+function getPlayerTemplateIntroLoadout(playerTemplate = null, options = {}) {
+  const player = playerTemplate && typeof playerTemplate === 'object' ? playerTemplate : {};
+  const cards = [];
+  const handTabs = Array.isArray(player.handTabs) ? player.handTabs : [];
+  handTabs.forEach(tab => {
+    if (!Array.isArray(tab)) return;
+    tab.forEach(cardId => {
+      if (typeof cardId === 'string' && CARD_LIBRARY[cardId]) cards.push(cardId);
+    });
+  });
+  if (Array.isArray(options.cards)) {
+    cards.length = 0;
+    options.cards.forEach(cardId => {
+      if (typeof cardId === 'string' && CARD_LIBRARY[cardId]) cards.push(cardId);
+    });
+  }
+  return {
+    id: options.id || player.selectedSpellbookId || 'versus-intro-loadout',
+    name: options.name || player.spellbookName || 'Spellbook',
+    casterCardId: options.casterCardId || player.caster?.cardId || '',
+    cards,
+    elementDistribution: {},
+    elementDistributionConfigured: false,
+    schemaVersion: SPELLBOOK_SCHEMA_VERSION,
+  };
+}
+
+function getBotVersusIntroLoadout(matchMode = 'normal') {
+  const template = cloneMatchData(INITIAL_BATTLE_STATE.players?.[2] || {});
+  if (matchMode === TEST_MATCH_MODE_ID) {
+    return getPlayerTemplateIntroLoadout(template, {
+      id: 'rok-test-bot-shirahadori',
+      name: 'Bot de prueba · Shirahadori',
+      cards: [
+        TEST_BOT_KAGERO_CARD_ID,
+        TEST_BOT_KAGERO_CARD_ID,
+        TEST_BOT_KAGERO_CARD_ID,
+        TEST_BOT_SHIRAHADORI_CARD_ID,
+        TEST_BOT_SHIRAHADORI_CARD_ID,
+        TEST_BOT_SHIRAHADORI_CARD_ID,
+      ],
+    });
+  }
+  return getPlayerTemplateIntroLoadout(template, {
+    id: 'rok-default-bot-tokugawa',
+    name: 'Bot · Tokugawa',
+  });
+}
+
+function getVersusIntroCasterName(loadout = null, fallback = 'Kaster') {
+  return getLoadoutCasterIntroData(loadout, fallback).name || fallback;
+}
+
+function cancelLocalVersusIntroCompletion() {
+  if (localVersusIntroCompletionTimer) window.clearTimeout(localVersusIntroCompletionTimer);
+  localVersusIntroCompletionTimer = null;
+}
+
+function showLocalVersusIntro(config = {}) {
+  const localLoadout = config.localLoadout || null;
+  const rivalLoadout = config.rivalLoadout || null;
+  if (!localLoadout || !rivalLoadout) return false;
+  cancelLocalVersusIntroCompletion();
+  try { hideOnlineVersusIntro(); } catch (_) {}
+
+  const duration = Math.max(3600, Number(config.duration || 6200));
+  const startAt = Date.now() + duration;
+  const localCasterName = getVersusIntroCasterName(localLoadout, 'Tu Kaster');
+  const rivalCasterName = getVersusIntroCasterName(rivalLoadout, 'Kaster rival');
+  const room = {
+    players: {
+      1: { displayName: localCasterName, loadout: cloneMatchData(localLoadout) },
+      2: { displayName: rivalCasterName, loadout: cloneMatchData(rivalLoadout) },
+    },
+  };
+  const shown = showOnlineVersusIntro({
+    room,
+    localPlayerSlot: 1,
+    startAt,
+    localDisplayName: config.localDisplayName || localCasterName,
+    rivalDisplayName: config.rivalDisplayName || rivalCasterName,
+    localKicker: config.localKicker || 'JUGADOR',
+    rivalKicker: config.rivalKicker || 'RIVAL',
+    arena: config.arena || null,
+    arenaPreview: config.arenaPreview || '',
+  });
+  if (!shown) return false;
+
+  localVersusIntroCompletionTimer = window.setTimeout(() => {
+    localVersusIntroCompletionTimer = null;
+    hideOnlineVersusIntro();
+    try { config.onComplete?.(); }
+    catch (error) { reportGameException(error, 'Presentación VS local · finalizar'); }
+  }, duration + 80);
+  return true;
+}
+
+window.ROK_VERSUS_INTRO = {
+  showOnline: showOnlineVersusIntro,
+  hideOnline: hideOnlineVersusIntro,
+  showLocal: showLocalVersusIntro,
+  hideLocal() { cancelLocalVersusIntroCompletion(); hideOnlineVersusIntro(); },
+  getDominants(loadout = null) {
+    const cardIds = getLoadoutSpellbookCardIds(loadout);
+    return getSpellbookDominantQualityStatsFromCardIds(cardIds, []);
+  },
+  getStrongestInvocation(loadout = null) {
+    const card = getAdventureStrongestInvocationCard(getLoadoutSpellbookCardIds(loadout));
+    return card ? { id: card.id, name: card.name, battlePoints: Number(getCardBattlePointsValue(card) || 0) } : null;
+  },
+};
+
+
+/* =========================================================
+   Iniciativa de combate · Piedra / Papel / Tijera
+   Se ejecuta después de la presentación VS y antes del flujo
+   normal de fases / extracción inicial.
+   ========================================================= */
+const RPS_INITIATIVE_CHOICES = Object.freeze({
+  rock: Object.freeze({ id: 'rock', label: 'Piedra', image: 'assets/rps/rock.webp' }),
+  paper: Object.freeze({ id: 'paper', label: 'Papel', image: 'assets/rps/paper.webp' }),
+  scissors: Object.freeze({ id: 'scissors', label: 'Tijera', image: 'assets/rps/scissors.webp' }),
+});
+
+const rpsInitiativeRuntime = {
+  generation: 0,
+  active: false,
+  round: 1,
+  matchSerial: 1,
+  resolver: null,
+  pollTimer: null,
+  onlineUpdateHandler: null,
+};
+
+function getRpsChoice(id) {
+  return RPS_INITIATIVE_CHOICES[String(id || '')] || null;
+}
+
+function resolveRpsInitiativeChoice(player1Choice, player2Choice) {
+  const p1 = String(player1Choice || '');
+  const p2 = String(player2Choice || '');
+  if (!getRpsChoice(p1) || !getRpsChoice(p2)) return 0;
+  if (p1 === p2) return 0;
+  if (
+    (p1 === 'rock' && p2 === 'scissors')
+    || (p1 === 'scissors' && p2 === 'paper')
+    || (p1 === 'paper' && p2 === 'rock')
+  ) return 1;
+  return 2;
+}
+
+function getRpsPlayerPalette(playerId) {
+  const domainId = getPlayerDomainId(playerId) || state.players?.[playerId]?.elementId || 'oscuridad';
+  return getDominionPalette(domainId, 'oscuridad');
+}
+
+function ensureRpsInitiativeOverlay() {
+  let root = document.getElementById('rpsInitiativeOverlay');
+  if (root) return root;
+  root = document.createElement('div');
+  root.id = 'rpsInitiativeOverlay';
+  root.className = 'rps-initiative-overlay';
+  root.setAttribute('aria-hidden', 'true');
+  root.innerHTML = `
+    <div class="rps-initiative-flyer" id="rpsInitiativeFlyer">¿QUIÉN INICIA?</div>
+    <div class="rps-initiative-stage">
+      <div class="rps-locked-card rps-locked-card-rival" id="rpsRivalLockedCard" aria-hidden="true"><span>?</span></div>
+      <div class="rps-locked-card rps-locked-card-local" id="rpsLocalLockedCard" aria-hidden="true"><span>?</span></div>
+      <div class="rps-duel" id="rpsInitiativeDuel" aria-hidden="true">
+        <div class="rps-duel-card rps-duel-card-rival" id="rpsDuelRival"></div>
+        <div class="rps-duel-card rps-duel-card-local" id="rpsDuelLocal"></div>
+      </div>
+      <div class="rps-initiative-result" id="rpsInitiativeResult"></div>
+    </div>
+    <div class="rps-choice-tray" id="rpsChoiceTray" aria-label="Selecciona Piedra, Papel o Tijera"></div>
+  `;
+  document.body.appendChild(root);
+  return root;
+}
+
+function setRpsCardTheme(element, playerId) {
+  if (!element) return;
+  const palette = getRpsPlayerPalette(playerId);
+  element.style.setProperty('--rps-primary', palette.dominant || '#5400FF');
+  element.style.setProperty('--rps-secondary', palette.secondary || '#000000');
+}
+
+function getRpsCardDomainAssets(playerId) {
+  const elementId = getPlayerDomainId(playerId) || state.players?.[playerId]?.elementId || 'oscuridad';
+  const cardLike = {
+    type: 'invocation',
+    elementId,
+    skinImage: getElementSkinForCard(null, elementId),
+    bgImage: getElementBackgroundForCard({ type: 'invocation' }, elementId),
+  };
+  return {
+    elementId,
+    skinImage: getElementSkinForCard(cardLike, elementId),
+    bgImage: getElementBackgroundForCard(cardLike, elementId),
+  };
+}
+
+function renderRpsChoiceCardMarkup(choice, playerId, options = {}) {
+  const item = getRpsChoice(choice);
+  if (!item) return '';
+  const palette = getRpsPlayerPalette(playerId);
+  const hidden = options.hidden === true;
+  const assets = getRpsCardDomainAssets(playerId);
+  const cardLabel = String(item.label || '').toUpperCase();
+  return `<div class="rps-card rps-card-domain${hidden ? ' is-hidden' : ''}" style="--rps-primary:${palette.dominant};--rps-secondary:${palette.secondary}" data-rps-domain="${assets.elementId}">
+    <div class="rps-card-core">
+      <img class="rps-card-layer rps-card-bgimg" src="${assets.bgImage}" alt="fondo ${assets.elementId}" onerror="this.onerror=null;this.src='assets/card-bg-darkness.jpg';">
+      <div class="rps-card-art-shell">
+        ${hidden ? '<div class="rps-card-question">?</div>' : `<img class="rps-card-layer rps-card-artimg" src="${item.image}" alt="${item.label}">`}
+      </div>
+      <img class="rps-card-layer rps-card-skinimg" src="${assets.skinImage}" alt="skin ${assets.elementId}" onerror="this.onerror=null;this.src='assets/card-skin-darkness.png';">
+      <div class="rps-card-titlebar">${cardLabel}</div>
+    </div>
+  </div>`;
+}
+
+function stopRpsInitiativeRuntime(reason = 'cancelled') {
+  rpsInitiativeRuntime.generation += 1;
+  rpsInitiativeRuntime.active = false;
+  if (rpsInitiativeRuntime.pollTimer) clearInterval(rpsInitiativeRuntime.pollTimer);
+  rpsInitiativeRuntime.pollTimer = null;
+  if (rpsInitiativeRuntime.onlineUpdateHandler) {
+    window.removeEventListener('rok-online-initiative-update', rpsInitiativeRuntime.onlineUpdateHandler);
+    rpsInitiativeRuntime.onlineUpdateHandler = null;
+  }
+  const resolver = rpsInitiativeRuntime.resolver;
+  rpsInitiativeRuntime.resolver = null;
+  const root = document.getElementById('rpsInitiativeOverlay');
+  root?.classList.remove('open', 'resolving', 'revealed');
+  root?.setAttribute('aria-hidden', 'true');
+  if (typeof resolver === 'function' && reason !== 'completed') {
+    try { resolver(0); } catch (_) {}
+  }
+}
+
+function delayRps(ms, generation) {
+  return new Promise(resolve => {
+    const started = Date.now();
+    const tick = async () => {
+      if (generation !== rpsInitiativeRuntime.generation) return resolve(false);
+      if (!isOnlineMatchActive()) await waitForGlobalGameplayResume();
+      const elapsed = Date.now() - started;
+      if (elapsed >= ms) return resolve(true);
+      window.setTimeout(tick, Math.min(80, ms - elapsed));
+    };
+    tick();
+  });
+}
+
+function setRpsLockedCard(element, playerId, visible) {
+  if (!element) return;
+  setRpsCardTheme(element, playerId);
+  element.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  element.classList.toggle('visible', Boolean(visible));
+}
+
+function renderRpsChoiceTray(root, localPlayerId, onSelect) {
+  const tray = root.querySelector('#rpsChoiceTray');
+  if (!tray) return;
+  tray.innerHTML = '';
+  Object.values(RPS_INITIATIVE_CHOICES).forEach((choice, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rps-choice-card';
+    button.style.setProperty('--rps-index', String(index));
+    setRpsCardTheme(button, localPlayerId);
+    button.innerHTML = renderRpsChoiceCardMarkup(choice.id, localPlayerId);
+    button.setAttribute('aria-label', choice.label);
+    button.addEventListener('click', () => onSelect(choice.id));
+    tray.appendChild(button);
+  });
+}
+
+async function animateRpsReveal(root, p1Choice, p2Choice, localPlayerId, generation) {
+  if (generation !== rpsInitiativeRuntime.generation) return false;
+  const rivalPlayerId = localPlayerId === 1 ? 2 : 1;
+  const localChoice = localPlayerId === 1 ? p1Choice : p2Choice;
+  const rivalChoice = localPlayerId === 1 ? p2Choice : p1Choice;
+  const rivalLocked = root.querySelector('#rpsRivalLockedCard');
+  const localLocked = root.querySelector('#rpsLocalLockedCard');
+  const duel = root.querySelector('#rpsInitiativeDuel');
+  const duelRival = root.querySelector('#rpsDuelRival');
+  const duelLocal = root.querySelector('#rpsDuelLocal');
+  const tray = root.querySelector('#rpsChoiceTray');
+  tray?.classList.add('locked');
+  root.classList.add('resolving');
+  await delayRps(420, generation);
+  if (generation !== rpsInitiativeRuntime.generation) return false;
+  setRpsLockedCard(rivalLocked, rivalPlayerId, false);
+  setRpsLockedCard(localLocked, localPlayerId, false);
+  if (duelRival) duelRival.innerHTML = renderRpsChoiceCardMarkup(rivalChoice, rivalPlayerId, { hidden: true });
+  if (duelLocal) duelLocal.innerHTML = renderRpsChoiceCardMarkup(localChoice, localPlayerId, { hidden: true });
+  duel?.setAttribute('aria-hidden', 'false');
+  duel?.classList.add('visible');
+  await delayRps(560, generation);
+  if (generation !== rpsInitiativeRuntime.generation) return false;
+  if (duelRival) duelRival.innerHTML = renderRpsChoiceCardMarkup(rivalChoice, rivalPlayerId);
+  if (duelLocal) duelLocal.innerHTML = renderRpsChoiceCardMarkup(localChoice, localPlayerId);
+  root.classList.add('revealed');
+  return true;
+}
+
+async function runInitiativeSelection(options = {}) {
+  stopRpsInitiativeRuntime('replace');
+  const generation = rpsInitiativeRuntime.generation;
+  rpsInitiativeRuntime.active = true;
+  rpsInitiativeRuntime.round = 1;
+  rpsInitiativeRuntime.matchSerial = Math.max(1, Number(options.matchSerial || state.matchSerial || 1));
+  const mode = options.mode === 'online' ? 'online' : 'bot';
+  const localPlayerId = Math.max(1, Math.min(2, Number(options.localPlayerId || (mode === 'online' ? window.ROK_ONLINE_PVP?.getSession?.().playerSlot : 1) || 1)));
+  const rivalPlayerId = localPlayerId === 1 ? 2 : 1;
+  const root = ensureRpsInitiativeOverlay();
+  const flyer = root.querySelector('#rpsInitiativeFlyer');
+  const result = root.querySelector('#rpsInitiativeResult');
+  const rivalLocked = root.querySelector('#rpsRivalLockedCard');
+  const localLocked = root.querySelector('#rpsLocalLockedCard');
+  const duel = root.querySelector('#rpsInitiativeDuel');
+  root.classList.remove('resolving', 'revealed');
+  root.classList.add('open');
+  root.setAttribute('aria-hidden', 'false');
+  if (flyer) flyer.textContent = '¿QUIÉN INICIA?';
+  if (result) result.textContent = '';
+  setRpsLockedCard(rivalLocked, rivalPlayerId, false);
+  setRpsLockedCard(localLocked, localPlayerId, false);
+  duel?.classList.remove('visible');
+  duel?.setAttribute('aria-hidden', 'true');
+  await delayRps(680, generation);
+
+  return new Promise(resolve => {
+    rpsInitiativeRuntime.resolver = resolve;
+    let localChoice = '';
+    let botChoice = '';
+    let resolving = false;
+
+    const resetRoundVisuals = () => {
+      if (generation !== rpsInitiativeRuntime.generation) return;
+      localChoice = '';
+      botChoice = '';
+      resolving = false;
+      root.classList.remove('resolving', 'revealed');
+      const tray = root.querySelector('#rpsChoiceTray');
+      tray?.classList.remove('locked');
+      duel?.classList.remove('visible');
+      duel?.setAttribute('aria-hidden', 'true');
+      setRpsLockedCard(rivalLocked, rivalPlayerId, false);
+      setRpsLockedCard(localLocked, localPlayerId, false);
+      if (result) result.textContent = '';
+      renderRpsChoiceTray(root, localPlayerId, handleLocalSelect);
+      if (mode === 'bot') {
+        window.setTimeout(() => {
+          if (generation !== rpsInitiativeRuntime.generation || botChoice) return;
+          const ids = Object.keys(RPS_INITIATIVE_CHOICES);
+          botChoice = ids[Math.floor(Math.random() * ids.length)];
+          setRpsLockedCard(rivalLocked, rivalPlayerId, true);
+          void maybeResolveBotRound();
+        }, 520 + Math.floor(Math.random() * 650));
+      }
+    };
+
+    const finishWinner = async winner => {
+      if (generation !== rpsInitiativeRuntime.generation) return;
+      if (result) result.textContent = `JUGADOR ${winner} INICIA`;
+      await delayRps(1280, generation);
+      if (generation !== rpsInitiativeRuntime.generation) return;
+      const resolver = rpsInitiativeRuntime.resolver;
+      rpsInitiativeRuntime.resolver = null;
+      rpsInitiativeRuntime.active = false;
+      root.classList.remove('open', 'resolving', 'revealed');
+      root.setAttribute('aria-hidden', 'true');
+      if (rpsInitiativeRuntime.pollTimer) clearInterval(rpsInitiativeRuntime.pollTimer);
+      rpsInitiativeRuntime.pollTimer = null;
+      try { resolver?.(winner); } catch (_) {}
+    };
+
+    const processRound = async (p1Choice, p2Choice) => {
+      if (resolving || generation !== rpsInitiativeRuntime.generation) return;
+      if (!getRpsChoice(p1Choice) || !getRpsChoice(p2Choice)) return;
+      resolving = true;
+      await animateRpsReveal(root, p1Choice, p2Choice, localPlayerId, generation);
+      if (generation !== rpsInitiativeRuntime.generation) return;
+      const winner = resolveRpsInitiativeChoice(p1Choice, p2Choice);
+      if (!winner) {
+        if (result) result.textContent = 'EMPATE';
+        await delayRps(1050, generation);
+        if (generation !== rpsInitiativeRuntime.generation) return;
+        rpsInitiativeRuntime.round += 1;
+        if (mode === 'online') {
+          try { await window.ROK_ONLINE_PVP?.prepareInitiativeRound?.(rpsInitiativeRuntime.round, rpsInitiativeRuntime.matchSerial); } catch (_) {}
+        }
+        resetRoundVisuals();
+        return;
+      }
+      await finishWinner(winner);
+    };
+
+    const maybeResolveBotRound = async () => {
+      if (!localChoice || !botChoice || resolving) return;
+      const p1 = localPlayerId === 1 ? localChoice : botChoice;
+      const p2 = localPlayerId === 1 ? botChoice : localChoice;
+      await processRound(p1, p2);
+    };
+
+    const pollOnline = async () => {
+      if (mode !== 'online' || resolving || generation !== rpsInitiativeRuntime.generation) return;
+      const info = window.ROK_ONLINE_PVP?.getInitiativeState?.(rpsInitiativeRuntime.round, rpsInitiativeRuntime.matchSerial);
+      if (!info) return;
+      const rivalChoice = localPlayerId === 1 ? info.player2Choice : info.player1Choice;
+      const ownChoice = localPlayerId === 1 ? info.player1Choice : info.player2Choice;
+      if (ownChoice) setRpsLockedCard(localLocked, localPlayerId, true);
+      if (rivalChoice) setRpsLockedCard(rivalLocked, rivalPlayerId, true);
+      if (info.player1Choice && info.player2Choice) await processRound(info.player1Choice, info.player2Choice);
+    };
+
+    async function handleLocalSelect(choiceId) {
+      if (resolving || localChoice || generation !== rpsInitiativeRuntime.generation) return;
+      if (!getRpsChoice(choiceId)) return;
+      localChoice = choiceId;
+      root.querySelector('#rpsChoiceTray')?.classList.add('locked');
+      setRpsLockedCard(localLocked, localPlayerId, true);
+      if (mode === 'online') {
+        const ok = await window.ROK_ONLINE_PVP?.submitInitiativeChoice?.(choiceId, rpsInitiativeRuntime.round, rpsInitiativeRuntime.matchSerial);
+        if (!ok) {
+          localChoice = '';
+          root.querySelector('#rpsChoiceTray')?.classList.remove('locked');
+          setRpsLockedCard(localLocked, localPlayerId, false);
+          if (result) result.textContent = 'No se pudo registrar la elección';
+          return;
+        }
+        void pollOnline();
+      } else {
+        void maybeResolveBotRound();
+      }
+    }
+
+    renderRpsChoiceTray(root, localPlayerId, handleLocalSelect);
+    if (mode === 'online') {
+      void window.ROK_ONLINE_PVP?.prepareInitiativeRound?.(1, rpsInitiativeRuntime.matchSerial).catch?.(() => {});
+      rpsInitiativeRuntime.pollTimer = window.setInterval(() => { void pollOnline(); }, 140);
+      void pollOnline();
+    } else {
+      window.setTimeout(() => {
+        if (generation !== rpsInitiativeRuntime.generation || botChoice) return;
+        const ids = Object.keys(RPS_INITIATIVE_CHOICES);
+        botChoice = ids[Math.floor(Math.random() * ids.length)];
+        setRpsLockedCard(rivalLocked, rivalPlayerId, true);
+        void maybeResolveBotRound();
+      }, 520 + Math.floor(Math.random() * 650));
+    }
+  });
+}
+
+window.ROK_INITIATIVE_RPS = {
+  play: runInitiativeSelection,
+  cancel: stopRpsInitiativeRuntime,
+  resolve: resolveRpsInitiativeChoice,
+  getState: () => ({ ...rpsInitiativeRuntime }),
+};
 
 function launchPreparedAdventureBattle() {
   const encounter = getAdventureWaterEncounter(adventureState.encounterId);
   const playerCaster = getAdventurePlayerCaster();
+  const playerCasterCardId = CARD_LIBRARY[playerCaster?.cardId] && getCardTypeId(CARD_LIBRARY[playerCaster.cardId]) === 'kaster'
+    ? String(playerCaster.cardId)
+    : (CARD_LIBRARY[playerCaster?.id] && getCardTypeId(CARD_LIBRARY[playerCaster.id]) === 'kaster' ? String(playerCaster.id) : '');
   const payload = {
     mode: 'adventure',
     encounterId: encounter.id,
     rivalCaster: encounter,
     playerCaster,
+    playerCasterCardId,
     playerSpellbookCardIds: getAdventureSpellbookCardIds(),
     arena: getAdventureBattleArena(encounter),
     arenaPreview: getAdventureArenaPreview(encounter),
   };
   window.ROK_ADVENTURE_PENDING_BATTLE = payload;
+  stopVersusIntroEnergy(els.adventureBattleIntro);
   if (typeof window.ROK_ADVENTURE_START_BATTLE === 'function') {
     window.ROK_ADVENTURE_START_BATTLE(payload);
     return;
@@ -12163,8 +14567,17 @@ function launchPreparedAdventureBattle() {
 
 window.ROK_ADVENTURE = {
   markEncounterDefeated: markAdventureEncounterDefeated,
+  getCasterVictoryXp: (encounterId, previousWins = 0) => getAdventureCasterVictoryXp(encounterId, previousWins),
+  awardCasterExperience: (casterCardId, encounterId, previousWins = null) => awardAdventureCasterExperience(casterCardId, encounterId, previousWins),
+  getVictoryRewardPreview: (encounterId, previousWins = 0, options = {}) => getAdventureVictoryRewardPreview(encounterId, previousWins, options),
+  grantVictoryRewards: (encounterId, previousWins = 0, options = {}) => grantAdventureVictoryRewards(encounterId, previousWins, options),
+  resolvePendingFirstVictoryCard: encounterId => resolvePendingAdventureFirstVictoryCardReward(encounterId),
   setPlayerSpellbook(cardIds = []) { adventureState.playerSpellbookCardIds = Array.isArray(cardIds) ? cardIds.filter(id => CARD_LIBRARY[id]) : []; renderAdventurePreparation(); },
-  setEncounterSpellbook(encounterId, cardIds = []) { adventureState.encounterSpellbooks[encounterId] = Array.isArray(cardIds) ? cardIds.filter(id => CARD_LIBRARY[id]) : []; renderAdventurePreparation(); },
+  setEncounterSpellbook(encounterId, cardIds = []) {
+    adventureState.encounterSpellbooks[encounterId] = Array.isArray(cardIds) ? cardIds.filter(id => CARD_LIBRARY[id]) : [];
+    resolvePendingAdventureFirstVictoryCardReward(encounterId);
+    renderAdventurePreparation();
+  },
   getProgress: () => loadAdventureProgress(),
   getArenaForEncounter(encounterId = adventureState.encounterId) { return getAdventureBattleArena(getAdventureWaterEncounter(encounterId)); },
   getArenaPreviewForEncounter(encounterId = adventureState.encounterId) { return getAdventureArenaPreview(getAdventureWaterEncounter(encounterId)); },
@@ -12273,7 +14686,7 @@ function renderAdventureZoneList() {
 function selectAdventureWorldZone(zoneId, options = {}) {
   const zone = getAdventureWorldZone(zoneId);
   adventureState.worldZoneId = zone.id;
-  renderAdventureZoneList();
+  if (!options.skipListRender) renderAdventureZoneList();
   setAdventureMarkerPosition(els.adventureWorldMarker, zone.marker);
   if (els.adventureZoneElement) els.adventureZoneElement.textContent = String(zone.element || '').toUpperCase();
   if (els.adventureZoneName) els.adventureZoneName.textContent = zone.domain || '';
@@ -12284,10 +14697,6 @@ function selectAdventureWorldZone(zoneId, options = {}) {
     els.adventureZoneStatus.classList.toggle('available', zone.available);
     els.adventureZoneStatus.classList.toggle('locked', !zone.available);
   }
-  if (els.adventureEnterZoneBtn) {
-    els.adventureEnterZoneBtn.disabled = !zone.available;
-    els.adventureEnterZoneBtn.textContent = zone.available ? `Entrar al área de ${zone.element}` : 'Zona no disponible';
-  }
   if (options.notifyLocked && !zone.available) showAdventureNotice(`${zone.element} · esta región todavía no está disponible.`);
 }
 
@@ -12295,8 +14704,8 @@ function renderAdventureCasterList() {
   if (!els.adventureCasterList) return;
   els.adventureCasterList.innerHTML = ADVENTURE_WATER_ENCOUNTERS.map((encounter, index) => {
     const selected = encounter.id === adventureState.encounterId;
-    return `<button class="adventure-option adventure-caster-option ${encounter.available ? 'available' : 'locked'}${selected ? ' selected' : ''}" type="button" role="option" aria-selected="${selected ? 'true' : 'false'}" data-adventure-encounter="${encounter.id}" style="--option-accent:${encounter.available ? '#58d9ff' : '#64727a'}">
-      <span class="adventure-option-main"><span class="adventure-option-name">${index + 1}. ${encounter.label}</span><span class="adventure-option-badge">${encounter.available ? 'ACTIVO' : 'PENDIENTE'}</span></span>
+    return `<button class="adventure-option adventure-caster-option ${encounter.available ? 'available' : 'locked'}${selected ? ' selected' : ''}" type="button" role="option" aria-selected="${selected ? 'true' : 'false'}" data-adventure-encounter="${encounter.id}" style="--option-accent:${encounter.available ? getAdventureIntroPalette(encounter)[0] : '#64727a'}">
+      <span class="adventure-option-main"><span class="adventure-option-name">${index + 1}. ${encounter.label}</span><span class="adventure-option-meta"><span class="adventure-option-level">NIVEL ${Math.max(1, Number(encounter.level) || 1)}</span><span class="adventure-option-badge">${encounter.available ? 'ACTIVO' : 'PENDIENTE'}</span></span></span>
       <small>${encounter.subtitle}</small>
     </button>`;
   }).join('');
@@ -12305,7 +14714,7 @@ function renderAdventureCasterList() {
 function selectAdventureWaterEncounter(encounterId, options = {}) {
   const encounter = getAdventureWaterEncounter(encounterId);
   adventureState.encounterId = encounter.id;
-  renderAdventureCasterList();
+  if (!options.skipListRender) renderAdventureCasterList();
   updateAdventureWaterMapFocus(encounter.marker);
 
   const ready = encounter.available === true;
@@ -12324,9 +14733,12 @@ function selectAdventureWaterEncounter(encounterId, options = {}) {
   renderAdventureCasterDomainPanel(encounter, ready);
   if (els.adventureCasterDomain) els.adventureCasterDomain.textContent = ready ? encounter.domain : 'AGUA · CONOCIMIENTO';
   if (els.adventureCasterName) els.adventureCasterName.textContent = encounter.label;
+  if (els.adventureCasterLevel) els.adventureCasterLevel.textContent = `NIVEL ${Math.max(1, Number(encounter.level) || 1)}`;
   if (els.adventureCasterQualities) {
+    // Este bloque pertenece a la FICHA DEL KASTER: aquí NO se muestran las
+    // dominantes del Spellbook. Solo las cualidades propias del Kaster rival.
     els.adventureCasterQualities.innerHTML = ready
-      ? renderAdventureCasterIdentity(encounter)
+      ? (encounter.casterQualities || []).map(name => renderAdventureQualityTag(name)).join('')
       : renderAdventureIdentityTag({ label: 'Por definir', muted: true });
   }
   renderAdventureCasterStats(encounter, ready);
@@ -12343,10 +14755,6 @@ function selectAdventureWaterEncounter(encounterId, options = {}) {
     els.adventureCasterStatus.textContent = ready ? 'DISPONIBLE' : 'PENDIENTE';
     els.adventureCasterStatus.classList.toggle('available', ready);
     els.adventureCasterStatus.classList.toggle('locked', !ready);
-  }
-  if (els.adventureStartEncounterBtn) {
-    els.adventureStartEncounterBtn.disabled = !ready;
-    els.adventureStartEncounterBtn.textContent = ready ? 'Preparar combate' : 'Encuentro pendiente';
   }
   if (options.notifyLocked && !ready) showAdventureNotice('Este encuentro todavía no ha sido definido.');
 }
@@ -12568,12 +14976,37 @@ function startBotBattleFromMainMenu(selectedLoadout = null, options = {}) {
     }
     const issue = getSpellbookMatchIssue(selectedLoadout);
     if (issue) throw new Error(issue);
+
+    const resolvedMatchMode = options.matchMode === TEST_MATCH_MODE_ID ? TEST_MATCH_MODE_ID : 'normal';
+    if (options.skipVersusIntro !== true) {
+      const rivalLoadout = getBotVersusIntroLoadout(resolvedMatchMode);
+      const localCasterName = getVersusIntroCasterName(selectedLoadout, 'Tu Kaster');
+      const rivalCasterName = getVersusIntroCasterName(rivalLoadout, 'Kaster rival');
+      const shown = showLocalVersusIntro({
+        localLoadout: selectedLoadout,
+        rivalLoadout,
+        localDisplayName: localCasterName,
+        rivalDisplayName: rivalCasterName,
+        localKicker: resolvedMatchMode === TEST_MATCH_MODE_ID ? 'PRÁCTICA · JUGADOR' : 'JUGADOR',
+        rivalKicker: resolvedMatchMode === TEST_MATCH_MODE_ID ? 'BOT DE PRÁCTICA' : 'BOT',
+        arena: ROK_ARENA_REGISTRY.classic,
+        duration: 6200,
+        onComplete: () => startBotBattleFromMainMenu(selectedLoadout, {
+          ...options,
+          matchMode: resolvedMatchMode,
+          skipVersusIntro: true,
+        }),
+      });
+      if (shown) return;
+    }
+
     window.ROK_ONLINE_PVP?.leaveRoom?.({ silent: true, keepMenu: true });
     ROK_ONLINE_MATCH_ACTIVE = false;
     LOCAL_PLAYER_ID = 1;
     resetBattleStateForSelectedMatch(true);
-    state.matchMode = options.matchMode === TEST_MATCH_MODE_ID ? TEST_MATCH_MODE_ID : 'normal';
+    state.matchMode = resolvedMatchMode;
     applySpellbookLoadoutToPlayer(1, selectedLoadout);
+    applyEffectiveCasterStatsToRuntimePlayer(2);
     if (isTestMatchActive()) configureTestBotPlayer(2);
     document.body.classList.remove('rok-menu-mode', 'rok-library-mode', 'rok-spellbooks-mode');
     document.body.classList.add('rok-battle-mode');
@@ -12581,21 +15014,29 @@ function startBotBattleFromMainMenu(selectedLoadout = null, options = {}) {
     if (els.libraryBuilderScreen) els.libraryBuilderScreen.setAttribute('aria-hidden', 'true');
     if (els.spellbooksCollectionScreen) els.spellbooksCollectionScreen.setAttribute('aria-hidden', 'true');
     mainMenuBattleStarted = true;
+    resetBattleInactivityRuntime('bot-battle-start');
     runGameStep('startBotBattle · updateHudModeUi', updateHudModeUi);
     runGameStep('startBotBattle · initializeElementDecks', initializeElementDecks);
-    if (isTestMatchActive()) {
-      runGameStep('startBotBattle · prepareTestMatchRuntime', prepareTestMatchRuntime);
-    } else {
-      runGameStep('startBotBattle · prepareStartingElementStocks', prepareStartingElementStocks);
-    }
-    runGameStep('startBotBattle · enterPhase inicial', () => enterPhase(true, true));
-    runGameStep('startBotBattle · renderAll inicial', renderAll);
-    const introTransitions = [
-      { text: 'INICIA EL COMBATE', playerId: 1, duration: 1050 },
-      { text: isTestMatchActive() ? 'EXTRACCIÓN' : '10 ELEMENTOS INICIALES', playerId: 1, duration: 900 },
-    ];
-    runGameStep('startBotBattle · queueTransitions', () => queueTransitions(introTransitions));
-    runGameStep('startBotBattle · schedulePhaseStartActions', () => schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120));
+    runGameStep('startBotBattle · renderAll pre-iniciativa', renderAll);
+    void runInitiativeSelection({ mode: 'bot', localPlayerId: 1, matchSerial: state.matchSerial }).then(async winner => {
+      if (!winner || !mainMenuBattleStarted) return;
+      state.activePlayer = winner;
+      if (isTestMatchActive()) {
+        runGameStep('startBotBattle · prepareTestMatchRuntime', prepareTestMatchRuntime);
+      } else {
+        runGameStep('startBotBattle · prepareStartingElementStocks', prepareStartingElementStocks);
+      }
+      runGameStep('startBotBattle · enterPhase inicial', () => enterPhase(true, true));
+      runGameStep('startBotBattle · renderAll inicial', renderAll);
+      if (isTestMatchActive()) {
+        const introTransitions = [{ text: 'EXTRACCIÓN', playerId: winner, duration: 900 }];
+        runGameStep('startBotBattle · queueTransitions', () => queueTransitions(introTransitions));
+        runGameStep('startBotBattle · schedulePhaseStartActions', () => schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120));
+      } else {
+        await playOpeningElementIntro();
+        schedulePhaseStartActions(0);
+      }
+    });
   } catch (error) {
     reportGameException(error, 'Iniciar batalla con Spellbook');
     showMainMenu();
@@ -12761,6 +15202,7 @@ function isBattleHudScreenActive() {
 }
 
 function clearBattleHudForInactiveScreen() {
+  try { resetBattleInactivityRuntime?.('screen-change'); } catch (_) {}
   try { clearCombatMenus?.(); } catch (_) {}
   try { closeGioshoninSupplyPrompt?.('screen-change', { silent: true }); } catch (_) {}
   try { closeQuickReactionModal?.('screen-change'); } catch (_) {}
@@ -12832,6 +15274,1091 @@ function safeLocalStorageRemove(key) {
   try { window.localStorage.removeItem(key); }
   catch (error) { console.warn('[ROK Spellbooks] No se pudo borrar localStorage.', error); }
 }
+
+
+const VS_LAYOUT_CALIBRATION_STORAGE_KEY = 'rokLite.vsLayoutCalibration.v1';
+const VS_LAYOUT_CSS_START = '/* ROK VS LAYOUT CALIBRATION START */';
+const VS_LAYOUT_CSS_END = '/* ROK VS LAYOUT CALIBRATION END */';
+const VS_LAYOUT_UNIVERSAL_STORAGE_KEY = 'rokLite.vsLayoutUniversal.v2';
+const VS_LAYOUT_UNIVERSAL_LEGACY_STORAGE_KEY = 'rokLite.vsLayoutUniversal.v1';
+const VS_LAYOUT_UNIVERSAL_CSS_START = '/* ROK VS LAYOUT UNIVERSAL START */';
+const VS_LAYOUT_UNIVERSAL_CSS_END = '/* ROK VS LAYOUT UNIVERSAL END */';
+const VS_LAYOUT_GRID_CSS_START = '/* ROK VS GUIDE GRID START */';
+const VS_LAYOUT_GRID_CSS_END = '/* ROK VS GUIDE GRID END */';
+const vsLayoutEditorState = {
+  activeKind: '',
+  activeKey: '',
+  activeEntity: null,
+  casterKey: '',
+  invocationKey: '',
+  cssFileHandle: null,
+  catalog: { kasters: [], invocations: [] },
+};
+
+const VS_LAYOUT_GRID_STORAGE_KEY = 'rokLite.vsLayoutGuideGrid.v1';
+const VS_LAYOUT_GRID_COLS = 16;
+const VS_LAYOUT_GRID_ROWS = 18;
+const VS_LAYOUT_GRID_COLOR_NAMES = new Set(['cyan', 'gold', 'magenta', 'green']);
+const vsLayoutGridState = {
+  visible: false,
+  paintEnabled: false,
+  color: 'cyan',
+  painting: false,
+  dirty: false,
+  cells: {},
+};
+
+const vsLayoutUniversalState = {
+  kaster: { scale: 1, x: 0, y: 0 },
+  invocation: { scale: 1, x: 0, y: 0 },
+};
+let vsLayoutUniversalLoaded = false;
+
+function loadVsLayoutCalibrationMap() {
+  try {
+    const raw = safeLocalStorageGet(VS_LAYOUT_CALIBRATION_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveVsLayoutCalibrationMap(map) {
+  return safeLocalStorageSet(VS_LAYOUT_CALIBRATION_STORAGE_KEY, JSON.stringify(map || {}));
+}
+
+function normalizeVsLayoutCalibration(value = null) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    scale: Math.max(0.35, Math.min(1.8, Number(source.scale || 1))),
+    x: Math.max(-320, Math.min(320, Math.round(Number(source.x || 0)))),
+    y: Math.max(-260, Math.min(260, Math.round(Number(source.y || 0)))),
+  };
+}
+
+function normalizeVsLayoutUniversal(value = null) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    scale: Math.max(0.6, Math.min(1.4, Number(source.scale || 1))),
+    x: Math.max(-320, Math.min(320, Math.round(Number(source.x || 0)))),
+    y: Math.max(-260, Math.min(260, Math.round(Number(source.y || 0)))),
+  };
+}
+
+function normalizeVsLayoutUniversalBundle(value = null) {
+  const source = value && typeof value === 'object' ? value : {};
+  const legacyFlat = ('scale' in source || 'x' in source || 'y' in source) ? normalizeVsLayoutUniversal(source) : null;
+  return {
+    kaster: normalizeVsLayoutUniversal(source.kaster || legacyFlat),
+    invocation: normalizeVsLayoutUniversal(source.invocation || legacyFlat),
+  };
+}
+
+function getVsLayoutUniversalKindFromKey(key = '') {
+  return String(key || '').startsWith('invocation:') ? 'invocation' : 'kaster';
+}
+
+function readVsLayoutUniversalFromComputedCss() {
+  try {
+    const computed = window.getComputedStyle(document.documentElement);
+    const legacy = normalizeVsLayoutUniversal({
+      scale: Number.parseFloat(computed.getPropertyValue('--vs-layout-universal-scale')) || 1,
+      x: Number.parseFloat(computed.getPropertyValue('--vs-layout-universal-x')) || 0,
+      y: Number.parseFloat(computed.getPropertyValue('--vs-layout-universal-y')) || 0,
+    });
+    const readKind = kind => normalizeVsLayoutUniversal({
+      scale: Number.parseFloat(computed.getPropertyValue(`--vs-layout-universal-${kind}-scale`)) || legacy.scale,
+      x: Number.parseFloat(computed.getPropertyValue(`--vs-layout-universal-${kind}-x`)) || legacy.x,
+      y: Number.parseFloat(computed.getPropertyValue(`--vs-layout-universal-${kind}-y`)) || legacy.y,
+    });
+    return { kaster: readKind('kaster'), invocation: readKind('invocation') };
+  } catch (_) {
+    return normalizeVsLayoutUniversalBundle(null);
+  }
+}
+
+function loadVsLayoutUniversalState() {
+  let value = null;
+  try {
+    const raw = safeLocalStorageGet(VS_LAYOUT_UNIVERSAL_STORAGE_KEY);
+    value = raw ? JSON.parse(raw) : null;
+    if (!value) {
+      const legacyRaw = safeLocalStorageGet(VS_LAYOUT_UNIVERSAL_LEGACY_STORAGE_KEY);
+      value = legacyRaw ? JSON.parse(legacyRaw) : null;
+    }
+  } catch (_) { value = null; }
+  const normalized = normalizeVsLayoutUniversalBundle(value || readVsLayoutUniversalFromComputedCss());
+  vsLayoutUniversalState.kaster = normalized.kaster;
+  vsLayoutUniversalState.invocation = normalized.invocation;
+  vsLayoutUniversalLoaded = true;
+  return normalizeVsLayoutUniversalBundle(vsLayoutUniversalState);
+}
+
+function saveVsLayoutUniversalState(value = vsLayoutUniversalState) {
+  const normalized = normalizeVsLayoutUniversalBundle(value);
+  vsLayoutUniversalState.kaster = normalized.kaster;
+  vsLayoutUniversalState.invocation = normalized.invocation;
+  vsLayoutUniversalLoaded = true;
+  return safeLocalStorageSet(VS_LAYOUT_UNIVERSAL_STORAGE_KEY, JSON.stringify(normalized));
+}
+
+function getVsLayoutUniversalBundle() {
+  if (!vsLayoutUniversalLoaded) loadVsLayoutUniversalState();
+  return normalizeVsLayoutUniversalBundle(vsLayoutUniversalState);
+}
+
+function getVsLayoutUniversalState(kind = 'kaster') {
+  const bundle = getVsLayoutUniversalBundle();
+  return normalizeVsLayoutUniversal(kind === 'invocation' ? bundle.invocation : bundle.kaster);
+}
+
+function applyVsLayoutUniversalToRoot(value = vsLayoutUniversalState) {
+  const normalized = normalizeVsLayoutUniversalBundle(value);
+  vsLayoutUniversalState.kaster = normalized.kaster;
+  vsLayoutUniversalState.invocation = normalized.invocation;
+  vsLayoutUniversalLoaded = true;
+  const root = document.documentElement;
+  if (!root) return normalized;
+  ['kaster', 'invocation'].forEach(kind => {
+    const entry = normalized[kind];
+    root.style.setProperty(`--vs-layout-universal-${kind}-scale`, String(entry.scale));
+    root.style.setProperty(`--vs-layout-universal-${kind}-x`, `${entry.x}px`);
+    root.style.setProperty(`--vs-layout-universal-${kind}-y`, `${entry.y}px`);
+  });
+  return normalized;
+}
+
+function combineVsLayoutCalibration(individualValue = null, universalValue = null) {
+  const individual = normalizeVsLayoutCalibration(individualValue);
+  const universal = normalizeVsLayoutUniversal(universalValue);
+  return {
+    scale: Math.max(0.2, Math.min(2.4, individual.scale * universal.scale)),
+    x: individual.x + universal.x,
+    xMirror: -(individual.x + universal.x),
+    y: individual.y + universal.y,
+  };
+}
+
+function hasStoredVsLayoutCalibration(key = '') {
+  const map = loadVsLayoutCalibrationMap();
+  return Object.prototype.hasOwnProperty.call(map, String(key || ''));
+}
+
+function readVsLayoutCalibrationFromElement(element, key = '') {
+  if (!element || !key) return normalizeVsLayoutCalibration(null);
+  const map = loadVsLayoutCalibrationMap();
+  if (Object.prototype.hasOwnProperty.call(map, key)) return normalizeVsLayoutCalibration(map[key]);
+
+  element.dataset.vsLayoutKey = key;
+  element.style.removeProperty('--vs-layout-scale');
+  element.style.removeProperty('--vs-layout-x');
+  element.style.removeProperty('--vs-layout-x-mirror');
+  element.style.removeProperty('--vs-layout-y');
+  const computed = window.getComputedStyle(element);
+  const scale = Number.parseFloat(computed.getPropertyValue('--vs-layout-scale')) || 1;
+  const x = Number.parseFloat(computed.getPropertyValue('--vs-layout-x')) || 0;
+  const y = Number.parseFloat(computed.getPropertyValue('--vs-layout-y')) || 0;
+  return normalizeVsLayoutCalibration({ scale, x, y });
+}
+
+function loadVsLayoutGuideGridState() {
+  try {
+    const raw = safeLocalStorageGet(VS_LAYOUT_GRID_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    vsLayoutGridState.visible = parsed?.visible === true;
+    vsLayoutGridState.paintEnabled = false;
+    vsLayoutGridState.color = VS_LAYOUT_GRID_COLOR_NAMES.has(parsed?.color) ? parsed.color : 'cyan';
+    vsLayoutGridState.cells = parsed?.cells && typeof parsed.cells === 'object' && !Array.isArray(parsed.cells) ? { ...parsed.cells } : {};
+  } catch (_) {
+    vsLayoutGridState.visible = false;
+    vsLayoutGridState.paintEnabled = false;
+    vsLayoutGridState.color = 'cyan';
+    vsLayoutGridState.cells = {};
+  }
+  vsLayoutGridState.dirty = false;
+}
+
+function saveVsLayoutGuideGridState() {
+  safeLocalStorageSet(VS_LAYOUT_GRID_STORAGE_KEY, JSON.stringify({
+    visible: vsLayoutGridState.visible,
+    color: vsLayoutGridState.color,
+    cells: vsLayoutGridState.cells,
+  }));
+}
+
+function renderVsLayoutGuideGrid() {
+  const grid = els.vsLayoutGuideGrid;
+  if (!grid) return;
+  if (grid.children.length !== VS_LAYOUT_GRID_COLS * VS_LAYOUT_GRID_ROWS) {
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < VS_LAYOUT_GRID_COLS * VS_LAYOUT_GRID_ROWS; index += 1) {
+      const cell = document.createElement('span');
+      cell.className = 'vs-layout-guide-cell';
+      cell.dataset.vsGridIndex = String(index);
+      fragment.appendChild(cell);
+    }
+    grid.replaceChildren(fragment);
+  }
+  grid.querySelectorAll('.vs-layout-guide-cell').forEach(cell => {
+    const index = cell.dataset.vsGridIndex;
+    const color = vsLayoutGridState.cells[index];
+    cell.dataset.paint = VS_LAYOUT_GRID_COLOR_NAMES.has(color) ? color : '';
+  });
+}
+
+function syncVsLayoutGuideGridUi() {
+  const grid = els.vsLayoutGuideGrid;
+  const paintMode = vsLayoutGridState.visible && vsLayoutGridState.paintEnabled;
+  if (grid) {
+    grid.classList.toggle('is-visible', vsLayoutGridState.visible);
+    grid.classList.toggle('is-painting', paintMode);
+    grid.setAttribute('aria-hidden', vsLayoutGridState.visible ? 'false' : 'true');
+  }
+  els.vsLayoutEditorIntro?.classList.toggle('vs-layout-paint-mode', paintMode);
+  if (els.vsLayoutGridToggle) els.vsLayoutGridToggle.checked = vsLayoutGridState.visible;
+  if (els.vsLayoutGridPaintBtn) {
+    els.vsLayoutGridPaintBtn.setAttribute('aria-pressed', vsLayoutGridState.paintEnabled ? 'true' : 'false');
+    els.vsLayoutGridPaintBtn.textContent = vsLayoutGridState.paintEnabled ? 'Pintar: activado' : 'Pintar: desactivado';
+    els.vsLayoutGridPaintBtn.classList.toggle('active', vsLayoutGridState.paintEnabled);
+  }
+  els.vsLayoutGridPalette?.querySelectorAll('[data-vs-grid-color]').forEach(button => {
+    button.classList.toggle('is-selected', button.dataset.vsGridColor === vsLayoutGridState.color);
+  });
+}
+
+function setVsLayoutGuideGridVisible(visible) {
+  vsLayoutGridState.visible = visible === true;
+  if (!vsLayoutGridState.visible) {
+    vsLayoutGridState.paintEnabled = false;
+    vsLayoutGridState.painting = false;
+  }
+  saveVsLayoutGuideGridState();
+  syncVsLayoutGuideGridUi();
+}
+
+function setVsLayoutGuidePaintEnabled(enabled) {
+  if (enabled === true && !vsLayoutGridState.visible) vsLayoutGridState.visible = true;
+  vsLayoutGridState.paintEnabled = enabled === true && vsLayoutGridState.visible;
+  vsLayoutGridState.painting = false;
+  saveVsLayoutGuideGridState();
+  syncVsLayoutGuideGridUi();
+  if (vsLayoutGridState.paintEnabled) {
+    setVsLayoutEditorStatus('Modo Pintar activo: Kaster e invocación se ocultan temporalmente para liberar toda la cuadrícula.');
+  } else {
+    setVsLayoutEditorStatus('Modo Pintar desactivado: los sprites vuelven a mostrarse.');
+  }
+}
+
+function paintVsLayoutGuideCell(cell) {
+  const index = cell?.dataset?.vsGridIndex;
+  if (index == null || !vsLayoutGridState.paintEnabled) return;
+  if (vsLayoutGridState.color === 'erase') delete vsLayoutGridState.cells[index];
+  else if (VS_LAYOUT_GRID_COLOR_NAMES.has(vsLayoutGridState.color)) vsLayoutGridState.cells[index] = vsLayoutGridState.color;
+  vsLayoutGridState.dirty = true;
+  cell.dataset.paint = VS_LAYOUT_GRID_COLOR_NAMES.has(vsLayoutGridState.cells[index]) ? vsLayoutGridState.cells[index] : '';
+  saveVsLayoutGuideGridState();
+}
+
+function clearVsLayoutGuideGrid() {
+  vsLayoutGridState.cells = {};
+  vsLayoutGridState.dirty = true;
+  renderVsLayoutGuideGrid();
+  saveVsLayoutGuideGridState();
+  setVsLayoutEditorStatus('Pintura de la cuadrícula eliminada.');
+}
+
+function getVsLayoutCalibration(key = '') {
+  const map = loadVsLayoutCalibrationMap();
+  return normalizeVsLayoutCalibration(map[String(key || '')]);
+}
+
+function setVsLayoutCalibration(key, calibration, meta = {}) {
+  if (!key) return false;
+  const map = loadVsLayoutCalibrationMap();
+  const normalized = normalizeVsLayoutCalibration(calibration);
+  map[key] = {
+    ...normalized,
+    kind: meta.kind || map[key]?.kind || '',
+    name: meta.name || map[key]?.name || '',
+    updatedAt: Date.now(),
+  };
+  return saveVsLayoutCalibrationMap(map);
+}
+
+function escapeVsLayoutCssAttr(value = '') {
+  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function parseVsLayoutCalibrationCssBlock(cssText = '') {
+  const source = String(cssText || '');
+  const start = source.indexOf(VS_LAYOUT_CSS_START);
+  const end = source.indexOf(VS_LAYOUT_CSS_END);
+  if (start < 0 || end < start) return {};
+  const body = source.slice(start + VS_LAYOUT_CSS_START.length, end);
+  const parsed = {};
+  const rulePattern = /\[data-vs-layout-key="((?:\\.|[^"\\])*)"\]\s*\{([^}]*)\}/g;
+  let match;
+  while ((match = rulePattern.exec(body))) {
+    const key = String(match[1] || '').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    const declarations = match[2] || '';
+    const readNumber = property => {
+      const propertyPattern = new RegExp(`${property}\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`, 'i');
+      const valueMatch = declarations.match(propertyPattern);
+      return valueMatch ? Number(valueMatch[1]) : null;
+    };
+    const scale = readNumber('--vs-layout-scale');
+    const x = readNumber('--vs-layout-x');
+    const y = readNumber('--vs-layout-y');
+    if (!key || scale == null || x == null || y == null) continue;
+    parsed[key] = { ...normalizeVsLayoutCalibration({ scale, x, y }), updatedAt: 0 };
+  }
+  return parsed;
+}
+
+function buildVsLayoutCalibrationCssBlock(sourceMap = null) {
+  const map = sourceMap && typeof sourceMap === 'object' ? sourceMap : loadVsLayoutCalibrationMap();
+  const rules = Object.entries(map)
+    .sort((a, b) => Number(b[1]?.updatedAt || 0) - Number(a[1]?.updatedAt || 0) || String(a[0]).localeCompare(String(b[0])))
+    .map(([key, raw]) => {
+      const value = normalizeVsLayoutCalibration(raw);
+      const mirrorX = value.x === 0 ? 0 : -value.x;
+      return `[data-vs-layout-key="${escapeVsLayoutCssAttr(key)}"] { --vs-layout-scale:${value.scale.toFixed(2)}; --vs-layout-x:${value.x}px; --vs-layout-x-mirror:${mirrorX}px; --vs-layout-y:${value.y}px; }`;
+    });
+  return `${VS_LAYOUT_CSS_START}\n${rules.join('\n')}\n${VS_LAYOUT_CSS_END}`;
+}
+
+function parseVsLayoutUniversalCssBlock(cssText = '') {
+  const source = String(cssText || '');
+  const start = source.indexOf(VS_LAYOUT_UNIVERSAL_CSS_START);
+  const end = source.indexOf(VS_LAYOUT_UNIVERSAL_CSS_END);
+  if (start < 0 || end < start) return null;
+  const body = source.slice(start + VS_LAYOUT_UNIVERSAL_CSS_START.length, end);
+  const read = property => {
+    const match = body.match(new RegExp(`${property}\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`, 'i'));
+    return match ? Number(match[1]) : null;
+  };
+  const legacy = {
+    scale: read('--vs-layout-universal-scale'),
+    x: read('--vs-layout-universal-x'),
+    y: read('--vs-layout-universal-y'),
+  };
+  const readKind = kind => {
+    const value = {
+      scale: read(`--vs-layout-universal-${kind}-scale`),
+      x: read(`--vs-layout-universal-${kind}-x`),
+      y: read(`--vs-layout-universal-${kind}-y`),
+    };
+    const complete = value.scale != null && value.x != null && value.y != null;
+    if (complete) return normalizeVsLayoutUniversal(value);
+    if (legacy.scale != null && legacy.x != null && legacy.y != null) return normalizeVsLayoutUniversal(legacy);
+    return normalizeVsLayoutUniversal(null);
+  };
+  return { kaster: readKind('kaster'), invocation: readKind('invocation') };
+}
+
+function buildVsLayoutUniversalCssBlock(value = null) {
+  const universal = normalizeVsLayoutUniversalBundle(value || vsLayoutUniversalState);
+  return `${VS_LAYOUT_UNIVERSAL_CSS_START}\n:root {\n  --vs-layout-universal-kaster-scale:${universal.kaster.scale.toFixed(2)};\n  --vs-layout-universal-kaster-x:${universal.kaster.x}px;\n  --vs-layout-universal-kaster-y:${universal.kaster.y}px;\n  --vs-layout-universal-invocation-scale:${universal.invocation.scale.toFixed(2)};\n  --vs-layout-universal-invocation-x:${universal.invocation.x}px;\n  --vs-layout-universal-invocation-y:${universal.invocation.y}px;\n}\n${VS_LAYOUT_UNIVERSAL_CSS_END}`;
+}
+
+function parseVsLayoutGridCssBlock(cssText = '') {
+  const source = String(cssText || '');
+  const start = source.indexOf(VS_LAYOUT_GRID_CSS_START);
+  const end = source.indexOf(VS_LAYOUT_GRID_CSS_END);
+  if (start < 0 || end < start) return {};
+  const body = source.slice(start + VS_LAYOUT_GRID_CSS_START.length, end);
+  const result = {};
+  const pattern = /data-vs-grid-index="(\d+)"\][^{]*\{[^}]*--vs-layout-guide-css-color\s*:\s*(cyan|gold|magenta|green)\s*;?[^}]*\}/gi;
+  let match;
+  while ((match = pattern.exec(body))) {
+    const index = Number(match[1]);
+    const color = String(match[2] || '').toLowerCase();
+    if (Number.isInteger(index) && index >= 0 && index < VS_LAYOUT_GRID_COLS * VS_LAYOUT_GRID_ROWS && VS_LAYOUT_GRID_COLOR_NAMES.has(color)) {
+      result[String(index)] = color;
+    }
+  }
+  return result;
+}
+
+function buildVsLayoutGridCssBlock(sourceCells = null) {
+  const cells = sourceCells && typeof sourceCells === 'object' ? sourceCells : vsLayoutGridState.cells;
+  const paint = {
+    cyan: 'rgba(25,217,255,.27)',
+    gold: 'rgba(255,213,74,.28)',
+    magenta: 'rgba(255,67,189,.26)',
+    green: 'rgba(94,227,108,.25)',
+  };
+  const rules = Object.entries(cells)
+    .filter(([index, color]) => /^\d+$/.test(String(index)) && VS_LAYOUT_GRID_COLOR_NAMES.has(color))
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([index, color]) => `.vs-layout-guide-cell[data-vs-grid-index="${index}"] { --vs-layout-guide-css-color:${color}; --vs-layout-guide-css-paint:${paint[color]}; }`);
+  return `${VS_LAYOUT_GRID_CSS_START}\n${rules.join('\n')}\n${VS_LAYOUT_GRID_CSS_END}`;
+}
+
+function replaceDelimitedCssBlock(cssText, startMarker, endMarker, block) {
+  const source = String(cssText || '');
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker);
+  if (start >= 0 && end >= start) {
+    return source.slice(0, start) + block + source.slice(end + endMarker.length);
+  }
+  return `${source.replace(/\s*$/, '')}\n\n${block}\n`;
+}
+
+function replaceVsLayoutCssBlock(cssText = '') {
+  let source = String(cssText || '');
+  const cssMap = parseVsLayoutCalibrationCssBlock(source);
+  const browserMap = loadVsLayoutCalibrationMap();
+  const mergedMap = { ...cssMap, ...browserMap };
+  const cssUniversal = parseVsLayoutUniversalCssBlock(source);
+  const browserUniversal = getVsLayoutUniversalBundle();
+  const mergedUniversal = normalizeVsLayoutUniversalBundle(browserUniversal || cssUniversal);
+  const cssGrid = parseVsLayoutGridCssBlock(source);
+  const mergedGrid = vsLayoutGridState.dirty
+    ? { ...(vsLayoutGridState.cells || {}) }
+    : { ...cssGrid, ...(vsLayoutGridState.cells || {}) };
+
+  source = replaceDelimitedCssBlock(source, VS_LAYOUT_CSS_START, VS_LAYOUT_CSS_END, buildVsLayoutCalibrationCssBlock(mergedMap));
+  source = replaceDelimitedCssBlock(source, VS_LAYOUT_UNIVERSAL_CSS_START, VS_LAYOUT_UNIVERSAL_CSS_END, buildVsLayoutUniversalCssBlock(mergedUniversal));
+  source = replaceDelimitedCssBlock(source, VS_LAYOUT_GRID_CSS_START, VS_LAYOUT_GRID_CSS_END, buildVsLayoutGridCssBlock(mergedGrid));
+  return source;
+}
+
+function applyVsLayoutCalibrationToElement(element, key = '') {
+  if (!element) return;
+  if (!key) {
+    delete element.dataset.vsLayoutKey;
+    ['--vs-layout-scale','--vs-layout-x','--vs-layout-x-mirror','--vs-layout-y','--vs-layout-effective-scale','--vs-layout-effective-x','--vs-layout-effective-x-mirror','--vs-layout-effective-y']
+      .forEach(property => element.style.removeProperty(property));
+    return;
+  }
+
+  element.dataset.vsLayoutKey = key;
+  let individual = null;
+  if (hasStoredVsLayoutCalibration(key)) {
+    individual = getVsLayoutCalibration(key);
+    element.style.setProperty('--vs-layout-scale', String(individual.scale));
+    element.style.setProperty('--vs-layout-x', `${individual.x}px`);
+    element.style.setProperty('--vs-layout-x-mirror', `${individual.x === 0 ? 0 : -individual.x}px`);
+    element.style.setProperty('--vs-layout-y', `${individual.y}px`);
+  } else {
+    element.style.removeProperty('--vs-layout-scale');
+    element.style.removeProperty('--vs-layout-x');
+    element.style.removeProperty('--vs-layout-x-mirror');
+    element.style.removeProperty('--vs-layout-y');
+    const computed = window.getComputedStyle(element);
+    individual = normalizeVsLayoutCalibration({
+      scale: Number.parseFloat(computed.getPropertyValue('--vs-layout-scale')) || 1,
+      x: Number.parseFloat(computed.getPropertyValue('--vs-layout-x')) || 0,
+      y: Number.parseFloat(computed.getPropertyValue('--vs-layout-y')) || 0,
+    });
+  }
+
+  const universalKind = getVsLayoutUniversalKindFromKey(key);
+  const effective = combineVsLayoutCalibration(individual, getVsLayoutUniversalState(universalKind));
+  element.style.setProperty('--vs-layout-effective-scale', String(effective.scale));
+  element.style.setProperty('--vs-layout-effective-x', `${effective.x}px`);
+  element.style.setProperty('--vs-layout-effective-x-mirror', `${effective.xMirror}px`);
+  element.style.setProperty('--vs-layout-effective-y', `${effective.y}px`);
+}
+
+function refreshVsLayoutUniversalOnVisibleSprites() {
+  [
+    els.vsLayoutEditorCaster, els.vsLayoutEditorChampion,
+    els.onlineIntroRivalImage, els.onlineIntroPlayerImage,
+    els.onlineIntroRivalChampion, els.onlineIntroPlayerChampion,
+    els.adventureIntroRivalImage, els.adventureIntroPlayerImage,
+    els.adventureIntroRivalChampion, els.adventureIntroPlayerChampion,
+  ].forEach(element => {
+    const key = element?.dataset?.vsLayoutKey;
+    if (element && key) applyVsLayoutCalibrationToElement(element, key);
+  });
+}
+
+function getVsLayoutKasterKey(entity = null) {
+  if (!entity) return '';
+  const id = entity.cardId || entity.id || entity.casterId || entity.name || entity.label || '';
+  return id ? `kaster:${id}` : '';
+}
+
+function getVsLayoutInvocationKey(card = null) {
+  const id = card?.id || card?.cardId || '';
+  return id ? `invocation:${id}` : '';
+}
+
+function getVsLayoutKasterCatalog() {
+  const result = [];
+  const seen = new Set();
+  const push = entry => {
+    if (!entry?.key || !entry?.image || seen.has(entry.key)) return;
+    seen.add(entry.key);
+    result.push(entry);
+  };
+
+  Object.values(CARD_LIBRARY).slice().reverse().forEach(card => {
+    if (!card || card.type !== 'kaster') return;
+    const def = getCasterRuntimeDefinitionFromCard(card);
+    push({
+      kind: 'kaster',
+      key: `kaster:${card.id}`,
+      id: card.id,
+      name: card.name || def?.name || card.id,
+      image: def?.tokenImage || card.tokenImage || def?.artImage || card.artImage || '',
+      source: 'CARD_LIBRARY',
+    });
+  });
+
+  Object.values(CASTER_LIBRARY).slice().reverse().forEach(caster => {
+    const id = caster.cardId || caster.id;
+    push({
+      kind: 'kaster',
+      key: `kaster:${id}`,
+      id,
+      name: caster.name || id,
+      image: caster.tokenImage || caster.artImage || '',
+      source: 'CASTER_LIBRARY',
+    });
+  });
+
+  [...ADVENTURE_PLAYER_CASTERS].reverse().forEach(caster => {
+    push({
+      kind: 'kaster',
+      key: `kaster:adventure-player:${caster.id}`,
+      id: caster.id,
+      name: caster.label || caster.id,
+      image: caster.tokenImage || caster.image || '',
+      source: 'ADVENTURE_PLAYER',
+    });
+  });
+
+  [...ADVENTURE_WATER_ENCOUNTERS].reverse().forEach(caster => {
+    push({
+      kind: 'kaster',
+      key: `kaster:adventure:${caster.id}`,
+      id: caster.id,
+      name: caster.label || caster.id,
+      image: caster.tokenImage || caster.image || '',
+      source: 'ADVENTURE_RIVAL',
+    });
+  });
+
+  return result;
+}
+
+function getVsLayoutInvocationCatalog() {
+  return Object.values(CARD_LIBRARY).slice().reverse()
+    .filter(card => card && getCardTypeId(card) === 'invocation' && (card.tokenImage || card.artImage || card.thumbnailImage))
+    .map(card => ({
+      kind: 'invocation',
+      key: getVsLayoutInvocationKey(card),
+      id: card.id,
+      name: card.name || card.shortName || card.id,
+      image: card.tokenImage || card.artImage || card.thumbnailImage || '',
+      source: 'CARD_LIBRARY',
+      card,
+    }));
+}
+
+function populateVsLayoutEditorSelectors() {
+  vsLayoutEditorState.catalog.kasters = getVsLayoutKasterCatalog();
+  vsLayoutEditorState.catalog.invocations = getVsLayoutInvocationCatalog();
+  if (els.vsLayoutCasterSelect) {
+    els.vsLayoutCasterSelect.innerHTML = '<option value="">— Ningún Kaster —</option>' + vsLayoutEditorState.catalog.kasters
+      .map(entry => `<option value="${escapeAttribute(entry.key)}">${escapeHtml(entry.name)}</option>`).join('');
+  }
+  if (els.vsLayoutInvocationSelect) {
+    els.vsLayoutInvocationSelect.innerHTML = '<option value="">— Ninguna invocación —</option>' + vsLayoutEditorState.catalog.invocations
+      .map(entry => `<option value="${escapeAttribute(entry.key)}">${escapeHtml(entry.name)}</option>`).join('');
+  }
+}
+
+function findVsLayoutEditorEntry(kind, key) {
+  const list = kind === 'invocation' ? vsLayoutEditorState.catalog.invocations : vsLayoutEditorState.catalog.kasters;
+  return list.find(entry => entry.key === key) || null;
+}
+
+function setVsLayoutEditorStatus(message = '') {
+  if (els.vsLayoutSaveStatus) els.vsLayoutSaveStatus.textContent = message || '';
+}
+
+function setVsLayoutEditorControlsEnabled(enabled) {
+  [els.vsLayoutScaleRange, els.vsLayoutXRange, els.vsLayoutYRange, els.vsLayoutSaveBtn, els.vsLayoutResetBtn, els.vsLayoutReplayBtn]
+    .forEach(control => { if (control) control.disabled = !enabled; });
+}
+
+function syncVsLayoutEditorOutputs(value = null) {
+  const calibration = normalizeVsLayoutCalibration(value);
+  if (els.vsLayoutScaleRange) els.vsLayoutScaleRange.value = String(calibration.scale);
+  if (els.vsLayoutXRange) els.vsLayoutXRange.value = String(calibration.x);
+  if (els.vsLayoutYRange) els.vsLayoutYRange.value = String(calibration.y);
+  if (els.vsLayoutScaleValue) els.vsLayoutScaleValue.textContent = `${Math.round(calibration.scale * 100)}%`;
+  if (els.vsLayoutXValue) els.vsLayoutXValue.textContent = `${calibration.x} px`;
+  if (els.vsLayoutYValue) els.vsLayoutYValue.textContent = `${calibration.y} px`;
+}
+
+function getVsLayoutEditorLiveCalibration() {
+  return normalizeVsLayoutCalibration({
+    scale: Number(els.vsLayoutScaleRange?.value || 1),
+    x: Number(els.vsLayoutXRange?.value || 0),
+    y: Number(els.vsLayoutYRange?.value || 0),
+  });
+}
+
+function getVsLayoutUniversalControls(kind = 'kaster') {
+  if (kind === 'invocation') {
+    return {
+      scaleRange: els.vsLayoutInvocationUniversalScaleRange,
+      xRange: els.vsLayoutInvocationUniversalXRange,
+      yRange: els.vsLayoutInvocationUniversalYRange,
+      scaleValue: els.vsLayoutInvocationUniversalScaleValue,
+      xValue: els.vsLayoutInvocationUniversalXValue,
+      yValue: els.vsLayoutInvocationUniversalYValue,
+    };
+  }
+  return {
+    scaleRange: els.vsLayoutCasterUniversalScaleRange,
+    xRange: els.vsLayoutCasterUniversalXRange,
+    yRange: els.vsLayoutCasterUniversalYRange,
+    scaleValue: els.vsLayoutCasterUniversalScaleValue,
+    xValue: els.vsLayoutCasterUniversalXValue,
+    yValue: els.vsLayoutCasterUniversalYValue,
+  };
+}
+
+function syncVsLayoutUniversalOutputs(kind = 'kaster', value = null) {
+  const calibration = normalizeVsLayoutUniversal(value || getVsLayoutUniversalState(kind));
+  const controls = getVsLayoutUniversalControls(kind);
+  if (controls.scaleRange) controls.scaleRange.value = String(calibration.scale);
+  if (controls.xRange) controls.xRange.value = String(calibration.x);
+  if (controls.yRange) controls.yRange.value = String(calibration.y);
+  if (controls.scaleValue) controls.scaleValue.textContent = `${Math.round(calibration.scale * 100)}%`;
+  if (controls.xValue) controls.xValue.textContent = `${calibration.x} px`;
+  if (controls.yValue) controls.yValue.textContent = `${calibration.y} px`;
+}
+
+function getVsLayoutUniversalLiveCalibration(kind = 'kaster') {
+  const controls = getVsLayoutUniversalControls(kind);
+  return normalizeVsLayoutUniversal({
+    scale: Number(controls.scaleRange?.value || 1),
+    x: Number(controls.xRange?.value || 0),
+    y: Number(controls.yRange?.value || 0),
+  });
+}
+
+function applyVsLayoutUniversalLiveCalibration(kind = 'kaster') {
+  const value = getVsLayoutUniversalLiveCalibration(kind);
+  const bundle = getVsLayoutUniversalBundle();
+  bundle[kind] = value;
+  applyVsLayoutUniversalToRoot(bundle);
+  refreshVsLayoutUniversalOnVisibleSprites();
+
+  // v567 · Si el usuario está editando una pieza individual del mismo tipo,
+  // el universal debe verse sobre ESA MISMA previsualización sin esperar a
+  // guardar ni a volver a seleccionarla. Se conserva el ajuste individual
+  // actualmente escrito en los sliders aunque todavía no esté persistido.
+  if (vsLayoutEditorState.activeKind === kind && vsLayoutEditorState.activeKey) {
+    const target = kind === 'invocation' ? els.vsLayoutEditorChampion : els.vsLayoutEditorCaster;
+    if (target) {
+      const individual = getVsLayoutEditorLiveCalibration();
+      const effective = combineVsLayoutCalibration(individual, value);
+      target.dataset.vsLayoutKey = vsLayoutEditorState.activeKey;
+      target.style.setProperty('--vs-layout-scale', String(individual.scale));
+      target.style.setProperty('--vs-layout-x', `${individual.x}px`);
+      target.style.setProperty('--vs-layout-x-mirror', `${individual.x === 0 ? 0 : -individual.x}px`);
+      target.style.setProperty('--vs-layout-y', `${individual.y}px`);
+      target.style.setProperty('--vs-layout-effective-scale', String(effective.scale));
+      target.style.setProperty('--vs-layout-effective-x', `${effective.x}px`);
+      target.style.setProperty('--vs-layout-effective-x-mirror', `${effective.xMirror}px`);
+      target.style.setProperty('--vs-layout-effective-y', `${effective.y}px`);
+    }
+  }
+
+  syncVsLayoutUniversalOutputs(kind, value);
+  setVsLayoutEditorStatus(`Cambio universal de ${kind === 'invocation' ? 'invocaciones' : 'Kasters'} sin guardar.`);
+}
+
+async function saveVsLayoutUniversalCurrent(kind = 'kaster') {
+  const value = getVsLayoutUniversalLiveCalibration(kind);
+  const bundle = getVsLayoutUniversalBundle();
+  bundle[kind] = value;
+  saveVsLayoutUniversalState(bundle);
+  applyVsLayoutUniversalToRoot(bundle);
+  refreshVsLayoutUniversalOnVisibleSprites();
+  if (vsLayoutEditorState.activeKind === kind && vsLayoutEditorState.activeKey) {
+    const target = kind === 'invocation' ? els.vsLayoutEditorChampion : els.vsLayoutEditorCaster;
+    if (target) {
+      const individual = getVsLayoutEditorLiveCalibration();
+      const effective = combineVsLayoutCalibration(individual, value);
+      target.style.setProperty('--vs-layout-effective-scale', String(effective.scale));
+      target.style.setProperty('--vs-layout-effective-x', `${effective.x}px`);
+      target.style.setProperty('--vs-layout-effective-x-mirror', `${effective.xMirror}px`);
+      target.style.setProperty('--vs-layout-effective-y', `${effective.y}px`);
+    }
+  }
+  if (vsLayoutEditorState.cssFileHandle) {
+    const written = await writeVsLayoutCalibrationToLinkedCss();
+    if (written) setVsLayoutEditorStatus(`Ajuste universal de ${kind === 'invocation' ? 'invocaciones' : 'Kasters'} guardado en navegador + style.css.`);
+  } else {
+    setVsLayoutEditorStatus(`Ajuste universal de ${kind === 'invocation' ? 'invocaciones' : 'Kasters'} guardado en este navegador.`);
+  }
+}
+
+function resetVsLayoutUniversalCurrent(kind = 'kaster') {
+  syncVsLayoutUniversalOutputs(kind, { scale: 1, x: 0, y: 0 });
+  applyVsLayoutUniversalLiveCalibration(kind);
+}
+
+function applyVsLayoutEditorLiveCalibration() {
+  const key = vsLayoutEditorState.activeKey;
+  const kind = vsLayoutEditorState.activeKind;
+  if (!key || !kind) return;
+  const target = kind === 'invocation' ? els.vsLayoutEditorChampion : els.vsLayoutEditorCaster;
+  if (!target) return;
+  const value = getVsLayoutEditorLiveCalibration();
+  const universalKind = kind === 'invocation' ? 'invocation' : 'kaster';
+  const effective = combineVsLayoutCalibration(value, getVsLayoutUniversalState(universalKind));
+  target.dataset.vsLayoutKey = key;
+  target.style.setProperty('--vs-layout-scale', String(value.scale));
+  target.style.setProperty('--vs-layout-x', `${value.x}px`);
+  target.style.setProperty('--vs-layout-x-mirror', `${value.x === 0 ? 0 : -value.x}px`);
+  target.style.setProperty('--vs-layout-y', `${value.y}px`);
+  target.style.setProperty('--vs-layout-effective-scale', String(effective.scale));
+  target.style.setProperty('--vs-layout-effective-x', `${effective.x}px`);
+  target.style.setProperty('--vs-layout-effective-x-mirror', `${effective.xMirror}px`);
+  target.style.setProperty('--vs-layout-effective-y', `${effective.y}px`);
+  syncVsLayoutEditorOutputs(value);
+  setVsLayoutEditorStatus('Cambio individual sin guardar.');
+}
+
+function replayVsLayoutEditorPreview() {
+  const intro = els.vsLayoutEditorIntro;
+  if (!intro) return;
+  try { stopVersusIntroEnergy(intro); } catch (_) {}
+  intro.classList.remove('active', 'counting', 'combat-ready');
+  void intro.offsetWidth;
+  try { startVersusIntroEnergy(intro); } catch (_) {}
+  intro.classList.add('active');
+}
+
+function queueVsLayoutEditorReplay() {
+  const images = [els.vsLayoutEditorCaster, els.vsLayoutEditorChampion].filter(image => image?.getAttribute?.('src'));
+  if (!images.length) {
+    replayVsLayoutEditorPreview();
+    return;
+  }
+  const waiters = images.map(image => {
+    if (image.complete && Number(image.naturalWidth || 0) > 0) return Promise.resolve();
+    return new Promise(resolve => {
+      const done = () => {
+        image.removeEventListener('load', done);
+        image.removeEventListener('error', done);
+        resolve();
+      };
+      image.addEventListener('load', done, { once: true });
+      image.addEventListener('error', done, { once: true });
+      window.setTimeout(done, 900);
+    });
+  });
+  Promise.all(waiters).then(() => window.requestAnimationFrame(replayVsLayoutEditorPreview));
+}
+
+function updateVsLayoutEditorSelectedVisual() {
+  els.vsLayoutEditorCaster?.classList.toggle('vs-layout-editor-selected', vsLayoutEditorState.activeKind === 'kaster');
+  els.vsLayoutEditorChampion?.classList.toggle('vs-layout-editor-selected', vsLayoutEditorState.activeKind === 'invocation');
+}
+
+function selectVsLayoutEditorEntity(kind, key = '') {
+  const entry = key ? findVsLayoutEditorEntry(kind, key) : null;
+  if (kind === 'kaster') {
+    vsLayoutEditorState.casterKey = key || '';
+    if (els.vsLayoutEditorCaster) {
+      if (entry?.image) {
+        els.vsLayoutEditorCaster.src = entry.image;
+        els.vsLayoutEditorCaster.alt = entry.name || 'Kaster';
+        applyVsLayoutCalibrationToElement(els.vsLayoutEditorCaster, entry.key);
+      } else {
+        els.vsLayoutEditorCaster.removeAttribute('src');
+        applyVsLayoutCalibrationToElement(els.vsLayoutEditorCaster, '');
+      }
+    }
+  } else {
+    vsLayoutEditorState.invocationKey = key || '';
+    if (els.vsLayoutEditorChampion) {
+      if (entry?.image) {
+        els.vsLayoutEditorChampion.src = entry.image;
+        els.vsLayoutEditorChampion.alt = entry.name || 'Invocación';
+        els.vsLayoutEditorChampion.classList.add('visible');
+        applyVsLayoutCalibrationToElement(els.vsLayoutEditorChampion, entry.key);
+      } else {
+        els.vsLayoutEditorChampion.removeAttribute('src');
+        els.vsLayoutEditorChampion.classList.remove('visible');
+        applyVsLayoutCalibrationToElement(els.vsLayoutEditorChampion, '');
+      }
+    }
+  }
+
+  if (entry) {
+    vsLayoutEditorState.activeKind = kind;
+    vsLayoutEditorState.activeKey = entry.key;
+    vsLayoutEditorState.activeEntity = entry;
+    if (els.vsLayoutCurrentName) els.vsLayoutCurrentName.textContent = entry.name;
+    if (els.vsLayoutCurrentKind) els.vsLayoutCurrentKind.textContent = kind === 'invocation' ? 'Invocación destacada' : 'Kaster';
+    if (els.vsLayoutEditorPreviewName) els.vsLayoutEditorPreviewName.textContent = entry.name;
+    const target = kind === 'invocation' ? els.vsLayoutEditorChampion : els.vsLayoutEditorCaster;
+    syncVsLayoutEditorOutputs(readVsLayoutCalibrationFromElement(target, entry.key));
+    setVsLayoutEditorControlsEnabled(true);
+    setVsLayoutEditorStatus('Ajuste cargado. Modifica los controles y guarda cuando esté listo.');
+  } else if (vsLayoutEditorState.activeKind === kind) {
+    vsLayoutEditorState.activeKind = '';
+    vsLayoutEditorState.activeKey = '';
+    vsLayoutEditorState.activeEntity = null;
+    if (els.vsLayoutCurrentName) els.vsLayoutCurrentName.textContent = 'Selecciona un elemento';
+    if (els.vsLayoutCurrentKind) els.vsLayoutCurrentKind.textContent = '—';
+    if (els.vsLayoutEditorPreviewName) els.vsLayoutEditorPreviewName.textContent = 'Selecciona un elemento';
+    syncVsLayoutEditorOutputs({ scale: 1, x: 0, y: 0 });
+    setVsLayoutEditorControlsEnabled(false);
+  }
+  updateVsLayoutEditorSelectedVisual();
+  queueVsLayoutEditorReplay();
+}
+
+async function writeVsLayoutCalibrationToLinkedCss() {
+  const handle = vsLayoutEditorState.cssFileHandle;
+  if (!handle) return false;
+  try {
+    if (handle.queryPermission && handle.requestPermission) {
+      let permission = await handle.queryPermission({ mode: 'readwrite' });
+      if (permission !== 'granted') permission = await handle.requestPermission({ mode: 'readwrite' });
+      if (permission !== 'granted') throw new Error('Permiso de escritura denegado.');
+    }
+    const file = await handle.getFile();
+    const source = await file.text();
+    const updated = replaceVsLayoutCssBlock(source);
+    const writable = await handle.createWritable();
+    await writable.write(updated);
+    await writable.close();
+    return true;
+  } catch (error) {
+    reportGameException(error, 'Editor VS · guardar style.css');
+    setVsLayoutEditorStatus(`No se pudo escribir style.css: ${error?.message || error}`);
+    return false;
+  }
+}
+
+async function bindVsLayoutEditorCssFile() {
+  if (typeof window.showOpenFilePicker !== 'function') {
+    setVsLayoutEditorStatus('Este navegador no permite vincular archivos. Usa “Exportar CSS”.');
+    return;
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      multiple: false,
+      types: [{ description: 'Hoja de estilos R.O.K', accept: { 'text/css': ['.css'] } }],
+    });
+    if (!handle) return;
+    vsLayoutEditorState.cssFileHandle = handle;
+    try {
+      const file = await handle.getFile();
+      const cssText = await file.text();
+      const cssMap = parseVsLayoutCalibrationCssBlock(cssText);
+      const browserMap = loadVsLayoutCalibrationMap();
+      const imported = { ...cssMap, ...browserMap };
+      saveVsLayoutCalibrationMap(imported);
+
+      const cssUniversal = parseVsLayoutUniversalCssBlock(cssText);
+      if (cssUniversal) {
+        saveVsLayoutUniversalState(cssUniversal);
+        applyVsLayoutUniversalToRoot(cssUniversal);
+        syncVsLayoutUniversalOutputs('kaster', cssUniversal.kaster);
+        syncVsLayoutUniversalOutputs('invocation', cssUniversal.invocation);
+      }
+
+      const cssGrid = parseVsLayoutGridCssBlock(cssText);
+      if (Object.keys(cssGrid).length) {
+        vsLayoutGridState.cells = { ...cssGrid, ...(vsLayoutGridState.cells || {}) };
+        vsLayoutGridState.dirty = false;
+        saveVsLayoutGuideGridState();
+        renderVsLayoutGuideGrid();
+      }
+
+      refreshVsLayoutUniversalOnVisibleSprites();
+      const importedCount = Object.keys(cssMap).length;
+      const guideCount = Object.keys(cssGrid).length;
+      setVsLayoutEditorStatus(`style.css vinculado: ${handle.name}. ${importedCount} calibraciones + ${guideCount} marcas de guía reconocidas.`);
+    } catch (_) {
+      setVsLayoutEditorStatus(`style.css vinculado: ${handle.name}. Al guardar, se actualizará el bloque de calibración.`);
+    }
+  } catch (error) {
+    if (error?.name !== 'AbortError') reportGameException(error, 'Editor VS · vincular style.css');
+  }
+}
+
+function pickVsLayoutCssFileFallback() {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.css,text/css';
+    input.style.display = 'none';
+    const cleanup = () => input.remove();
+    input.addEventListener('change', () => {
+      const file = input.files?.[0] || null;
+      cleanup();
+      if (!file) { reject(new DOMException('Selección cancelada.', 'AbortError')); return; }
+      resolve(file);
+    }, { once: true });
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
+async function getVsLayoutCssSourceForExport() {
+  if (vsLayoutEditorState.cssFileHandle) {
+    const file = await vsLayoutEditorState.cssFileHandle.getFile();
+    return await file.text();
+  }
+
+  if (window.location?.protocol === 'file:') {
+    setVsLayoutEditorStatus('Selecciona el style.css actual para exportarlo sin el bloqueo CORS de file://.');
+    if (typeof window.showOpenFilePicker === 'function') {
+      const [handle] = await window.showOpenFilePicker({
+        multiple: false,
+        types: [{ description: 'Hoja de estilos R.O.K', accept: { 'text/css': ['.css'] } }],
+      });
+      if (!handle) throw new DOMException('Selección cancelada.', 'AbortError');
+      vsLayoutEditorState.cssFileHandle = handle;
+      const file = await handle.getFile();
+      return await file.text();
+    }
+    const file = await pickVsLayoutCssFileFallback();
+    return await file.text();
+  }
+
+  const response = await fetch('style.css', { cache: 'no-store' });
+  if (!response.ok) throw new Error(`No se pudo leer style.css (${response.status}).`);
+  return await response.text();
+}
+
+async function exportVsLayoutEditorCss() {
+  try {
+    const source = await getVsLayoutCssSourceForExport();
+    const updated = replaceVsLayoutCssBlock(source);
+    const blob = new Blob([updated], { type: 'text/css;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'style.css';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1200);
+    setVsLayoutEditorStatus('style.css exportado: ajustes individuales, ajuste universal y guía incluidos.');
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      setVsLayoutEditorStatus('Exportación cancelada.');
+      return;
+    }
+    reportGameException(error, 'Editor VS · exportar CSS');
+    setVsLayoutEditorStatus(`No se pudo exportar el CSS: ${error?.message || error}`);
+  }
+}
+
+async function saveVsLayoutGuideGridToCss() {
+  saveVsLayoutGuideGridState();
+  if (!vsLayoutEditorState.cssFileHandle) {
+    setVsLayoutEditorStatus('La guía ya quedó guardada en el navegador. Vincula style.css o usa Exportar CSS para llevar las marcas al archivo.');
+    return;
+  }
+  const written = await writeVsLayoutCalibrationToLinkedCss();
+  if (written) {
+    vsLayoutGridState.dirty = false;
+    setVsLayoutEditorStatus(`Guía guardada en style.css · ${Object.keys(vsLayoutGridState.cells || {}).length} celdas marcadas.`);
+  }
+}
+
+async function saveVsLayoutEditorCurrent() {
+  const key = vsLayoutEditorState.activeKey;
+  const entry = vsLayoutEditorState.activeEntity;
+  if (!key || !entry) return;
+  const value = getVsLayoutEditorLiveCalibration();
+  const saved = setVsLayoutCalibration(key, value, { kind: entry.kind, name: entry.name });
+  if (!saved) {
+    setVsLayoutEditorStatus('No se pudo guardar la calibración en el navegador.');
+    return;
+  }
+  applyVsLayoutCalibrationToElement(entry.kind === 'invocation' ? els.vsLayoutEditorChampion : els.vsLayoutEditorCaster, key);
+  if (vsLayoutEditorState.cssFileHandle) {
+    const written = await writeVsLayoutCalibrationToLinkedCss();
+    if (written) setVsLayoutEditorStatus(`Guardado: ${entry.name}. Navegador + style.css actualizados.`);
+  } else {
+    setVsLayoutEditorStatus(`Guardado: ${entry.name}. Persistido en este navegador.`);
+  }
+}
+
+function resetVsLayoutEditorCurrent() {
+  if (!vsLayoutEditorState.activeKey) return;
+  syncVsLayoutEditorOutputs({ scale: 1, x: 0, y: 0 });
+  applyVsLayoutEditorLiveCalibration();
+}
+
+function openVsLayoutEditor() {
+  if (!els.vsLayoutEditorScreen) return;
+  setMainMenuUserHudMenuOpen(false);
+  if (els.mainMenuScreen) els.mainMenuScreen.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('rok-battle-mode', 'rok-library-mode', 'rok-spellbooks-mode', 'rok-card-creator-mode', 'rok-adventure-mode');
+  document.body.classList.add('rok-vs-layout-editor-mode');
+  populateVsLayoutEditorSelectors();
+  loadVsLayoutGuideGridState();
+  renderVsLayoutGuideGrid();
+  syncVsLayoutGuideGridUi();
+  const universal = loadVsLayoutUniversalState();
+  applyVsLayoutUniversalToRoot(universal);
+  syncVsLayoutUniversalOutputs('kaster', universal.kaster);
+  syncVsLayoutUniversalOutputs('invocation', universal.invocation);
+  vsLayoutEditorState.activeKind = '';
+  vsLayoutEditorState.activeKey = '';
+  vsLayoutEditorState.activeEntity = null;
+  vsLayoutEditorState.casterKey = '';
+  vsLayoutEditorState.invocationKey = '';
+  if (els.vsLayoutCasterSelect) els.vsLayoutCasterSelect.value = '';
+  if (els.vsLayoutInvocationSelect) els.vsLayoutInvocationSelect.value = '';
+  if (els.vsLayoutEditorCaster) els.vsLayoutEditorCaster.removeAttribute('src');
+  if (els.vsLayoutEditorChampion) {
+    els.vsLayoutEditorChampion.removeAttribute('src');
+    els.vsLayoutEditorChampion.classList.remove('visible');
+  }
+  if (els.vsLayoutCurrentName) els.vsLayoutCurrentName.textContent = 'Selecciona un elemento';
+  if (els.vsLayoutCurrentKind) els.vsLayoutCurrentKind.textContent = '—';
+  if (els.vsLayoutEditorPreviewName) els.vsLayoutEditorPreviewName.textContent = 'Selecciona un elemento';
+  syncVsLayoutEditorOutputs({ scale: 1, x: 0, y: 0 });
+  setVsLayoutEditorControlsEnabled(false);
+  els.vsLayoutEditorScreen.setAttribute('aria-hidden', 'false');
+  setVsLayoutEditorStatus(`Selecciona un Kaster o una invocación para comenzar. ${vsLayoutEditorState.catalog.kasters.length} Kasters · ${vsLayoutEditorState.catalog.invocations.length} invocaciones detectadas.`);
+  replayVsLayoutEditorPreview();
+}
+
+function closeVsLayoutEditor() {
+  try { stopVersusIntroEnergy(els.vsLayoutEditorIntro); } catch (_) {}
+  vsLayoutGridState.paintEnabled = false;
+  vsLayoutGridState.painting = false;
+  els.vsLayoutEditorIntro?.classList.remove('active', 'counting', 'combat-ready', 'vs-layout-paint-mode');
+  els.vsLayoutEditorScreen?.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('rok-vs-layout-editor-mode');
+  showMainMenu();
+}
+
+window.ROK_VS_LAYOUT_EDITOR = {
+  open: openVsLayoutEditor,
+  close: closeVsLayoutEditor,
+  getSaved: () => loadVsLayoutCalibrationMap(),
+  getKasters: () => getVsLayoutKasterCatalog(),
+  getInvocations: () => getVsLayoutInvocationCatalog(),
+  getGrid: () => ({ ...vsLayoutGridState, cells: { ...vsLayoutGridState.cells } }),
+  getUniversal: () => getVsLayoutUniversalBundle(),
+  buildCss: buildVsLayoutCalibrationCssBlock,
+  buildUniversalCss: buildVsLayoutUniversalCssBlock,
+  buildGridCss: buildVsLayoutGridCssBlock,
+};
 
 function normalizeSpellbookCardSlots(cards) {
   const source = Array.isArray(cards)
@@ -12913,6 +16440,53 @@ function getCasterRuntimeDefinitionFromCard(casterCard) {
   return Object.values(CASTER_LIBRARY).find(entry => entry.cardId === casterCard.id) || null;
 }
 
+function shouldNormalizeCasterLevelForCurrentMatch() {
+  // Aventura conserva el nivel persistente real. PvP Online y Player vs Bot
+  // normalizan temporalmente ambos Kasters a nivel 10 para evitar ventajas
+  // competitivas provenientes del progreso externo.
+  if (String(state?.matchMode || '').toLowerCase() === 'adventure') return false;
+  if (isOnlineMatchActive()) return true;
+  return Boolean(state?.aiEnabled) && ['normal', TEST_MATCH_MODE_ID].includes(String(state?.matchMode || 'normal'));
+}
+
+function getCasterMatchProgress(cardOrId) {
+  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
+  if (!card || getCardTypeId(card) !== 'kaster') return normalizeCasterProgressEntry();
+  const persistent = getCasterProgress(card);
+  if (!shouldNormalizeCasterLevelForCurrentMatch()) return persistent;
+  return normalizeCasterProgressEntry({ level: CASTER_MAX_LEVEL, xp: 0, totalXp: persistent.totalXp, updatedAt: persistent.updatedAt });
+}
+
+function getCasterMatchProgressedStats(cardOrId) {
+  const card = typeof cardOrId === 'string' ? CARD_LIBRARY[cardOrId] : cardOrId;
+  if (!card || getCardTypeId(card) !== 'kaster') return null;
+  return getCasterProgressedStats(card, getCasterMatchProgress(card));
+}
+
+function applyEffectiveCasterStatsToRuntimePlayer(playerId) {
+  const player = state?.players?.[playerId];
+  const caster = player?.caster;
+  const card = caster?.cardId ? CARD_LIBRARY[caster.cardId] : null;
+  if (!player || !caster || !card || getCardTypeId(card) !== 'kaster') return null;
+  const persistent = getCasterProgress(card);
+  const effective = getCasterMatchProgressedStats(card);
+  if (!effective) return null;
+  caster.atk = effective.attack;
+  caster.def = effective.defense;
+  caster.life = effective.life;
+  caster.maxLife = effective.life;
+  caster.pureBase = Math.max(0, Number(card.stats?.pureBase ?? 0));
+  caster.pureCadence = effective.pureGeneration;
+  caster.pureMax = effective.pureMax;
+  caster.pureElement = Math.max(0, Math.min(caster.pureMax, caster.pureBase));
+  caster.specialCounterProgress = 0;
+  caster.specialCounters = effective.startingSpecialCounters;
+  caster.persistentLevel = persistent.level;
+  caster.effectiveLevel = effective.level;
+  caster.levelNormalized = effective.level !== persistent.level;
+  return effective;
+}
+
 function applySpellbookLoadoutToPlayer(playerId, rawLoadout) {
   const loadout = normalizeSavedSpellbook(rawLoadout);
   if (!loadout) throw new Error(`No se pudo cargar el Spellbook del Jugador ${playerId}.`);
@@ -12924,10 +16498,12 @@ function applySpellbookLoadoutToPlayer(playerId, rawLoadout) {
 
   const casterDef = getCasterRuntimeDefinitionFromCard(casterCard);
   const stats = casterDef?.stats || casterCard.stats || {};
+  const persistentProgress = getCasterProgress(casterCard);
+  const effectiveProgression = getCasterMatchProgressedStats(casterCard) || getCasterProgressedStats(casterCard, persistentProgress);
   const domainId = getCardElementId(casterCard);
   const existingCaster = player.caster || {};
   const pureBase = Math.max(0, Number(stats.pureBase ?? 0));
-  const maxLife = Math.max(1, Number(stats.maxLife ?? stats.life ?? existingCaster.maxLife ?? 1));
+  const maxLife = Math.max(1, Number(effectiveProgression?.life ?? stats.maxLife ?? stats.life ?? existingCaster.maxLife ?? 1));
 
   player.selectedSpellbookId = loadout.id;
   player.spellbookName = loadout.name;
@@ -12953,25 +16529,30 @@ function applySpellbookLoadoutToPlayer(playerId, rawLoadout) {
     name: casterCard.name,
     domainId,
     elementId: domainId,
-    atk: Number(stats.atk ?? stats.damage ?? 0),
-    def: Number(stats.def ?? CASTER_DEFENSE_VALUE),
+    atk: Number(effectiveProgression?.attack ?? stats.atk ?? stats.damage ?? 0),
+    def: Number(effectiveProgression?.defense ?? stats.def ?? CASTER_DEFENSE_VALUE),
     life: maxLife,
     maxLife,
     movesLeft: 0,
     state: 'ready',
     pureElement: pureBase,
     pureBase,
-    pureCadence: Math.max(0, Number(stats.pureCadence ?? 0)),
-    pureMax: Math.max(pureBase, Number(stats.pureMax ?? pureBase)),
+    pureCadence: Math.max(0, Number(effectiveProgression?.pureGeneration ?? stats.pureCadence ?? 0)),
+    pureMax: Math.max(pureBase, Number(effectiveProgression?.pureMax ?? stats.pureMax ?? pureBase)),
     pureCastingVisitCount: 0,
     pureCastingLastKey: '',
+    pureExtractionLastKey: '',
     specialCounterProgress: 0,
-    specialCounters: 0,
+    specialCounters: Math.max(0, Number(effectiveProgression?.startingSpecialCounters ?? stats.startingSpecialCounters ?? 0)),
+    persistentLevel: persistentProgress.level,
+    effectiveLevel: effectiveProgression?.level ?? persistentProgress.level,
+    levelNormalized: Number(effectiveProgression?.level ?? persistentProgress.level) !== Number(persistentProgress.level),
   };
   return loadout;
 }
 
 function resetBattleStateForSelectedMatch(aiEnabled) {
+  resetBattleInactivityRuntime('match-state-reset');
   clearTimeout(schedulePhaseStartActions.timer);
   clearTimeout(scheduleSustainedCombatResolution.timer);
   clearTimeout(scheduleSustainedStructureAttacks.timer);
@@ -13012,6 +16593,53 @@ function selectMatchSpellbook(id) {
   });
 }
 
+function createMatchSpellbookOptionElement(spellbook, options = {}) {
+  const caster = CARD_LIBRARY[spellbook?.casterCardId];
+  if (!caster) return null;
+  const issue = getSpellbookMatchIssue(spellbook);
+  const cardCount = getSpellbookMatchCardCount(spellbook);
+  const elementEntries = Object.entries(normalizeSpellbookElementDistribution(spellbook.elementDistribution))
+    .filter(([, amount]) => Number(amount) > 0);
+  const option = document.createElement('button');
+  option.type = 'button';
+  option.className = `match-spellbook-option${issue ? ' unavailable' : ''}${options.selected ? ' selected' : ''}`;
+  option.dataset.matchSpellbookId = spellbook.id;
+  option.disabled = Boolean(issue);
+  option.setAttribute('aria-pressed', options.selected ? 'true' : 'false');
+  const visual = document.createElement('span');
+  visual.className = 'match-spellbook-option-visual';
+  const mini = createCardElement(caster);
+  mini.classList.add('match-spellbook-option-card');
+  visual.appendChild(mini);
+  const info = document.createElement('span');
+  info.className = 'match-spellbook-option-info';
+  const name = document.createElement('strong');
+  name.textContent = spellbook.name;
+  const casterName = document.createElement('small');
+  casterName.textContent = caster.name;
+  const stats = document.createElement('span');
+  stats.className = 'match-spellbook-option-stats';
+  stats.innerHTML = `<b>${cardCount}</b> cartas <i>·</i> <b>${getSpellbookElementTotal(spellbook.elementDistribution)}</b> elementos`;
+  const elements = document.createElement('span');
+  elements.className = 'match-spellbook-option-elements';
+  elementEntries.forEach(([elementId, amount]) => {
+    const profile = DOMAIN_ART_DB[elementId] || DOMAIN_ART_DB.oscuridad;
+    const chip = document.createElement('span');
+    chip.innerHTML = `<img src="${getElementCostIcon(elementId)}" alt="${profile.elementLabel}"><b>${amount}</b>`;
+    elements.appendChild(chip);
+  });
+  info.append(name, casterName, stats, elements);
+  if (issue) {
+    const warning = document.createElement('em');
+    warning.textContent = issue;
+    info.appendChild(warning);
+  } else if (typeof options.onSelect === 'function') {
+    option.addEventListener('click', () => options.onSelect(spellbook.id));
+  }
+  option.append(visual, info);
+  return option;
+}
+
 function renderMatchSpellbookSelector() {
   loadSpellbookStorage();
   if (!els.matchSpellbookSelectList) return;
@@ -13019,53 +16647,12 @@ function renderMatchSpellbookSelector() {
   let usableCount = 0;
 
   savedSpellbooks.forEach(spellbook => {
-    const caster = CARD_LIBRARY[spellbook.casterCardId];
-    if (!caster) return;
     const issue = getSpellbookMatchIssue(spellbook);
-    const cardCount = getSpellbookMatchCardCount(spellbook);
-    const elementEntries = Object.entries(normalizeSpellbookElementDistribution(spellbook.elementDistribution))
-      .filter(([, amount]) => Number(amount) > 0);
-
-    const option = document.createElement('button');
-    option.type = 'button';
-    option.className = `match-spellbook-option${issue ? ' unavailable' : ''}`;
-    option.dataset.matchSpellbookId = spellbook.id;
-    option.disabled = Boolean(issue);
-    option.setAttribute('aria-pressed', 'false');
-
-    const visual = document.createElement('span');
-    visual.className = 'match-spellbook-option-visual';
-    const mini = createCardElement(caster);
-    mini.classList.add('match-spellbook-option-card');
-    visual.appendChild(mini);
-
-    const info = document.createElement('span');
-    info.className = 'match-spellbook-option-info';
-    const name = document.createElement('strong');
-    name.textContent = spellbook.name;
-    const casterName = document.createElement('small');
-    casterName.textContent = caster.name;
-    const stats = document.createElement('span');
-    stats.className = 'match-spellbook-option-stats';
-    stats.innerHTML = `<b>${cardCount}</b> cartas <i>·</i> <b>${getSpellbookElementTotal(spellbook.elementDistribution)}</b> elementos`;
-    const elements = document.createElement('span');
-    elements.className = 'match-spellbook-option-elements';
-    elementEntries.forEach(([elementId, amount]) => {
-      const profile = DOMAIN_ART_DB[elementId] || DOMAIN_ART_DB.oscuridad;
-      const chip = document.createElement('span');
-      chip.innerHTML = `<img src="${getElementCostIcon(elementId)}" alt="${profile.elementLabel}"><b>${amount}</b>`;
-      elements.appendChild(chip);
+    const option = createMatchSpellbookOptionElement(spellbook, {
+      onSelect: id => selectMatchSpellbook(id),
     });
-    info.append(name, casterName, stats, elements);
-    if (issue) {
-      const warning = document.createElement('em');
-      warning.textContent = issue;
-      info.appendChild(warning);
-    } else {
-      usableCount += 1;
-      option.addEventListener('click', () => selectMatchSpellbook(spellbook.id));
-    }
-    option.append(visual, info);
+    if (!option) return;
+    if (!issue) usableCount += 1;
     els.matchSpellbookSelectList.appendChild(option);
   });
 
@@ -13123,7 +16710,39 @@ window.ROK_SPELLBOOK_MATCH = {
   openOnlineSelector: () => openMatchSpellbookSelector('online'),
   clearPendingOnlineLoadout: () => { pendingOnlineSpellbookLoadout = null; },
   applyLoadoutToPlayer: (playerId, loadout) => applySpellbookLoadoutToPlayer(Number(playerId), loadout),
+  getEffectiveCasterLevel: cardId => getCasterMatchProgress(cardId)?.level || 1,
+  normalizeRuntimeCaster: playerId => applyEffectiveCasterStatsToRuntimePlayer(Number(playerId)),
   getLoadoutIssue: loadout => getSpellbookMatchIssue(loadout),
+  getOnlineOptions() {
+    loadSpellbookStorage();
+    return savedSpellbooks
+      .filter(spellbook => !getSpellbookMatchIssue(spellbook))
+      .map(spellbook => ({ id: spellbook.id, name: spellbook.name, casterCardId: spellbook.casterCardId }));
+  },
+  getOnlineLoadoutById(id) {
+    loadSpellbookStorage();
+    const spellbook = getSavedSpellbookById(id);
+    if (!spellbook || getSpellbookMatchIssue(spellbook)) return null;
+    safeLocalStorageSet(MATCH_SELECTED_SPELLBOOK_KEY, spellbook.id);
+    pendingOnlineSpellbookLoadout = serializeSpellbookMatchLoadout(spellbook);
+    return cloneMatchData(pendingOnlineSpellbookLoadout);
+  },
+  getPreferredOnlineId() {
+    loadSpellbookStorage();
+    const pendingId = pendingOnlineSpellbookLoadout?.id || pendingOnlineSpellbookLoadout?.spellbookId || '';
+    if (pendingId && !getSpellbookMatchIssue(getSavedSpellbookById(pendingId))) return pendingId;
+    const stored = safeLocalStorageGet(MATCH_SELECTED_SPELLBOOK_KEY) || '';
+    if (stored && !getSpellbookMatchIssue(getSavedSpellbookById(stored))) return stored;
+    return savedSpellbooks.find(spellbook => !getSpellbookMatchIssue(spellbook))?.id || '';
+  },
+  createOnlineOptionElement(id) {
+    loadSpellbookStorage();
+    const spellbook = getSavedSpellbookById(id);
+    if (!spellbook || getSpellbookMatchIssue(spellbook)) return null;
+    const node = createMatchSpellbookOptionElement(spellbook, { selected: false });
+    if (node) { node.tabIndex = -1; node.disabled = false; }
+    return node;
+  },
 };
 
 function loadSpellbookStorage() {
@@ -14010,7 +17629,7 @@ function deleteSavedSpellbook(id) {
   showSpellbooksCollectionNotice(`“${target.name}” fue borrado.`);
 }
 
-const LIBRARY_BUILDER_RARITY_ORDER = ['ordinary', 'uncommon', 'extraordinary', 'singular', 'infrequent', 'unusual', 'strange', 'mythic', 'legendary'];
+const LIBRARY_BUILDER_RARITY_ORDER = ['ordinary', 'uncommon', 'infrequent', 'unusual', 'extraordinary', 'strange', 'singular', 'legendary', 'mythic'];
 
 function normalizeLibraryBuilderSearchText(value = '') {
   return String(value || '')
@@ -14035,7 +17654,7 @@ function getLibraryBuilderCardRarityId(card) {
 
 function getLibraryBuilderPinnedIds() {
   return libraryBuilderState.mode === 'selectCaster'
-    ? ['kasterHanzoDark', 'kasterTokugawaLight']
+    ? ['kasterHanzoDark', 'kasterTokugawaLight', 'kasterKiaraWater']
     : ['ninjaKurayami', 'ninjaMinokageNoKurai', 'ninjaIchikawaGoemon', 'ninjaJunkaiButai1', 'ninjaKurokagiButai3', 'ninjaJunkaiButai2', 'ninjaSaqueadorNovato', 'ninjaYasuganaHattori', 'samuraiTakedaShingen', 'miyamotoMusashi', 'samuraiBushiInquebrantable', 'samuraiBushiIniciado', 'samuraiOSenseiUeshiba', 'samuraiRegenteKishimoto', 'samuraiKaguya', 'samuraiNobunagaOda', 'ninjaOdaNoKage', 'samuraiKarunobuTaicho', 'samuraiShiroNoBushi', 'samuraiShinraHitokiri'];
 }
 
@@ -14081,6 +17700,7 @@ function libraryBuilderCardMatchesFilters(card) {
     rarityLabel,
     ...(Array.isArray(card.qualities) ? card.qualities : []),
     ...(Array.isArray(card.races) ? card.races : []),
+    ...getCardSemanticSearchTerms(card),
   ].filter(Boolean).join(' '));
   return searchable.includes(query);
 }
@@ -14763,6 +18383,11 @@ function cacheEls() {
   els.phaseBoxes = document.getElementById('phaseBoxes');
   els.turnBanner = document.getElementById('turnBanner');
   els.nextPhaseBtn = document.getElementById('nextPhaseBtn');
+  els.inactivityPrompt = document.getElementById('inactivityPrompt');
+  els.inactivityPromptText = document.getElementById('inactivityPromptText');
+  els.inactivityPromptSeconds = document.getElementById('inactivityPromptSeconds');
+  els.inactivityPromptFill = document.getElementById('inactivityPromptFill');
+  els.inactivityPromptContinueBtn = document.getElementById('inactivityPromptContinueBtn');
   els.cancelActionBtn = document.getElementById('cancelActionBtn');
   els.enemyGrid = document.getElementById('enemyGrid');
   els.allyGrid = document.getElementById('allyGrid');
@@ -14907,6 +18532,7 @@ function cacheEls() {
   els.cardInfoRarityBadge = null;
   els.cardInfoName = document.getElementById('cardInfoName');
   els.cardInfoType = document.getElementById('cardInfoType');
+  els.cardInfoCasterLevel = document.getElementById('cardInfoCasterLevel');
   els.cardInfoMetaIcons = document.getElementById('cardInfoMetaIcons');
   els.cardInfoSummaryTags = document.getElementById('cardInfoSummaryTags');
   els.cardInfoTraits = document.getElementById('cardInfoTraits');
@@ -15020,9 +18646,56 @@ function cacheEls() {
   els.mainMenuResourceStrip = document.getElementById('mainMenuResourceStrip');
   els.mainMenuUserModeBtn = document.getElementById('mainMenuUserModeBtn');
   els.mainMenuUserModeState = document.getElementById('mainMenuUserModeState');
+  els.mainMenuVsLayoutBtn = document.getElementById('mainMenuVsLayoutBtn');
+  els.vsLayoutEditorScreen = document.getElementById('vsLayoutEditorScreen');
+  els.vsLayoutEditorCloseBtn = document.getElementById('vsLayoutEditorCloseBtn');
+  els.vsLayoutCasterSelect = document.getElementById('vsLayoutCasterSelect');
+  els.vsLayoutInvocationSelect = document.getElementById('vsLayoutInvocationSelect');
+  els.vsLayoutCurrentName = document.getElementById('vsLayoutCurrentName');
+  els.vsLayoutCurrentKind = document.getElementById('vsLayoutCurrentKind');
+  els.vsLayoutScaleRange = document.getElementById('vsLayoutScaleRange');
+  els.vsLayoutXRange = document.getElementById('vsLayoutXRange');
+  els.vsLayoutYRange = document.getElementById('vsLayoutYRange');
+  els.vsLayoutScaleValue = document.getElementById('vsLayoutScaleValue');
+  els.vsLayoutXValue = document.getElementById('vsLayoutXValue');
+  els.vsLayoutYValue = document.getElementById('vsLayoutYValue');
+  els.vsLayoutCasterUniversalScaleRange = document.getElementById('vsLayoutCasterUniversalScaleRange');
+  els.vsLayoutCasterUniversalXRange = document.getElementById('vsLayoutCasterUniversalXRange');
+  els.vsLayoutCasterUniversalYRange = document.getElementById('vsLayoutCasterUniversalYRange');
+  els.vsLayoutCasterUniversalScaleValue = document.getElementById('vsLayoutCasterUniversalScaleValue');
+  els.vsLayoutCasterUniversalXValue = document.getElementById('vsLayoutCasterUniversalXValue');
+  els.vsLayoutCasterUniversalYValue = document.getElementById('vsLayoutCasterUniversalYValue');
+  els.vsLayoutCasterUniversalResetBtn = document.getElementById('vsLayoutCasterUniversalResetBtn');
+  els.vsLayoutCasterUniversalSaveBtn = document.getElementById('vsLayoutCasterUniversalSaveBtn');
+  els.vsLayoutInvocationUniversalScaleRange = document.getElementById('vsLayoutInvocationUniversalScaleRange');
+  els.vsLayoutInvocationUniversalXRange = document.getElementById('vsLayoutInvocationUniversalXRange');
+  els.vsLayoutInvocationUniversalYRange = document.getElementById('vsLayoutInvocationUniversalYRange');
+  els.vsLayoutInvocationUniversalScaleValue = document.getElementById('vsLayoutInvocationUniversalScaleValue');
+  els.vsLayoutInvocationUniversalXValue = document.getElementById('vsLayoutInvocationUniversalXValue');
+  els.vsLayoutInvocationUniversalYValue = document.getElementById('vsLayoutInvocationUniversalYValue');
+  els.vsLayoutInvocationUniversalResetBtn = document.getElementById('vsLayoutInvocationUniversalResetBtn');
+  els.vsLayoutInvocationUniversalSaveBtn = document.getElementById('vsLayoutInvocationUniversalSaveBtn');
+  els.vsLayoutReplayBtn = document.getElementById('vsLayoutReplayBtn');
+  els.vsLayoutResetBtn = document.getElementById('vsLayoutResetBtn');
+  els.vsLayoutSaveBtn = document.getElementById('vsLayoutSaveBtn');
+  els.vsLayoutBindCssBtn = document.getElementById('vsLayoutBindCssBtn');
+  els.vsLayoutExportCssBtn = document.getElementById('vsLayoutExportCssBtn');
+  els.vsLayoutSaveStatus = document.getElementById('vsLayoutSaveStatus');
+  els.vsLayoutGridToggle = document.getElementById('vsLayoutGridToggle');
+  els.vsLayoutGridPaintBtn = document.getElementById('vsLayoutGridPaintBtn');
+  els.vsLayoutGridClearBtn = document.getElementById('vsLayoutGridClearBtn');
+  els.vsLayoutGridSaveCssBtn = document.getElementById('vsLayoutGridSaveCssBtn');
+  els.vsLayoutGridPalette = document.getElementById('vsLayoutGridPalette');
+  els.vsLayoutGuideGrid = document.getElementById('vsLayoutGuideGrid');
+  els.vsLayoutEditorIntro = document.getElementById('vsLayoutEditorIntro');
+  els.vsLayoutEditorSide = document.getElementById('vsLayoutEditorSide');
+  els.vsLayoutEditorChampion = document.getElementById('vsLayoutEditorChampion');
+  els.vsLayoutEditorCaster = document.getElementById('vsLayoutEditorCaster');
+  els.vsLayoutEditorPreviewName = document.getElementById('vsLayoutEditorPreviewName');
   els.mainMenuBotBtn = document.getElementById('mainMenuBotBtn');
   els.mainMenuStoryBtn = document.getElementById('mainMenuStoryBtn');
   els.mainMenuAdventureBtn = document.getElementById('mainMenuAdventureBtn');
+  els.mainMenuTutorialBtn = document.getElementById('mainMenuTutorialBtn');
   els.mainMenuOnlineBtn = document.getElementById('mainMenuOnlineBtn');
   els.mainMenuLibraryBtn = document.getElementById('mainMenuLibraryBtn');
   els.mainMenuSpellbooksBtn = document.getElementById('mainMenuSpellbooksBtn');
@@ -15044,7 +18717,6 @@ function cacheEls() {
   els.adventureZoneStatus = document.getElementById('adventureZoneStatus');
   els.adventureZoneDomain = document.getElementById('adventureZoneDomain');
   els.adventureZoneDescription = document.getElementById('adventureZoneDescription');
-  els.adventureEnterZoneBtn = document.getElementById('adventureEnterZoneBtn');
   els.adventureCasterList = document.getElementById('adventureCasterList');
   els.adventureWaterMapCanvas = document.getElementById('adventureWaterMapCanvas');
   els.adventureWaterMarker = document.getElementById('adventureWaterMarker');
@@ -15054,16 +18726,17 @@ function cacheEls() {
   els.adventureCasterImage = document.getElementById('adventureCasterImage');
   els.adventureCasterDomain = document.getElementById('adventureCasterDomain');
   els.adventureCasterName = document.getElementById('adventureCasterName');
+  els.adventureCasterLevel = document.getElementById('adventureCasterLevel');
   els.adventureCasterQualities = document.getElementById('adventureCasterQualities');
   els.adventureCasterDeckTitle = document.getElementById('adventureCasterDeckTitle');
   els.adventureCasterDescription = document.getElementById('adventureCasterDescription');
   els.adventureCasterRoles = document.getElementById('adventureCasterRoles');
   els.adventureCasterStatus = document.getElementById('adventureCasterStatus');
-  els.adventureStartEncounterBtn = document.getElementById('adventureStartEncounterBtn');
   els.adventurePrepareView = document.getElementById('adventurePrepareView');
   els.adventurePrepRivalCard = document.getElementById('adventurePrepRivalCard');
   els.adventurePrepRivalImage = document.getElementById('adventurePrepRivalImage');
   els.adventurePrepRivalName = document.getElementById('adventurePrepRivalName');
+  els.adventurePrepRivalLevel = document.getElementById('adventurePrepRivalLevel');
   els.adventurePrepRivalDominants = document.getElementById('adventurePrepRivalDominants');
   els.adventurePrepPlayerCard = document.getElementById('adventurePrepPlayerCard');
   els.adventurePrepPlayerImage = document.getElementById('adventurePrepPlayerImage');
@@ -15077,13 +18750,32 @@ function cacheEls() {
   els.adventurePrepEditSpellbookBtn = document.getElementById('adventurePrepEditSpellbookBtn');
   els.adventureCombatBtn = document.getElementById('adventureCombatBtn');
   els.adventureBattleIntro = document.getElementById('adventureBattleIntro');
+  els.adventureIntroRivalSide = document.getElementById('adventureIntroRivalSide');
+  els.adventureIntroRivalChampion = document.getElementById('adventureIntroRivalChampion');
   els.adventureIntroRivalImage = document.getElementById('adventureIntroRivalImage');
   els.adventureIntroRivalName = document.getElementById('adventureIntroRivalName');
   els.adventureIntroRivalDominants = document.getElementById('adventureIntroRivalDominants');
+  els.adventureIntroPlayerSide = document.getElementById('adventureIntroPlayerSide');
+  els.adventureIntroPlayerChampion = document.getElementById('adventureIntroPlayerChampion');
   els.adventureIntroPlayerImage = document.getElementById('adventureIntroPlayerImage');
   els.adventureIntroPlayerName = document.getElementById('adventureIntroPlayerName');
   els.adventureIntroPlayerDominants = document.getElementById('adventureIntroPlayerDominants');
   els.adventureIntroCountdown = document.getElementById('adventureIntroCountdown');
+  els.onlineVersusIntro = document.getElementById('onlineVersusIntro');
+  els.onlineIntroBackground = document.getElementById('onlineIntroBackground');
+  els.onlineIntroRivalSide = document.getElementById('onlineIntroRivalSide');
+  els.onlineIntroRivalChampion = document.getElementById('onlineIntroRivalChampion');
+  els.onlineIntroRivalImage = document.getElementById('onlineIntroRivalImage');
+  els.onlineIntroRivalKicker = document.getElementById('onlineIntroRivalKicker');
+  els.onlineIntroRivalName = document.getElementById('onlineIntroRivalName');
+  els.onlineIntroRivalDominants = document.getElementById('onlineIntroRivalDominants');
+  els.onlineIntroPlayerSide = document.getElementById('onlineIntroPlayerSide');
+  els.onlineIntroPlayerChampion = document.getElementById('onlineIntroPlayerChampion');
+  els.onlineIntroPlayerImage = document.getElementById('onlineIntroPlayerImage');
+  els.onlineIntroPlayerKicker = document.getElementById('onlineIntroPlayerKicker');
+  els.onlineIntroPlayerName = document.getElementById('onlineIntroPlayerName');
+  els.onlineIntroPlayerDominants = document.getElementById('onlineIntroPlayerDominants');
+  els.onlineIntroCountdown = document.getElementById('onlineIntroCountdown');
   els.adventureCasterDetailOverlay = document.getElementById('adventureCasterDetailOverlay');
   els.adventureCasterDetailCloseBtn = document.getElementById('adventureCasterDetailCloseBtn');
   els.adventureCasterDetailKicker = document.getElementById('adventureCasterDetailKicker');
@@ -15290,6 +18982,9 @@ function bindEvents() {
   document.addEventListener('touchend', captureQuickReactionWindowFromGlobalLeftClick, true);
   document.addEventListener('click', suppressCapturedQuickReactionClick, true);
 
+  document.addEventListener('click', registerBattleActivityFromEvent, true);
+  document.addEventListener('keydown', registerBattleActivityFromEvent, true);
+
   document.addEventListener('click', blockPlayerInputWhileOpponentAction, true);
   document.addEventListener('pointerdown', blockPlayerInputWhileOpponentAction, true);
   document.addEventListener('mousedown', blockPlayerInputWhileOpponentAction, true);
@@ -15312,6 +19007,7 @@ function bindEvents() {
     });
   }
   els.nextPhaseBtn.addEventListener('click', () => nextPhase(false));
+  if (els.inactivityPromptContinueBtn) els.inactivityPromptContinueBtn.addEventListener('click', continueAfterInactivityPrompt);
   if (els.cancelActionBtn) {
     els.cancelActionBtn.addEventListener('pointerdown', event => {
       event.stopPropagation();
@@ -15398,6 +19094,7 @@ function bindEvents() {
   if (els.cssRefreshBtn) els.cssRefreshBtn.addEventListener('click', refreshCssOnly);
   if (els.semiAutoMoveToggle) els.semiAutoMoveToggle.addEventListener('click', toggleSemiAutoMovement);
   if (els.gameMenuBtn) els.gameMenuBtn.addEventListener('click', openGameMenu);
+  document.addEventListener('pointerdown', priorityGameMenuPointerDown, true);
   if (els.gameMenuCloseBtn) els.gameMenuCloseBtn.addEventListener('click', closeGameMenu);
   if (els.gameMenuResumeBtn) els.gameMenuResumeBtn.addEventListener('click', closeGameMenu);
   if (els.gameMenuSettingsBtn) els.gameMenuSettingsBtn.addEventListener('click', toggleGameSettingsPanel);
@@ -15415,6 +19112,66 @@ function bindEvents() {
   if (els.powerImagePreviewOverlay) els.powerImagePreviewOverlay.addEventListener('click', event => { if (event.target === els.powerImagePreviewOverlay) closePowerImagePreview(); });
   if (els.casterEnemyZoneWarning) els.casterEnemyZoneWarning.addEventListener('click', openCasterEnemyZoneInfo);
   if (els.mainMenuUserModeBtn) els.mainMenuUserModeBtn.addEventListener('click', toggleRokUserMode);
+  if (els.mainMenuVsLayoutBtn) els.mainMenuVsLayoutBtn.addEventListener('click', openVsLayoutEditor);
+  if (els.vsLayoutEditorCloseBtn) els.vsLayoutEditorCloseBtn.addEventListener('click', closeVsLayoutEditor);
+  if (els.vsLayoutCasterSelect) els.vsLayoutCasterSelect.addEventListener('change', event => selectVsLayoutEditorEntity('kaster', event.target.value));
+  if (els.vsLayoutInvocationSelect) els.vsLayoutInvocationSelect.addEventListener('change', event => selectVsLayoutEditorEntity('invocation', event.target.value));
+  if (els.vsLayoutEditorCaster) els.vsLayoutEditorCaster.addEventListener('click', () => {
+    if (vsLayoutEditorState.casterKey) selectVsLayoutEditorEntity('kaster', vsLayoutEditorState.casterKey);
+  });
+  if (els.vsLayoutEditorChampion) els.vsLayoutEditorChampion.addEventListener('click', () => {
+    if (vsLayoutEditorState.invocationKey) selectVsLayoutEditorEntity('invocation', vsLayoutEditorState.invocationKey);
+  });
+  [els.vsLayoutScaleRange, els.vsLayoutXRange, els.vsLayoutYRange].forEach(control => {
+    if (control) control.addEventListener('input', applyVsLayoutEditorLiveCalibration);
+  });
+  [els.vsLayoutCasterUniversalScaleRange, els.vsLayoutCasterUniversalXRange, els.vsLayoutCasterUniversalYRange].forEach(control => {
+    if (control) control.addEventListener('input', () => applyVsLayoutUniversalLiveCalibration('kaster'));
+  });
+  [els.vsLayoutInvocationUniversalScaleRange, els.vsLayoutInvocationUniversalXRange, els.vsLayoutInvocationUniversalYRange].forEach(control => {
+    if (control) control.addEventListener('input', () => applyVsLayoutUniversalLiveCalibration('invocation'));
+  });
+  if (els.vsLayoutCasterUniversalResetBtn) els.vsLayoutCasterUniversalResetBtn.addEventListener('click', () => resetVsLayoutUniversalCurrent('kaster'));
+  if (els.vsLayoutCasterUniversalSaveBtn) els.vsLayoutCasterUniversalSaveBtn.addEventListener('click', () => { saveVsLayoutUniversalCurrent('kaster'); });
+  if (els.vsLayoutInvocationUniversalResetBtn) els.vsLayoutInvocationUniversalResetBtn.addEventListener('click', () => resetVsLayoutUniversalCurrent('invocation'));
+  if (els.vsLayoutInvocationUniversalSaveBtn) els.vsLayoutInvocationUniversalSaveBtn.addEventListener('click', () => { saveVsLayoutUniversalCurrent('invocation'); });
+  if (els.vsLayoutReplayBtn) els.vsLayoutReplayBtn.addEventListener('click', replayVsLayoutEditorPreview);
+  if (els.vsLayoutResetBtn) els.vsLayoutResetBtn.addEventListener('click', resetVsLayoutEditorCurrent);
+  if (els.vsLayoutSaveBtn) els.vsLayoutSaveBtn.addEventListener('click', () => { saveVsLayoutEditorCurrent(); });
+  if (els.vsLayoutBindCssBtn) els.vsLayoutBindCssBtn.addEventListener('click', () => { bindVsLayoutEditorCssFile(); });
+  if (els.vsLayoutExportCssBtn) els.vsLayoutExportCssBtn.addEventListener('click', () => { exportVsLayoutEditorCss(); });
+  if (els.vsLayoutGridToggle) els.vsLayoutGridToggle.addEventListener('change', event => setVsLayoutGuideGridVisible(event.target.checked));
+  if (els.vsLayoutGridPaintBtn) els.vsLayoutGridPaintBtn.addEventListener('click', () => setVsLayoutGuidePaintEnabled(!vsLayoutGridState.paintEnabled));
+  if (els.vsLayoutGridClearBtn) els.vsLayoutGridClearBtn.addEventListener('click', clearVsLayoutGuideGrid);
+  if (els.vsLayoutGridSaveCssBtn) els.vsLayoutGridSaveCssBtn.addEventListener('click', () => { saveVsLayoutGuideGridToCss(); });
+  if (els.vsLayoutGridPalette) els.vsLayoutGridPalette.addEventListener('click', event => {
+    const button = event.target?.closest?.('[data-vs-grid-color]');
+    if (!button) return;
+    const color = button.dataset.vsGridColor;
+    if (color !== 'erase' && !VS_LAYOUT_GRID_COLOR_NAMES.has(color)) return;
+    vsLayoutGridState.color = color;
+    saveVsLayoutGuideGridState();
+    syncVsLayoutGuideGridUi();
+  });
+  if (els.vsLayoutGuideGrid) {
+    els.vsLayoutGuideGrid.addEventListener('pointerdown', event => {
+      const cell = event.target?.closest?.('.vs-layout-guide-cell');
+      if (!cell || !vsLayoutGridState.paintEnabled) return;
+      event.preventDefault();
+      vsLayoutGridState.painting = true;
+      paintVsLayoutGuideCell(cell);
+    });
+    els.vsLayoutGuideGrid.addEventListener('pointerover', event => {
+      if (!vsLayoutGridState.painting || !vsLayoutGridState.paintEnabled) return;
+      const cell = event.target?.closest?.('.vs-layout-guide-cell');
+      if (cell) paintVsLayoutGuideCell(cell);
+    });
+    els.vsLayoutGuideGrid.addEventListener('pointerup', event => {
+      vsLayoutGridState.painting = false;
+    });
+    els.vsLayoutGuideGrid.addEventListener('pointercancel', () => { vsLayoutGridState.painting = false; });
+  }
+  window.addEventListener('pointerup', () => { vsLayoutGridState.painting = false; });
   if (els.mainMenuUserHud) {
     els.mainMenuUserHud.addEventListener('click', event => {
       if (event.target?.closest?.('#mainMenuResetUserBtn, #mainMenuProfileBtn, #mainMenuAvatarBtn, #mainMenuAchievementsBtn, #mainMenuFriendsBtn, #mainMenuAccountBtn, #mainMenuLogoutBtn')) return;
@@ -15441,12 +19198,9 @@ function bindEvents() {
   if (els.mainMenuBotBtn) els.mainMenuBotBtn.addEventListener('click', openBotMatchModeSelector);
   if (els.mainMenuStoryBtn) els.mainMenuStoryBtn.addEventListener('click', () => showMainMenuComingSoon('Modo Historia'));
   if (els.mainMenuAdventureBtn) els.mainMenuAdventureBtn.addEventListener('click', openAdventureScreen);
+  if (els.mainMenuTutorialBtn) els.mainMenuTutorialBtn.addEventListener('click', () => showMainMenuComingSoon('Tutorial'));
   if (els.adventureBackBtn) els.adventureBackBtn.addEventListener('click', handleAdventureBack);
   if (els.adventureHomeBtn) els.adventureHomeBtn.addEventListener('click', closeAdventureScreen);
-  if (els.adventureEnterZoneBtn) els.adventureEnterZoneBtn.addEventListener('click', enterSelectedAdventureZone);
-  if (els.adventureStartEncounterBtn) els.adventureStartEncounterBtn.addEventListener('click', prepareSelectedAdventureEncounter);
-  if (els.adventurePrepRivalCard) els.adventurePrepRivalCard.addEventListener('click', () => renderAdventureCasterDetail(getAdventureWaterEncounter(adventureState.encounterId), 'rival'));
-  if (els.adventurePrepPlayerCard) els.adventurePrepPlayerCard.addEventListener('click', () => renderAdventureCasterDetail(getAdventurePlayerCaster(), 'player'));
   if (els.adventurePrepEditSpellbookBtn) els.adventurePrepEditSpellbookBtn.addEventListener('click', openAdventureSpellbookEditor);
   if (els.adventureCombatBtn) els.adventureCombatBtn.addEventListener('click', startAdventureBattleIntro);
   if (els.adventureCasterDetailCloseBtn) els.adventureCasterDetailCloseBtn.addEventListener('click', closeAdventureCasterDetail);
@@ -15482,13 +19236,26 @@ function bindEvents() {
   if (els.adventureZoneList) {
     const previewZoneFromEvent = event => {
       const option = event.target?.closest?.('[data-adventure-zone]');
-      if (option) selectAdventureWorldZone(option.dataset.adventureZone);
+      if (option) selectAdventureWorldZone(option.dataset.adventureZone, { skipListRender: true });
     };
     els.adventureZoneList.addEventListener('pointerover', previewZoneFromEvent);
     els.adventureZoneList.addEventListener('focusin', previewZoneFromEvent);
+    const commitZoneFromEvent = event => {
+      const option = event.target?.closest?.('[data-adventure-zone]');
+      if (!option) return;
+      if (event.type === 'pointerup') option.dataset.adventureZoneTriggered = '1';
+      const zone = getAdventureWorldZone(option.dataset.adventureZone);
+      selectAdventureWorldZone(zone.id, { notifyLocked: !zone.available });
+      if (zone.available) enterSelectedAdventureZone();
+    };
+    els.adventureZoneList.addEventListener('pointerup', commitZoneFromEvent);
     els.adventureZoneList.addEventListener('click', event => {
       const option = event.target?.closest?.('[data-adventure-zone]');
       if (!option) return;
+      if (option.dataset.adventureZoneTriggered === '1') {
+        delete option.dataset.adventureZoneTriggered;
+        return;
+      }
       const zone = getAdventureWorldZone(option.dataset.adventureZone);
       selectAdventureWorldZone(zone.id, { notifyLocked: !zone.available });
       if (zone.available) enterSelectedAdventureZone();
@@ -15497,7 +19264,7 @@ function bindEvents() {
   if (els.adventureCasterList) {
     const previewEncounterFromEvent = event => {
       const option = event.target?.closest?.('[data-adventure-encounter]');
-      if (option) selectAdventureWaterEncounter(option.dataset.adventureEncounter);
+      if (option) selectAdventureWaterEncounter(option.dataset.adventureEncounter, { skipListRender: true });
     };
     els.adventureCasterList.addEventListener('pointerover', previewEncounterFromEvent);
     els.adventureCasterList.addEventListener('focusin', previewEncounterFromEvent);
@@ -15506,6 +19273,7 @@ function bindEvents() {
       if (!option) return;
       const encounter = getAdventureWaterEncounter(option.dataset.adventureEncounter);
       selectAdventureWaterEncounter(encounter.id, { notifyLocked: !encounter.available });
+      if (encounter.available) prepareSelectedAdventureEncounter();
     });
   }
   if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', () => window.ROK_ONLINE_PVP?.openLobby?.());
@@ -16024,23 +19792,38 @@ function getEnemyRiskRow(playerId) { return playerId === 1 ? 0 : 17; }
 function getOwnerColor(playerId) { return getPlayerElementColor(playerId); }
 
 const MOVEMENT_TYPE_DB = {
-  basic: { id: 'basic', label: 'Básica', icon: 'assets/movement/movement-basic.png', focus: 'Avance natural', tags: ['movilidad', 'básica', 'avance', 'estándar'], summary: 'Movimiento básico de las invocaciones dentro de la arena.', description: 'La movilidad básica representa el desplazamiento común de una invocación. Sirve como patrón estándar para unidades que avanzan de forma directa siguiendo el flujo normal de la arena, sin opciones laterales complejas ni desplazamientos especiales.' },
-  lateral: { id: 'lateral', label: 'Laterales', icon: 'assets/movement/movement-lateral.png', focus: 'Control lateral', tags: ['movilidad', 'laterales', 'guardián', 'bloqueo'], summary: 'Movimiento enfocado en desplazarse por los lados de la línea de combate.', description: 'La movilidad lateral suele aplicar a invocaciones con enfoque defensivo, especialmente guardianes. Permite sostener posiciones, bloquear avances y cambiar de carril sin depender de presión frontal.' },
-  retreat: { id: 'retreat', label: 'Retroceso', icon: 'assets/movement/movement-retreat.png', focus: 'Campeo y retirada', tags: ['movilidad', 'retroceso', 'franqueo', 'campeo'], summary: 'Movimiento orientado a retroceder o mantener distancia desde una posición táctica.', description: 'La movilidad de retroceso funciona para invocaciones que quieren conservar distancia, reposicionarse hacia atrás o sostener una estrategia de campeo. Es útil para unidades que no dependen del choque frontal constante.' },
-  complete: { id: 'complete', label: 'Completa', icon: 'assets/movement/movement-complete.png', focus: 'Movimiento libre', tags: ['movilidad', 'completa', 'kaster', 'libre'], summary: 'Movimiento amplio, usualmente asociado a kasters o poderes especiales.', description: 'La movilidad completa permite desplazamiento amplio por la arena. Normalmente la tienen los kasters o algunas cartas mediante poderes, cualidades o efectos que rompen la movilidad normal de una invocación.' },
-  frontalSostenido: { id: 'frontalSostenido', label: 'Frontal sostenida', icon: 'assets/movement/movement-forward-sustained.png', focus: 'Presión frontal', tags: ['movilidad', 'frontal', 'sostenida', 'presión'], summary: 'Avance constante hacia el frente siguiendo una línea de presión.', description: 'La movilidad frontal sostenida representa el avance base que hemos estado usando en el prototipo: la invocación empuja hacia el frente de manera estable, manteniendo una ruta ofensiva clara hacia la zona rival.' },
-  frontalAdaptable: { id: 'frontalAdaptable', label: 'Frontal adaptable', icon: 'assets/movement/movement-forward-adaptable.png', focus: 'Avance flexible', tags: ['movilidad', 'frontal', 'adaptable', 'flexible'], summary: 'Avance frontal con capacidad de adaptar la ruta según la situación.', description: 'La movilidad frontal adaptable conserva el enfoque de avanzar hacia el frente, pero permite más flexibilidad para ajustar la ruta cuando la arena, los objetivos o los bloqueos cambian.' },
-  improved: { id: 'improved', label: 'Mejorada', icon: 'assets/movement/movement-improved.png', focus: 'Desplazamiento ampliado', tags: ['movilidad', 'mejorada', 'ágil', 'especial'], summary: 'Movilidad superior a la básica, útil para invocaciones ágiles o potenciadas.', description: 'La movilidad mejorada representa un patrón de movimiento más amplio que el estándar. Se usa para invocaciones potenciadas, ágiles o con capacidades que les permiten cubrir mejores ángulos de desplazamiento.' },
-  crossX: { id: 'crossX', label: 'En X', icon: 'assets/movement/movement-x.png', focus: 'Diagonales', tags: ['movilidad', 'equis', 'diagonal', 'especial'], summary: 'Movimiento en diagonales, útil para reposicionamiento angular.', description: 'La movilidad en X permite desplazamiento diagonal. Es un patrón especial para unidades que no quieren seguir solamente carriles rectos y necesitan flanquear, reposicionarse o entrar por ángulos menos predecibles.' },
+  basic: { id: 'basic', label: 'Básica', icon: 'assets/movement/movement-basic.png', focus: 'Avance natural', tags: ['Estadística de desplazamiento', 'Movilidad'], summary: 'Movimiento básico de las invocaciones dentro de la arena.', description: 'La movilidad básica representa el desplazamiento común de una invocación. Sirve como patrón estándar para avanzar de forma directa siguiendo el flujo normal de la arena, sin opciones laterales complejas ni desplazamientos especiales. Permite mantener un desplazamiento sostenido en la arena y orientar el avance hacia el campo rival.' },
+  lateral: { id: 'lateral', label: 'Laterales', icon: 'assets/movement/movement-lateral.png', focus: 'Control lateral', tags: ['Estadística de desplazamiento', 'Movilidad'], summary: 'Movimiento enfocado en desplazarse por los lados de la línea de combate.', description: 'La movilidad lateral suele aplicar a invocaciones con enfoque defensivo, especialmente guardianes. Permite sostener posiciones, bloquear avances y cambiar de carril sin depender de presión frontal.' },
+  retreat: { id: 'retreat', label: 'Retroceso', icon: 'assets/movement/movement-retreat.png', focus: 'Campeo y retirada', tags: ['Estadística de desplazamiento', 'Movilidad'], summary: 'Movimiento orientado a retroceder o mantener distancia desde una posición táctica.', description: 'La movilidad de retroceso funciona para invocaciones que quieren conservar distancia, reposicionarse hacia atrás o sostener una estrategia de campeo. Es útil para unidades que no dependen del choque frontal constante.' },
+  complete: { id: 'complete', label: 'Completa', icon: 'assets/movement/movement-complete.png', focus: 'Movimiento libre', tags: ['Estadística de desplazamiento', 'Movilidad'], summary: 'Movimiento amplio, usualmente asociado a kasters o poderes especiales.', description: 'La movilidad completa permite desplazamiento amplio por la arena. Normalmente la tienen los kasters o algunas cartas mediante poderes, cualidades o efectos que rompen la movilidad normal de una invocación.' },
+  frontalSostenido: { id: 'frontalSostenido', label: 'Frontal sostenida', icon: 'assets/movement/movement-forward-sustained.png', focus: 'Presión frontal', tags: ['Estadística de desplazamiento', 'Movilidad'], summary: 'Avance constante hacia el frente siguiendo una línea de presión.', description: 'La movilidad frontal sostenida representa el avance base que hemos estado usando en el prototipo: la invocación empuja hacia el frente de manera estable, manteniendo una ruta ofensiva clara hacia la zona rival.' },
+  frontalAdaptable: { id: 'frontalAdaptable', label: 'Frontal adaptable', icon: 'assets/movement/movement-forward-adaptable.png', focus: 'Avance flexible', tags: ['Estadística de desplazamiento', 'Movilidad'], summary: 'Avance frontal con capacidad de adaptar la ruta según la situación.', description: 'La movilidad frontal adaptable conserva el enfoque de avanzar hacia el frente, pero permite más flexibilidad para ajustar la ruta cuando la arena, los objetivos o los bloqueos cambian.' },
+  improved: { id: 'improved', label: 'Mejorada', icon: 'assets/movement/movement-improved.png', focus: 'Desplazamiento ampliado', tags: ['Estadística de desplazamiento', 'Movilidad'], summary: 'Movilidad superior a la básica, útil para invocaciones ágiles o potenciadas.', description: 'La movilidad mejorada representa un patrón de movimiento más amplio que el estándar. Se usa para invocaciones potenciadas, ágiles o con capacidades que les permiten cubrir mejores ángulos de desplazamiento.' },
+  crossX: { id: 'crossX', label: 'En X', icon: 'assets/movement/movement-x.png', focus: 'Diagonales', tags: ['Estadística de desplazamiento', 'Movilidad'], summary: 'Movimiento en diagonales, útil para reposicionamiento angular.', description: 'La movilidad en X permite desplazamiento diagonal. Es un patrón especial para unidades que no quieren seguir solamente carriles rectos y necesitan flanquear, reposicionarse o entrar por ángulos menos predecibles.' },
 };
 
 
 const POWER_DB = {
+  farolEnlazado: {
+    id: 'farolEnlazado',
+    label: 'Farol Enlazado',
+    name: 'Farol Enlazado',
+    icon: 'assets/kiara/farolera-del-umbral-lampara.png',
+    activation: 'Activa · 2 etapas',
+    category: 'Mágica · Estratégica · Portal · Estándar',
+    classification: { applicationModes: ['active'], applicationTags: ['standard'], natures: ['magic', 'virtual'], functionalCategories: ['positioning', 'mobility', 'portal', 'support'] },
+    focus: 'Atajo táctico exclusivo para Hechiceros',
+    tags: ['poder', 'activa', 'mágica', 'portal', 'teletransporte', 'hechicero', 'retaguardia', 'movilidad'],
+    throwRange: 4,
+    summary: 'Etapa 1 fija un círculo en una casilla libre adyacente a la Farolera. Etapa 2 lanza el farol hasta radio 4. Las invocaciones con cualidad Hechicero que entren al círculo se teletransportan a la casilla del farol.',
+    description: 'Activa · Etapa 1: selecciona una casilla libre adyacente a Farolera del Umbral y crea allí un círculo de hechizo. Etapa 2: selecciona una casilla libre en un radio de 4 y lanza allí su lámpara. El círculo permanece enlazado mágicamente con el farol. Cualquier invocación cuya cualidad incluya Hechicero que entre posteriormente en la casilla del círculo se teletransporta inmediatamente a la casilla de la lámpara, siempre que el destino esté libre. Las unidades que ya estaban sobre el círculo al terminar la Etapa 2 no se teletransportan hasta salir y volver a entrar. El portal desaparece cuando la Farolera deja de estar activa en la arena.',
+  },
+
   aprenderShirahadori: {
     id: 'aprenderShirahadori',
     label: 'Permite aprender Shirahadori',
     name: 'Permite aprender Shirahadori',
-    icon: 'assets/ability-shirahadori.png',
+    icon: 'assets/ability-shirahadori.webp',
     activation: 'Habilidad',
     category: 'Técnica · Aprendizaje · Permanente',
     classification: { applicationModes: ['active'], applicationTags: ['technique', 'consumable'], natures: ['physical', 'virtual'], functionalCategories: ['defensive', 'learning', 'redirection'] },
@@ -16069,13 +19852,20 @@ const POWER_DB = {
     label: 'Buki Utsushi',
     name: 'Buki Utsushi',
     icon: 'assets/kurokagi-butai-3-token-v286.png',
-    activation: 'Pasiva / Activa',
-    category: 'Física · Táctica · Equipamiento · Estándar',
-    classification: { applicationModes: ['passive', 'active'], applicationTags: ['standard'], natures: ['physical', 'tactical'], functionalCategories: ['equipment', 'control', 'versatility'] },
-    focus: 'Captura y alternancia de armamento',
-    tags: ['poder', 'pasiva', 'activa', 'física', 'táctica', 'arma extra', 'desarmar', 'alternar arma', 'ninja'],
+    activation: 'Disparador / Activa',
+    category: 'Físico · Táctico · Desarmar',
+    semanticBranches: [
+      { activation: 'triggerActive', category: 'physical', orientation: 'tactical', focuses: ['disarm'] },
+    ],
     summary: 'Cuando Desarmar 3 hace caer una o varias armas, Buki Utsushi permite escoger una, recogerla y equiparla como arma secundaria.',
-    description: 'I. Pasiva: cada invocación dañada por la Oscilación parcial de Kurokagi realiza de forma independiente la tirada de Desarmar 3. Las armas desarmadas caen alrededor de sus propietarios y el barrido continúa sin detenerse. II. Buki Utsushi: Kurokagi selecciona una de las armas caídas, la recoge con la cadena y la equipa. El arma transmite su perfil básico: tipo de arma, modo de combate, alcance, precisión, daño y naturaleza del daño. No transmite factores, aplicaciones especiales, habilidades ni poderes. III. Activa: cuando Kurokagi ya posee un arma capturada, su poder permite elegir entre activar Buki Utsushi sobre otra arma caída o cambiar entre la Kusarigama y el arma capturada.',
+    description: 'I. Disparador. Cada invocación dañada por Kurokage tiene 3 PDA para ser desarmada. II. Buki Utsushi. Kurokage selecciona una de las armas desarmadas disponibles, la recoge con la cadena y la equipa como arma secundaria. El arma capturada transmite únicamente sus estadísticas básicas: tipo de arma, modo de combate, alcance, precisión, daño y naturaleza del daño. No transmite Factores, aplicaciones especiales de daño, Habilidades ni Poderes. III. Activa. Cuando Kurokage ya posee un arma capturada, puede cambiar entre las armas que tenga disponibles, incluyendo su Kusarigama y el arma capturada.',
+    factorApplications: [
+      { factorId: 'disarm', level: 3, pdaOverride: 3, inheritedBase: true, target: { type: 'invocation', side: 'enemy', count: 'scalable', practicalMax: 8 }, conditions: ['requiere:daño-de-kurokage'], label: 'Desarmar 3 · aplicación multiobjetivo' },
+    ],
+    pbEffects: [
+      { label: 'Captura de arma desarmada', property: 'weaponCopy', operation: 'grant', polarity: 'positive', magnitude: 1, target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'whileActive' }, frequency: 'active', conditions: ['requiere:arma-desarmada-disponible'] },
+      { label: 'Alternancia de arma capturada', property: 'weaponSwitch', operation: 'grant', polarity: 'positive', magnitude: 1, target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'whileActive' }, frequency: 'active', conditions: ['requiere:arma-capturada'] },
+    ],
   },
 
   mercanciaDeGuerra: {
@@ -16123,19 +19913,49 @@ const POWER_DB = {
     label: 'Shizukesa no Shi-in',
     name: 'Shizukesa no Shi-in',
     icon: 'assets/kurayami-token.png',
-    activation: 'Activa / Pasiva',
-    category: 'Física · Estratégica · Mortalidad · Estándar',
-    classification: { applicationModes: ['active', 'passive'], applicationTags: ['cost', 'standard'], natures: ['physical', 'tactical'], functionalCategories: ['execution', 'offensive', 'mobility', 'positioning', 'concealment'] },
-    focus: 'Marcado, persecución, asesinato y presión Ninja',
-    tags: ['poder', 'activa', 'pasiva', 'física', 'estratégica', 'mortalidad', 'estándar', 'oculto', 'ejecución', 'ninja'],
+    activation: 'Activa',
+    category: 'Físico · Ofensivo · Daño',
+    semanticBranches: [
+      { activation: 'active', category: 'physical', orientation: 'offensive', focuses: ['damage'] },
+    ],
     cost: { oscuridad: 1 },
     targetRange: 5,
     channelPhases: 3,
     cooldownPhases: 6,
     bonusDamage: 1,
     executeThreshold: 3,
-    summary: 'Activa: consume 1 Oscuridad, marca a una invocación rival dentro de un radio de 5 casillas, canaliza 3 fases, se oculta, la persigue y ejecuta un ataque que ignora defensas. Después entra en enfriamiento durante 6 fases. Pasiva: los Ninjas aliados en el lado rival ganan +1 velocidad y +2 precisión.',
-    description: 'I. Activa: consume 1 elemento de Oscuridad y marca una invocación enemiga que se encuentre dentro de un radio de 5 casillas de Kurayami. Durante 3 fases canaliza el poder; después obtiene Oculto, calcula una ruta válida y se desplaza automáticamente hasta una casilla adyacente al objetivo. Luego realiza un ataque basado en su ataque base con +1 de daño. Ese golpe ignora factores, habilidades, poderes, escudos, Armadura y cualquier otro efecto clasificado como defensivo. El Golpe crítico se calcula sobre el daño total. Si el objetivo queda con 3 de vida o menos, es ejecutado. Kurayami se restaura después del ataque y Shizukesa no Shi-in entra en enfriamiento durante 6 fases. II. Pasiva: mientras Kurayami permanezca activo en la arena, todas las invocaciones aliadas de familia Ninja que estén en el lado enemigo ganan +1 velocidad y +2 precisión.'
+    summary: 'Consume 1 Oscuridad, marca una invocación rival dentro de un radio de 5 casillas, canaliza 3 fases inmóvil, obtiene Oculto, la persigue y ejecuta un ataque de 2 de daño con Golpe crítico 5 que ignora Factores Físicos Defensivos. Si el objetivo queda con 3 de Vida o menos, lo ejecuta. Enfriamiento: 6 fases.',
+    description: 'Consume 1 elemento de Oscuridad y marca una invocación enemiga que se encuentre dentro de un radio de 5 casillas de Kurayami. Kurayami canaliza durante 3 fases manteniéndose inmóvil. Al completar la canalización obtiene Oculto y se desplaza automáticamente hasta una casilla libre alrededor del objetivo. Al llegar ejecuta automáticamente su ataque base con +1 de Daño, para un total base de 2 de Daño, aplicando Golpe crítico 5. Este ataque ignora cualquier Factor que sea simultáneamente Físico y Defensivo. Si el objetivo queda con 3 de Vida o menos, es ejecutado. Después de resolverse o interrumpirse, Shizukesa no Shi-in entra en enfriamiento durante 6 fases.',
+    factorApplications: [
+      { factorId: 'criticalHit', level: 5, inheritedBase: true, target: { type: 'invocation', side: 'enemy', count: 1 }, label: 'Golpe crítico 5 · aplicación del Poder' },
+    ],
+    pbEffects: [
+      { label: 'Costo de activación', property: 'cost', operation: 'pay', polarity: 'negative', magnitude: 1, target: { type: 'self', side: 'self', count: 1 }, frequency: 'active' },
+      { label: 'Canalización inmóvil', property: 'movement', operation: 'decrease', polarity: 'negative', magnitude: 1, target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'phases', value: 3 }, frequency: 'active', conditionCount: 1 },
+      { label: 'Oculto durante la persecución', property: 'hidden', operation: 'grant', polarity: 'positive', magnitude: 1, target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'untilRestore' }, frequency: 'active' },
+      { label: 'Persecución automática', property: 'positioning', operation: 'grant', polarity: 'positive', magnitude: 1, target: { type: 'self', side: 'self', count: 1 }, frequency: 'active', conditionCount: 1 },
+      { label: 'Daño adicional', property: 'damage', operation: 'damage', polarity: 'negative', magnitude: 1, target: { type: 'invocation', side: 'enemy', count: 1 }, frequency: 'active' },
+      { label: 'Ignora Factores Físicos Defensivos', property: 'defenseBypass', operation: 'applynegative', polarity: 'negative', magnitude: 1, target: { type: 'invocation', side: 'enemy', count: 1 }, frequency: 'active' },
+      { label: 'Ejecución a 3 de Vida', property: 'destroy', operation: 'destroy', polarity: 'negative', magnitude: 1, target: { type: 'invocation', side: 'enemy', count: 1 }, frequency: 'active', conditionCount: 1, availabilityMultiplier: 0.70 },
+      { label: 'Enfriamiento del Poder', property: 'powerCooldown', operation: 'decrease', polarity: 'negative', magnitude: 6, target: { type: 'self', side: 'self', count: 1 }, frequency: 'active' },
+    ],
+  },
+  kurayamiNinjaAura: {
+    id: 'kurayamiNinjaAura',
+    label: 'Shinobi no Kōshin',
+    name: 'Shinobi no Kōshin',
+    icon: 'assets/kurayami-token.png',
+    activation: 'Pasiva',
+    category: 'Físico · Ofensivo · Velocidad / Precisión',
+    semanticBranches: [
+      { activation: 'passive', category: 'physical', orientation: 'offensive', focuses: ['speed', 'precision'] },
+    ],
+    summary: 'Mientras Kurayami permanezca activo en la arena, los Ninja aliados situados en el lado rival obtienen +1 de Velocidad y +2 de Precisión.',
+    description: 'Mientras Kurayami permanezca activo en la arena, todas las invocaciones aliadas de familia Ninja que estén situadas en el lado rival obtienen +1 de Velocidad y +2 de Precisión.',
+    pbEffects: [
+      { label: 'Ninja aliados · +1 Velocidad', property: 'speed', operation: 'increase', polarity: 'positive', magnitude: 1, target: { type: 'invocation', side: 'allied', count: 'all', practicalCount: 5 }, duration: { type: 'whileActive' }, frequency: 'passive', conditions: ['familia:ninja', 'zona:lado-rival'] },
+      { label: 'Ninja aliados · +2 Precisión', property: 'precision', operation: 'increase', polarity: 'positive', magnitude: 2, target: { type: 'invocation', side: 'allied', count: 'all', practicalCount: 5 }, duration: { type: 'whileActive' }, frequency: 'passive', conditions: ['familia:ninja', 'zona:lado-rival'] },
+    ],
   },
 
   densetsuNoSennyu: {
@@ -16143,13 +19963,17 @@ const POWER_DB = {
     label: 'Densetsu no Sennyū',
     name: 'Densetsu no Sennyū',
     icon: 'assets/ichikawa-goemon-token.png',
-    activation: 'Pasiva',
-    category: 'Virtual · Aceleradora · Estándar',
-    classification: { applicationModes: ['passive'], applicationTags: ['standard'], natures: ['virtual'], functionalCategories: ['mobility', 'positioning', 'pressure'] },
-    focus: 'Infiltración automática según distancia real de movimiento',
-    tags: ['poder', 'pasiva', 'virtual', 'aceleradora', 'movilidad automática', 'ruta', 'tres movimientos', 'héroe', 'bandido'],
-    summary: 'Pasivo. Siempre que Ichikawa Goemon necesite de 1 a 3 movimientos para llegar a una casilla libre adyacente al Kaster rival, activa Densetsu no Sennyū y completa automáticamente esa ruta, dejando un rastro de sombras. El ataque posterior sigue siendo manual.',
-    description: 'Poder pasivo. El sistema calcula la ruta válida más corta desde Ichikawa Goemon hasta una casilla libre adyacente al Kaster rival. La casilla que ocupa Goemon y la casilla que ocupa el Kaster no cuentan como movimientos. Si la ruta requiere entre 1 y 3 pasos, Densetsu no Sennyū se activa sin importar si la posición se produjo por kasteo, movimiento propio, desplazamiento de otra carta o movimiento del Kaster enemigo. Goemon completa esa ruta dejando sombras rezagadas. El poder no ejecuta el ataque; el jugador decide después si ataca o no.'
+    activation: 'Disparador',
+    category: 'Virtual · Táctico · Movilidad',
+    semanticBranches: [
+      { activation: 'trigger', category: 'virtual', orientation: 'tactical', focuses: ['mobility'] },
+    ],
+    focus: 'Acercamiento automático al Kaster rival',
+    summary: 'Cuando Goemon necesita de 1 a 3 movimientos para alcanzar una casilla libre adyacente al Kaster rival, Densetsu no Sennyū se dispara y lo desplaza automáticamente hasta quedar a distancia de ataque.',
+    description: 'Cuando Goemon necesita de 1 a 3 movimientos para alcanzar una casilla libre adyacente al Kaster rival, Densetsu no Sennyū se dispara. Goemon se desplaza automáticamente hasta esa casilla y queda a distancia de ataque del Kaster rival.',
+    pbEffects: [
+      { label: 'Acercamiento automático', property: 'movement', operation: 'grant', polarity: 'positive', magnitude: 3, target: { type: 'self', side: 'self', count: 1 }, frequency: 'trigger', conditions: ['distancia:1-3-movimientos-hasta-casilla-adyacente-al-kaster-rival'] },
+    ],
   },
 
   shippuUgachi: {
@@ -16212,10 +20036,10 @@ const POWER_DB = {
     label: 'El viejo amigo',
     name: 'El viejo amigo',
     icon: 'assets/qualities/quality-hero.svg',
-    activation: 'Pasiva',
-    classification: { applicationModes: ['passive'], applicationTags: ['standard'], natures: ['physical', 'virtual'], functionalCategories: ['summon', 'link', 'tempo'] },
+    activation: 'Activa',
+    classification: { applicationModes: ['active'], applicationTags: ['standard'], natures: ['physical', 'virtual'], functionalCategories: ['summon', 'link', 'tempo'] },
     focus: 'Vínculo de invocación',
-    tags: ['poder', 'el viejo amigo', 'pasivo', 'físico', 'virtual', 'vínculo', 'estándar', 'Miyamoto Musashi'],
+    tags: ['poder', 'el viejo amigo', 'activa', 'físico', 'virtual', 'vínculo', 'estándar', 'Miyamoto Musashi'],
     summary: 'Cuando Takeda Shingen entra a la arena, puede castear a Miyamoto Musashi de forma instantánea pagando la mitad de su costo. Musashi entra con su restauración triplicada. Además, Takeda gana +1 de ataque al inicio de cada turno propio mientras siga en arena.',
     description: 'Al entrar Takeda Shingen a la arena, su controlador puede invocar inmediatamente a Miyamoto Musashi pagando la mitad de su costo total, redondeando siempre hacia arriba. Como precio estratégico del vínculo, Musashi triplica su tiempo de restauración/estasis mientras permanezca como esa invocación. Mientras Takeda Shingen continúe activo en arena, gana +1 de daño de ataque al inicio de cada turno de su controlador.',
   },
@@ -16364,11 +20188,16 @@ const ABILITY_DB = {
     label: 'Botín valioso',
     icon: 'assets/qualities/quality-bandit.svg',
     activation: 'Pasiva',
-    classification: { applicationModes: ['passive'], applicationTags: ['standard'], natures: ['physical'], functionalCategories: ['resourceManagement', 'offensive', 'sabotage'] },
+    semanticBranches: [
+      { activation: 'passive', category: 'virtual', orientation: 'tactical', orientationLabel: 'Táctica', focuses: ['loot'] },
+    ],
     focus: 'Saqueo de recursos desde el stock rival',
-    tags: ['habilidad', 'botín valioso', 'pasiva', 'física', 'ventaja', 'estándar', 'bandido', 'saqueo', 'stock'],
-    summary: 'Cuando {unitName} daña al Kaster rival, realiza 3 PDA para robar 1 elemento aleatorio del stock enemigo.',
-    description: 'Habilidad pasiva. Cada vez que {unitName} cause daño real al Kaster rival, realiza una tirada de 3 PDA. Al acertar, roba 1 elemento aleatorio del stock actual del rival. El elemento robado sale del Kaster rival, cae y flota brevemente sobre la arena y después viaja hasta el stock del usuario.'
+    summary: 'Cada vez que {unitName} aplique al menos 1 de daño real al Kaster rival, realiza una comprobación de 3 PDA. Si acierta, roba 1 elemento aleatorio del stock actual del rival.',
+    description: 'Cada vez que {unitName} aplique al menos 1 de daño real al Kaster rival, realiza una comprobación de 3 PDA. Si acierta, roba 1 elemento aleatorio del stock actual del rival.',
+    pbEffects: [
+      { label: 'Recurso retirado del rival', property: 'resource', operation: 'decrease', polarity: 'negative', magnitude: 1, probability: 0.5, target: { type: 'player', side: 'enemy', count: 1 }, frequency: 'everyHit', conditions: ['daño-real-al-kaster-rival>=1'] },
+      { label: 'Recurso ganado por Goemon', property: 'resource', operation: 'increase', polarity: 'positive', magnitude: 1, probability: 0.5, target: { type: 'player', side: 'self', count: 1 }, frequency: 'everyHit', conditions: ['daño-real-al-kaster-rival>=1'] },
+    ],
   },
   dominioTerritorial: {
     id: 'dominioTerritorial',
@@ -16492,7 +20321,7 @@ const ABILITY_DB = {
     id: 'despliegueAnticipado',
     label: 'Despliegue anticipado',
     name: 'Despliegue anticipado',
-    icon: 'assets/spell-despliegue-anticipado.png',
+    icon: 'assets/spell-despliegue-anticipado.webp',
     activation: 'Hechizo',
     category: 'Virtual · Táctica',
     classification: { applicationModes: ['active', 'continuous'], applicationTags: ['linked'], natures: ['virtual', 'tactical'], functionalCategories: ['support', 'costReduction', 'link'] },
@@ -16519,6 +20348,25 @@ function getPowerProfile(powerId) {
   if (!powerId) return null;
   if (typeof powerId === 'string') return POWER_DB?.[powerId] || null;
   return POWER_DB?.[powerId.id] || null;
+}
+
+// Base global para cartas con uno o varios Poderes. `card.power` sigue siendo
+// la referencia primaria de runtime; `card.powers` amplía UI/semántica/PB.
+function getCardPowerEntries(card = null) {
+  if (!card) return [];
+  const raw = Array.isArray(card.powers) && card.powers.length ? card.powers : (card.power ? [card.power] : []);
+  const seen = new Set();
+  return raw.map(entry => {
+    const id = typeof entry === 'string' ? entry : entry?.id;
+    const profile = getPowerProfile(entry) || (entry && typeof entry === 'object' ? entry : null);
+    if (!id || !profile || seen.has(id)) return null;
+    seen.add(id);
+    return { id, entry, profile };
+  }).filter(Boolean);
+}
+
+function getCardPowerProfiles(card = null) {
+  return getCardPowerEntries(card).map(item => item.profile);
 }
 
 function unitHasSukiruCharenji(unit) {
@@ -16627,6 +20475,7 @@ function resolveKishimotoLimitsPayment(payment, selection) {
   const unit = getUnitById(playerId, payment?.unitId);
   if (!unitCanActivateKishimotoLimits(playerId, unit)) {
     closeRandomCostSelector();
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'kishimotoLimits', unitId: payment?.unitId, playerId });
     log('Límites Superados dejó de estar disponible antes de completar el pago.');
     renderAll();
     return false;
@@ -16634,6 +20483,7 @@ function resolveKishimotoLimitsPayment(payment, selection) {
   const player = state.players?.[playerId];
   if (!player || !payCost(player.resources, { random: KISHIMOTO_LIMIT_COST }, 'catalizadora', selection)) {
     closeRandomCostSelector();
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'kishimotoLimits', unitId: payment?.unitId, playerId });
     log('No se pudo consumir el costo de Límites Superados.');
     renderAll();
     return false;
@@ -16653,6 +20503,7 @@ function resolveKishimotoLimitsPayment(payment, selection) {
   log(`Límites Superados aumenta en 1 el límite de invocaciones de J${playerId}. Acumulación ${unit.limitesSuperadosStacks}/${KISHIMOTO_LIMIT_MAX_STACKS}.`);
   renderAll();
   showInvocationLimitNotice(playerId, { usage: getInvocationLimitUsage(playerId) });
+  resolveQuickReactionDeferredInvocationAction('activated', { actionId: 'kishimotoLimits', unitId: payment?.unitId, playerId });
   return true;
 }
 
@@ -17027,16 +20878,16 @@ const BIOTYPE_DB = {
     label: 'Terrestre',
     icon: 'assets/biotypes/biotype-terrestrial.svg',
     focus: 'Movilidad terrestre',
-    tags: ['biotipo', 'terrestre', 'tierra firme', 'movilidad', 'bioma terrestre', 'bioma acuático'],
-    summary: 'Adaptada al movimiento en tierra firme. En biomas terrestres conserva su movilidad normal. En biomas acuáticos, su movilidad pasa a ser 1 mientras permanezca allí.',
-    description: 'Esta invocación está adaptada para desplazarse con libertad en tierra firme, caminos, ruinas, bosques, montañas y otros ambientes terrestres. Mientras se encuentre en un bioma terrestre, conserva su movilidad normal y puede aprovechar completamente su velocidad de movimiento. Si entra en un bioma acuático, su movilidad se reduce a 1 mientras permanezca en ese entorno, ya que su cuerpo, postura o estilo de combate no están preparados para moverse con la misma eficacia en el agua.'
+    tags: ['Estadística de desplazamiento', 'Biotipo'],
+    summary: 'Adaptada al movimiento en tierra firme. En biomas terrestres conserva su movilidad normal.',
+    description: 'Esta invocación está adaptada para desplazarse con libertad en tierra firme. Mientras se encuentre en un bioma terrestre, conserva su movilidad normal y puede aprovechar completamente su velocidad de movimiento.'
   },
   none: {
     id: 'none',
     label: 'Sin biotipo',
     icon: 'assets/biotypes/biotype-terrestrial.svg',
     focus: 'Sin clasificación',
-    tags: ['biotipo'],
+    tags: ['Estadística de desplazamiento', 'Biotipo'],
     summary: 'Esta carta no tiene un biotipo definido todavía.',
     description: 'Esta carta no tiene una clasificación de biotipo definida por ahora.'
   }
@@ -18881,6 +22732,461 @@ function unitHasPowerDefinition(playerId, unit) {
   return Boolean(getPowerDefinitionForUnit(playerId, unit));
 }
 
+function isFaroleraUmbralUnit(unit) {
+  return unit?.cardId === 'kiaraFaroleraUmbral';
+}
+
+function getFarolPortalKey(playerId, unitId) {
+  return `${Number(playerId)}:${String(unitId || '')}`;
+}
+
+function getFarolPortalForSource(playerId, unitId) {
+  const key = getFarolPortalKey(playerId, unitId);
+  return (state.farolPortals || []).find(portal => String(portal?.key || '') === key) || null;
+}
+
+function getFarolEnlazadoStage(playerId, unitId) {
+  const portal = getFarolPortalForSource(playerId, unitId);
+  if (!portal) return 'idle';
+  if (portal.stage === 'complete' || (portal.destinationRow != null && portal.destinationCol != null)) return 'complete';
+  if (portal.stage === 'throwing') return 'throwing';
+  return 'circle';
+}
+
+function unitCanActivateFarolEnlazado(playerId, unit) {
+  if (!unit || !isFaroleraUmbralUnit(unit) || unit.status === 'restoring' || unitHasParalysis(unit)) return false;
+  if (state.activePlayer !== playerId || currentPhase().id !== 'resolution') return false;
+  // Farol Enlazado solo admite dos activaciones por instancia: Etapa 1 y Etapa 2.
+  // Una vez completado el portal, el poder deja de ofrecerse hasta que la Farolera
+  // abandone la arena y su estado de portal sea limpiado.
+  const stage = getFarolEnlazadoStage(playerId, unit.id);
+  return stage === 'idle' || stage === 'circle';
+}
+
+function getFarolCirclePlacementCells(playerId, unit) {
+  if (!unit) return [];
+  return getCellsInRadius(unit.row, unit.col, 1, true)
+    .filter(cell => ringDistance(unit.row, unit.col, cell.row, cell.col) === 1)
+    .filter(cell => !isCastPlacementBlockedForPlayer(cell.row, cell.col, playerId));
+}
+
+function getFarolLanternDestinationCells(playerId, unit) {
+  if (!unit) return [];
+  const power = getPowerDefinitionForUnit(playerId, unit) || POWER_DB.farolEnlazado;
+  const range = Math.max(1, Number(power?.throwRange ?? 4));
+  return getCellsInRadius(unit.row, unit.col, range, true)
+    .filter(cell => ringDistance(unit.row, unit.col, cell.row, cell.col) >= 1)
+    .filter(cell => !isCastPlacementBlockedForPlayer(cell.row, cell.col, playerId));
+}
+
+function beginFarolEnlazadoTargeting(playerId, unitId) {
+  const unit = getUnitById(playerId, unitId);
+  if (!unitCanActivateFarolEnlazado(playerId, unit)) {
+    log('Farol Enlazado no está disponible ahora.');
+    return false;
+  }
+
+  const stage = getFarolEnlazadoStage(playerId, unitId);
+  clearCombatMenus();
+
+  if (stage === 'idle') {
+    const options = getFarolCirclePlacementCells(playerId, unit);
+    if (!options.length) {
+      log('Farol Enlazado · Etapa 1: selecciona una casilla libre alrededor de la Farolera para fijar el círculo.');
+      return false;
+    }
+    state.pendingPowerAction = {
+      kind: 'farolEnlazadoCircle',
+      playerId,
+      unitId,
+    };
+    showFloatingTextAt(unit.row, unit.col, 'ETAPA 1 · CÍRCULO', 'floating-combat buff');
+    log('Farol Enlazado · Etapa 1: selecciona una casilla libre alrededor de la Farolera para crear el círculo.');
+    renderAll('farol-enlazado-stage-1-targeting');
+    return true;
+  }
+
+  // ETAPA 2: solo en la segunda activación se abre la selección de destino.
+  const portal = getFarolPortalForSource(playerId, unitId);
+  const options = getFarolLanternDestinationCells(playerId, unit);
+  if (!portal || !options.length) {
+    log('Farol Enlazado no tiene una casilla libre dentro de radio 4 para lanzar la lámpara.');
+    return false;
+  }
+  state.pendingPowerAction = {
+    kind: 'farolEnlazadoLamp',
+    playerId,
+    unitId,
+    originRow: portal.originRow,
+    originCol: portal.originCol,
+  };
+  showFloatingTextAt(unit.row, unit.col, 'ETAPA 2 · FAROL', 'floating-combat buff');
+  log('Farol Enlazado · Etapa 2: selecciona una casilla libre hasta radio 4 para lanzar la lámpara.');
+  renderAll('farol-enlazado-stage-2-targeting');
+  return true;
+}
+
+function resolveFarolEnlazadoCircleTarget(playerId, unitId, row, col) {
+  const pending = state.pendingPowerAction;
+  const unit = getUnitById(playerId, unitId);
+  if (pending?.kind !== 'farolEnlazadoCircle' || String(pending.unitId) !== String(unitId) || !unitCanActivateFarolEnlazado(playerId, unit)) return false;
+  const valid = getFarolCirclePlacementCells(playerId, unit).some(cell => cell.row === row && cell.col === col);
+  if (!valid) {
+    log('Farol Enlazado · Etapa 1: selecciona una casilla libre adyacente a la Farolera.');
+    renderAll('farol-enlazado-stage-1-invalid');
+    return false;
+  }
+  const key = getFarolPortalKey(playerId, unitId);
+  state.farolPortals = (state.farolPortals || []).filter(portal => String(portal?.key || '') !== key);
+  state.farolPortals.push({
+    key,
+    stage: 'circle',
+    playerId,
+    sourceUnitId: unitId,
+    originRow: row,
+    originCol: col,
+    createdAt: Date.now(),
+  });
+  state.pendingPowerAction = null;
+  markResolutionActionTaken();
+  showFloatingTextAt(row, col, 'CÍRCULO FIJADO', 'floating-combat buff');
+  log(`Farol Enlazado · Etapa 1 completada: círculo creado en ${coordLabel(row, col)}. La Farolera conserva su movilidad. Vuelve a activar el poder para lanzar el farol.`);
+  // Si Etapa 1 nació desde la ventana universal, no liberamos/creamos otra
+  // superficie. Cerramos esta activación y la misma miniatura se refresca con
+  // el botón de Etapa 2.
+  resolveQuickReactionDeferredInvocationAction('activated', { actionId: 'farolEnlazado', unitId, playerId });
+  renderAll('farol-enlazado-stage-1');
+  return true;
+}
+
+function cancelFarolEnlazadoTargeting(message = 'Farol Enlazado cancelado.') {
+  if (!['farolEnlazadoLamp', 'farolEnlazadoCircle'].includes(String(state.pendingPowerAction?.kind || ''))) return false;
+  const pending = { ...state.pendingPowerAction };
+  const wasCircle = pending.kind === 'farolEnlazadoCircle';
+  state.pendingPowerAction = null;
+  clearCombatMenus();
+  resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'farolEnlazado', unitId: pending.unitId, playerId: pending.playerId });
+  if (message) log(message || (wasCircle ? 'Farol Enlazado · Etapa 1 cancelada.' : 'Farol Enlazado · Etapa 2 cancelada. El círculo permanece activo.'));
+  renderAll('farol-enlazado-cancel');
+  return true;
+}
+
+function getFarolPortalOccupantKeys(row, col) {
+  const keys = [];
+  for (const ownerId of [1, 2]) {
+    for (const unit of state.players?.[ownerId]?.units || []) {
+      if (!unit || unit.status === 'restoring' || unit.row !== row || unit.col !== col) continue;
+      keys.push(`${ownerId}:${unit.id}`);
+    }
+  }
+  return keys;
+}
+
+async function playFarolLanternThrowFx(playerId, unit, row, col) {
+  const layer = ensureFarolPortalFxLayer();
+  if (!layer || !unit) return;
+  const from = cellCenter(Number(unit.row), Number(unit.col));
+  const to = cellCenter(Number(row), Number(col));
+  if (!from || !to) return;
+
+  const color = getPlayerElementColor(Number(playerId));
+  const lamp = document.createElement('span');
+  lamp.className = 'farol-lantern-throw-fx';
+  lamp.style.left = `${from.x}%`;
+  lamp.style.top = `${from.y}%`;
+  lamp.style.setProperty('--farol-portal-color', color);
+  lamp.innerHTML = '<img src="assets/kiara/farolera-del-umbral-lampara.png" alt="">';
+  layer.appendChild(lamp);
+
+  const midpointX = from.x + ((to.x - from.x) * .5);
+  const midpointY = from.y + ((to.y - from.y) * .5) - 1.15;
+  try {
+    const animation = lamp.animate([
+      { left: `${from.x}%`, top: `${from.y}%`, transform: 'translate(-50%, -50%) scale(1)', opacity: .92, offset: 0 },
+      { left: `${midpointX}%`, top: `${midpointY}%`, transform: 'translate(-50%, -50%) scale(1.35)', opacity: 1, offset: .5 },
+      { left: `${to.x}%`, top: `${to.y}%`, transform: 'translate(-50%, -50%) scale(1)', opacity: 1, offset: 1 },
+    ], {
+      duration: 620,
+      easing: 'cubic-bezier(.18,.78,.22,1)',
+      fill: 'forwards',
+    });
+    await animation.finished.catch(() => {});
+  } catch (_) {
+    lamp.style.left = `${to.x}%`;
+    lamp.style.top = `${to.y}%`;
+    await sleep(620);
+  }
+  safeRemove(lamp);
+}
+
+async function resolveFarolEnlazadoLamp(playerId, unitId, row, col) {
+  const pending = state.pendingPowerAction;
+  const unit = getUnitById(playerId, unitId);
+  const portal = getFarolPortalForSource(playerId, unitId);
+  if (pending?.kind !== 'farolEnlazadoLamp' || String(pending.unitId) !== String(unitId) || !unitCanActivateFarolEnlazado(playerId, unit) || !portal || portal.stage === 'complete') return false;
+  const valid = getFarolLanternDestinationCells(playerId, unit).some(cell => cell.row === row && cell.col === col);
+  if (!valid) {
+    log('Farol Enlazado: selecciona una casilla libre dentro de radio 4.');
+    renderAll('farol-enlazado-invalid-destination');
+    return false;
+  }
+
+  // Cierra la selección inmediatamente para impedir clics repetidos durante el vuelo.
+  state.pendingPowerAction = null;
+  portal.stage = 'throwing';
+  clearCombatMenus();
+  renderAll('farol-enlazado-throw-start');
+  await playFarolLanternThrowFx(playerId, unit, row, col);
+
+  const liveUnit = getUnitById(playerId, unitId);
+  const livePortal = getFarolPortalForSource(playerId, unitId);
+  if (!liveUnit || liveUnit.status === 'restoring' || !livePortal) return false;
+  const originRow = Number(livePortal.originRow);
+  const originCol = Number(livePortal.originCol);
+  livePortal.stage = 'complete';
+  livePortal.destinationRow = Number(row);
+  livePortal.destinationCol = Number(col);
+  livePortal.occupants = getFarolPortalOccupantKeys(originRow, originCol);
+  livePortal.completedAt = Date.now();
+
+  markResolutionActionTaken();
+  showFloatingTextAt(row, col, 'FAROL ENLAZADO', 'floating-combat buff');
+  log(`Farol Enlazado · Etapa 2 completada: la lámpara aterriza en ${coordLabel(row, col)}. Solo los Hechiceros que entren al círculo de ${coordLabel(originRow, originCol)} pueden atravesarlo.`);
+  resolveQuickReactionDeferredInvocationAction('activated', { actionId: 'farolEnlazado', unitId, playerId });
+  renderAll('farol-enlazado-created');
+  return true;
+}
+
+function cardIsHechicero(card) {
+  return Array.isArray(card?.qualities) && card.qualities.includes('hechicero');
+}
+
+function getFarolTeleportPortalForUnit(playerId, unit) {
+  if (!unit || unit.status === 'restoring' || unit.farolTeleporting) return null;
+  const card = CARD_LIBRARY[unit.cardId];
+  if (!cardIsHechicero(card)) return null;
+  return (state.farolPortals || []).find(portal => {
+    const complete = portal?.stage === 'complete' && portal.destinationRow != null && portal.destinationCol != null;
+    return complete
+      && Number(portal.originRow) === Number(unit.row)
+      && Number(portal.originCol) === Number(unit.col);
+  }) || null;
+}
+
+function createFarolTeleportBurst(row, col, color, extraClass = '') {
+  const layer = ensureFarolPortalFxLayer();
+  if (!layer) return null;
+  const pos = cellCenter(Number(row), Number(col));
+  if (!pos) return null;
+  const burst = document.createElement('span');
+  burst.className = `farol-teleport-burst ${extraClass}`.trim();
+  burst.style.left = `${pos.x}%`;
+  burst.style.top = `${pos.y}%`;
+  burst.style.setProperty('--farol-portal-color', color || '#00FFE4');
+  burst.innerHTML = '<span></span><i></i><b></b>';
+  layer.appendChild(burst);
+  window.setTimeout(() => safeRemove(burst), 780);
+  return burst;
+}
+
+function getFarolPortalCircleNode(portal) {
+  const layer = ensureFarolPortalFxLayer();
+  if (!layer || !portal) return null;
+  const key = String(portal.key || '');
+  return Array.from(layer.querySelectorAll('.farol-portal-fx[data-farol-key]'))
+    .find(node => String(node.dataset.farolKey || '') === key)
+    ?.querySelector('.farol-portal-circle') || null;
+}
+
+async function executeFarolPortalTeleport(playerId, unitId, portalKey) {
+  const unit = getUnitById(Number(playerId), unitId);
+  const portal = (state.farolPortals || []).find(entry => String(entry?.key || '') === String(portalKey || ''));
+  if (!unit || !portal || unit.status === 'restoring' || unit.farolTeleporting || !cardIsHechicero(CARD_LIBRARY[unit.cardId])) return false;
+  if (Number(unit.row) !== Number(portal.originRow) || Number(unit.col) !== Number(portal.originCol)) return false;
+
+  const destRow = Number(portal.destinationRow);
+  const destCol = Number(portal.destinationCol);
+  if (!isInside(destRow, destCol) || isOccupied(destRow, destCol)) {
+    log(`${CARD_LIBRARY[unit.cardId]?.name || 'El Hechicero'} activa Farol Enlazado, pero la casilla de la lámpara está ocupada.`);
+    return false;
+  }
+
+  unit.farolTeleporting = true;
+  const lockReason = `farol-teleport:${playerId}:${unitId}`;
+  setActionExecutionLock(true, lockReason);
+  const color = getPlayerElementColor(Number(portal.playerId));
+  const fromRow = Number(unit.row);
+  const fromCol = Number(unit.col);
+
+  try {
+    // La geometría del portal ya existe al entrar a esta rutina. Acelerar el círculo
+    // es un FX efímero: no se vuelve parte del estado de juego ni del nexo.
+    const circleNode = getFarolPortalCircleNode(portal);
+    circleNode?.classList.add('farol-portal-teleporting');
+    createFarolTeleportBurst(fromRow, fromCol, color, 'farol-teleport-burst-source');
+
+    const sourceNode = getUnitDomNode(Number(playerId), unitId);
+    sourceNode?.classList.add('farol-teleport-token-out');
+    await sleep(270);
+
+    // El teletransporte modifica exclusivamente la coordenada actual. El nexo,
+    // spawn marker y cualquier referencia de restauración permanecen intactos.
+    clearUnitEngagement(Number(playerId), unit.id);
+    unit.row = destRow;
+    unit.col = destCol;
+    createFarolTeleportBurst(destRow, destCol, color, 'farol-teleport-burst-destination');
+
+    // Redibujar solo las fichas para materializarla en destino sin reiniciar el FX
+    // persistente del portal. Después animamos la nueva ficha directamente.
+    renderUnits();
+    const destinationNode = getUnitDomNode(Number(playerId), unitId);
+    destinationNode?.classList.add('farol-teleport-token-in');
+    showFloatingTextAt(destRow, destCol, 'TELEPORT', 'floating-combat buff');
+    log(`${CARD_LIBRARY[unit.cardId]?.name || 'Hechicero'} atraviesa Farol Enlazado: ${coordLabel(fromRow, fromCol)} → ${coordLabel(destRow, destCol)}. Su nexo no cambia.`);
+    await sleep(430);
+    circleNode?.classList.remove('farol-portal-teleporting');
+    return true;
+  } finally {
+    unit.farolTeleporting = false;
+    releaseActionExecutionLockIfOwned(lockReason);
+    renderAll('farol-enlazado-teleport-complete');
+  }
+}
+
+function scheduleFarolPortalTeleport(playerId, unitId, portalKey) {
+  const unit = getUnitById(Number(playerId), unitId);
+  if (!unit || unit.farolTeleporting || unit.farolTeleportQueued) return false;
+  unit.farolTeleportQueued = true;
+  const run = async () => {
+    const liveUnit = getUnitById(Number(playerId), unitId);
+    if (liveUnit) liveUnit.farolTeleportQueued = false;
+    try { await executeFarolPortalTeleport(Number(playerId), unitId, portalKey); } catch (error) {
+      console.warn('Farol Enlazado teleport FX error', error);
+      if (liveUnit) liveUnit.farolTeleporting = false;
+    }
+  };
+  if (typeof queueMicrotask === 'function') queueMicrotask(run);
+  else Promise.resolve().then(run);
+  return true;
+}
+
+function refreshFarolPortalTeleports() {
+  state.farolPortals = Array.isArray(state.farolPortals) ? state.farolPortals : [];
+  state.farolPortals = state.farolPortals.filter(portal => {
+    const source = getUnitById(Number(portal?.playerId), portal?.sourceUnitId);
+    return Boolean(source && source.status !== 'restoring' && (source.hp ?? 1) > 0 && isFaroleraUmbralUnit(source));
+  });
+
+  for (const portal of state.farolPortals) {
+    if (portal?.stage !== 'complete' || portal.destinationRow == null || portal.destinationCol == null) continue;
+    const currentKeys = getFarolPortalOccupantKeys(Number(portal.originRow), Number(portal.originCol));
+    const previousKeys = new Set(Array.isArray(portal.occupants) ? portal.occupants.map(String) : []);
+    const entrants = currentKeys.filter(key => !previousKeys.has(String(key)));
+
+    // Registrar inmediatamente la ocupación de esta lectura. Esto convierte el
+    // portal en lógica de ENTRADA: permanecer encima no dispara teletransportes
+    // repetidos en cada render.
+    portal.occupants = currentKeys.map(String);
+
+    for (const key of entrants) {
+      const [ownerText, ...unitParts] = String(key).split(':');
+      const ownerId = Number(ownerText);
+      const unitId = unitParts.join(':');
+      const unit = getUnitById(ownerId, unitId);
+      if (!unit || unit.status === 'restoring' || !cardIsHechicero(CARD_LIBRARY[unit.cardId])) continue;
+      scheduleFarolPortalTeleport(ownerId, unitId, portal.key);
+    }
+  }
+}
+
+function ensureFarolPortalFxLayer() {
+  if (els.farolPortalFxLayer?.isConnected) return els.farolPortalFxLayer;
+  if (!els.boardContent) return null;
+  const layer = document.createElement('div');
+  layer.id = 'farolPortalFxLayer';
+  layer.className = 'farol-portal-fx-layer';
+  layer.setAttribute('aria-hidden', 'true');
+  els.boardContent.insertBefore(layer, els.unitsLayer || null);
+  els.farolPortalFxLayer = layer;
+  return layer;
+}
+
+function renderFarolPortals() {
+  const layer = ensureFarolPortalFxLayer();
+  if (!layer) return;
+  const entries = [...(state.farolPortals || [])];
+  const liveKeys = new Set(entries.map(portal => String(portal?.key || '')));
+
+  // No reconstruir los nodos en cada render. Mantenerlos evita que las animaciones
+  // del círculo y del farol vuelvan a empezar con cada clic, movimiento o renderAll.
+  layer.querySelectorAll('.farol-portal-fx[data-farol-key]').forEach(node => {
+    if (!liveKeys.has(String(node.dataset.farolKey || ''))) node.remove();
+  });
+
+  for (const portal of entries) {
+    const source = getUnitById(Number(portal.playerId), portal.sourceUnitId);
+    if (!source) continue;
+    const key = String(portal.key || getFarolPortalKey(portal.playerId, portal.sourceUnitId));
+    const color = getPlayerElementColor(Number(portal.playerId));
+    const origin = cellCenter(Number(portal.originRow), Number(portal.originCol));
+    let wrapper = Array.from(layer.querySelectorAll('.farol-portal-fx[data-farol-key]'))
+      .find(node => String(node.dataset.farolKey || '') === key);
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'farol-portal-fx';
+      wrapper.dataset.farolKey = key;
+      const circle = document.createElement('span');
+      circle.className = 'farol-portal-circle';
+      circle.innerHTML = '<img src="assets/fx/circulo-invocacion.png" alt="">';
+      wrapper.appendChild(circle);
+      layer.appendChild(wrapper);
+    }
+    wrapper.style.setProperty('--farol-portal-color', color);
+    wrapper.dataset.stage = portal.stage || 'circle';
+
+    const circle = wrapper.querySelector('.farol-portal-circle');
+    if (circle) {
+      circle.style.left = `${origin.x}%`;
+      circle.style.top = `${origin.y}%`;
+    }
+
+    const isComplete = (portal.stage === 'complete' || (portal.destinationRow != null && portal.destinationCol != null)) && portal.destinationRow != null && portal.destinationCol != null;
+    let lamp = wrapper.querySelector('.farol-portal-lantern');
+    let tether = wrapper.querySelector('.farol-portal-tether');
+    if (!isComplete) {
+      safeRemove(lamp);
+      safeRemove(tether);
+      continue;
+    }
+
+    const destination = cellCenter(Number(portal.destinationRow), Number(portal.destinationCol));
+    if (!lamp) {
+      lamp = document.createElement('span');
+      lamp.className = 'farol-portal-lantern';
+      lamp.innerHTML = '<img src="assets/kiara/farolera-del-umbral-lampara.png" alt="">';
+      wrapper.appendChild(lamp);
+    }
+    lamp.style.left = `${destination.x}%`;
+    lamp.style.top = `${destination.y}%`;
+
+    const sourcePos = cellCenter(Number(source.row), Number(source.col));
+    const boardRect = ROK_RENDER_GEOMETRY_CACHE?.boardRect || els.boardContent.getBoundingClientRect();
+    const dx = ((destination.x - sourcePos.x) / 100) * boardRect.width;
+    const dy = ((destination.y - sourcePos.y) / 100) * boardRect.height;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    if (!tether) {
+      tether = document.createElement('span');
+      tether.className = 'farol-portal-tether';
+      wrapper.appendChild(tether);
+    }
+    tether.style.left = `${sourcePos.x}%`;
+    tether.style.top = `${sourcePos.y}%`;
+    tether.style.width = `${length}px`;
+    tether.style.transform = `translateY(-50%) rotate(${angle}deg)`;
+  }
+}
+
 function isKaguyaUnit(unit) {
   return unit?.cardId === 'samuraiKaguya';
 }
@@ -19593,24 +23899,35 @@ function unitCanActivateKurokagiWeaponShift(playerId, unit) {
   return unitHasKurokagiBukiPickupReady(unit) || Boolean(getKurokagiCapturedWeaponProfile(unit));
 }
 
-function closeKurokagiWeaponModal() {
+function closeKurokagiWeaponModal(options = {}) {
+  const hadModal = Boolean(document.querySelector('#kurokagiWeaponModal, .kurokagi-weapon-modal-overlay'));
   document.querySelectorAll('#kurokagiWeaponModal, .kurokagi-weapon-modal-overlay').forEach(node => node.remove());
+  if (hadModal && options.preserveQuickReaction !== true) {
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'kurokagiWeaponShift' });
+  }
 }
 
 function applyKurokagiWeaponChoice(playerId, unitId, mode) {
   const unit = getUnitById(playerId, unitId);
-  if (!unitCanActivateKurokagiWeaponShift(playerId, unit)) return false;
+  if (!unitCanActivateKurokagiWeaponShift(playerId, unit)) {
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'kurokagiWeaponShift', unitId, playerId });
+    return false;
+  }
   const captured = getKurokagiCapturedWeaponProfile(unit);
-  if (mode === 'captured' && !captured) return false;
+  if (mode === 'captured' && !captured) {
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'kurokagiWeaponShift', unitId, playerId });
+    return false;
+  }
   equipKurokagiWeaponMode(unit, mode === 'captured' ? 'captured' : 'primary');
   const card = CARD_LIBRARY[unit.cardId];
   const weaponType = getWeaponTypeForAttackUnit(unit);
   const label = mode === 'captured'
     ? (captured?.label || 'Arma capturada')
     : (getWeaponInfoProfile(weaponType)?.label || 'Kusarigama');
-  closeKurokagiWeaponModal();
+  closeKurokagiWeaponModal({ preserveQuickReaction: true });
+  resolveQuickReactionDeferredInvocationAction('activated', { actionId: 'kurokagiWeaponShift', unitId, playerId });
   showFloatingTextAt(unit.row, unit.col, String(label).toUpperCase(), 'floating-combat buff weapon-recovery-label');
-  log(`${card?.name || 'Kurokagi butai #3'} equipa ${label} mediante Buki Utsushi.`);
+  log(`${card?.name || 'Kurokage'} equipa ${label} mediante Buki Utsushi.`);
   refreshUnitAttackPresentation(playerId, unit);
   return true;
 }
@@ -19619,7 +23936,7 @@ function openKurokagiWeaponSwitchMenu(playerId, unitId) {
   const unit = getUnitById(playerId, unitId);
   const captured = getKurokagiCapturedWeaponProfile(unit);
   if (!unitCanActivateKurokagiWeaponShift(playerId, unit) || !captured) {
-    log('Kurokagi todavía no tiene un arma capturada para alternar.');
+    log('Kurokage todavía no tiene un arma capturada para alternar.');
     return false;
   }
   closeKurokagiWeaponModal();
@@ -19635,11 +23952,11 @@ function openKurokagiWeaponSwitchMenu(playerId, unitId) {
     <section class="kurokagi-weapon-modal-card">
       <button type="button" class="kurokagi-weapon-modal-close" data-action="cancel" aria-label="Cerrar">×</button>
       <div class="kurokagi-weapon-modal-header">
-        <img src="assets/kurokagi-butai-3-token-v286.png" alt="Kurokagi butai #3">
+        <img src="assets/kurokagi-butai-3-token-v286.png" alt="Kurokage">
         <div>
           <span>EQUIPAMIENTO</span>
           <h3>Cambiar de arma</h3>
-          <p>Selecciona cuál de las dos armas quedará equipada para el siguiente ataque de Kurokagi.</p>
+          <p>Selecciona cuál de las dos armas quedará equipada para el siguiente ataque de Kurokage.</p>
         </div>
       </div>
       <div class="kurokagi-weapon-modal-options">
@@ -19692,7 +24009,7 @@ function openKurokagiWeaponMenu(playerId, unitId) {
     return false;
   }
 
-  closeKurokagiWeaponModal();
+  closeKurokagiWeaponModal({ preserveQuickReaction: true });
   closeKurokagiDroppedWeaponChoiceModal();
   clearCombatMenus();
   const usingCaptured = isKurokagiUsingCapturedWeapon(unit);
@@ -19714,11 +24031,11 @@ function openKurokagiWeaponMenu(playerId, unitId) {
     <section class="kurokagi-weapon-modal-card kurokagi-power-action-card">
       <button type="button" class="kurokagi-weapon-modal-close" data-action="cancel" aria-label="Cerrar">×</button>
       <div class="kurokagi-weapon-modal-header">
-        <img src="assets/kurokagi-butai-3-token-v286.png" alt="Kurokagi butai #3">
+        <img src="assets/kurokagi-butai-3-token-v286.png" alt="Kurokage">
         <div>
           <span>PODER ACTIVO</span>
           <h3>Buki Utsushi</h3>
-          <p>Kurokagi posee ${captured.label}. Selecciona qué acción deseas ejecutar.</p>
+          <p>Kurokage posee ${captured.label}. Selecciona qué acción deseas ejecutar.</p>
         </div>
       </div>
       <div class="kurokagi-weapon-modal-options">
@@ -19743,7 +24060,7 @@ function openKurokagiWeaponMenu(playerId, unitId) {
   overlay.querySelector('[data-kurokagi-power-action="pickup"]')?.addEventListener('click', event => {
     stopTargetMenuEvent(event);
     if (!canPickup) return;
-    closeKurokagiWeaponModal();
+    closeKurokagiWeaponModal({ preserveQuickReaction: true });
     beginKurokagiBukiPickup(playerId, unitId);
   });
   overlay.querySelector('[data-kurokagi-power-action="switch"]')?.addEventListener('click', event => {
@@ -20516,12 +24833,32 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
   // Para que una ventana de acción aparezca no basta con que la carta tenga texto de poder:
   // esta función solo devuelve acciones que pueden ejecutarse ahora, en esta fase y estado real.
   const powerDef = getPowerDefinitionForUnit(playerId, unit);
-  if (!powerDef?.id) return [];
-  if (unitHasParalysis(unit) && powerRequiresMovementOrAttackWhileParalyzed(powerDef)) return [];
+  // v551 · una activa implementada puede venir del poder principal o de una
+  // habilidad/cualidad de la invocación. No exigir powerDef permite integrar
+  // acciones jugables como Límites Superados sin crear otra ventana paralela.
+  if (powerDef?.id && unitHasParalysis(unit) && powerRequiresMovementOrAttackWhileParalyzed(powerDef)) return [];
 
   const actions = [];
 
-  if (powerDef.id === 'sutokaHatsuenDan' && unitCanVoluntarilyActivateSmokePower(playerId, unit)) {
+  const farolTargetingActive = ['farolEnlazadoCircle', 'farolEnlazadoLamp'].includes(String(state.pendingPowerAction?.kind || ''));
+  if (powerDef?.id === 'farolEnlazado' && !farolTargetingActive && unitCanActivateFarolEnlazado(playerId, unit)) {
+    const farolStage = getFarolEnlazadoStage(playerId, unit.id);
+    const farolStageLabel = farolStage === 'idle' ? 'Etapa 1' : 'Etapa 2';
+    actions.push({
+      id: 'farolEnlazado',
+      powerId: powerDef.id,
+      label: options.shortLabel ? `Poder · ${farolStageLabel}` : `Farol Enlazado · ${farolStageLabel}`,
+      title: `${powerDef.name || 'Farol Enlazado'} · ${farolStageLabel}`,
+      unitId: unit.id,
+      cardId: unit.cardId,
+      execute(event) {
+        if (event) stopTargetMenuEvent(event);
+        return beginFarolEnlazadoTargeting(playerId, unit.id);
+      },
+    });
+  }
+
+  if (powerDef?.id === 'sutokaHatsuenDan' && unitCanVoluntarilyActivateSmokePower(playerId, unit)) {
     actions.push({
       id: 'sutokaSmokeBomb',
       powerId: powerDef.id,
@@ -20537,7 +24874,7 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
     });
   }
 
-  if (powerDef.id === 'sombraClanOda' && canActivateOdaNoKageShadow(playerId, unit)) {
+  if (powerDef?.id === 'sombraClanOda' && canActivateOdaNoKageShadow(playerId, unit)) {
     actions.push({
       id: 'odaNoKageShadow',
       powerId: powerDef.id,
@@ -20553,7 +24890,7 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
     });
   }
 
-  if (powerDef.id === 'shippuUgachi' && unitCanActivateMinokageShippu(playerId, unit)) {
+  if (powerDef?.id === 'shippuUgachi' && unitCanActivateMinokageShippu(playerId, unit)) {
     actions.push({
       id: 'minokageShippuUgachi',
       powerId: powerDef.id,
@@ -20569,7 +24906,7 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
     });
   }
 
-  if (powerDef.id === 'disparoEnergizado' && unitCanActivateKaguyaChargedShot(playerId, unit)) {
+  if (powerDef?.id === 'disparoEnergizado' && unitCanActivateKaguyaChargedShot(playerId, unit)) {
     actions.push({
       id: 'kaguyaChargedShot',
       powerId: powerDef.id,
@@ -20585,7 +24922,7 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
     });
   }
 
-  if (powerDef.id === 'genyutsuShinigamiKarasu' && unitCanOpenYasuganaPowerMenu(playerId, unit)) {
+  if (powerDef?.id === 'genyutsuShinigamiKarasu' && unitCanOpenYasuganaPowerMenu(playerId, unit)) {
     actions.push({
       id: 'yasuganaGenyutsu',
       powerId: powerDef.id,
@@ -20593,11 +24930,10 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
       title: powerDef.name || 'Genyutsu, Shinigami Karasu',
       unitId: unit.id,
       cardId: unit.cardId,
-      quickReactionEligible: false,
+      quickReactionEligible: true,
       execute(event) {
         if (event) stopTargetMenuEvent(event);
-        openYasuganaPowerModeMenu(playerId, unit.id);
-        return true;
+        return openYasuganaPowerModeMenu(playerId, unit.id);
       },
     });
   }
@@ -20605,7 +24941,7 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
   const kurayamiPowerAvailable = options.forQuickReaction === true
     ? unitCanOfferKurayamiQuickReaction(playerId, unit, options)
     : unitCanActivateKurayamiPower(playerId, unit);
-  if (powerDef.id === 'shizukesaNoShiin' && kurayamiPowerAvailable) {
+  if (powerDef?.id === 'shizukesaNoShiin' && kurayamiPowerAvailable) {
     actions.push({
       id: 'kurayamiDeathSeal',
       powerId: powerDef.id,
@@ -20621,7 +24957,7 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
     });
   }
 
-  if (powerDef.id === 'bukiUtsushi' && unitCanActivateKurokagiWeaponShift(playerId, unit)) {
+  if (powerDef?.id === 'bukiUtsushi' && unitCanActivateKurokagiWeaponShift(playerId, unit)) {
     actions.push({
       id: 'kurokagiWeaponShift',
       powerId: powerDef.id,
@@ -20629,11 +24965,59 @@ function getVoluntaryPowerActionDescriptorsNow(playerId, unit, options = {}) {
       title: powerDef.name || 'Buki Utsushi',
       unitId: unit.id,
       cardId: unit.cardId,
-      quickReactionEligible: false,
+      quickReactionEligible: true,
       execute(event) {
         if (event) stopTargetMenuEvent(event);
-        openKurokagiWeaponMenu(playerId, unit.id);
-        return true;
+        return openKurokagiWeaponMenu(playerId, unit.id);
+      },
+    });
+  }
+
+
+  if (powerDef?.id === 'mercanciaDeGuerra' && unitCanActivateGioshoninSupply(playerId, unit)) {
+    actions.push({
+      id: 'gioshoninSupply',
+      powerId: powerDef.id,
+      label: options.shortLabel ? 'Poder' : 'Mercancía de guerra',
+      title: powerDef.name || 'Mercancía de guerra',
+      unitId: unit.id,
+      cardId: unit.cardId,
+      quickReactionEligible: true,
+      execute(event) {
+        if (event) stopTargetMenuEvent(event);
+        return beginGioshoninSupplyTargeting(playerId, unit.id);
+      },
+    });
+  }
+
+  if (unitCanActivateKishimotoLimits(playerId, unit)) {
+    actions.push({
+      id: 'kishimotoLimits',
+      powerId: 'limitesSuperados',
+      label: options.shortLabel ? 'Habilidad' : 'Límites Superados',
+      title: POWER_DB.limitesSuperados?.name || 'Límites Superados',
+      unitId: unit.id,
+      cardId: unit.cardId,
+      quickReactionEligible: true,
+      execute(event) {
+        if (event) stopTargetMenuEvent(event);
+        return beginKishimotoLimitsPayment(playerId, unit.id);
+      },
+    });
+  }
+
+  if (isTakedaUnit(unit) && getTakedaOldFriendAvailability(playerId, unit).available) {
+    actions.push({
+      id: 'takedaOldFriend',
+      powerId: 'elViejoAmigo',
+      label: options.shortLabel ? 'Poder' : 'El viejo amigo',
+      title: POWER_DB.elViejoAmigo?.name || 'El viejo amigo',
+      unitId: unit.id,
+      cardId: unit.cardId,
+      quickReactionEligible: true,
+      execute(event) {
+        if (event) stopTargetMenuEvent(event);
+        return beginTakedaOldFriendPayment(playerId, unit.id);
       },
     });
   }
@@ -20930,7 +25314,7 @@ function createPersistentLinkedSpellMini(card, className = 'persistent-linked-sp
   const element = getElementById(elementId);
   wrap.className = className;
   wrap.dataset.elementId = elementId || '';
-  wrap.style.setProperty('--persistent-linked-spell-color', element?.color || '#9b4dff');
+  wrap.style.setProperty('--persistent-linked-spell-color', element?.color || '#5400FF');
   wrap.setAttribute('aria-label', card?.name || 'Hechizo');
   const cardNode = createCardElement(card, { elementIdOverride: elementId });
   cardNode.classList.add('persistent-linked-spell-card-inner');
@@ -21336,6 +25720,27 @@ function createSelectedUnitCommandActionDescriptors(context, options = {}) {
     });
   }
 
+  if (includePower && context.actionWindowPersistent && context.actionWindowCandidate && context.selectionType === 'invocation') {
+    const candidate = context.actionWindowCandidate;
+    const action = (candidate.actions || [])[0] || null;
+    if (action) {
+      const flowBusy = Boolean(state.quickReactionWindow?.executing || state.pendingPowerAction?.reactionResolve);
+      const persistentPowerLabel = action.id === 'farolEnlazado'
+        ? (String(action.label || '').includes('Etapa 2') ? 'Poder · Etapa 2' : 'Poder · Etapa 1')
+        : 'Poder';
+      actions.push({
+        id: 'power',
+        label: persistentPowerLabel,
+        title: action.title || action.label || 'Usar poder',
+        disabled: flowBusy,
+        onClick(event) {
+          executeQuickReactionActionFromPersistent(candidate, action, event);
+        },
+      });
+    }
+    return actions;
+  }
+
   if (includePower && context.selectionType === 'caster') {
     const canTokugawa = canActivateTokugawaNativeAbility(context.playerId);
     if (canTokugawa) {
@@ -21352,20 +25757,10 @@ function createSelectedUnitCommandActionDescriptors(context, options = {}) {
     }
   }
 
-  if (includePower && !context.statusOnly && context.selectionType === 'invocation' && unitCanActivateKishimotoLimits(context.playerId, context.unit)) {
-    actions.push({
-      id: 'ability',
-      label: 'Habilidad',
-      title: 'Activar Límites Superados',
-      disabled: false,
-      onClick(event) {
-        stopTargetMenuEvent(event);
-        beginKishimotoLimitsPayment(context.playerId, context.unitId);
-      },
-    });
-  }
-
-  if (includePower && !context.statusOnly && context.selectionType === 'invocation' && unitHasPowerDefinition(context.playerId, context.unit)) {
+  // v551 · el panel normal consulta la misma compuerta que la ventana de
+  // acción. Así una activa jugable tiene un único botón Poder/Habilidad y no
+  // necesita una excepción por carta (Kishimoto incluido).
+  if (includePower && !context.statusOnly && context.selectionType === 'invocation') {
     const usablePowerActions = getVoluntaryPowerActionDescriptorsNow(context.playerId, context.unit, { shortLabel: true });
     // ROK v93/v94 · No mostrar botones de acciones dormidas. Si el poder está
     // en enfriamiento, restauración, estasis, bloqueado por una cortina activa o fuera de fase, no aparece.
@@ -21488,6 +25883,30 @@ function getPersistentUnitCommandContexts(excludeSel = null) {
   }
 
   const contexts = [];
+  const actionSelectionKeys = new Set();
+
+  // Etapa 1 · una ventana de acción de invocaciones no crea una segunda
+  // miniatura temporal. Todas las unidades elegibles se montan en el stack
+  // persistente normal con sus controles Info/Poder y conservan el foil en arena.
+  getQuickReactionActionSelectionCandidates().forEach(candidate => {
+    const unit = getUnitById(candidate.playerId, candidate.unitId);
+    const card = unit ? CARD_LIBRARY[unit.cardId] : null;
+    if (!unit || !card || unit.status === 'restoring') return;
+    const key = `${Number(candidate.playerId)}:${String(candidate.unitId)}`;
+    actionSelectionKeys.add(key);
+    contexts.push({
+      selectionType: 'invocation',
+      playerId: candidate.playerId,
+      unitId: candidate.unitId,
+      unit,
+      card,
+      label: card.name || 'Invocación',
+      statusOnly: false,
+      actionWindowPersistent: true,
+      actionWindowCandidate: candidate,
+      actionWindowFoil: true,
+    });
+  });
 
   // Kouuten pertenece al sistema de miniaturas persistentes de acción de la
   // esquina inferior derecha. No es un contador ni un indicador de efecto.
@@ -21516,6 +25935,7 @@ function getPersistentUnitCommandContexts(excludeSel = null) {
     const units = state.players?.[playerId]?.units || [];
     for (const unit of units) {
       if (!unit) continue;
+      if (actionSelectionKeys.has(`${Number(playerId)}:${String(unit.id)}`)) continue;
       const linkedSpellLinks = getUnitLinkedSpellLinks(playerId, unit.id);
       const hasPersistentFactors = unitHasPersistentStatusFactor(unit);
       if (!hasPersistentFactors && !linkedSpellLinks.length) continue;
@@ -21562,13 +25982,15 @@ function renderPersistentUnitCommandStack(currentContext = null) {
   stack.setAttribute('aria-hidden', 'false');
   contexts.forEach(context => {
     const item = document.createElement('article');
-    item.className = `persistent-unit-command-item${context.vigiliaSelection ? ' persistent-unit-command-item-vigilia-target' : ''}${context.kouutenPersistent ? ' persistent-kouuten-command-item' : ''}${context.kouutenReady ? ' persistent-kouuten-command-ready selected-unit-command-panel--action-foil' : ''}`;
+    item.className = `persistent-unit-command-item${context.vigiliaSelection ? ' persistent-unit-command-item-vigilia-target' : ''}${context.kouutenPersistent ? ' persistent-kouuten-command-item' : ''}${context.actionWindowPersistent ? ' persistent-unit-command-item-action-window selected-unit-command-panel--action-foil' : ''}${context.kouutenReady ? ' persistent-kouuten-command-ready selected-unit-command-panel--action-foil' : ''}`;
     item.dataset.playerId = String(context.playerId);
     item.dataset.unitId = String(context.unitId);
     item.dataset.cardId = context.card?.id || '';
     item.title = context.kouutenPersistent
       ? (context.kouutenReady ? `Kouuten · rekasteo disponible por ${context.kouutenNextCost} Fuego` : `Kouuten · próximo rekasteo: ${context.kouutenNextCost} Fuego`)
-      : (context.vigiliaSelection ? `Seleccionar ${context.label} para enseñarle Vigilia` : (context.label || 'Unidad afectada'));
+      : (context.actionWindowPersistent
+        ? `${context.label || 'Invocación'} · acción disponible`
+        : (context.vigiliaSelection ? `Seleccionar ${context.label} para enseñarle Vigilia` : (context.label || 'Unidad afectada')));
 
     const card = document.createElement('div');
     card.className = 'selected-unit-command-card';
@@ -21600,10 +26022,10 @@ function renderPersistentUnitCommandStack(currentContext = null) {
       }
     } else {
       fillSelectedUnitCommandUi(context, card, actions, statuses, {
-        includeInfo: false,
-        includePower: false,
-        includeStatuses: !context.vigiliaSelection,
-        statusButtons: !context.vigiliaSelection,
+        includeInfo: Boolean(context.actionWindowPersistent),
+        includePower: Boolean(context.actionWindowPersistent),
+        includeStatuses: !context.vigiliaSelection && !context.actionWindowPersistent,
+        statusButtons: !context.vigiliaSelection && !context.actionWindowPersistent,
       });
     }
 
@@ -21633,7 +26055,7 @@ function renderPersistentUnitCommandStack(currentContext = null) {
     }
 
     item.append(card, actions, statuses);
-    if (context.kouutenReady) ensureSelectedCommandFoilSkin(item);
+    if (context.kouutenReady || context.actionWindowPersistent) ensureSelectedCommandFoilSkin(item);
     if (context.kouutenPersistent) {
       item.addEventListener('click', event => {
         if (event.target.closest('button')) return;
@@ -21661,6 +26083,10 @@ function renderPersistentUnitCommandStack(currentContext = null) {
         }
         if (event.target.closest('button')) return;
         stopTargetMenuEvent(event);
+        if (context.actionWindowPersistent) {
+          openCardInfo(context.card.id, null, null, { source: 'arena', playerId: context.playerId, unitId: context.unitId });
+          return;
+        }
         state.selectedMover = { type: 'invocation', playerId: context.playerId, unitId: context.unitId };
         renderSelectedUnitCommandPanel();
       });
@@ -22523,7 +26949,7 @@ function getUnitAttackProfile(playerId, unit) {
 }
 
 function canUnitDamageUnitWithProfile(sourcePlayerId, sourceUnit, targetPlayerId, targetUnit, profile = null) {
-  if (!sourceUnit || !targetUnit || sourceUnit.status === 'restoring' || targetUnit.status === 'restoring') return false;
+  if (!sourceUnit || !targetUnit || sourceUnit.status === 'restoring' || targetUnit.status === 'restoring' || unitBindingBlocksAttack(sourceUnit)) return false;
   const attackProfile = profile || getUnitAttackProfile(sourcePlayerId, sourceUnit);
   if (!attackProfile) return false;
   if (!canPlayerDirectlyTargetInvocation(sourcePlayerId, targetPlayerId, targetUnit)) return false;
@@ -22573,7 +26999,7 @@ function canSelectTarget(source, target) {
     return true;
   }
 
-  if (source.unit?.status === 'restoring' || unitHasParalysis(source.unit) || isUnitEngaged(source.unit)) return false;
+  if (source.unit?.status === 'restoring' || unitHasParalysis(source.unit) || unitBindingBlocksAttack(source.unit) || isUnitEngaged(source.unit)) return false;
   if (source.unit?.emboscadaTargetUnitId) {
     if (target.type !== 'invocation') return false;
     if (Number(target.playerId) !== Number(source.unit.emboscadaTargetPlayerId)) return false;
@@ -22763,7 +27189,7 @@ function canMoveWhileEngagedToReachOwnAttackRange(playerId, unit) {
 }
 
 function getInvocationMovementOptionsForUnit(playerId, unit) {
-  if (!unit || unit.status === 'restoring' || unitHasParalysis(unit) || hasStructureAttackAnchor(unit) || isOdaNoKageShadowBound(unit) || (unit.movesLeft ?? 0) <= 0) return [];
+  if (!unit || unit.status === 'restoring' || unitHasParalysis(unit) || hasStructureAttackAnchor(unit) || isOdaNoKageShadowBound(unit) || unitHasAttackSpentThisResolution(unit) || (unit.movesLeft ?? 0) <= 0) return [];
   const approachTarget = getEngagedApproachTarget(playerId, unit);
   if (isUnitEngaged(unit) && !approachTarget) return [];
   const deltas = getMovementDeltasForProfile(getEffectiveMovementTypeForUnit(playerId, unit), playerId);
@@ -22880,6 +27306,7 @@ function showInvocationActionMenu(playerId, unitId) {
   menu.querySelector('[data-action="power"]')?.addEventListener('click', event => {
     stopTargetMenuEvent(event);
     const powerDef = getPowerDefinitionForUnit(playerId, unit);
+    if (powerDef?.id === 'farolEnlazado') beginFarolEnlazadoTargeting(playerId, unitId);
     if (powerDef?.id === 'sutokaHatsuenDan') beginSmokeBombTargeting(playerId, unitId);
     if (powerDef?.id === 'disparoEnergizado') activateKaguyaChargedShotPower(playerId, unitId);
     if (powerDef?.id === 'shippuUgachi') beginMinokagePowerTargeting(playerId, unitId);
@@ -23124,7 +27551,7 @@ function showStructureDestroyFx(target) {
   const pos = getTargetBoardPosition(target);
   if (!pos || !els.boardContent) return;
   const center = cellCenter(pos.row, pos.col);
-  const color = getOwnerColor(target.playerId) || '#9b4dff';
+  const color = getOwnerColor(target.playerId) || '#5400FF';
   const fx = document.createElement('div');
   fx.className = 'structure-destroy-fx';
   fx.style.left = `${center.x}%`;
@@ -23206,7 +27633,7 @@ function triggerStructureDestroySequence(target, guardian, destroySource = null)
   restoreStructureAttackersForTarget(target, destroySource, 'Guardián destruido');
   clearStructureAnchorsForTarget(target);
   renderUnits();
-  const color = getOwnerColor(target.playerId) || '#9b4dff';
+  const color = getOwnerColor(target.playerId) || '#5400FF';
   const node = document.querySelector(`.unit.guardian[data-player-id="${target.playerId}"][data-guardian-id="${target.guardianId}"]`);
   if (node) {
     node.classList.add('structure-destroying');
@@ -23628,6 +28055,31 @@ async function resolveShirahadoriReactionChain(source, target, baseAmount, optio
   });
 }
 
+
+function getPhysicalDefensiveCriticalBarrier(source = null, target = null) {
+  if (!target || target.type !== 'invocation' || source?.ignorePhysicalDefensiveFactors) return null;
+  const defenderUnit = getUnitById(target.playerId, target.unitId);
+  if (!defenderUnit || defenderUnit.status === 'restoring') return null;
+  const defenderCard = CARD_LIBRARY[defenderUnit.cardId] || null;
+  const factors = getEffectiveDefenseFactorsForUnit(defenderUnit, defenderCard, target.playerId)
+    .filter(entry => entry?.id && isPhysicalDefensiveFactorId(entry.id));
+  if (!factors.length) return null;
+
+  // Armadura solo bloquea el crítico si, después de la Penetración de armadura
+  // del atacante, todavía queda reducción Física efectiva. Si fue perforada por
+  // completo, deja de actuar como barrera para el multiplicador crítico.
+  const effective = factors.filter(entry => {
+    if (entry.id !== 'armor') return false;
+    const armorReduction = getPhysicalArmorReductionForDamage(defenderUnit, source);
+    return Number(armorReduction?.value || 0) > 0;
+  });
+  if (!effective.length) return null;
+  return {
+    factors: effective,
+    labels: effective.map(entry => getFactorProfile(entry.id)?.label || entry.id),
+  };
+}
+
 function resolveAttackRoll(source, target, baseAmount, options = {}) {
   const card = source?.card || CARD_LIBRARY[source?.unit?.cardId];
   const profile = getAttackProfile(card);
@@ -23668,8 +28120,12 @@ function resolveAttackRoll(source, target, baseAmount, options = {}) {
   const forcedCriticalLevel = Math.max(0, Math.min(5, Number(options.forceCriticalLevel || 0)));
   const cardCriticalFactor = getCardAttackFactors(card).find(f => f.id === 'criticalHit');
   const unitCriticalFactor = Array.isArray(source?.unit?.activeFactors) ? source.unit.activeFactors.filter(f => f?.id === 'criticalHit').sort((a, b) => Number(b?.level || 0) - Number(a?.level || 0))[0] : null;
-  const criticalFactor = target?.type === 'guardian' ? null : [cardCriticalFactor, unitCriticalFactor].filter(Boolean).sort((a, b) => Number(b?.level || 0) - Number(a?.level || 0))[0];
-  if (forcedCriticalLevel > 0) {
+  const criticalBarrier = getPhysicalDefensiveCriticalBarrier(source, target);
+  const criticalFactor = (target?.type === 'guardian' || target?.type === 'structure' || criticalBarrier) ? null : [cardCriticalFactor, unitCriticalFactor].filter(Boolean).sort((a, b) => Number(b?.level || 0) - Number(a?.level || 0))[0];
+  if (criticalBarrier && (cardCriticalFactor || unitCriticalFactor)) {
+    log(`${card?.name || 'Invocación'} no puede aplicar Golpe crítico a través de ${criticalBarrier.labels.join(' / ')}.`);
+  }
+  if (forcedCriticalLevel > 0 && !criticalBarrier && target?.type !== 'guardian' && target?.type !== 'structure') {
     amount = Math.ceil(amount * getFactorMultiplier('criticalHit', forcedCriticalLevel));
     critical = true;
     showCriticalSlashAtTarget(target);
@@ -23742,11 +28198,12 @@ function planAttackRoll(source, target, baseAmount, options = {}) {
   const forcedCriticalLevel = Math.max(0, Math.min(5, Number(options.forceCriticalLevel || 0)));
   const cardCriticalFactor = getCardAttackFactors(card).find(factor => factor.id === 'criticalHit');
   const unitCriticalFactor = Array.isArray(source?.unit?.activeFactors) ? source.unit.activeFactors.filter(factor => factor?.id === 'criticalHit').sort((a, b) => Number(b?.level || 0) - Number(a?.level || 0))[0] : null;
-  const criticalFactor = target?.type === 'guardian' ? null : [cardCriticalFactor, unitCriticalFactor].filter(Boolean).sort((a, b) => Number(b?.level || 0) - Number(a?.level || 0))[0];
+  const criticalBarrier = getPhysicalDefensiveCriticalBarrier(source, target);
+  const criticalFactor = (target?.type === 'guardian' || target?.type === 'structure' || criticalBarrier) ? null : [cardCriticalFactor, unitCriticalFactor].filter(Boolean).sort((a, b) => Number(b?.level || 0) - Number(a?.level || 0))[0];
   let criticalFactorLevel = 0;
   let criticalFactorPda = 0;
 
-  if (forcedCriticalLevel > 0) {
+  if (forcedCriticalLevel > 0 && !criticalBarrier && target?.type !== 'guardian' && target?.type !== 'structure') {
     amount = Math.ceil(amount * getFactorMultiplier('criticalHit', forcedCriticalLevel));
     critical = true;
   } else if (criticalFactor) {
@@ -24289,6 +28746,104 @@ function createStunOrbitFxNode(unit) {
   return orbit;
 }
 
+
+function getBindingEntry(unit) {
+  return getActiveFactorEntry(unit, 'binding');
+}
+
+function unitHasBinding(unit) {
+  return Boolean(getBindingEntry(unit));
+}
+
+function unitBindingBlocksMovement(unit) {
+  const entry = getBindingEntry(unit);
+  return Boolean(entry && entry.moveBlocked);
+}
+
+function unitBindingBlocksAttack(unit) {
+  const entry = getBindingEntry(unit);
+  return Boolean(entry && entry.attackBlocked);
+}
+
+function getBindingDurationByLevel(level = 1) {
+  const normalized = Math.max(1, Math.min(5, Number(level || 1)));
+  return Number(FACTOR_DB.binding?.durationByLevel?.[normalized] || (normalized * 2 + 1));
+}
+
+function resolveBindingActionChecks(unit, entry, options = {}) {
+  if (!unit || !entry || entry.id !== 'binding') return null;
+  const level = Math.max(1, Math.min(5, Number(entry.level || 1)));
+  const pda = Math.max(0, Math.min(6, Number(entry.pda ?? FACTOR_DB.binding?.pdaByLevel?.[level] ?? level)));
+  const moveBlocked = rollPda(pda);
+  const attackBlocked = rollPda(pda);
+  entry.pda = pda;
+  entry.movePda = pda;
+  entry.attackPda = pda;
+  entry.moveBlocked = moveBlocked;
+  entry.attackBlocked = attackBlocked;
+  entry.lastCheckAt = Date.now();
+  if (moveBlocked) unit.movesLeft = 0;
+  if (options.showText !== false) {
+    const moveLabel = moveBlocked ? 'MOV BLOQ' : 'MOV LIBRE';
+    const attackLabel = attackBlocked ? 'ATQ BLOQ' : 'ATQ LIBRE';
+    showFloatingTextAt(unit.row, unit.col, `ATADURA · ${moveLabel} / ${attackLabel}`, moveBlocked || attackBlocked ? 'floating-combat' : 'floating-combat buff');
+  }
+  return { pda, moveBlocked, attackBlocked };
+}
+
+function applyBindingFromJunkai(source, target, factorEntry, options = {}) {
+  if (!source?.unit || target?.type !== 'invocation') return false;
+  const targetUnit = getUnitById(target.playerId, target.unitId);
+  if (!targetUnit || targetUnit.status === 'restoring') return false;
+  const level = Math.max(1, Math.min(5, Number(factorEntry?.level || 1)));
+  const pda = Math.max(0, Math.min(6, Number(factorEntry?.pdaOverride ?? factorEntry?.pda ?? FACTOR_DB.binding?.pdaByLevel?.[level] ?? level)));
+  const duration = Math.max(1, Number(options.duration || getBindingDurationByLevel(level)));
+  addActiveFactorToUnit(targetUnit, {
+    id: 'binding',
+    level,
+    sourceType: 'attack',
+    sourceCardId: source.unit.cardId,
+    sourcePlayerId: source.playerId,
+    sourceUnitId: source.unit.id,
+    pda,
+    movePda: pda,
+    attackPda: pda,
+    durationPhases: duration,
+    durationRemaining: duration,
+    moveBlocked: false,
+    attackBlocked: false,
+    appliedAt: Date.now(),
+  });
+  showFactorMissAtTarget(target, 'binding', `ATADURA ${level}`);
+  log(`${CARD_LIBRARY[targetUnit.cardId]?.name || 'Invocación'} recibe Atadura ${level} durante ${duration} fases. Movimiento y Ataque usan ${pda} PDA por separado en cada cambio de fase.`);
+  return true;
+}
+
+function advanceBindingFactorsOnePhaseStep() {
+  let expired = 0;
+  for (const playerId of [1, 2]) {
+    for (const unit of state.players?.[playerId]?.units || []) {
+      const entry = getBindingEntry(unit);
+      if (!entry) continue;
+      const total = Math.max(1, Number(entry.durationPhases || getBindingDurationByLevel(entry.level || 1)));
+      entry.durationPhases = total;
+      entry.durationRemaining = Math.max(0, Number(entry.durationRemaining ?? total) - 1);
+      if (entry.durationRemaining <= 0) {
+        removeActiveFactorFromUnit(unit, 'binding', entry.sourceType || null);
+        showFloatingTextAt(unit.row, unit.col, 'ATADURA TERMINA', 'floating-combat buff');
+        log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} deja de estar bajo Atadura.`);
+        expired += 1;
+        continue;
+      }
+      const result = resolveBindingActionChecks(unit, entry, { showText: true });
+      if (result) {
+        log(`Atadura ${entry.level || 1} en ${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'}: Movimiento ${result.moveBlocked ? 'bloqueado' : 'permitido'} / Ataque ${result.attackBlocked ? 'bloqueado' : 'permitido'} (${result.pda} PDA).`);
+      }
+    }
+  }
+  return expired;
+}
+
 function unitHasParalysis(unit) {
   // Compatibilidad: las comprobaciones históricas de bloqueo total se reutilizan
   // para Aturdimiento, que también impide movimiento, ataque y acciones.
@@ -24772,7 +29327,7 @@ async function captureKurokagiDroppedWeapon(source, candidate) {
   showFloatingTextAt(sourceUnit.row, sourceUnit.col, 'ARMA CAPTURADA', 'floating-combat buff');
   await sleep(120);
   showFloatingTextAt(sourceUnit.row, sourceUnit.col, String(sourceUnit.kurokagiCapturedWeapon.label || 'ARMA EQUIPADA').toUpperCase(), 'floating-combat buff weapon-recovery-label');
-  log(`${CARD_LIBRARY[sourceUnit.cardId]?.name || 'Kurokagi butai #3'} recoge y equipa ${capturedProfile.label || capturedProfile.weaponType} desde ${coordLabel(candidate.dropCell.row, candidate.dropCell.col)} mediante Buki Utsushi${replacedWeapon ? `, reemplazando ${replacedWeapon.label}` : ''}. Su ataque cambia a ${capturedProfile.combatMode || capturedProfile.type || 'melee'}, alcance ${Math.max(1, Number(capturedProfile.range ?? 1))}, precisión ${Math.max(0, Number(capturedProfile.precision ?? 4))} y daño ${Math.max(0, Number(capturedProfile.damage || 0))}.`);
+  log(`${CARD_LIBRARY[sourceUnit.cardId]?.name || 'Kurokage'} recoge y equipa ${capturedProfile.label || capturedProfile.weaponType} desde ${coordLabel(candidate.dropCell.row, candidate.dropCell.col)} mediante Buki Utsushi${replacedWeapon ? `, reemplazando ${replacedWeapon.label}` : ''}. Su ataque cambia a ${capturedProfile.combatMode || capturedProfile.type || 'melee'}, alcance ${Math.max(1, Number(capturedProfile.range ?? 1))}, precisión ${Math.max(0, Number(capturedProfile.precision ?? 4))} y daño ${Math.max(0, Number(capturedProfile.damage || 0))}.`);
   return true;
 }
 
@@ -24823,7 +29378,7 @@ async function resolveKurokagiDisarmCandidates(source, disarmEntries = []) {
   sourceUnit.kurokagiBukiPickupReady = true;
   sourceUnit.movesLeft = 0;
   showFloatingTextAt(sourceUnit.row, sourceUnit.col, 'BUKI UTSUSHI DISPONIBLE', 'floating-combat buff kurokagi-power-name');
-  log(`Buki Utsushi queda disponible con ${droppedCandidates.length} arma${droppedCandidates.length === 1 ? '' : 's'} caída${droppedCandidates.length === 1 ? '' : 's'}. Activa el poder de Kurokagi para escoger cuál recoger.`);
+  log(`Buki Utsushi queda disponible con ${droppedCandidates.length} arma${droppedCandidates.length === 1 ? '' : 's'} caída${droppedCandidates.length === 1 ? '' : 's'}. Activa el poder de Kurokage para escoger cuál recoger.`);
   renderDroppedWeaponsLayer();
   renderSelectedUnitCommandPanel();
   return { appliedCount: droppedCandidates.length, pickupReady: true, candidates: droppedCandidates };
@@ -25089,12 +29644,9 @@ function buildOscillationPartialAttackPlan(source, target, amount, profile) {
   const lineIndexByKey = new Map(geometry.groups.map(group => [group.key, group.lineIndex]));
   const eventsByLine = new Map();
   const reservedDropKeys = new Set();
-  const existingJunkaiLink = isJunkaiButai2Unit(source.unit)
-    ? getJunkaiLinkedParalysisTargetForSource(source.playerId, source.unit.id)
-    : null;
   const disarmFactor = isKurokagiButai3Unit(source.unit) ? getKurokagiDisarmFactorEntry(source) : null;
-  const paralysisFactor = !existingJunkaiLink && isJunkaiButai2Unit(source.unit)
-    ? getJunkaiChainFactorEntry(source, 'paralysis')
+  const bindingFactor = isJunkaiButai2Unit(source.unit)
+    ? getJunkaiChainFactorEntry(source, 'binding')
     : null;
 
   let resolvedTargetCount = 0;
@@ -25117,7 +29669,7 @@ function buildOscillationPartialAttackPlan(source, target, amount, profile) {
       outcome,
       burnPlan: outcome.hit ? prepareBurnFromAttackPlan(source, sweptTarget, outcome) : null,
       kurokagiDisarm: null,
-      paralysisPlan: null,
+      bindingPlan: null,
     };
 
     if (outcome.hit && sweptTarget.type === 'invocation' && disarmFactor) {
@@ -25133,19 +29685,15 @@ function buildOscillationPartialAttackPlan(source, target, amount, profile) {
       }
     }
 
-    // v517 · Parálisis se planifica por objetivo, pero NO recorta el barrido aquí.
-    // Shirahadori puede negar ese impacto; solo el primer objetivo que realmente
-    // reciba Parálisis detendrá la animación en tiempo de resolución.
-    if (outcome.hit && sweptTarget.type === 'invocation' && paralysisFactor) {
-      const preparedParalysis = prepareParalysisFromJunkai(source, sweptTarget, paralysisFactor);
-      if (preparedParalysis) {
-        event.paralysisPlan = {
-          target: { ...sweptTarget },
-          prepared: preparedParalysis,
-          factorEntry: paralysisFactor,
-          lineIndex,
-        };
-      }
+    // Atadura se fija sobre el primer objetivo de Junkai cuyo impacto sobreviva
+    // a las reacciones defensivas. El control posterior usa dos PDA por fase:
+    // Movimiento y Ataque.
+    if (outcome.hit && sweptTarget.type === 'invocation' && bindingFactor) {
+      event.bindingPlan = {
+        target: { ...sweptTarget },
+        factorEntry: bindingFactor,
+        lineIndex,
+      };
     }
 
     if (!eventsByLine.has(lineIndex)) eventsByLine.set(lineIndex, []);
@@ -25162,8 +29710,7 @@ function buildOscillationPartialAttackPlan(source, target, amount, profile) {
     geometry,
     eventsByLine,
     stopLineIndex: null,
-    plannedParalysis: null,
-    existingJunkaiLink,
+    plannedBinding: null,
   };
 }
 
@@ -25221,7 +29768,7 @@ async function performOscillationPartialSweep(source, target, amount, profile, r
   let missCount = 0;
   let lockedTarget = null;
   let stopReason = '';
-  let pendingParalysis = null;
+  let pendingBinding = null;
   const pendingKurokagiDisarms = [];
   const pendingShirahadoriCounters = [];
   let stopSweep = false;
@@ -25275,10 +29822,10 @@ async function performOscillationPartialSweep(source, target, amount, profile, r
       if (result.hit) {
         hitCount += 1;
         if (event.kurokagiDisarm) pendingKurokagiDisarms.push(event.kurokagiDisarm);
-        if (event.paralysisPlan && !pendingParalysis) {
-          pendingParalysis = event.paralysisPlan;
-          lockedTarget = { ...event.paralysisPlan.target };
-          stopReason = 'paralysis';
+        if (event.bindingPlan && !pendingBinding) {
+          pendingBinding = event.bindingPlan;
+          lockedTarget = { ...event.bindingPlan.target };
+          stopReason = 'binding';
           stopSweep = true;
           break;
         }
@@ -25300,15 +29847,10 @@ async function performOscillationPartialSweep(source, target, amount, profile, r
     kurokagiResult = await resolveKurokagiDisarmCandidates(source, pendingKurokagiDisarms);
   }
 
-  if (pendingParalysis && lockedTarget) {
+  if (pendingBinding && lockedTarget) {
     await sleep(OSCILLATION_PARALYSIS_TRANSITION_MS);
-    const paralysisApplied = applyParalysisFromJunkai(
-      source,
-      lockedTarget,
-      pendingParalysis.factorEntry,
-      { prepared: pendingParalysis.prepared }
-    );
-    if (paralysisApplied) {
+    const bindingApplied = applyBindingFromJunkai(source, lockedTarget, pendingBinding.factorEntry);
+    if (bindingApplied) {
       await sleep(OSCILLATION_PARALYSIS_LABEL_HOLD_MS);
     } else {
       lockedTarget = null;
@@ -25317,7 +29859,7 @@ async function performOscillationPartialSweep(source, target, amount, profile, r
   }
 
   // Shirahadori se materializa DESPUÉS de cerrar completamente el ataque:
-  // barrido, daño normal, Desarmar y Parálisis. Así una devolución letal puede
+  // barrido, daño normal, Desarmar y Atadura. Así una devolución letal puede
   // restaurar al agresor sin borrar ni cortar ninguna parte de su animación/efecto.
   for (const counter of pendingShirahadoriCounters) {
     if (!counter?.firstReaction || !counter?.source) continue;
@@ -25350,7 +29892,7 @@ async function performOscillationPartialSweep(source, target, amount, profile, r
     await waitForAutonomousGameplayResume(damageSource);
   }
 
-  log(`${CARD_LIBRARY[source.unit.cardId]?.name || 'Invocación'} aplica ${reasonLabel}: ${hitCount} impacto${hitCount === 1 ? '' : 's'}, ${missCount} fallo${missCount === 1 ? '' : 's'}${pendingShirahadoriCounters.length ? `, ${pendingShirahadoriCounters.length} devolución${pendingShirahadoriCounters.length === 1 ? '' : 'es'} de Shirahadori` : ''}${kurokagiResult?.appliedCount ? `, ${kurokagiResult.appliedCount} arma${kurokagiResult.appliedCount === 1 ? '' : 's'} desarmada${kurokagiResult.appliedCount === 1 ? '' : 's'}` : ''}${lockedTarget ? '; barrido detenido por Parálisis' : ''}.`);
+  log(`${CARD_LIBRARY[source.unit.cardId]?.name || 'Invocación'} aplica ${reasonLabel}: ${hitCount} impacto${hitCount === 1 ? '' : 's'}, ${missCount} fallo${missCount === 1 ? '' : 's'}${pendingShirahadoriCounters.length ? `, ${pendingShirahadoriCounters.length} devolución${pendingShirahadoriCounters.length === 1 ? '' : 'es'} de Shirahadori` : ''}${kurokagiResult?.appliedCount ? `, ${kurokagiResult.appliedCount} arma${kurokagiResult.appliedCount === 1 ? '' : 's'} desarmada${kurokagiResult.appliedCount === 1 ? '' : 's'}` : ''}${lockedTarget ? '; barrido detenido por Atadura' : ''}.`);
   return { resolved: true, lockedTarget, stopReason, hitCount, missCount, kurokagiResult };
 }
 
@@ -25371,18 +29913,12 @@ async function executeOscillationPartialAttack(source, target, amount, profile) 
   const firstSweep = await performOscillationPartialSweep(liveSource, target, amount, profile, 'Oscilación parcial');
   if (!firstSweep?.resolved) return false;
   if (firstSweep.lockedTarget) {
-    if (firstSweep.stopReason === 'paralysis') {
-      const locked = lockJunkaiCombatOnFactorTarget(liveSource, firstSweep.lockedTarget);
-      if (locked) {
-        renderAll();
-        return true;
-      }
-    } else {
-      const attackerAfterDisarm = getUnitById(source.playerId, source.unit.id);
-      if (attackerAfterDisarm && attackerAfterDisarm.status !== 'restoring') restoreInvocation(source.playerId, attackerAfterDisarm, 'ataque con Oscilación parcial');
-      renderAll();
-      return true;
+    const attackerAfterControl = getUnitById(source.playerId, source.unit.id);
+    if (attackerAfterControl && attackerAfterControl.status !== 'restoring') {
+      restoreInvocation(source.playerId, attackerAfterControl, firstSweep.stopReason === 'binding' ? 'Atadura con Oscilación parcial' : 'ataque con Oscilación parcial');
     }
+    renderAll();
+    return true;
   }
 
   let currentSource = getUnitById(source.playerId, source.unit.id);
@@ -25400,7 +29936,7 @@ async function executeOscillationPartialAttack(source, target, amount, profile) 
     currentSource.movesLeft = 0;
     if (Number(source.playerId) === Number(LOCAL_PLAYER_ID)) {
       showFloatingTextAt(currentSource.row, currentSource.col, 'ACTIVA BUKI UTSUSHI', 'floating-combat buff kurokagi-power-name');
-      log('El ataque de Kurokagi terminó. Ahora activa Buki Utsushi desde su menú de poder para escoger una de las armas caídas.');
+      log('El ataque de Kurokage terminó. Ahora activa Buki Utsushi desde su menú de poder para escoger una de las armas caídas.');
       renderAll();
       return true;
     }
@@ -25427,18 +29963,12 @@ async function executeOscillationPartialAttack(source, target, amount, profile) 
     await sleep(360);
     const extraSweep = await performOscillationPartialSweep({ ...source, unit: currentSource, card: CARD_LIBRARY[currentSource.cardId] }, target, amount, profile, 'Ataque extra con Oscilación parcial');
     if (extraSweep?.lockedTarget) {
-      if (extraSweep.stopReason === 'paralysis') {
-        const locked = lockJunkaiCombatOnFactorTarget({ ...source, unit: currentSource }, extraSweep.lockedTarget);
-        if (locked) {
-          renderAll();
-          return true;
-        }
-      } else {
-        const attackerAfterDisarm = getUnitById(source.playerId, source.unit.id);
-        if (attackerAfterDisarm && attackerAfterDisarm.status !== 'restoring') restoreInvocation(source.playerId, attackerAfterDisarm, 'ataque extra con Oscilación parcial');
-        renderAll();
-        return true;
+      const attackerAfterControl = getUnitById(source.playerId, source.unit.id);
+      if (attackerAfterControl && attackerAfterControl.status !== 'restoring') {
+        restoreInvocation(source.playerId, attackerAfterControl, extraSweep.stopReason === 'binding' ? 'Atadura con ataque extra' : 'ataque extra con Oscilación parcial');
       }
+      renderAll();
+      return true;
     }
   }
 
@@ -25538,6 +30068,96 @@ function spawnBurnProjectileTrailParticles(from, to, angle) {
   return particles;
 }
 
+async function showMagicCometDistanceAttackFx(source, target, from, to, projectileColor) {
+  if (!els.boardContent || !from || !to) return;
+  const dxPx = Number(to.lpx ?? 0) - Number(from.lpx ?? 0);
+  const dyPx = Number(to.lpy ?? 0) - Number(from.lpy ?? 0);
+  const angle = Math.atan2(dyPx, dxPx) * 180 / Math.PI;
+
+  // Carga breve: un pulso esférico, nunca un sprite de flecha.
+  const charge = document.createElement('span');
+  charge.className = 'magic-comet-charge-fx';
+  charge.style.left = `${from.x}%`;
+  charge.style.top = `${from.y}%`;
+  charge.style.setProperty('--magic-comet-color', projectileColor);
+  els.boardContent.appendChild(charge);
+  await sleep(150);
+
+  // Proyectil principal: esfera con tres estelas cortas y pequeñas motas.
+  const comet = document.createElement('span');
+  comet.className = 'magic-comet-projectile-fx';
+  comet.style.left = `${from.x}%`;
+  comet.style.top = `${from.y}%`;
+  comet.style.setProperty('--magic-comet-color', projectileColor);
+  comet.style.setProperty('--magic-comet-angle', `${angle}deg`);
+  comet.innerHTML = `
+    <i class="magic-comet-tail tail-a"></i>
+    <i class="magic-comet-tail tail-b"></i>
+    <i class="magic-comet-tail tail-c"></i>
+    <i class="magic-comet-core"></i>
+    <i class="magic-comet-spark spark-a"></i>
+    <i class="magic-comet-spark spark-b"></i>
+    <i class="magic-comet-spark spark-c"></i>`;
+  els.boardContent.appendChild(comet);
+
+  const ghosts = [];
+  for (let i = 0; i < 3; i += 1) {
+    const ghost = document.createElement('span');
+    ghost.className = `magic-comet-afterimage magic-comet-afterimage-${i + 1}`;
+    ghost.style.left = `${from.x}%`;
+    ghost.style.top = `${from.y}%`;
+    ghost.style.setProperty('--magic-comet-color', projectileColor);
+    ghosts.push(ghost);
+    els.boardContent.appendChild(ghost);
+  }
+
+  const duration = 430;
+  const travelFrames = [
+    { transform: `translate(-50%, -50%) translate(0px, 0px) rotate(${angle}deg) scale(.72)`, opacity: .15, offset: 0 },
+    { transform: `translate(-50%, -50%) translate(${dxPx * .48}px, ${dyPx * .48}px) rotate(${angle}deg) scale(1.08)`, opacity: 1, offset: .48 },
+    { transform: `translate(-50%, -50%) translate(${dxPx}px, ${dyPx}px) rotate(${angle}deg) scale(.96)`, opacity: 1, offset: 1 },
+  ];
+  let mainAnimation = null;
+  try {
+    mainAnimation = comet.animate(travelFrames, {
+      duration,
+      easing: 'cubic-bezier(.18,.76,.2,1)',
+      fill: 'forwards',
+    });
+    ghosts.forEach((ghost, index) => {
+      const delay = 44 + (index * 38);
+      ghost.animate([
+        { transform: 'translate(-50%, -50%) translate(0px, 0px) scale(.55)', opacity: 0 },
+        { transform: `translate(-50%, -50%) translate(${dxPx * .46}px, ${dyPx * .46}px) scale(.72)`, opacity: .46 },
+        { transform: `translate(-50%, -50%) translate(${dxPx * .94}px, ${dyPx * .94}px) scale(.52)`, opacity: 0 },
+      ], {
+        duration: Math.max(260, duration - 38),
+        delay,
+        easing: 'cubic-bezier(.2,.72,.24,1)',
+        fill: 'forwards',
+      });
+    });
+    await mainAnimation.finished.catch(() => {});
+  } catch (_) {
+    await sleep(duration);
+  }
+
+  safeRemove(charge);
+  safeRemove(comet);
+  ghosts.forEach(safeRemove);
+
+  // Impacto: explosión pequeña y redonda con chispas radiales.
+  const impact = document.createElement('span');
+  impact.className = 'magic-comet-impact-fx';
+  impact.style.left = `${to.x}%`;
+  impact.style.top = `${to.y}%`;
+  impact.style.setProperty('--magic-comet-color', projectileColor);
+  impact.innerHTML = '<i class="magic-impact-ring"></i>' + Array.from({ length: 8 }, (_, i) => `<i class="magic-impact-spark" style="--spark-angle:${i * 45}deg"></i>`).join('');
+  els.boardContent.appendChild(impact);
+  await sleep(290);
+  safeRemove(impact);
+}
+
 async function showDistanceAttackFx(source, target) {
   emitOnlineVisualEvent('distance-attack', { source: snapshotOnlineFxUnit(source?.playerId, source?.unit), target: snapshotOnlineFxTarget(target) });
   if (!els.boardContent || !source?.unit || !target) return;
@@ -25548,41 +30168,54 @@ async function showDistanceAttackFx(source, target) {
   const dyPx = Number(to.lpy ?? 0) - Number(from.lpy ?? 0);
   const angle = Math.atan2(dyPx, dxPx) * 180 / Math.PI;
 
+  const sourceCard = source.card || CARD_LIBRARY[source.unit?.cardId] || {};
+  const attackProfile = getAttackProfile(sourceCard);
+  const weaponType = String(source.unit?.activeWeaponType || sourceCard?.weaponType || sourceCard?.baseAttackProfile?.weaponType || '').toLowerCase();
+  const isMagicProjectileFx = weaponType === 'magia' || String(attackProfile?.damageNature || '').toLowerCase() === 'magic';
+  const sourceElementId = getEffectiveCardElementId(sourceCard, source.playerId);
+  const projectileColor = getElementColorById(sourceElementId, getPlayerElementColor(source.playerId));
+  const hasBurnProjectileFx = cardHasAttackFactor(sourceCard, 'burn');
+
+  // Magia tiene FX propio. No pasa por el proyectil genérico que usa projectile-arrow.png.
+  if (isMagicProjectileFx) {
+    await showMagicCometDistanceAttackFx(source, target, from, to, projectileColor);
+    return;
+  }
+
   const charge = document.createElement('span');
-  charge.className = 'distance-attack-charge-fx';
+  charge.className = `distance-attack-charge-fx${isMagicProjectileFx ? ' distance-magic-charge-fx' : ''}`;
   charge.style.left = `${from.x}%`;
   charge.style.top = `${from.y}%`;
+  charge.style.setProperty('--projectile-color', projectileColor);
+  if (hasBurnProjectileFx) charge.classList.add('distance-burn-projectile-fx');
   els.boardContent.appendChild(charge);
 
   await sleep(240);
 
-  const sourceCard = source.card || CARD_LIBRARY[source.unit?.cardId];
-  const sourceElementId = getEffectiveCardElementId(sourceCard, source.playerId);
-  const projectileColor = getElementColorById(sourceElementId, getPlayerElementColor(source.playerId));
-  const hasBurnProjectileFx = cardHasAttackFactor(sourceCard, 'burn');
-  if (hasBurnProjectileFx) charge.classList.add('distance-burn-projectile-fx');
-
   const projectile = document.createElement('span');
-  projectile.className = `distance-attack-projectile-fx distance-projectile-type-arrow${hasBurnProjectileFx ? ' distance-burn-projectile-fx' : ''}`;
+  projectile.className = `distance-attack-projectile-fx ${isMagicProjectileFx ? 'distance-projectile-type-magic' : 'distance-projectile-type-arrow'}${hasBurnProjectileFx ? ' distance-burn-projectile-fx' : ''}`;
   projectile.style.left = `${from.x}%`;
   projectile.style.top = `${from.y}%`;
   projectile.style.setProperty('--projectile-x', `${dxPx}px`);
   projectile.style.setProperty('--projectile-y', `${dyPx}px`);
+  projectile.style.setProperty('--projectile-half-x', `${dxPx * .52}px`);
+  projectile.style.setProperty('--projectile-half-y', `${dyPx * .52}px`);
   projectile.style.setProperty('--projectile-angle', `${angle}deg`);
   projectile.style.setProperty('--projectile-color', projectileColor);
   els.boardContent.appendChild(projectile);
   const burnTrailParticles = hasBurnProjectileFx ? spawnBurnProjectileTrailParticles(from, to, angle) : [];
 
-  await sleep(430);
+  await sleep(isMagicProjectileFx ? 470 : 430);
   safeRemove(charge);
 
   const impact = document.createElement('span');
-  impact.className = `distance-attack-impact-fx arrow-impact-fx${hasBurnProjectileFx ? ' distance-burn-projectile-fx' : ''}`;
+  impact.className = `distance-attack-impact-fx ${isMagicProjectileFx ? 'magic-impact-fx' : 'arrow-impact-fx'}${hasBurnProjectileFx ? ' distance-burn-projectile-fx' : ''}`;
   impact.style.left = `${to.x}%`;
   impact.style.top = `${to.y}%`;
+  impact.style.setProperty('--projectile-color', projectileColor);
   els.boardContent.appendChild(impact);
 
-  await sleep(260);
+  await sleep(isMagicProjectileFx ? 300 : 260);
   safeRemove(projectile);
   burnTrailParticles.forEach(safeRemove);
   safeRemove(impact);
@@ -26052,6 +30685,13 @@ async function executeOscillationCompleteAttack(source, target, amount, profile)
 
 async function executeAttackDamage(source, target, amount) {
   target = await maybeRedirectNobunagaTargetToOdaNoKage(source, target);
+  const bindingSourceUnit = source?.unit ? getUnitById(source.playerId, source.unit.id) : null;
+  if (bindingSourceUnit && unitBindingBlocksAttack(bindingSourceUnit)) {
+    log(`${CARD_LIBRARY[bindingSourceUnit.cardId]?.name || 'La invocación'} está bajo Atadura y no puede atacar durante esta fase.`);
+    clearCombatMenus();
+    renderAll();
+    return;
+  }
   if (shouldQueueKaguyaChargedShot(source, target)) {
     markResolutionActionTaken();
     const actingUnit = source?.unit ? getUnitById(source.playerId, source.unit.id) : null;
@@ -26354,9 +30994,6 @@ async function performInvocationCombatStrike(attackerPlayerId, attackerUnit, def
   // sostenido utiliza su ataque real completo en lugar del golpe fantasma genérico.
   if (isJunkaiButai2Unit(attackerUnit) && effectiveProfile.applicationId === 'oscillationPartial') {
     const sweep = await performOscillationPartialSweep(sourceLike, targetLike, dmg, effectiveProfile, reason);
-    if (sweep?.lockedTarget && sweep.stopReason === 'paralysis') {
-      lockJunkaiCombatOnFactorTarget(sourceLike, sweep.lockedTarget);
-    }
     await sleep(260);
     return {
       hit: Number(sweep?.hitCount || 0) > 0,
@@ -26838,7 +31475,7 @@ function getAttackArmorPenetrationLevel(source = null) {
 }
 
 function getPhysicalArmorReductionForDamage(unit, source = null) {
-  if (!unit || source?.ignoreArmor || source?.hattoriDirectAttack) return null;
+  if (!unit || source?.ignoreArmor || source?.hattoriDirectAttack || (source?.ignorePhysicalDefensiveFactors && isPhysicalDefensiveFactorId('armor'))) return null;
   const explicitDamageNature = source?.damageNature || source?.factorEntry?.damageNature || source?.card?.attackProfile?.damageNature || null;
   const sourceCard = source?.card || CARD_LIBRARY[source?.unit?.cardId];
   const damageNature = explicitDamageNature || getAttackProfile(sourceCard).damageNature || 'physical';
@@ -27032,6 +31669,10 @@ async function resolveStructureAnchorsForPlayer(playerId) {
   const player = state.players[playerId];
   for (const unit of [...player.units]) {
     if (!unit || unit.status === 'restoring' || isUnitEngaged(unit) || !hasStructureAttackAnchor(unit)) continue;
+    if (unitBindingBlocksAttack(unit)) {
+      log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} mantiene su anclaje, pero Atadura bloquea su ataque contra la estructura durante esta fase.`);
+      continue;
+    }
     const target = unit.structureAttackTarget;
     if (!target || target.type !== 'guardian') { clearStructureAttackAnchor(unit); continue; }
 
@@ -27120,7 +31761,7 @@ function getInvocationReturnDestination(playerId, tab, slot) {
 }
 
 
-function showInvocationDestroyFxAtViewport(x, y, color = '#9b4dff') {
+function showInvocationDestroyFxAtViewport(x, y, color = '#5400FF') {
   if (!els.boardContent) return;
   const boardRect = els.boardContent.getBoundingClientRect();
   const fx = document.createElement('div');
@@ -27568,7 +32209,7 @@ function chooseAiAttackTarget(playerId, source, targets, profile = null) {
 
 async function aiTryAttackWithUnit(playerId, unit) {
   await waitForGlobalGameplayResume();
-  if (!unit || unit.status === 'restoring' || unitHasParalysis(unit)) return false;
+  if (!unit || unit.status === 'restoring' || unitHasParalysis(unit) || unitBindingBlocksAttack(unit)) return false;
   const card = CARD_LIBRARY[unit.cardId];
   if (isKaguyaUnit(unit) && unit.kaguyaChanneling) return false;
   if (isMinokageUnit(unit) && unit.minokageChanneling) return false;
@@ -27627,7 +32268,7 @@ function unitHasMandatoryMovement(playerId, unit) {
   if (currentPhase().id !== 'resolution') return false;
   if (playerId !== state.activePlayer) return false;
   if (playerId !== LOCAL_PLAYER_ID) return false;
-  if (!unit || unit.status === 'restoring' || isUnitEngaged(unit) || hasStructureAttackAnchor(unit) || (unit.movesLeft ?? 0) <= 0) return false;
+  if (!unit || unit.status === 'restoring' || isUnitEngaged(unit) || hasStructureAttackAnchor(unit) || unitHasAttackSpentThisResolution(unit) || (unit.movesLeft ?? 0) <= 0) return false;
   return getInvocationMoveOptions(playerId, unit).length > 0;
 }
 
@@ -27666,7 +32307,7 @@ function getMandatoryMovementBlocker(playerId) {
   // Regla v4.7: el movimiento obligatorio solo aplica a invocaciones.
   // El Kaster puede moverse, pero no bloquea el cierre de Resolución.
   for (const unit of player.units) {
-    if (!unit || unit.status === 'restoring' || isUnitEngaged(unit) || unit.campeoAnchored || (unit.movesLeft ?? 0) <= 0) continue;
+    if (!unit || unit.status === 'restoring' || isUnitEngaged(unit) || unit.campeoAnchored || unitHasAttackSpentThisResolution(unit) || (unit.movesLeft ?? 0) <= 0) continue;
     // Vigilia permite evitar el avance obligatorio mientras la unidad está en zona aliada.
     if (isVigiliaAbilityActive(playerId, unit)) continue;
     if (getInvocationMoveOptions(playerId, unit).length) {
@@ -28145,26 +32786,10 @@ function useGioshoninSupplyPrompt(event) {
 
 function refreshGioshoninSupplyPrompt() {
   const prompt = getGioshoninSupplyPromptState();
-  if (prompt.active) {
-    const opportunity = getGioshoninSupplyPromptOpportunity(prompt.playerId);
-    const stillValid = opportunity
-      && String(opportunity.unit.id) === String(prompt.unitId)
-      && opportunity.signature === prompt.signature;
-    if (!stillValid) closeGioshoninSupplyPrompt('invalid', { silent: true });
-    return;
-  }
-
-  if (state.pendingPowerAction || state.randomCostPayment) return;
-  if (state.gioshoninPriorityAction?.active) return;
-  if (state.quickReactionWindow?.locked || state.quickReactionWindow?.executing) return;
-  if (els.quickReactionModal?.classList?.contains('visible')) return;
-  if (document.getElementById('quickReactionCommandDock')?.classList?.contains('visible')) return;
-  if (isOpponentActionResolving() || isActionExecutionLocked()) return;
-
-  const opportunity = getGioshoninSupplyPromptOpportunity(LOCAL_PLAYER_ID);
-  if (!opportunity) return;
-  if (opportunity.signature === prompt.lastResolvedSignature) return;
-  openGioshoninSupplyPrompt(opportunity);
+  // v551 · Mercancía de guerra usa la ventana de acción universal. La alerta
+  // heredada de 5 segundos era una segunda oportunidad independiente y queda
+  // retirada para impedir dos flujos simultáneos sobre la misma activa.
+  if (prompt.active) closeGioshoninSupplyPrompt('migrated', { silent: true });
 }
 
 function hideGioshoninSupplyModal() {
@@ -28305,6 +32930,8 @@ function beginGioshoninSupplyTargeting(playerId, unitId) {
 }
 
 function cancelGioshoninSupplyTargeting(message = 'Mercancía de guerra cancelada.') {
+  const deferredUnitId = state.pendingPowerAction?.kind === 'gioshoninSupply' ? state.pendingPowerAction?.unitId : null;
+  const deferredPlayerId = state.pendingPowerAction?.kind === 'gioshoninSupply' ? state.pendingPowerAction?.playerId : null;
   if (state.pendingPowerAction?.kind !== 'gioshoninSupply') {
     hideGioshoninSupplyModal();
     endGioshoninPriorityAction('cancelled');
@@ -28315,6 +32942,7 @@ function cancelGioshoninSupplyTargeting(message = 'Mercancía de guerra cancelad
   endGioshoninPriorityAction('cancelled');
   clearCombatMenus();
   if (message) log(message);
+  resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'gioshoninSupply', unitId: deferredUnitId, playerId: deferredPlayerId });
   renderAll();
   return true;
 }
@@ -28435,6 +33063,7 @@ function resolveGioshoninRandomCostPayment(payment, selection) {
   endGioshoninPriorityAction('completed');
   clearCombatMenus();
   state.selectedMover = { type: 'invocation', playerId: payment.playerId, unitId: sourceUnit.id };
+  resolveQuickReactionDeferredInvocationAction('activated', { actionId: 'gioshoninSupply', unitId: sourceUnit.id, playerId: payment.playerId });
   renderAll();
   return true;
 }
@@ -28575,9 +33204,13 @@ function showYasuganaTargetHoverFoil(playerId, unitId) {
 
 function closeYasuganaPowerModal(options = {}) {
   clearYasuganaTargetHoverFoil();
+  const hadModal = Boolean(document.querySelector('#yasuganaPowerModal, .yasugana-power-modal-overlay'));
   document.querySelectorAll('#yasuganaPowerModal, .yasugana-power-modal-overlay').forEach(node => node.remove());
   if (options.keepPending !== true && ['yasuganaBlindness', 'yasuganaVigilia'].includes(state.pendingPowerAction?.kind)) {
     state.pendingPowerAction = null;
+  }
+  if (hadModal && options.keepPending !== true && options.preserveQuickReaction !== true) {
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'yasuganaGenyutsu' });
   }
 }
 
@@ -28653,7 +33286,7 @@ function showYasuganaPowerTargetsInModal(overlay, playerId, unitId, kind) {
   });
   card.querySelector('[data-action="back"]')?.addEventListener('click', event => {
     stopTargetMenuEvent(event);
-    closeYasuganaPowerModal();
+    closeYasuganaPowerModal({ preserveQuickReaction: true });
     openYasuganaPowerModeMenu(playerId, unitId);
   });
   card.querySelector('[data-action="cancel"]')?.addEventListener('click', event => {
@@ -28757,10 +33390,13 @@ function beginYasuganaPowerTargeting(playerId, unitId, kind) {
 
 function cancelYasuganaPowerTargeting(message = '') {
   if (!['yasuganaBlindness', 'yasuganaVigilia'].includes(state.pendingPowerAction?.kind)) return false;
+  const cancelledUnitId = state.pendingPowerAction?.unitId;
+  const cancelledPlayerId = state.pendingPowerAction?.playerId;
   state.pendingPowerAction = null;
   clearYasuganaTargetHoverFoil();
   clearCombatMenus();
   if (message) log(message);
+  resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'yasuganaGenyutsu', unitId: cancelledUnitId, playerId: cancelledPlayerId });
   renderAll();
   return true;
 }
@@ -28826,6 +33462,7 @@ function resolveYasuganaPowerTarget(playerId, sourceUnitId, targetPlayerId, targ
   state.pendingPowerAction = null;
   clearCombatMenus();
   state.selectedMover = { type: 'invocation', playerId, unitId: sourceUnit.id };
+  resolveQuickReactionDeferredInvocationAction('activated', { actionId: 'yasuganaGenyutsu', unitId: sourceUnitId, playerId });
   renderAll();
   return true;
 }
@@ -29209,8 +33846,7 @@ async function resolveKurayamiPowerAttack(item) {
     playerId: item.playerId,
     unit: liveUnit,
     card: effectiveCard,
-    ignoreArmor: true,
-    ignoreAllDefensive: true,
+    ignorePhysicalDefensiveFactors: true,
     kurayamiDeathSeal: true,
   };
   const targetLike = { type: 'invocation', playerId: item.targetPlayerId, unitId: liveTarget.id, row: liveTarget.row, col: liveTarget.col };
@@ -29220,10 +33856,11 @@ async function resolveKurayamiPowerAttack(item) {
   await showWeaponAttackFx(source, targetLike, 'golpe');
   await sleep(240);
   const outcome = resolveAttackRoll(source, targetLike, attackProfile.damage, {
-    forcePrecisionHit: true,
-    ignoreEvasion: true,
-    ignoreProjectileDodge: true,
-    ignoreDiversion: true,
+    // Shizukesa no Shi-in ignora únicamente Factores que sean a la vez
+    // Físicos y Defensivos. Otros tipos de defensa siguen resolviendo normal.
+    ignoreEvasion: isPhysicalDefensiveFactorId('evasion'),
+    ignoreProjectileDodge: isPhysicalDefensiveFactorId('dodgeProjectile'),
+    ignoreDiversion: isPhysicalDefensiveFactorId('diversion'),
   });
   source.attackOutcome = outcome;
   if (outcome.hit) {
@@ -29254,6 +33891,7 @@ function advancePhaseTransitionCounters(reason = 'phase-transition') {
   advanceCelestialLampsOnePhaseStep();
   advanceLongNightEffectsOnePhaseStep();
   advanceParalysisFactorsOnePhaseStep();
+  advanceBindingFactorsOnePhaseStep();
   advanceStunFactorsOnePhaseStep();
   advanceGuardianChannelsOnePhaseStep();
   advanceKaguyaPowerCooldownsOnePhaseStep();
@@ -29321,7 +33959,7 @@ function nextPhase(force = false) {
     : null;
   if (bukiBlocker) {
     state.selectedMover = { type: 'invocation', playerId: state.activePlayer, unitId: bukiBlocker.id };
-    log('Kurokagi debe completar la segunda etapa: activa Buki Utsushi y escoge una de las armas caídas antes de terminar Resolución.');
+    log('Kurokage debe completar la segunda etapa: activa Buki Utsushi y escoge una de las armas caídas antes de terminar Resolución.');
     renderAll();
     return;
   }
@@ -29394,6 +34032,7 @@ function nextPhase(force = false) {
 
 function enterPhase(initial, suppressTransition = false) {
   const phase = currentPhase();
+  try { markBattleActivity(`enter-phase:${phase?.id || 'unknown'}`); } catch (_) {}
   state.extractedThisPhase = false;
   clearPendingCast();
   if (!shouldKeepSelectedUnitStatusPinned()) state.selectedMover = null;
@@ -30048,13 +34687,15 @@ async function resolveInvocationCastWithSummonSequence(playerId, item, options =
     if (isKishimotoUnit(result.unit)) await showKishimotoEntryPowerActivationFx(playerId, result.unit);
     if (result.unionStrengthTrigger) await showUnionStrengthTriggerFx(playerId, result.unit, result.unionStrengthTrigger);
     notifyInvocationLimitIfFull(playerId);
-    const postSummonReactionResult = await resolvePostSummonQuickReactionOpportunity(playerId, result.unit);
+    if (isTakedaUnit(result.unit)) notifyTakedaOldFriendEntryStatus(playerId, result.unit);
+    const postSummonReactionResult = options.skipPostSummonQuickReaction === true
+      ? 'none'
+      : await resolvePostSummonQuickReactionOpportunity(playerId, result.unit);
     if (postSummonReactionResult && postSummonReactionResult !== 'none') await sleep(EXTERNAL_BUFF_SOURCE_DELAY_MS);
     await triggerExternalBuffVisualFxForEntry(playerId, result.unit);
     if (isTestMatchActive() && Number(playerId) === 2 && result.unit.cardId === TEST_BOT_CARD_ID) {
       await maybeExecuteTestBotTacticaAfterMinokage(playerId, result.unit);
     }
-    if (isTakedaUnit(result.unit)) await maybeResolveTakedaOldFriendSummon(playerId, result.unit);
     markOnlineStateDirty('invocation-entry-complete');
   } else if (result?.type === 'spell') {
     showImmediateCastLandingFx(playerId, item);
@@ -30359,23 +35000,18 @@ async function animatePureElementToCasterPanel(playerId, index = 0) {
   return true;
 }
 
-async function generateCasterPureElementsAtCastingCadence(playerId) {
+async function generateCasterPureElementsAtOpponentExtraction(playerId, extractingPlayerId = null) {
   const caster = ensureCasterRuntime(playerId);
+  const rivalId = Number(extractingPlayerId || getOpponentId(playerId));
   if (!caster || caster.pureCadence <= 0 || caster.pureMax <= 0) return 0;
-  const visitKey = `${Number(state.turnSerial || 1)}:${playerId}:casting`;
-  if (caster.pureCastingLastKey === visitKey) return 0;
-  caster.pureCastingLastKey = visitKey;
-  caster.pureCastingVisitCount = Number(caster.pureCastingVisitCount || 0) + 1;
-
-  const cyclePosition = caster.pureCastingVisitCount % PURE_ELEMENT_CASTING_INTERVAL;
-  if (cyclePosition !== 0) {
-    log(`${getCasterDisplayName(caster)} prepara Elemento puro: ${cyclePosition}/${PURE_ELEMENT_CASTING_INTERVAL}.`);
-    return 0;
-  }
+  if (rivalId === Number(playerId)) return 0;
+  const visitKey = `${Number(state.turnSerial || 1)}:${rivalId}:${PURE_ELEMENT_TRIGGER_PHASE}`;
+  if (caster.pureExtractionLastKey === visitKey) return 0;
+  caster.pureExtractionLastKey = visitKey;
 
   const amount = Math.max(0, Math.min(caster.pureCadence, caster.pureMax - caster.pureElement));
   if (amount <= 0) return 0;
-  log(`${getCasterDisplayName(caster)} genera ${amount} Elemento puro al completar ${PURE_ELEMENT_CASTING_INTERVAL} fases propias de Kasteo.`);
+  log(`${getCasterDisplayName(caster)} genera ${amount} Elemento puro cuando el rival entra en Extracción.`);
   const arrivals = Array.from({ length: amount }, (_, index) => (async () => {
     await animatePureElementToCasterPanel(playerId, index);
     caster.pureElement = Math.min(caster.pureMax, caster.pureElement + 1);
@@ -30386,6 +35022,219 @@ async function generateCasterPureElementsAtCastingCadence(playerId) {
   await Promise.all(arrivals);
   return amount;
 }
+
+
+const openingElementIntroRuntime = {
+  key: '',
+  playedKey: '',
+  hiddenUids: new Set(),
+  promise: null,
+  resolve: null,
+  running: false,
+  generation: 0,
+  fxNodes: new Set(),
+};
+
+function getOpeningElementIntroKey() {
+  const serial = Math.max(1, Number(state.matchSerial || 1));
+  const signature = [1, 2].map(playerId => (state.players?.[playerId]?.resources || [])
+    .filter(resource => String(resource?.uid || '').startsWith(`opening_${playerId}_`))
+    .map(resource => String(resource.uid))
+    .sort()
+    .join(',')).join('::');
+  return `${serial}::${signature}`;
+}
+
+function getOpeningElementResources(playerId) {
+  return sortResourcesForPlayer(
+    (state.players?.[playerId]?.resources || []).filter(resource => String(resource?.uid || '').startsWith(`opening_${playerId}_`)),
+    playerId,
+  );
+}
+
+function isOpeningElementResourceHidden(resource) {
+  return openingElementIntroRuntime.hiddenUids.has(String(resource?.uid || ''));
+}
+
+function resolveOpeningElementIntroGate() {
+  const resolve = openingElementIntroRuntime.resolve;
+  openingElementIntroRuntime.resolve = null;
+  if (typeof resolve === 'function') {
+    try { resolve(true); } catch (_) {}
+  }
+}
+
+function resetOpeningElementIntroRuntime(reason = 'reset') {
+  openingElementIntroRuntime.generation += 1;
+  openingElementIntroRuntime.fxNodes.forEach(node => safeRemove(node));
+  openingElementIntroRuntime.fxNodes.clear();
+  openingElementIntroRuntime.hiddenUids.clear();
+  openingElementIntroRuntime.running = false;
+  openingElementIntroRuntime.key = '';
+  openingElementIntroRuntime.promise = null;
+  resolveOpeningElementIntroGate();
+  try { setFountainExtracting(1, false); } catch (_) {}
+  try { setFountainExtracting(2, false); } catch (_) {}
+  if (reason) {
+    try { renderResources(); renderEnemyMiniHud(); } catch (_) {}
+  }
+}
+
+function stageOpeningElementIntro(options = {}) {
+  if (!state.openingElementsDealt || isTestMatchActive()) return false;
+  const resources = [...getOpeningElementResources(1), ...getOpeningElementResources(2)];
+  if (!resources.length) return false;
+  const key = getOpeningElementIntroKey();
+  const force = options.force === true;
+  if (!force && (openingElementIntroRuntime.running || openingElementIntroRuntime.key === key || openingElementIntroRuntime.playedKey === key)) {
+    return openingElementIntroRuntime.hiddenUids.size > 0;
+  }
+
+  resolveOpeningElementIntroGate();
+  openingElementIntroRuntime.generation += 1;
+  openingElementIntroRuntime.key = key;
+  openingElementIntroRuntime.running = false;
+  openingElementIntroRuntime.hiddenUids = new Set(resources.map(resource => String(resource.uid || '')).filter(Boolean));
+  openingElementIntroRuntime.promise = new Promise(resolve => { openingElementIntroRuntime.resolve = resolve; });
+  try { renderResources(); renderEnemyMiniHud(); } catch (_) {}
+  return true;
+}
+
+function getOpeningElementCardTargetPoint(playerId, resource, ordinal = 0) {
+  const isLocal = Number(playerId) === Number(LOCAL_PLAYER_ID);
+  const container = isLocal ? els.resourceBar : els.enemyMiniResources;
+  if (!container) return getResourceTargetPoint(playerId, resource?.id || getPlayerElement(playerId).id, ordinal);
+  const rect = container.getBoundingClientRect();
+  const ordered = sortResourcesForPlayer(state.players?.[playerId]?.resources || [], playerId);
+  const exactIndex = Math.max(0, ordered.findIndex(item => String(item?.uid || '') === String(resource?.uid || '')));
+  if (isLocal) {
+    const iconStep = 46;
+    const gap = 12;
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + 26 + Math.min(exactIndex, 9) * (iconStep + gap),
+    };
+  }
+  return {
+    x: rect.left + 12 + Math.min(exactIndex, 8) * 24,
+    y: rect.top + Math.max(10, rect.height / 2),
+  };
+}
+
+async function animateOpeningElementCard(playerId, resource, ordinal, generation) {
+  if (!resource || generation !== openingElementIntroRuntime.generation) return false;
+  const sourceLocal = getExtractionSourcePoint(playerId);
+  if (!sourceLocal) return false;
+  const source = viewportPointFromBoardLocal(sourceLocal);
+  const target = getOpeningElementCardTargetPoint(playerId, resource, ordinal);
+  if (!source || !target) return false;
+
+  const cardDef = buildExtractionCardDef(playerId, 'x1', resource.id);
+  const cardEl = createExtractionCardFx(cardDef);
+  cardEl.classList.add('opening-element-card-fx');
+  cardEl.style.left = `${source.x}px`;
+  cardEl.style.top = `${source.y}px`;
+  cardEl.style.opacity = '0';
+  cardEl.style.setProperty('--opening-element-color', resource.color || cardDef.elementColor || '#ffffff');
+  getGlobalFxLayer().appendChild(cardEl);
+  openingElementIntroRuntime.fxNodes.add(cardEl);
+
+  try {
+    await animateCss(cardEl, [
+      { left: `${source.x}px`, top: `${source.y + 5}px`, transform: 'translate(-50%, -50%) scale(.16)', opacity: 0 },
+      { left: `${source.x}px`, top: `${source.y - 18}px`, transform: 'translate(-50%, -50%) scale(.58)', opacity: 1 },
+    ], 175, 'cubic-bezier(.12,.82,.18,1)');
+    if (generation !== openingElementIntroRuntime.generation) return false;
+
+    const midX = source.x + ((target.x - source.x) * 0.54);
+    const midY = Math.min(source.y, target.y) - 46 - ((ordinal % 3) * 8);
+    await animateCss(cardEl, [
+      { left: `${source.x}px`, top: `${source.y - 18}px`, transform: 'translate(-50%, -50%) scale(.58) rotate(0deg)', opacity: 1 },
+      { left: `${midX}px`, top: `${midY}px`, transform: `translate(-50%, -50%) scale(.54) rotate(${playerId === 1 ? -4 : 4}deg)`, opacity: 1, offset: .58 },
+      { left: `${target.x}px`, top: `${target.y}px`, transform: 'translate(-50%, -50%) scale(.32) rotate(0deg)', opacity: .92 },
+    ], 510, 'cubic-bezier(.18,.72,.19,1)');
+    if (generation !== openingElementIntroRuntime.generation) return false;
+
+    openingElementIntroRuntime.hiddenUids.delete(String(resource.uid || ''));
+    try { renderResources(); renderEnemyMiniHud(); } catch (_) {}
+    createElementBurstAtViewport(target.x, target.y, resource.color || '#ffffff', { kind: 'resource-land', count: 6, duration: 360 });
+
+    await animateCss(cardEl, [
+      { transform: 'translate(-50%, -50%) scale(.32)', opacity: .92 },
+      { transform: 'translate(-50%, -50%) scale(.18)', opacity: 0, filter: `drop-shadow(0 0 18px ${resource.color || '#ffffff'})` },
+    ], 120, 'ease-in');
+    return true;
+  } finally {
+    openingElementIntroRuntime.fxNodes.delete(cardEl);
+    safeRemove(cardEl);
+  }
+}
+
+async function playOpeningElementIntro(options = {}) {
+  if (isTestMatchActive() || !state.openingElementsDealt) return false;
+  if (!openingElementIntroRuntime.hiddenUids.size) stageOpeningElementIntro();
+  if (!openingElementIntroRuntime.hiddenUids.size) {
+    resolveOpeningElementIntroGate();
+    return false;
+  }
+  if (openingElementIntroRuntime.running) return openingElementIntroRuntime.promise || true;
+
+  openingElementIntroRuntime.running = true;
+  const generation = openingElementIntroRuntime.generation;
+  const key = openingElementIntroRuntime.key || getOpeningElementIntroKey();
+  const p1 = getOpeningElementResources(1);
+  const p2 = getOpeningElementResources(2);
+  const maxCount = Math.max(p1.length, p2.length);
+  const pending = [];
+  const waveGap = Math.max(90, Number(options.waveGap || 165));
+
+  try {
+    setFountainExtracting(1, p1.length > 0);
+    setFountainExtracting(2, p2.length > 0);
+    for (let index = 0; index < maxCount; index += 1) {
+      if (generation !== openingElementIntroRuntime.generation) break;
+      if (p1[index]) pending.push(animateOpeningElementCard(1, p1[index], index, generation));
+      if (p2[index]) pending.push(animateOpeningElementCard(2, p2[index], index, generation));
+      if (index < maxCount - 1) await new Promise(resolve => window.setTimeout(resolve, waveGap));
+    }
+    await Promise.allSettled(pending);
+  } finally {
+    if (generation === openingElementIntroRuntime.generation) {
+      openingElementIntroRuntime.hiddenUids.clear();
+      openingElementIntroRuntime.playedKey = key;
+      openingElementIntroRuntime.running = false;
+      try { setFountainExtracting(1, false); } catch (_) {}
+      try { setFountainExtracting(2, false); } catch (_) {}
+      try { renderResources(); renderEnemyMiniHud(); } catch (_) {}
+      resolveOpeningElementIntroGate();
+      openingElementIntroRuntime.promise = null;
+    }
+  }
+  return true;
+}
+
+async function waitForOpeningElementIntro() {
+  const pending = openingElementIntroRuntime.promise;
+  if (pending) {
+    try { await pending; } catch (_) {}
+  }
+  return true;
+}
+
+window.ROK_OPENING_ELEMENTS = {
+  stage: stageOpeningElementIntro,
+  play: playOpeningElementIntro,
+  wait: waitForOpeningElementIntro,
+  reset: resetOpeningElementIntroRuntime,
+  getState() {
+    return {
+      key: openingElementIntroRuntime.key,
+      playedKey: openingElementIntroRuntime.playedKey,
+      running: openingElementIntroRuntime.running,
+      hidden: openingElementIntroRuntime.hiddenUids.size,
+    };
+  },
+};
 
 function extractElements(playerId, amount, elementIdOverride = null) {
   const player = state.players[playerId];
@@ -30435,6 +35284,7 @@ function prepareStartingElementStocks() {
       .join(', ');
     log(`Jugador ${playerId} inicia con ${dealt.length} elementos aleatorios${summary ? ` (${summary})` : ''}.`);
   }
+  stageOpeningElementIntro({ force: true });
 }
 
 function shouldSkipOpeningExtraction(playerId) {
@@ -30624,7 +35474,7 @@ function applyPlayerDomainVisuals() {
   const root = document.documentElement;
   for (const playerId of [1, 2]) {
     const element = getPlayerElement(playerId);
-    const color = element?.color || (playerId === 1 ? '#9b4dff' : '#c9a64a');
+    const color = element?.color || (playerId === 1 ? '#5400FF' : '#D7A803');
     const rgb = hexToRgbParts(color);
     root.style.setProperty(`--p${playerId}`, color);
     root.style.setProperty(`--p${playerId}-rgb`, rgb);
@@ -30675,6 +35525,10 @@ function releaseActionExecutionLockIfOwned(reason = '') {
 function schedulePhaseStartActions(delay = 0, options = {}) {
   clearTimeout(schedulePhaseStartActions.timer);
   schedulePhaseStartActions.timer = setTimeout(async () => {
+    // El handle solo representa una espera realmente pendiente. Una vez que el
+    // callback comienza, dejarlo con un id viejo haría creer al motor de
+    // autoavance que la introducción de fase sigue esperando para siempre.
+    schedulePhaseStartActions.timer = null;
     await waitForGlobalGameplayResume();
     await waitForOpponentActionNoticePause();
     if (options.releaseActionLockReason) {
@@ -30988,7 +35842,7 @@ function blockPlayerInputWhileOpponentAction(event) {
   // La ventana local de acción del Kaster es una excepción legítima al bloqueo
   // de la secuencia que la originó. Solo sus superficies reciben el clic;
   // el tablero y todo lo que esté detrás continúan bloqueados.
-  if (localQuickReactionUiOpen && target?.closest?.('#quickReactionWindow, #quickReactionModal, #quickReactionCommandDock, #quickReactionInputShield')) return;
+  if (localQuickReactionUiOpen && target?.closest?.('#quickReactionWindow, #quickReactionModal, #quickReactionCommandDock, #quickReactionInputShield, .persistent-unit-command-item-action-window')) return;
   // El menú de respuesta del Kaster es una excepción legítima al bloqueo de
   // entrada durante una acción rival. Solo se habilita mientras exista la
   // promesa de defensa correspondiente; un menú residual continúa bloqueado.
@@ -31040,7 +35894,8 @@ function isQuickReactionPromptVisible() {
   const modalVisible = Boolean(els.quickReactionModal?.classList?.contains('visible'));
   const dockVisible = Boolean(document.getElementById('quickReactionCommandDock')?.classList?.contains('visible'));
   const executionVisible = Boolean(document.querySelector('.quick-reaction-execution-layer'));
-  return localVisible || rivalVisible || modalVisible || dockVisible || executionVisible;
+  const actionSelectionVisible = Boolean(state.quickReactionWindow?.actionSelectionActive);
+  return localVisible || rivalVisible || modalVisible || dockVisible || executionVisible || actionSelectionVisible;
 }
 
 function releaseQuickReactionStateIfIdle(reason = 'idle') {
@@ -31049,12 +35904,13 @@ function releaseQuickReactionStateIfIdle(reason = 'idle') {
 
   const phaseIntroActive = Boolean(flow.phaseIntro && !flow.phaseIntro.done);
   const pendingManualPower = Boolean(state.pendingPowerAction?.reactionResolve);
+  const actionSelectionActive = Boolean(flow.actionSelectionActive);
   const visibleSurface = isQuickReactionPromptVisible();
 
-  // No se toca una acción real: modal, dock, aviso, ejecución manual o promesa
+  // No se toca una acción real: modal, dock, aviso, selección persistente, ejecución manual o promesa
   // de introducción todavía activa. Solo se elimina el bloqueo que quedó vivo
   // después de que toda la interfaz de acción ya desapareció.
-  if (phaseIntroActive || pendingManualPower || visibleSurface) {
+  if (phaseIntroActive || pendingManualPower || actionSelectionActive || visibleSurface) {
     syncLocalQuickReactionGameplayPause();
     return false;
   }
@@ -31082,6 +35938,7 @@ function finishQuickReactionPhaseIntro(result = 'skipped') {
   const resolve = intro.resolve;
   state.quickReactionWindow.phaseIntro = null;
   state.quickReactionWindow.collectContext = null;
+  clearQuickReactionActionSelection({ render: false });
   releaseQuickReactionStateIfIdle(`phase-intro:${result}`);
   if (typeof resolve === 'function') resolve(result);
 }
@@ -31358,13 +36215,15 @@ function isQuickReactionPostCaptureActive() {
     || flow.manualInterceptarTargeting
     || ((flow.locked || flow.active) && flow.phaseIntro)
   ));
-  return dockVisible || modalVisible || manualPending;
+  const actionSelectionActive = Boolean(state.quickReactionWindow?.actionSelectionActive);
+  return dockVisible || modalVisible || manualPending || actionSelectionActive;
 }
 
 function isCancelableActionActive() {
   if (!isBattleHudScreenActive()) return false;
   if (isOffTurnCasterRepositionActiveForPlayer(LOCAL_PLAYER_ID)) return true;
   if (state.pendingPowerAction?.kind === 'smokeBomb') return true;
+  if (['farolEnlazadoLamp', 'farolEnlazadoCircle'].includes(String(state.pendingPowerAction?.kind || ''))) return true;
   if (isQuickReactionPostCaptureActive()) return true;
   if (isKaguyaChargedShotTargetingPending()) return true;
   return false;
@@ -31455,6 +36314,269 @@ function updateQuickReactionCommandDockTimer(remaining) {
   });
 }
 
+
+function isInvocationQuickReactionCandidate(candidate) {
+  if (!candidate || candidate.unitId == null) return false;
+  if (candidate.type === 'casterAbility' || candidate.selectionType === 'caster' || candidate.selectionType === 'spell' || candidate.type === 'kouutenRecast') return false;
+  return Array.isArray(candidate.actions) && candidate.actions.length > 0;
+}
+
+function getQuickReactionActionSelectionCandidates() {
+  const flow = state.quickReactionWindow || {};
+  if (!flow.actionSelectionActive) return [];
+  const byUnit = new Map();
+  (Array.isArray(flow.actionSelectionCandidates) ? flow.actionSelectionCandidates : [])
+    .filter(candidate => Number(candidate?.playerId) === Number(LOCAL_PLAYER_ID) && isInvocationQuickReactionCandidate(candidate))
+    .forEach(candidate => {
+      // Una unidad solo puede ocupar una miniatura persistente dentro de la
+      // ventana universal. Si su poder cambia de etapa, se actualiza el mismo
+      // contexto/botón en lugar de apilar otra miniatura para esa etapa.
+      const key = `${Number(candidate.playerId)}:${String(candidate.unitId || '')}`;
+      byUnit.set(key, candidate);
+    });
+  return [...byUnit.values()];
+}
+
+function beginQuickReactionDeferredInvocationAction(candidate, action, settle) {
+  const flow = state.quickReactionWindow;
+  if (!flow || typeof settle !== 'function') return false;
+  flow.deferredInvocationAction = {
+    playerId: Number(candidate?.playerId || 0),
+    unitId: String(candidate?.unitId || ''),
+    actionId: String(action?.id || ''),
+    settle,
+  };
+  return true;
+}
+
+function resolveQuickReactionDeferredInvocationAction(outcome = 'cancelled', match = {}) {
+  const flow = state.quickReactionWindow;
+  const deferred = flow?.deferredInvocationAction;
+  if (!deferred) return false;
+  if (match.actionId && String(match.actionId) !== String(deferred.actionId)) return false;
+  if (match.unitId != null && String(match.unitId) !== String(deferred.unitId)) return false;
+  if (match.playerId != null && Number(match.playerId) !== Number(deferred.playerId)) return false;
+  flow.deferredInvocationAction = null;
+  const settle = deferred.settle;
+  if (typeof settle === 'function') settle(outcome === 'activated' ? 'activated' : (outcome || 'cancelled'));
+  return true;
+}
+
+function clearQuickReactionDeferredInvocationAction() {
+  if (!state.quickReactionWindow) return false;
+  const had = Boolean(state.quickReactionWindow.deferredInvocationAction);
+  state.quickReactionWindow.deferredInvocationAction = null;
+  return had;
+}
+
+function clearQuickReactionActionSelection(options = {}) {
+  const flow = state.quickReactionWindow;
+  if (!flow) return false;
+  const hadSelection = Boolean(flow.actionSelectionActive || flow.actionSelectionCandidates?.length || flow.actionSelectionOtherCandidates?.length);
+  flow.actionSelectionActive = false;
+  flow.actionSelectionCandidates = [];
+  flow.actionSelectionOtherCandidates = [];
+  if (options.keepDeferred !== true) clearQuickReactionDeferredInvocationAction();
+  if (options.keepExecuting !== true) flow.executing = false;
+  if (options.render !== false && hadSelection) {
+    try { renderSelectedUnitCommandPanel(); } catch (_) {}
+    try { renderUnits(); } catch (_) {}
+  }
+  return hadSelection;
+}
+
+function getLiveQuickReactionCandidate(candidate) {
+  if (!candidate) return null;
+  const context = state.quickReactionWindow?.collectContext || { phaseTransition: true };
+  const live = collectQuickReactionCandidates(LOCAL_PLAYER_ID, context);
+  const unitId = String(candidate.unitId ?? '');
+  const actionIds = new Set((candidate.actions || []).map(action => String(action?.id || '')));
+  return live.find(item => String(item?.unitId ?? '') === unitId
+    && (item.actions || []).some(action => actionIds.has(String(action?.id || '')))) || null;
+}
+
+function restoreQuickReactionOtherCandidateDock() {
+  const flow = state.quickReactionWindow || {};
+  const others = Array.isArray(flow.actionSelectionOtherCandidates) ? flow.actionSelectionOtherCandidates : [];
+  if (!flow.actionSelectionActive || flow.executing || !others.length) return false;
+  return openQuickReactionCommandDock(others);
+}
+
+function refreshQuickReactionActionSelection(outcome = 'cancelled') {
+  const flow = state.quickReactionWindow;
+  if (!flow?.actionSelectionActive) return false;
+  flow.executing = false;
+
+  const context = flow.collectContext || { phaseTransition: true };
+  const allLive = collectQuickReactionCandidates(LOCAL_PLAYER_ID, context);
+  const invocationCandidates = allLive.filter(isInvocationQuickReactionCandidate);
+  const otherCandidates = allLive.filter(candidate => !isInvocationQuickReactionCandidate(candidate));
+  flow.actionSelectionCandidates = invocationCandidates;
+  flow.actionSelectionOtherCandidates = otherCandidates;
+  flow.candidates = [...invocationCandidates, ...otherCandidates];
+  cacheQuickReactionCandidatesForPlayer(LOCAL_PLAYER_ID, flow.candidates);
+
+  if (invocationCandidates.length || otherCandidates.length) {
+    flow.locked = true;
+    flow.active = true;
+    clearQuickReactionCommandDock();
+    if (otherCandidates.length) restoreQuickReactionOtherCandidateDock();
+    renderAll();
+    syncLocalQuickReactionGameplayPause();
+    renderQuickReactionCancelHint();
+    return true;
+  }
+
+  clearQuickReactionActionSelection({ render: false });
+  clearQuickReactionCommandDock();
+  hideQuickReactionCancelHint();
+  flow.locked = false;
+  flow.active = false;
+  flow.executing = false;
+  finishQuickReactionPhaseIntro(outcome === 'activated' ? 'acted' : (outcome || 'cancelled'));
+  renderAll();
+  return false;
+}
+
+function startQuickReactionActionSelection(candidates = []) {
+  const flow = state.quickReactionWindow;
+  if (!flow) return false;
+  const invocationCandidates = (Array.isArray(candidates) ? candidates : []).filter(isInvocationQuickReactionCandidate);
+  if (!invocationCandidates.length) return false;
+  const otherCandidates = (Array.isArray(candidates) ? candidates : []).filter(candidate => !isInvocationQuickReactionCandidate(candidate));
+
+  stopQuickReactionDecisionCountdown();
+  hideQuickReactionWindowForPlayer(LOCAL_PLAYER_ID);
+  clearQuickReactionCommandDock();
+  if (els.quickReactionModal) {
+    els.quickReactionModal.classList.remove('visible', 'quick-reaction-modal-executing');
+    els.quickReactionModal.setAttribute('aria-hidden', 'true');
+  }
+  if (els.quickReactionModalList) els.quickReactionModalList.innerHTML = '';
+  resetQuickReactionModalCardLayout();
+
+  // La selección múltiple de la ventana sustituye a la selección individual.
+  // Mantener selectedMover produciría una segunda miniatura de la misma unidad.
+  state.selectedMover = null;
+  flow.actionSelectionActive = true;
+  flow.actionSelectionCandidates = invocationCandidates;
+  flow.actionSelectionOtherCandidates = otherCandidates;
+  flow.candidates = [...invocationCandidates, ...otherCandidates];
+  flow.playerId = LOCAL_PLAYER_ID;
+  flow.locked = true;
+  flow.active = true;
+  flow.executing = false;
+  cacheQuickReactionCandidatesForPlayer(LOCAL_PLAYER_ID, flow.candidates);
+
+  if (otherCandidates.length) restoreQuickReactionOtherCandidateDock();
+  renderAll();
+  syncLocalQuickReactionGameplayPause();
+  renderQuickReactionCancelHint();
+  return true;
+}
+
+function settleQuickReactionActionSelection(candidate, outcome = 'cancelled') {
+  const flow = state.quickReactionWindow;
+  if (!flow?.actionSelectionActive) {
+    forceReleaseQuickReactionManualPowerFlow(outcome === 'activated' ? 'activated' : (outcome || 'cancelled'));
+    return;
+  }
+  refreshQuickReactionActionSelection(outcome);
+}
+
+function executeQuickReactionActionFromPersistent(candidate, action, event = null) {
+  if (event) stopTargetMenuEvent(event);
+  const flow = state.quickReactionWindow;
+  if (!flow?.actionSelectionActive || flow.executing || !candidate || !action) return false;
+
+  const liveCandidate = getLiveQuickReactionCandidate(candidate) || candidate;
+  const liveAction = (liveCandidate.actions || []).find(item => String(item?.id || '') === String(action.id || '')) || action;
+  const unit = getUnitById(liveCandidate.playerId, liveCandidate.unitId);
+  if (!unit || unit.status === 'restoring') {
+    refreshQuickReactionActionSelection('invalid');
+    return false;
+  }
+
+  flow.executing = true;
+  clearQuickReactionCommandDock();
+  renderAll();
+  const settle = outcome => settleQuickReactionActionSelection(liveCandidate, outcome === 'activated' ? 'activated' : (outcome || 'cancelled'));
+
+  if (liveAction.id === 'kaguyaChargedShot') {
+    const started = activateKaguyaChargedShotPower(liveCandidate.playerId, liveCandidate.unitId, {
+      fromQuickReaction: true,
+      reactionResolve: settle,
+    });
+    if (!started) settle('cancelled');
+    return started;
+  }
+
+  if (liveAction.id === 'minokageShippuUgachi') {
+    const started = beginMinokagePowerTargeting(liveCandidate.playerId, liveCandidate.unitId, {
+      fromQuickReaction: true,
+      reactionResolve: settle,
+    });
+    if (!started) settle('cancelled');
+    return started;
+  }
+
+  if (liveAction.id === 'kurayamiDeathSeal') {
+    const started = beginKurayamiPowerTargeting(liveCandidate.playerId, liveCandidate.unitId, { fromQuickReaction: true });
+    if (started && state.pendingPowerAction?.kind === 'kurayamiMark') {
+      state.pendingPowerAction.fromQuickReactionWindow = true;
+      state.pendingPowerAction.reactionResolve = settle;
+    } else if (!started) settle('cancelled');
+    return started;
+  }
+
+  if (liveAction.id === 'sutokaSmokeBomb') {
+    const started = typeof liveAction.execute === 'function' ? liveAction.execute(event) : false;
+    if (started !== false && state.pendingPowerAction?.kind === 'smokeBomb') {
+      state.pendingPowerAction.fromQuickReactionWindow = true;
+      state.pendingPowerAction.reactionResolve = settle;
+      return true;
+    }
+    settle('cancelled');
+    return false;
+  }
+
+  // v551 · estas acciones abren un flujo de segundo paso. La ventana universal
+  // permanece bloqueada hasta confirmar o cancelar ese flujo, evitando el mismo
+  // deadlock que producía la doble ventana de Kaguya.
+  if (['farolEnlazado', 'yasuganaGenyutsu', 'kurokagiWeaponShift', 'gioshoninSupply', 'kishimotoLimits', 'takedaOldFriend'].includes(liveAction.id)) {
+    beginQuickReactionDeferredInvocationAction(liveCandidate, liveAction, settle);
+    let started = false;
+    try {
+      started = typeof liveAction.execute === 'function' ? liveAction.execute(event) !== false : false;
+    } catch (error) {
+      reportDebugError(`quick-reaction-deferred:${liveAction.id}`, error);
+      started = false;
+    }
+    if (!started) resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: liveAction.id, unitId: liveCandidate.unitId, playerId: liveCandidate.playerId });
+    return started;
+  }
+
+  if (liveAction.directExecute && typeof liveAction.execute === 'function') {
+    let result;
+    try {
+      result = liveAction.execute(event);
+    } catch (error) {
+      reportDebugError(`quick-reaction-persistent:${liveAction.id || 'power'}`, error);
+      settle('cancelled');
+      return false;
+    }
+    Promise.resolve(result).then(value => settle(value === false ? 'cancelled' : 'activated')).catch(error => {
+      reportDebugError(`quick-reaction-persistent:${liveAction.id || 'power'}`, error);
+      settle('cancelled');
+    });
+    return true;
+  }
+
+  flow.executing = false;
+  refreshQuickReactionActionSelection('invalid');
+  return false;
+}
+
 function openOffTurnCasterCommandDock(playerId = LOCAL_PLAYER_ID) {
   const panel = els.selectedUnitCommandPanel;
   if (!panel || !isOffTurnCasterRepositionSelecting(playerId)) return false;
@@ -31529,6 +36651,7 @@ function hideQuickReactionModalVisualOnly() {
   resetQuickReactionModalCardLayout();
   clearInterval(closeQuickReactionModal.timer);
   clearQuickReactionCommandDock();
+  clearQuickReactionActionSelection({ render: false });
   state.quickReactionWindow.locked = false;
   state.quickReactionWindow.active = false;
   state.quickReactionWindow.executing = false;
@@ -31556,37 +36679,6 @@ function hideQuickReactionModalForManualTargeting() {
   renderQuickReactionCancelHint();
 }
 
-function continueLocalKaguyaActionWindowForRemainingCopies() {
-  const flow = state.quickReactionWindow;
-  const intro = flow?.phaseIntro;
-  if (!intro || intro.done || Number(intro.playerId) !== Number(LOCAL_PLAYER_ID)) return false;
-
-  const candidates = collectKaguyaPhaseActionCandidates(LOCAL_PLAYER_ID);
-  if (!candidates.length) return false;
-
-  const windowMs = QUICK_REACTION_WINDOW_MS;
-  flow.collectContext = { phaseTransition: true, kaguyaPhaseCadence: true, multiCopyContinuation: true };
-  flow.candidates = [...candidates];
-  flow.playerId = LOCAL_PLAYER_ID;
-  flow.locked = false;
-  flow.active = true;
-  flow.executing = false;
-  intro.modalOpen = false;
-  intro.candidates = [...candidates];
-  clearTimeout(intro.windowTimer);
-
-  cacheQuickReactionCandidatesForPlayer(LOCAL_PLAYER_ID, candidates);
-  showQuickReactionWindowForCandidates(candidates, LOCAL_PLAYER_ID, { force: true, duration: windowMs });
-  intro.windowTimer = setTimeout(() => {
-    const liveIntro = state.quickReactionWindow?.phaseIntro;
-    if (!liveIntro || liveIntro.done) return;
-    if (state.quickReactionWindow.locked || liveIntro.modalOpen) return;
-    hideQuickReactionWindowForPlayer(LOCAL_PLAYER_ID);
-    finishQuickReactionPhaseIntro('skipped-remaining-kaguya');
-  }, windowMs + 40);
-  return true;
-}
-
 function finalizeQuickReactionManualPowerFlow(outcome = 'cancelled') {
   const result = outcome === 'activated' ? 'acted' : (outcome || 'cancelled');
   clearInterval(closeQuickReactionModal.timer);
@@ -31608,16 +36700,15 @@ function finalizeQuickReactionManualPowerFlow(outcome = 'cancelled') {
   hideQuickReactionWindowForPlayer(getOpponentId(LOCAL_PLAYER_ID));
   hideQuickReactionCancelHint();
 
-  // Cada ficha de Kaguya tiene su propio poder. Activar una copia no consume la
-  // oportunidad de las demás: si queda otra Kaguya elegible en esta misma fase,
-  // se ofrece una nueva ventana antes de entregar definitivamente la fase.
-  if (outcome === 'activated' && continueLocalKaguyaActionWindowForRemainingCopies()) return;
-
+  // Etapa 1 · nunca se vuelve a abrir una segunda ventana de Kaguya después de
+  // activar una copia. Las copias elegibles pertenecen a una única selección
+  // persistente; los recorridos heredados simplemente cierran su oportunidad.
   finishQuickReactionPhaseIntro(result);
 }
 
 function forceReleaseQuickReactionManualPowerFlow(outcome = 'activated') {
   const flow = state.quickReactionWindow;
+  clearQuickReactionDeferredInvocationAction();
   const modalOpen = Boolean(els.quickReactionModal?.classList?.contains('visible'));
   const shouldRelease = Boolean(flow?.phaseIntro || flow?.locked || flow?.active || flow?.executing || modalOpen);
   if (!shouldRelease) return false;
@@ -31788,6 +36879,7 @@ function schedulePhaseIntroFlow(items, options = {}) {
     throw error;
   }).finally(() => {
     if (schedulePhaseIntroFlow.active?.flowId === flowId) schedulePhaseIntroFlow.active = null;
+    scheduleAutomaticNoActionPhaseCheck('phase-intro-finished', 90);
   });
 
   schedulePhaseIntroFlow.active = { key: phaseKey, flowId, promise };
@@ -31927,6 +37019,34 @@ function collectQuickReactionCandidates(playerId = LOCAL_PLAYER_ID, options = {}
     if (hattoriCandidate) candidates.push(hattoriCandidate);
   }
 
+  // El viejo amigo no es una reacción física ni depende de que Takeda pueda
+  // moverse/atacar. Mientras el vínculo siga sin consumirse se comprueba en
+  // cada cambio de fase, incluso si Takeda está trabado en combate.
+  for (const unit of player.units || []) {
+    if (!unit || unit.status === 'restoring' || !isTakedaUnit(unit)) continue;
+    if (!getTakedaOldFriendAvailability(playerId, unit).available) continue;
+    candidates.push({
+      type: 'usableActionNow',
+      playerId,
+      unitId: unit.id,
+      cardId: unit.cardId,
+      label: CARD_LIBRARY[unit.cardId]?.name || 'Takeda Shingen',
+      actions: [{
+        id: 'takedaOldFriend',
+        label: 'El viejo amigo',
+        title: POWER_DB.elViejoAmigo?.name || 'El viejo amigo',
+        targets: [],
+        directExecute: true,
+        execute(event) {
+          if (event) stopTargetMenuEvent(event);
+          return beginTakedaOldFriendPayment(playerId, unit.id);
+        },
+      }],
+      actionLabels: ['El viejo amigo'],
+      targets: [],
+    });
+  }
+
   for (const unit of player.units || []) {
     if (!unit || unit.status === 'restoring' || isUnitEngaged(unit) || hasStructureAttackAnchor(unit)) continue;
     const card = CARD_LIBRARY[unit.cardId];
@@ -31943,8 +37063,9 @@ function collectQuickReactionCandidates(playerId = LOCAL_PLAYER_ID, options = {}
     }
 
     getVoluntaryPowerActionDescriptorsNow(playerId, unit, { forQuickReaction: true, phaseTransition: options.phaseTransition === true }).forEach(powerAction => {
-      if (powerAction.id === 'kaguyaChargedShot') return; // Kaguya usa selección de objetivo propia arriba.
-      if (powerAction.quickReactionEligible === false) return;
+      if (powerAction.id === 'kaguyaChargedShot' || powerAction.id === 'takedaOldFriend') return; // Kaguya y Takeda usan candidatos dedicados arriba.
+      // v551 · todas las acciones activas jugables devueltas por la compuerta
+      // entran en la misma oportunidad; ya no existen exclusiones por carta.
       actions.push({
         id: powerAction.id,
         label: powerAction.label || 'Poder',
@@ -32463,6 +37584,7 @@ function closeQuickReactionModal(result = 'timeout') {
   resetQuickReactionModalCardLayout();
   clearInterval(closeQuickReactionModal.timer);
   clearQuickReactionCommandDock();
+  clearQuickReactionActionSelection({ render: false });
   hideQuickReactionCancelHint();
   if (typeof resolver === 'function') resolver(result);
   finishQuickReactionPhaseIntro(result);
@@ -33045,6 +38167,13 @@ function captureQuickReactionWindow() {
     syncLocalQuickReactionGameplayPause();
     return true;
   }
+  // Etapa 1 · las invocaciones no abren un dock con una segunda copia de su
+  // miniatura. Capturar la ventana activa simultáneamente todas las fichas
+  // elegibles y muestra sus miniaturas persistentes normales con Info/Poder.
+  if (candidates.some(isInvocationQuickReactionCandidate)) {
+    return startQuickReactionActionSelection(candidates);
+  }
+
   focusSpellbookForQuickReactionCandidates(candidates);
   hideQuickReactionWindowForPlayer(LOCAL_PLAYER_ID);
   state.quickReactionWindow.locked = true;
@@ -33157,6 +38286,10 @@ async function executeAiQuickReactionCandidate(candidate) {
       const result = await action.execute();
       return result !== false;
     }
+    if (action.id === 'takedaOldFriend') {
+      await showOpponentQuickReactionActionNotice(getQuickReactionActionNoticeLabel(candidate, action));
+      return await executeAiTakedaOldFriend(candidate.playerId, candidate.unitId);
+    }
   }
   return false;
 }
@@ -33238,6 +38371,7 @@ function offerQuickReactionWindow(playerId = LOCAL_PLAYER_ID, options = {}) {
 }
 
 async function startPhaseActions() {
+  await waitForOpeningElementIntro();
   await waitForGlobalGameplayResume();
   if (state.gameOver) return false;
   if (isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) {
@@ -33268,8 +38402,12 @@ async function startPhaseActions() {
   if (state.extractionAnimating) return false;
 
   const phase = currentPhase();
+  try { markBattleActivity(`phase-actions:${phase?.id || 'unknown'}`); } catch (_) {}
   if (phase.id === 'extraction' && !state.extractedThisPhase) {
     const playerId = state.activePlayer;
+    const rivalCasterId = getOpponentId(playerId);
+    await generateCasterPureElementsAtOpponentExtraction(rivalCasterId, playerId);
+    if (currentPhase().id !== 'extraction' || state.activePlayer !== playerId) return false;
     await resolveTakedaTurnAttackGrowth(playerId);
     if (currentPhase().id !== 'extraction' || state.activePlayer !== playerId) return false;
     state.extractedThisPhase = true;
@@ -33289,12 +38427,11 @@ async function startPhaseActions() {
   }
   if (phase.id === 'casting') {
     const playerId = state.activePlayer;
-    await generateCasterPureElementsAtCastingCadence(playerId);
     if (currentPhase().id !== 'casting' || state.activePlayer !== playerId) return false;
     markOnlinePhaseStarted();
     markOnlineStateDirty('casting-started');
-    if (!state.pendingCard && !canPlayerCastAnyCard(playerId)) {
-      autoAdvanceCastingToResolution(playerId);
+    if (!state.pendingCard && !canPlayerCastAnyCard(playerId) && !hasPlayerVoluntaryBattleActionNow(playerId)) {
+      autoAdvanceCastingToResolution(playerId, { reason: 'no-actions' });
       return true;
     }
     if (state.aiEnabled && playerId !== LOCAL_PLAYER_ID) {
@@ -33312,6 +38449,7 @@ async function startPhaseActions() {
     if (isOnlineMatchActive()) await commitOnlineStateBarrier(`resolution-ready:${onlinePhaseKey}`);
     markOnlinePhaseStarted();
     if (state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) await runEnemyResolutionPhase(state.activePlayer);
+    else scheduleAutomaticNoActionPhaseCheck('resolution-start-ready', 80);
     return true;
   }
   markOnlinePhaseStarted();
@@ -33333,7 +38471,7 @@ function autoAdvanceExtractionToCasting(playerId) {
 }
 
 
-function autoAdvanceCastingToResolution(playerId) {
+function autoAdvanceCastingToResolution(playerId, options = {}) {
   if (currentPhase().id !== 'casting') return;
   if (state.activePlayer !== playerId) return;
   clearPendingCast();
@@ -33348,11 +38486,11 @@ function autoAdvanceCastingToResolution(playerId) {
   renderAll();
 
   const items = [
-    { text: 'SIN KASTEOS', playerId, duration: 760 },
+    { text: options.reason === 'no-actions' ? 'SIN ACCIONES DE KASTEO' : 'SIN KASTEOS', playerId, duration: 760 },
     { text: 'RESOLUCIÓN', playerId, duration: 860 },
   ];
   schedulePhaseIntroFlow(items, { allowOffTurnCasterReposition: true });
-  log(`Jugador ${playerId}: sin kasteos disponibles. Avanza automáticamente a Resolución.`);
+  log(`Jugador ${playerId}: sin acciones de Kasteo disponibles. Avanza automáticamente a Resolución.`);
 }
 
 async function animateExtractionPhase(playerId) {
@@ -33471,7 +38609,7 @@ async function animateExtractionOrb(playerId, startPoint, index, elementIdOverri
 function createExtractionCardFx(cardDef) {
   const div = document.createElement('div');
   div.className = 'extract-card-fx';
-  div.style.setProperty('--extract-element-color', cardDef.elementColor || '#9b4dff');
+  div.style.setProperty('--extract-element-color', cardDef.elementColor || '#5400FF');
   div.innerHTML = `
     <img class="card-layer card-bg" src="${cardDef.bgImage}" alt="fondo elemento">
     <img class="card-layer card-art" src="${cardDef.artImage}" alt="elemento ${cardDef.id}">
@@ -33661,7 +38799,7 @@ function prepareResolutionMoves(playerId) {
   player.caster.movesLeft = TEST_CASTER_MOVE_SPEED;
   player.units.forEach(unit => {
     const lockedByCombat = isUnitEngaged(unit) && !canMoveWhileEngagedToReachOwnAttackRange(playerId, unit);
-    unit.movesLeft = (unit.status === 'restoring' || unitHasParalysis(unit) || lockedByCombat || hasStructureAttackAnchor(unit) || isOdaNoKageShadowBound(unit) || unit.minokageChanneling) ? 0 : getUnitResolutionMoveAllowance(playerId, unit);
+    unit.movesLeft = (unit.status === 'restoring' || unitHasParalysis(unit) || unitBindingBlocksMovement(unit) || lockedByCombat || hasStructureAttackAnchor(unit) || isOdaNoKageShadowBound(unit) || unit.minokageChanneling) ? 0 : getUnitResolutionMoveAllowance(playerId, unit);
     syncGoemonLegendaryInfiltrationState(playerId, unit);
     syncKurayamiNinjaEnemySideBonus(playerId, unit);
   });
@@ -33672,7 +38810,7 @@ function prepareResolutionMoves(playerId) {
 function restoreFukuroNoMeMoveIfStale(playerId, unit = null) {
   if (!isFukuroNoMeUnit(unit)) return false;
   if (currentPhase().id !== 'resolution' || state.activePlayer !== playerId) return false;
-  if (unit.status === 'restoring' || isUnitEngaged(unit) || hasStructureAttackAnchor(unit)) return false;
+  if (unit.status === 'restoring' || isUnitEngaged(unit) || hasStructureAttackAnchor(unit) || unitHasAttackSpentThisResolution(unit)) return false;
   if ((unit.movesLeft ?? 0) > 0) return false;
   unit.movesLeft = getUnitResolutionMoveAllowance(playerId, unit);
   log('Fukurō no Me recupera su movimiento de Resolución.');
@@ -33722,9 +38860,13 @@ function selectMover(type, playerId, unitId = null) {
       log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} está bajo ${lockLabel} y no puede realizar acciones.`);
       return;
     }
+    if (unitHasBinding(unit) && unitBindingBlocksMovement(unit) && unitBindingBlocksAttack(unit)) {
+      log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} está bajo Atadura: Movimiento y Ataque están bloqueados durante esta fase.`);
+      return;
+    }
     if (unitHasKurokagiBukiPickupReady(unit)) {
       state.selectedMover = { type, playerId, unitId };
-      log('Kurokagi terminó su ataque. Solo falta activar Buki Utsushi y escoger un arma caída.');
+      log('Kurokage terminó su ataque. Solo falta activar Buki Utsushi y escoger un arma caída.');
       return;
     }
     if (isUnitEngaged(unit) && !canMoveWhileEngagedToReachOwnAttackRange(playerId, unit)) {
@@ -33740,8 +38882,10 @@ function selectMover(type, playerId, unitId = null) {
       log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} está anclada atacando una estructura. Puede atacar, pero no moverse.`);
     } else if (isUnitEngaged(unit)) {
       log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} está combatiendo fuera de su rango. Puede avanzar para entrar a su alcance.`);
-    } else if ((unit.movesLeft ?? 0) <= 0) {
-      log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} seleccionada para atacar. Ya no tiene movimiento disponible.`);
+    } else if (unitBindingBlocksAttack(unit) && (unit.movesLeft ?? 0) > 0) {
+      log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} está bajo Atadura: puede moverse, pero no atacar durante esta fase.`);
+    } else if (unitBindingBlocksMovement(unit) || (unit.movesLeft ?? 0) <= 0) {
+      log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} seleccionada para atacar. No tiene movimiento disponible durante esta fase.`);
     } else {
       log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} seleccionada para mover o atacar.`);
     }
@@ -34580,6 +39724,84 @@ function renderCardInfoMeta(card) {
 }
 
 
+function buildCasterProgressedInfoCard(card) {
+  if (!card || getCardTypeId(card) !== 'kaster') return card;
+  const progression = getCasterProgressedStats(card);
+  if (!progression) return card;
+  return {
+    ...card,
+    stats: {
+      ...(card.stats || {}),
+      atk: progression.attack,
+      damage: progression.attack,
+      life: progression.life,
+      maxLife: progression.life,
+      def: progression.defense,
+      startingSpecialCounters: progression.startingSpecialCounters,
+      specialCounters: progression.startingSpecialCounters,
+    },
+    attackProfile: {
+      ...(card.attackProfile || {}),
+      damage: progression.attack,
+      range: progression.range,
+      precision: progression.precision,
+    },
+    abilitySlots: progression.abilitySlotsUnlocked,
+    abilities: progression.abilitySlotsUnlocked > 0 ? (card.abilities || []).slice(0, progression.abilitySlotsUnlocked) : [],
+    __casterProgression: progression,
+  };
+}
+
+function renderCasterLevelProgress(card) {
+  const root = els.cardInfoCasterLevel;
+  if (!root) return;
+  const isCaster = Boolean(card && getCardTypeId(card) === 'kaster');
+  root.hidden = !isCaster;
+  if (!isCaster) { root.innerHTML = ''; return; }
+  const progress = getCasterProgress(card);
+  const required = getCasterXpRequirement(progress.level);
+  const atMax = progress.level >= CASTER_MAX_LEVEL;
+  const ratio = atMax || required <= 0 ? 100 : Math.max(0, Math.min(100, (progress.xp / required) * 100));
+  root.title = atMax
+    ? `Nivel máximo de Kaster · ${progress.totalXp} XP total acumulada`
+    : `Nivel de Kaster · ${progress.xp}/${required} XP del nivel · ${progress.totalXp} XP total acumulada`;
+  root.innerHTML = `<div class="caster-level-progress-head"><strong>NIVEL ${progress.level}</strong><span>${atMax ? `MÁXIMO · ${progress.totalXp} XP total` : `${progress.xp} / ${required} XP · Total ${progress.totalXp}`}</span></div><div class="caster-level-progress-track"><i style="width:${ratio.toFixed(2)}%"></i></div>`;
+}
+
+function renderLibraryCasterPureMeter(progression) {
+  if (!progression) return '';
+  const maximum = Math.max(0, Number(progression.pureUnlocked ? progression.pureMax : progression.pureMaxBase));
+  const cadence = Math.max(1, Number(progression.pureUnlocked ? progression.pureGeneration : progression.pureGenerationBase) || 1);
+  const lockLabel = progression.pureUnlocked ? '' : ' · se desbloquea en Nivel 4';
+  const meterCaster = { pureElement: 0, pureMax: maximum, pureCadence: cadence };
+  return `<button type="button" class="caster-library-pure-meter-card${progression.pureUnlocked ? '' : ' locked'}" data-info-kind="casterProgression" data-info-id="pureGeneration" title="Elemento puro · genera ${cadence} por Extracción rival · máximo ${maximum}${lockLabel}">${renderPureElementMeterHtml(meterCaster, { compact: true })}</button>`;
+}
+
+function renderLibraryCasterSystemRows(card) {
+  if (!card || getCardTypeId(card) !== 'kaster') return;
+  const progression = card.__casterProgression || getCasterProgressedStats(card);
+  if (!progression) return;
+
+  // Elemento puro se agrega a la fila existente sin sustituir CAST/Restauración.
+  // Reutiliza exactamente el medidor del HUD: slots + separadores según el ratio.
+  if (els.cardInfoCost) {
+    els.cardInfoCost.querySelector('.caster-library-pure-meter-card')?.remove();
+    els.cardInfoCost.insertAdjacentHTML('beforeend', renderLibraryCasterPureMeter(progression));
+  }
+
+  // Special Counter reutiliza el mismo icono del HUD. En Biblioteca muestra
+  // la cantidad con la que el Kaster inicia la partida, no la carga dinámica.
+  if (els.cardInfoDefense) {
+    const startingCounters = Math.max(0, Number(progression.startingSpecialCounters || 0));
+    els.cardInfoDefense.querySelector('.caster-library-special-counter-chip')?.remove();
+    const stack = els.cardInfoDefense.querySelector('.card-info-chip-stack') || els.cardInfoDefense;
+    stack.insertAdjacentHTML('beforeend', `<button type="button" class="card-info-value-chip caster-library-special-counter-chip" data-info-kind="casterProgression" data-info-id="specialCounter" title="Special Counter inicial: ${startingCounters}"><img src="${CASTER_SPECIAL_COUNTER_ASSET}" alt="Special Counter"><span>${startingCounters}</span></button>`);
+  }
+
+  bindInlineInfoButtons(els.cardInfoCost, card);
+  bindInlineInfoButtons(els.cardInfoDefense, card);
+}
+
 function renderCardInfoCasterCompatibility(card) {
   if (!els.cardInfoCasterCompatibility) return;
   const isCaster = getCardTypeId(card) === 'kaster';
@@ -34802,13 +40024,17 @@ function renderCardAbilityPowerPanel(card) {
     }
     return `<span class="ability-slot empty">Habilidad libre</span>`;
   }).join('');
-  const power = getPowerProfile(card?.power) || card?.power;
-  const powerSummary = power ? String(power.shortSummary || power.summary || '').trim() : '';
+  const powerEntries = getCardPowerEntries(card);
   const casterFocusText = String(card?.builderFocus || card?.summary || '').trim();
+  const powerGroupSummary = String(card?.powerGroupSummary || '').trim();
   const powerHtml = isCaster
     ? `<section class="power-slot caster-focus-power-slot"><strong>Enfoque del Kaster</strong><span>${casterFocusText || 'Enfoque todavía no definido.'}</span></section>`
-    : (power
-      ? `<button type="button" class="power-slot filled" data-info-kind="power" data-info-id="${power.id}"><strong>Poder</strong><span class="power-slot-name-row"><span class="power-slot-name">${power.name || power.label || power.id}</span>${renderCardModalCooldownBadge(card, 'power', power.id, power)}</span><small>${power.activation || 'Pasiva'} · ${power.category || 'General'}</small>${powerSummary ? `<em class="power-slot-summary">${powerSummary}</em>` : ''}</button>`
+    : (powerEntries.length
+      ? `${powerGroupSummary ? `<div class="power-group-summary"><strong>Poderes</strong><span>${powerGroupSummary}</span></div>` : ''}<div class="power-slot-stack">${powerEntries.map(({ profile: power }, index) => {
+          const powerSummary = String(power.shortSummary || power.summary || '').trim();
+          const pendingName = power.namePending ? '<span class="power-name-pending">Nombre pendiente</span>' : '';
+          return `<button type="button" class="power-slot filled" data-info-kind="power" data-info-id="${power.id}"><strong>${powerEntries.length > 1 ? `Poder ${index + 1}` : 'Poder'}</strong><span class="power-slot-name-row"><span class="power-slot-name">${power.name || power.label || power.id}</span>${pendingName}${renderCardModalCooldownBadge(card, 'power', power.id, power)}</span><small>${power.activation || 'Pasiva'} · ${power.category || 'General'}</small>${powerSummary ? `<em class="power-slot-summary">${powerSummary}</em>` : ''}</button>`;
+        }).join('')}</div>`
       : `<span class="power-slot empty"><strong>Poder</strong><span>Sin poder</span><small>Sin efecto único</small></span>`);
   const smokeCount = card?.id === 'ninjaNaitoSutoka' ? card?.__runtime?.smokeBombsLeft : null;
   const smokeResourceHtml = smokeCount != null ? `<div class="power-resource-strip"><button type="button" class="power-resource-chip" data-info-kind="weapon" data-info-id="smokeBomb" title="Bombas de humo disponibles: ${smokeCount}"><img src="${SMOKE_BOMB_ICON_ASSET}" alt="Bomba de humo"><span>Bomba de humo</span><strong>${smokeCount}</strong></button></div>` : '';
@@ -34883,12 +40109,12 @@ function getDisplayedSpellbookCooldown(card) {
 
 function renderSpellbookCooldownChip(card) {
   const info = getDisplayedSpellbookCooldown(card);
-  if (info.total <= 0) return '';
+  if (info.mode === 'none') return '';
   const title = info.mode === 'grants'
     ? `Estasis de Spellbook transmitida: +${info.total} fase${info.total === 1 ? '' : 's'}`
     : `Estasis de Spellbook: ${info.total} fase${info.total === 1 ? '' : 's'}${info.learned > 0 ? ` · Base ${info.base} + habilidades ${info.learned}` : ''}`;
   const prefix = info.mode === 'grants' ? '+' : '';
-  return `<span class="card-info-value-chip card-info-spellbook-cooldown-chip" title="${title}"><img src="${SPELLBOOK_COOLDOWN_ICON_ASSET}" alt="Estasis de Spellbook"><span>${prefix}${info.total}</span></span>`;
+  return `<button type="button" class="card-info-value-chip card-info-spellbook-cooldown-chip" data-info-kind="spellbookStasis" data-info-id="stasis" title="${title}"><img src="${SPELLBOOK_COOLDOWN_ICON_ASSET}" alt="Estasis de Spellbook"><span>${prefix}${info.total}</span></button>`;
 }
 
 function renderMovementTypeChip(card) {
@@ -35000,11 +40226,55 @@ function canPayTakedaMusashiHalfCost(playerId) {
   return canPayCost(player.resources, { random: halfCost }, 'catalizadora');
 }
 
-function payTakedaMusashiHalfCost(playerId) {
+function payTakedaMusashiHalfCost(playerId, randomSelection = null) {
   const player = state.players[playerId];
   const halfCost = getTakedaMusashiHalfCostTotal();
   if (!player || halfCost <= 0) return false;
-  return payCost(player.resources, { random: halfCost }, 'catalizadora');
+  return payCost(player.resources, { random: halfCost }, 'catalizadora', randomSelection);
+}
+
+function getTakedaMusashiPaymentOptions(playerId) {
+  const player = state.players?.[playerId];
+  if (!player) return [];
+  const counts = (player.resources || []).reduce((acc, resource) => {
+    const id = String(resource?.id || '');
+    if (!id) return acc;
+    acc[id] = (acc[id] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(counts)
+    .filter(([, count]) => Number(count) > 0)
+    .map(([id, count]) => ({ id, count: Number(count), label: getElementById(id)?.label || id, icon: getElementCostIcon(id) }));
+}
+
+function buildTakedaMusashiAutomaticPaymentSelection(playerId) {
+  let remaining = getTakedaMusashiHalfCostTotal();
+  if (remaining <= 0) return null;
+  const selection = {};
+  for (const option of getTakedaMusashiPaymentOptions(playerId)) {
+    if (remaining <= 0) break;
+    const take = Math.min(Number(option.count) || 0, remaining);
+    if (take <= 0) continue;
+    selection[option.id] = take;
+    remaining -= take;
+  }
+  return remaining === 0 ? selection : null;
+}
+
+function findReadyTakedaMusashiSpellbookSlot(playerId) {
+  const player = state.players?.[playerId];
+  if (!player) return null;
+  const validIds = new Set(MIYAMOTO_MUSASHI_CARD_IDS.map(String));
+  for (let tab = 0; tab < (player.handTabs || []).length; tab += 1) {
+    const slots = player.handTabs?.[tab] || [];
+    for (let slot = 0; slot < slots.length; slot += 1) {
+      const cardId = String(slots[slot] || '');
+      if (!validIds.has(cardId)) continue;
+      if (getSpellbookUseCooldown(playerId, tab, slot) > 0) continue;
+      return { tab, slot, cardId };
+    }
+  }
+  return null;
 }
 
 function getTakedaMusashiSummonCell(playerId, takedaUnit) {
@@ -35028,76 +40298,194 @@ function isAnyMusashiActiveInArena() {
   return [1, 2].some(playerId => (state.players[playerId]?.units || []).some(unit => unit && unit.status !== 'restoring' && isMusashiUnit(unit)));
 }
 
-async function maybeResolveTakedaOldFriendSummon(playerId, takedaUnit) {
+function getTakedaOldFriendAvailability(playerId, takedaUnit, options = {}) {
   const liveTakeda = getUnitById(playerId, takedaUnit?.id) || takedaUnit;
-  if (!liveTakeda || !isTakedaUnit(liveTakeda) || liveTakeda.status === 'restoring') return false;
   const musashi = CARD_LIBRARY.miyamotoMusashi;
-  if (!musashi) return false;
-  if (isAnyMusashiActiveInArena()) {
-    log('El viejo amigo: Miyamoto Musashi ya está en arena, Takeda no puede llamar otro.');
-    return false;
-  }
-  const halfCost = getTakedaMusashiHalfCostTotal();
-  if (!canPayTakedaMusashiHalfCost(playerId)) {
-    log(`El viejo amigo: faltan recursos para pagar la mitad del costo de Miyamoto Musashi (${halfCost} aleatorios universales).`);
-    return false;
-  }
+  if (!liveTakeda || !isTakedaUnit(liveTakeda) || liveTakeda.status === 'restoring') return { available: false, reason: 'takeda-unavailable' };
+  if (liveTakeda.takedaOldFriendConsumed) return { available: false, reason: 'consumed' };
+  if (!musashi) return { available: false, reason: 'missing-card' };
+  if (isAnyMusashiActiveInArena()) return { available: false, reason: 'musashi-active' };
+  const slot = findReadyTakedaMusashiSpellbookSlot(playerId);
+  if (!slot) return { available: false, reason: 'musashi-not-in-spellbook' };
+  const limitStatus = canQueueInvocationForPlayer(playerId, musashi);
+  if (!limitStatus.ok) return { available: false, reason: 'invocation-limit', message: limitStatus.message, limitStatus };
   const cell = getTakedaMusashiSummonCell(playerId, liveTakeda);
-  if (!cell) {
-    log('El viejo amigo: no hay casilla libre para llamar a Miyamoto Musashi.');
+  if (!cell) return { available: false, reason: 'no-cell' };
+  const halfCost = getTakedaMusashiHalfCostTotal();
+  if (options.ignoreCost !== true && !canPayTakedaMusashiHalfCost(playerId)) {
+    return { available: false, reason: 'resources', halfCost, slot, cell };
+  }
+  return { available: true, reason: 'ready', liveTakeda, musashi, halfCost, slot, cell };
+}
+
+function notifyTakedaOldFriendEntryStatus(playerId, takedaUnit) {
+  const status = getTakedaOldFriendAvailability(playerId, takedaUnit);
+  if (status.available) return false;
+  const liveTakeda = getUnitById(playerId, takedaUnit?.id) || takedaUnit;
+  if (!liveTakeda || liveTakeda.takedaOldFriendConsumed) return false;
+  let message = '';
+  let floating = '';
+  if (status.reason === 'resources') {
+    message = `El viejo amigo falló: elementos insuficientes. Se necesitan ${status.halfCost} elementos para llamar a Miyamoto Musashi.`;
+    floating = 'VIEJO AMIGO · ELEMENTOS INSUFICIENTES';
+  } else if (status.reason === 'musashi-not-in-spellbook') {
+    message = 'El viejo amigo no puede activarse: Miyamoto Musashi no está disponible en el Spellbook.';
+    floating = 'VIEJO AMIGO · MUSASHI NO DISPONIBLE';
+  } else if (status.reason === 'musashi-active') {
+    message = 'El viejo amigo no puede activarse: Miyamoto Musashi ya está activo en arena.';
+    floating = 'VIEJO AMIGO · MUSASHI YA ACTIVO';
+  } else if (status.reason === 'no-cell') {
+    message = 'El viejo amigo no puede activarse: no hay una casilla libre para Miyamoto Musashi.';
+    floating = 'VIEJO AMIGO · SIN ESPACIO';
+  } else if (status.reason === 'invocation-limit') {
+    message = status.message || 'El viejo amigo no puede activarse: alcanzaste el límite de invocaciones.';
+    floating = 'VIEJO AMIGO · LÍMITE';
+  }
+  if (!message) return false;
+  log(message);
+  showFloatingTextAt(liveTakeda.row, liveTakeda.col, floating, 'floating-combat buff');
+  return true;
+}
+
+function openTakedaOldFriendCostSelector(playerId, takedaUnitId) {
+  const liveTakeda = getUnitById(playerId, takedaUnitId);
+  const status = getTakedaOldFriendAvailability(playerId, liveTakeda);
+  if (!status.available) {
+    if (status.reason === 'resources') notifyTakedaOldFriendEntryStatus(playerId, liveTakeda);
     return false;
   }
-  if (!payTakedaMusashiHalfCost(playerId)) return false;
-  const baseRestore = Math.max(0, Number(musashi.stats?.restore ?? TEST_RESTORE_PHASES));
+  state.randomCostPayment = {
+    mode: 'takedaOldFriend',
+    playerId,
+    cardId: status.musashi.id,
+    needed: status.halfCost,
+    selected: {},
+    options: getTakedaMusashiPaymentOptions(playerId),
+    fixedEntries: [],
+    takedaUnitId: liveTakeda.id,
+    spellbookTab: status.slot.tab,
+    spellbookSlot: status.slot.slot,
+  };
+  renderRandomCostSelector();
+  els.randomCostOverlay?.classList.add('open');
+  els.randomCostOverlay?.setAttribute('aria-hidden', 'false');
+  log(`El viejo amigo: selecciona ${status.halfCost} elementos para llamar a Miyamoto Musashi.`);
+  return true;
+}
+
+async function executeTakedaOldFriendSummon(playerId, takedaUnitId, randomSelection = null, options = {}) {
+  const liveTakeda = getUnitById(playerId, takedaUnitId);
+  const status = getTakedaOldFriendAvailability(playerId, liveTakeda);
+  if (!status.available) {
+    if (status.reason === 'resources') notifyTakedaOldFriendEntryStatus(playerId, liveTakeda);
+    return false;
+  }
+  const selectedTotal = Object.values(randomSelection || {}).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0);
+  if (selectedTotal !== status.halfCost) {
+    log(`El viejo amigo: debes seleccionar exactamente ${status.halfCost} elementos.`);
+    return false;
+  }
+  const player = state.players?.[playerId];
+  if (!player || player.handTabs?.[status.slot.tab]?.[status.slot.slot] !== status.musashi.id) {
+    log('El viejo amigo se canceló: la copia de Miyamoto Musashi ya no está disponible en el Spellbook.');
+    return false;
+  }
+  if (!payTakedaMusashiHalfCost(playerId, randomSelection)) {
+    log('El viejo amigo falló: no se pudo completar el pago de elementos.');
+    return false;
+  }
+
+  const persistentCardState = takeSpellbookCardPersistentState(playerId, status.slot.tab, status.slot.slot, status.musashi.id);
+  player.handTabs[status.slot.tab][status.slot.slot] = null;
+  clearSpellbookUseCooldown(playerId, status.slot.tab, status.slot.slot);
+  liveTakeda.takedaOldFriendConsumed = true;
+  liveTakeda.takedaOldFriendMusashiInstanceId = persistentCardState?.instanceId || '';
+
+  const baseRestore = Math.max(0, Number(status.musashi.stats?.restore ?? TEST_RESTORE_PHASES));
   const boostedRestore = baseRestore * 3;
-  const elementId = getEffectiveCardElementId(musashi, playerId);
+  const elementId = getEffectiveCardElementId(status.musashi, playerId);
   const spawnId = `spawn_takeda_musashi_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  state.players[playerId].spawnMarkers = state.players[playerId].spawnMarkers || [];
-  state.players[playerId].spawnMarkers.push({
+  player.spawnMarkers = player.spawnMarkers || [];
+  player.spawnMarkers.push({
     id: spawnId,
-    cardId: musashi.id,
+    cardId: status.musashi.id,
     elementId,
-    row: cell.row,
-    col: cell.col,
+    row: status.cell.row,
+    col: status.cell.col,
     owner: playerId,
-    originTab: -1,
-    originSlot: -1,
+    originTab: status.slot.tab,
+    originSlot: status.slot.slot,
     immediateCast: true,
     sourcePowerId: 'elViejoAmigo',
   });
-  log(`Takeda Shingen activa El viejo amigo: paga ${halfCost} recurso${halfCost === 1 ? '' : 's'} y castea a Miyamoto Musashi de forma instantánea. Restauración de Musashi: ${baseRestore} × 3 = ${boostedRestore}.`);
+  const item = {
+    cardId: status.musashi.id,
+    persistentCardState,
+    elementId,
+    remaining: 0,
+    row: status.cell.row,
+    col: status.cell.col,
+    justAdded: true,
+    introStarted: false,
+    introDone: false,
+    introEndsAt: 0,
+    spawnId,
+    originTab: status.slot.tab,
+    originSlot: status.slot.slot,
+  };
+
+  log(`Takeda Shingen activa El viejo amigo: paga ${status.halfCost} elementos y castea a Miyamoto Musashi de forma instantánea. Restauración: ${baseRestore} × 3 = ${boostedRestore}.`);
   showFloatingTextAt(liveTakeda.row, liveTakeda.col, 'EL VIEJO AMIGO', 'floating-combat buff');
-  await sleep(720);
+  renderAll();
+  markOnlineStateDirty('takeda-old-friend-payment');
+  await sleep(420);
   try {
-    await resolveInvocationCastWithSummonSequence(playerId, {
-      cardId: musashi.id,
-      elementId,
-      remaining: 0,
-      row: cell.row,
-      col: cell.col,
-      justAdded: true,
-      introStarted: false,
-      introDone: false,
-      introEndsAt: 0,
-      spawnId,
-      originTab: -1,
-      originSlot: -1,
-    }, {
+    const result = await resolveInvocationCastWithSummonSequence(playerId, item, {
       restoreTimeOverride: boostedRestore,
       restoreTimeMultiplier: 3,
       specialSummonSourcePowerId: 'elViejoAmigo',
+      skipPostSummonQuickReaction: true,
     });
+    if (!result) throw new Error('Miyamoto Musashi no pudo completar la entrada especial.');
+    markOnlineStateDirty('takeda-old-friend-resolved');
     return true;
   } catch (error) {
-    reportDebugError('maybeResolveTakedaOldFriendSummon', error);
-    log('El viejo amigo: el llamado de Musashi falló limpiamente; Takeda queda en arena y la partida continúa.');
-    state.players[playerId].spawnMarkers = (state.players[playerId].spawnMarkers || []).filter(marker => marker.id !== spawnId);
-    state.pendingPowerAction = null;
-    state.selectedMover = null;
-    forceReleaseQuickReactionManualPowerFlow('cancelled');
+    liveTakeda.takedaOldFriendConsumed = false;
+    reportDebugError('executeTakedaOldFriendSummon', error);
+    log('El viejo amigo: el llamado de Musashi falló limpiamente; Takeda conserva el poder para una oportunidad posterior.');
+    player.spawnMarkers = (player.spawnMarkers || []).filter(marker => marker.id !== spawnId);
+    // Si la secuencia no llegó a restaurar la carta por su propia barrera de error,
+    // la devolvemos a la misma copia del Spellbook.
+    if (!player.handTabs?.[status.slot.tab]?.[status.slot.slot]) {
+      player.handTabs[status.slot.tab][status.slot.slot] = status.musashi.id;
+      setSpellbookCardPersistentState(playerId, status.slot.tab, status.slot.slot, status.musashi.id, persistentCardState);
+    }
     renderAll();
     return false;
   }
+}
+
+function beginTakedaOldFriendPayment(playerId, takedaUnitId) {
+  return openTakedaOldFriendCostSelector(playerId, takedaUnitId);
+}
+
+async function resolveTakedaOldFriendCostPayment(payment, selection) {
+  if (!payment || payment.mode !== 'takedaOldFriend') return false;
+  closeRandomCostSelector();
+  const success = await executeTakedaOldFriendSummon(payment.playerId, payment.takedaUnitId, selection, { fromPaymentSelector: true });
+  resolveQuickReactionDeferredInvocationAction(success ? 'activated' : 'cancelled', {
+    actionId: 'takedaOldFriend',
+    unitId: payment.takedaUnitId,
+    playerId: payment.playerId,
+  });
+  renderAll();
+  return success;
+}
+
+async function executeAiTakedaOldFriend(playerId, takedaUnitId) {
+  const selection = buildTakedaMusashiAutomaticPaymentSelection(playerId);
+  if (!selection) return false;
+  return await executeTakedaOldFriendSummon(playerId, takedaUnitId, selection, { ai: true });
 }
 
 function getUnitAttackSpeedLevel(unit, playerId = null) {
@@ -35233,11 +40621,13 @@ function buildPowerHeroHtml(power, card, options = {}) {
   const image = getPowerCustomImage(power);
   const label = power?.label || power?.name || power?.id || 'Poder';
   const summary = options.summary || power?.summary || 'Poder registrado.';
+  const usesSemanticPower = Array.isArray(power?.semanticBranches) && power.semanticBranches.length > 0;
   const tags = Array.isArray(options.tags) ? options.tags : (power?.tags || ['poder']);
-  const classificationHtml = buildMetaClassificationHtml(power, 'power', options.classificationOptions || {});
-  const tagsHtml = buildTagListHtml(tags);
+  const classificationHtml = usesSemanticPower ? '' : buildMetaClassificationHtml(power, 'power', options.classificationOptions || {});
+  const tagsHtml = usesSemanticPower ? buildPowerSemanticTagChainsHtml(power) : buildTagListHtml(tags);
+  const pendingNameHtml = power?.namePending ? '<p class="power-name-pending-note">Nombre canónico pendiente.</p>' : '';
   if (!image) {
-    return `<p><strong>Resumen:</strong> ${summary}</p>${classificationHtml}${tagsHtml}`;
+    return `<p><strong>Resumen:</strong> ${summary}</p>${tagsHtml}${classificationHtml}${pendingNameHtml}`;
   }
   return `
     <section class="power-detail-hero">
@@ -35248,8 +40638,9 @@ function buildPowerHeroHtml(power, card, options = {}) {
         <p class="power-detail-kicker">Poder</p>
         <h4>${label}</h4>
         <p><strong>Resumen:</strong> ${summary}</p>
-        ${classificationHtml}
         ${tagsHtml}
+        ${classificationHtml}
+        ${pendingNameHtml}
       </div>
     </section>`;
 }
@@ -35275,9 +40666,12 @@ function closePowerImagePreview() {
 
 const EFFECT_CLASSIFICATION_DB = {
   applicationModes: {
-    active: { id: 'active', label: 'Activo' },
-    passive: { id: 'passive', label: 'Pasivo' },
+    active: { id: 'active', label: 'Activa' },
+    passive: { id: 'passive', label: 'Pasiva' },
     reaction: { id: 'reaction', label: 'Reacción' },
+    trigger: { id: 'trigger', label: 'Disparador' },
+    progressive: { id: 'progressive', label: 'Progresivo' },
+    impact: { id: 'impact', label: 'Impacto' },
   },
   applicationTags: {
     pda: { id: 'pda', label: 'PDA' },
@@ -35308,6 +40702,246 @@ const EFFECT_CLASSIFICATION_DB = {
     standard: { id: 'standard', label: 'Estándar' },
   },
 };
+
+// =========================================================
+// ETAPA 4 · TAXONOMÍA SEMÁNTICA GLOBAL DE FACTORES
+// La cadena canónica es:
+// Factor → activación → categoría → orientación → enfoque(s).
+// Las tres primeras capas son conceptos globales consultables. Orientación y
+// enfoque sirven como clasificadores y serán reutilizados por búsqueda/perfil.
+// =========================================================
+const FACTOR_SEMANTIC_TAXONOMY = Object.freeze({
+  roots: Object.freeze({
+    factor: {
+      id: 'factor', label: 'Factor',
+      summary: 'Propiedad adicional que modifica, habilita o condiciona el funcionamiento normal de una carta.',
+      description: 'Un Factor es una propiedad adicional independiente de las estadísticas básicas de la carta. Puede activarse mediante un método concreto y producir un efecto ofensivo, defensivo, de soporte, control u otra función definida por sus tags semánticos.',
+    },
+    power: {
+      id: 'power', label: 'Poder',
+      summary: 'Efecto propio de una carta que modifica su funcionamiento más allá de sus estadísticas y Factores básicos.',
+      description: 'Un Poder es una capacidad propia de una carta. Cada Poder se describe mediante su método de activación, categoría, orientación y enfoque, y sus efectos funcionales se registran de forma estructurada para que puedan reutilizarse en filtros, reglas y cálculo de PB.',
+    },
+    ability: {
+      id: 'ability', label: 'Habilidad',
+      summary: 'Capacidad adicional de una carta que modifica o amplía su funcionamiento mediante una regla propia.',
+      description: 'Una Habilidad es una capacidad adicional asociada a una carta. Al igual que los Poderes y Factores, puede describirse mediante método de activación, categoría, orientación y enfoque para reutilizar la misma taxonomía en filtros, reglas y cálculo de PB.',
+    },
+  }),
+  activations: Object.freeze({
+    active: { id: 'active', label: 'Activa', summary: 'Requiere que su usuario active el efecto cuando la regla permita hacerlo.', description: 'Activa identifica un efecto que necesita una decisión o activación explícita de su usuario para resolver su resultado.' },
+    passive: { id: 'passive', label: 'Pasiva', summary: 'Permanece disponible sin requerir una activación manual independiente.', description: 'Pasiva identifica un efecto que permanece disponible o se aplica automáticamente mientras se cumplan sus condiciones.' },
+    reaction: { id: 'reaction', label: 'Reacción', summary: 'Responde a una acción o situación que abre su oportunidad de uso.', description: 'Reacción identifica un efecto que puede aplicarse como respuesta cuando sucede el evento que habilita su ventana.' },
+    trigger: { id: 'trigger', label: 'Disparador', summary: 'Se activa automáticamente cuando ocurre su condición definida.', description: 'Disparador identifica un efecto cuya resolución comienza automáticamente al cumplirse un evento concreto del juego.' },
+    triggerActive: { id: 'triggerActive', label: 'Disparador / Activa', summary: 'Combina una etapa que se dispara automáticamente con una etapa que requiere decisión del usuario.', description: 'Disparador / Activa identifica un Poder compuesto cuya primera condición se resuelve automáticamente al ocurrir su evento y que después habilita una o más decisiones activas del usuario dentro del mismo Poder.' },
+    progressive: { id: 'progressive', label: 'Progresivo', summary: 'Mantiene o desarrolla su efecto durante una secuencia de fases o eventos.', description: 'Progresivo identifica un efecto que se desarrolla, permanece o vuelve a comprobarse a medida que avanza el juego.' },
+    impact: { id: 'impact', label: 'Impacto', summary: 'Se aplica cuando el efecto que lo transporta impacta correctamente a su objetivo.', description: 'Impacto identifica un efecto cuya aplicación depende de que un ataque, proyectil u otro efecto alcance al objetivo.' },
+    pda: { id: 'pda', label: 'PDA', summary: 'Su aplicación se resuelve mediante una comprobación de PDA.', description: 'PDA identifica un efecto cuya aplicación o activación depende de una comprobación de Probabilidad de Acierto. Un valor de PDA mayor representa una probabilidad mayor de que el efecto se aplique.' },
+  }),
+  categories: Object.freeze({
+    physical: { id: 'physical', label: 'Físico', summary: 'Se resuelve mediante una interacción física.', description: 'Físico identifica efectos vinculados a impactos, armas, contacto corporal u otras interacciones físicas. Puede combinarse con orientaciones ofensivas o defensivas.' },
+    magic: { id: 'magic', label: 'Mágico', summary: 'Se resuelve mediante magia.', description: 'Mágico identifica efectos cuya naturaleza principal es mágica. No implica por sí mismo que el efecto sea ofensivo o defensivo.' },
+    elemental: { id: 'elemental', label: 'Elemental', summary: 'Se resuelve mediante una manifestación elemental.', description: 'Elemental identifica efectos ligados directamente a un elemento o manifestación elemental del sistema.' },
+    psychic: { id: 'psychic', label: 'Psíquico', summary: 'Actúa mediante interacción mental o psíquica.', description: 'Psíquico identifica efectos que alteran, presionan o interactúan con la mente, percepción o capacidades psíquicas del objetivo.' },
+    virtual: { id: 'virtual', label: 'Virtual', summary: 'Modifica capacidades o reglas sin representar un impacto físico directo.', description: 'Virtual identifica efectos que alteran estadísticas, permisos, estados o reglas de juego sin depender de un impacto físico directo.' },
+    tactical: { id: 'tactical', label: 'Táctico', summary: 'Modifica posicionamiento, respuesta o funcionamiento táctico.', description: 'Táctico identifica efectos centrados en posicionamiento, respuesta, control de arena o modificación táctica de una situación.' },
+  }),
+  orientations: Object.freeze({
+    offensive: { id: 'offensive', label: 'Ofensivo' },
+    defensive: { id: 'defensive', label: 'Defensivo' },
+    support: { id: 'support', label: 'Soporte' },
+    control: { id: 'control', label: 'Control' },
+    utility: { id: 'utility', label: 'Utilidad' },
+    strategic: { id: 'strategic', label: 'Estratégico' },
+    tactical: { id: 'tactical', label: 'Táctico' },
+  }),
+  focuses: Object.freeze({
+    damage: 'Daño', resistance: 'Resistencia', precision: 'Precisión', speed: 'Velocidad', life: 'Vida',
+    concealment: 'Ocultamiento', positioning: 'Posicionamiento', control: 'Control', execution: 'Ejecución',
+    protection: 'Protección', displacement: 'Desplazamiento', healing: 'Curación', initiative: 'Iniciativa',
+    weapon: 'Arma', limitCapacity: 'Límite de invocaciones', armorPiercing: 'Penetración', diversion: 'Desvío',
+    dodge: 'Esquive', evasion: 'Evasión', attack: 'Ataque', versatility: 'Versatilidad', mobility: 'Movilidad', loot: 'Saqueo', disarm: 'Desarmar',
+  }),
+});
+
+// Overrides explícitos: evitan deducir el significado de un Factor desde prosa libre.
+const FACTOR_SEMANTIC_OVERRIDES = Object.freeze({
+  hidden: { activation: 'reaction', category: 'virtual', orientation: 'defensive', focuses: ['concealment'] },
+  campeo: { activation: 'passive', category: 'tactical', orientation: 'control', focuses: ['positioning'] },
+  blindness: { activation: 'progressive', category: 'magic', orientation: 'offensive', focuses: ['precision', 'speed'] },
+  burn: { activation: 'pda', category: 'elemental', orientation: 'offensive', focuses: ['damage'] },
+  unionStrength: { activation: 'trigger', category: 'virtual', orientation: 'support', focuses: ['limitCapacity'] },
+  extraAttack: { activation: 'passive', category: 'physical', orientation: 'offensive', focuses: ['attack'] },
+  extraWeapon: { activation: 'passive', category: 'tactical', orientation: 'utility', focuses: ['weapon'] },
+  attackSpeed: { activation: 'passive', category: 'physical', orientation: 'offensive', focuses: ['initiative'] },
+  disarm: { activation: 'pda', category: 'physical', orientation: 'offensive', focuses: ['disarm'] },
+  binding: { activation: 'pda', category: 'physical', orientation: 'offensive', focuses: ['control'] },
+  paralysis: { activation: 'pda', category: 'physical', orientation: 'offensive', focuses: ['control'] },
+  stun: { activation: 'active', category: 'physical', orientation: 'offensive', focuses: ['control'] },
+  push: { activation: 'active', category: 'physical', orientation: 'control', focuses: ['displacement'] },
+  healing: { activation: 'trigger', category: 'virtual', orientation: 'support', focuses: ['life'] },
+  lethality: { activation: 'pda', category: 'physical', orientation: 'offensive', focuses: ['execution'] },
+  armor: { activation: 'passive', category: 'physical', orientation: 'defensive', focuses: ['protection'] },
+  diversion: { activation: 'pda', category: 'physical', orientation: 'defensive', focuses: ['diversion'] },
+  dodgeProjectile: { activation: 'pda', category: 'physical', orientation: 'defensive', focuses: ['dodge'] },
+  evasion: { activation: 'passive', category: 'tactical', orientation: 'defensive', focuses: ['evasion'] },
+  armorPenetration: { activation: 'passive', category: 'physical', orientation: 'offensive', focuses: ['armorPiercing'] },
+  criticalHit: { activation: 'pda', category: 'physical', orientation: 'offensive', focuses: ['damage'] },
+  criticalDamage: { activation: 'passive', category: 'physical', orientation: 'offensive', focuses: ['damage'] },
+});
+
+function getFactorSemanticProfile(factorOrId = null) {
+  const factor = typeof factorOrId === 'string' ? getFactorProfile(factorOrId) : factorOrId;
+  const id = String(factor?.id || factorOrId || '').trim();
+  const override = FACTOR_SEMANTIC_OVERRIDES[id] || {};
+  const classification = factor?.classification || {};
+  const appTags = Array.isArray(classification.applicationTags) ? classification.applicationTags : [];
+  const modes = Array.isArray(classification.applicationModes) ? classification.applicationModes : [];
+  const natures = Array.isArray(classification.natures) ? classification.natures : [];
+  const functional = Array.isArray(classification.functionalCategories) ? classification.functionalCategories : [];
+  const activation = override.activation || (appTags.includes('pda') ? 'pda' : modes[0] || 'passive');
+  const category = override.category || natures.find(value => FACTOR_SEMANTIC_TAXONOMY.categories[value]) || 'virtual';
+  const orientation = override.orientation || functional.find(value => FACTOR_SEMANTIC_TAXONOMY.orientations[value]) || 'utility';
+  const focuses = Array.isArray(override.focuses) && override.focuses.length
+    ? override.focuses
+    : functional.filter(value => value !== orientation).slice(0, 2);
+  return { id, activation, category, orientation, focuses };
+}
+
+function isPhysicalDefensiveFactorId(factorId = '') {
+  const semantic = getFactorSemanticProfile(factorId);
+  return semantic.category === 'physical' && semantic.orientation === 'defensive';
+}
+
+function getFactorSemanticFocusLabels(factorOrId = null) {
+  const semantic = getFactorSemanticProfile(factorOrId);
+  return semantic.focuses.map(id => FACTOR_SEMANTIC_TAXONOMY.focuses[id] || String(id || '')).filter(Boolean);
+}
+
+function buildFactorSemanticTagChainHtml(factorOrId = null) {
+  const semantic = getFactorSemanticProfile(factorOrId);
+  const activation = FACTOR_SEMANTIC_TAXONOMY.activations[semantic.activation] || { label: semantic.activation };
+  const category = FACTOR_SEMANTIC_TAXONOMY.categories[semantic.category] || { label: semantic.category };
+  const orientation = FACTOR_SEMANTIC_TAXONOMY.orientations[semantic.orientation] || { label: semantic.orientation };
+  const focusLabels = getFactorSemanticFocusLabels(factorOrId);
+  return buildSemanticTagChainHtml([
+    { label: 'Factor', infoKind: 'effectTaxonomy', infoId: 'root:factor' },
+    { label: activation.label, infoKind: 'effectTaxonomy', infoId: `activation:${semantic.activation}` },
+    { label: category.label, infoKind: 'effectTaxonomy', infoId: `category:${semantic.category}` },
+    { label: orientation.label },
+    { label: focusLabels.join(' / ') || 'General' },
+  ], { compact: false });
+}
+
+
+// Etapa 5 · Semántica global de Poderes. Cada Poder puede declarar una o más
+// ramas, pero cada rama respeta: Poder → activación → categoría → orientación → enfoque(s).
+function getPowerSemanticBranches(powerOrId = null) {
+  const power = typeof powerOrId === 'string' ? getPowerProfile(powerOrId) : powerOrId;
+  const branches = Array.isArray(power?.semanticBranches) ? power.semanticBranches : [];
+  if (branches.length) return branches.map(branch => ({
+    activation: branch?.activation || 'passive',
+    category: branch?.category || 'virtual',
+    orientation: branch?.orientation || 'utility',
+    focuses: Array.isArray(branch?.focuses) ? branch.focuses.filter(Boolean) : [],
+  }));
+  const classification = power?.classification || {};
+  const modes = Array.isArray(classification.applicationModes) ? classification.applicationModes : [];
+  const natures = Array.isArray(classification.natures) ? classification.natures : [];
+  const functional = Array.isArray(classification.functionalCategories) ? classification.functionalCategories : [];
+  return [{
+    activation: modes[0] || 'passive',
+    category: natures.find(value => FACTOR_SEMANTIC_TAXONOMY.categories[value]) || 'virtual',
+    orientation: functional.find(value => FACTOR_SEMANTIC_TAXONOMY.orientations[value]) || 'utility',
+    focuses: functional.filter(value => FACTOR_SEMANTIC_TAXONOMY.focuses[value]).slice(0, 2),
+  }];
+}
+
+function getPowerSemanticFocusLabels(powerOrId = null) {
+  return [...new Set(getPowerSemanticBranches(powerOrId).flatMap(branch =>
+    (branch.focuses || []).map(id => FACTOR_SEMANTIC_TAXONOMY.focuses[id] || String(id || '')).filter(Boolean)
+  ))];
+}
+
+function buildPowerSemanticTagChainsHtml(powerOrId = null) {
+  return getPowerSemanticBranches(powerOrId).map(branch => {
+    const activation = FACTOR_SEMANTIC_TAXONOMY.activations[branch.activation] || { label: branch.activation };
+    const category = FACTOR_SEMANTIC_TAXONOMY.categories[branch.category] || { label: branch.category };
+    const orientation = FACTOR_SEMANTIC_TAXONOMY.orientations[branch.orientation] || { label: branch.orientation };
+    const focuses = (branch.focuses || []).map(id => FACTOR_SEMANTIC_TAXONOMY.focuses[id] || String(id || '')).filter(Boolean);
+    return buildSemanticTagChainHtml([
+      { label: 'Poder', infoKind: 'effectTaxonomy', infoId: 'root:power' },
+      { label: activation.label, infoKind: 'effectTaxonomy', infoId: `activation:${branch.activation}` },
+      { label: category.label, infoKind: 'effectTaxonomy', infoId: `category:${branch.category}` },
+      { label: orientation.label },
+      { label: focuses.join(' / ') || 'General' },
+    ], { compact: false });
+  }).join('');
+}
+
+
+// Semántica global de Habilidades: Habilidad → activación → categoría → orientación → enfoque(s).
+// Reutiliza la misma taxonomía que Factores/Poderes para que filtros, perfil general y PB
+// compartan exactamente el mismo lenguaje.
+function getAbilitySemanticBranches(abilityOrId = null) {
+  const ability = typeof abilityOrId === 'string' ? getAbilityProfile(abilityOrId) : abilityOrId;
+  const branches = Array.isArray(ability?.semanticBranches) ? ability.semanticBranches : [];
+  return branches.map(branch => ({
+    activation: branch?.activation || 'passive',
+    category: branch?.category || 'virtual',
+    orientation: branch?.orientation || 'utility',
+    orientationLabel: branch?.orientationLabel || '',
+    focuses: Array.isArray(branch?.focuses) ? branch.focuses.filter(Boolean) : [],
+  }));
+}
+
+function getAbilitySemanticFocusLabels(abilityOrId = null) {
+  return [...new Set(getAbilitySemanticBranches(abilityOrId).flatMap(branch =>
+    (branch.focuses || []).map(id => FACTOR_SEMANTIC_TAXONOMY.focuses[id] || String(id || '')).filter(Boolean)
+  ))];
+}
+
+function buildAbilitySemanticTagChainsHtml(abilityOrId = null) {
+  return getAbilitySemanticBranches(abilityOrId).map(branch => {
+    const activation = FACTOR_SEMANTIC_TAXONOMY.activations[branch.activation] || { label: branch.activation };
+    const category = FACTOR_SEMANTIC_TAXONOMY.categories[branch.category] || { label: branch.category };
+    const orientation = FACTOR_SEMANTIC_TAXONOMY.orientations[branch.orientation] || { label: branch.orientation };
+    const focuses = (branch.focuses || []).map(id => FACTOR_SEMANTIC_TAXONOMY.focuses[id] || String(id || '')).filter(Boolean);
+    return buildSemanticTagChainHtml([
+      { label: 'Habilidad', infoKind: 'effectTaxonomy', infoId: 'root:ability' },
+      { label: activation.label, infoKind: 'effectTaxonomy', infoId: `activation:${branch.activation}` },
+      { label: category.label, infoKind: 'effectTaxonomy', infoId: `category:${branch.category}` },
+      { label: branch.orientationLabel || orientation.label },
+      { label: focuses.join(' / ') || 'General' },
+    ], { compact: false });
+  }).join('');
+}
+
+function getEffectTaxonomyInfo(id = '') {
+  const [group, key] = String(id || '').split(':');
+  if (group === 'root') return FACTOR_SEMANTIC_TAXONOMY.roots[key] || null;
+  if (group === 'activation') return FACTOR_SEMANTIC_TAXONOMY.activations[key] || null;
+  if (group === 'category') return FACTOR_SEMANTIC_TAXONOMY.categories[key] || null;
+  return null;
+}
+
+function getFactorModalDescription(factor = null, level = 1) {
+  const raw = String(factor?.descriptions?.[level] || factor?.summary || '').trim();
+  if (!raw) return '';
+  // El texto histórico de varios factores empieza repitiendo la clasificación
+  // que ahora ya vive en la cadena semántica. Solo se elimina ese prefijo si
+  // existe una segunda oración funcional completa.
+  const firstSentenceEnd = raw.indexOf('. ');
+  if (firstSentenceEnd > 0) {
+    const prefix = raw.slice(0, firstSentenceEnd);
+    const looksLikeLegacyClassification = (
+      (prefix.includes('·') || prefix.includes(',') || prefix.includes('/'))
+      && /(?:Pasiv|Activ|PDA|Físic|Mágic|Elemental|Virtual|Táctic|Ofensiv|Defensiv|Progresiv|Disparador|Reacción|Control|Utilidad|Soporte|Ocultamiento|Protección)/i.test(prefix)
+    );
+    if (looksLikeLegacyClassification) return raw.slice(firstSentenceEnd + 2).trim();
+  }
+  return raw;
+}
 
 function getEffectClassificationLabels(classification = {}, includeModes = true) {
   const parts = [];
@@ -35498,10 +41132,11 @@ function buildAttackBonusDetailsHtml(card = null) {
 function openCardMetaInfo(kind, id, card = null, extra = {}) {
   if (!els.cardMetaInfoOverlay) return;
   els.cardMetaInfoOverlay.dataset.metaTheme = '';
-  els.cardMetaInfoOverlay.classList.remove('guardian-meta-theme', 'card-element-meta-theme');
+  els.cardMetaInfoOverlay.classList.remove('guardian-meta-theme', 'card-element-meta-theme', 'meta-info-factor-mode');
   els.cardMetaInfoOverlay.style.removeProperty('--meta-theme-color');
   applyCardMetaInfoTheme(card);
   els.cardMetaInfoOverlay.classList.toggle('meta-info-power-mode', kind === 'power');
+  els.cardMetaInfoOverlay.classList.toggle('meta-info-factor-mode', kind === 'factor' || kind === 'effectTaxonomy');
   const skipHistory = extra?.skipHistory === true || extra?.skipHistory === 'true';
   if (!skipHistory && state.cardMetaInfoCurrent && els.cardMetaInfoOverlay.classList.contains('open')) {
     state.cardMetaInfoHistory = Array.isArray(state.cardMetaInfoHistory) ? state.cardMetaInfoHistory : [];
@@ -35538,12 +41173,58 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
       els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> la precisión base sigue siendo <strong>${basePrecision}</strong>. El extra activo suma <strong>+${totalBonus}</strong>, para un total actual de <strong>${basePrecision + totalBonus}</strong> PDA.</p>${buildTagListHtml(['precisión', 'bono activo', 'base + extra', 'desglose'])}<p><strong>Detalle de fuentes:</strong></p><ul class="attack-bonus-source-list">${list}</ul>`;
       bindInlineInfoButtons(els.cardMetaInfoBody, card);
     }
+  } else if (kind === 'battleScoreRarity') {
+    const rarityId = normalizeCardRarityId(id || getCardVisualRarity(card)?.id || 'ordinary');
+    const rarity = CARD_RARITY_META[rarityId] || CARD_RARITY_META.ordinary;
+    const label = CARD_RARITY_LABELS[rarityId] || 'Ordinaria';
+    const icon = CARD_RARITY_ICON_ASSETS[rarityId] || CARD_RARITY_ICON_ASSETS.ordinary;
+    const scoreInfo = (() => {
+      try { return typeof calculateCardBattleScore === 'function' && card ? calculateCardBattleScore(card) : null; }
+      catch (_) { return null; }
+    })();
+    const rangeInfo = RARITY_SCORE_TABLE.find(entry => entry.id === rarityId);
+    const rangeText = rangeInfo
+      ? `${rangeInfo.min}${Number.isFinite(rangeInfo.max) ? `–${rangeInfo.max}` : '+'} puntos base`
+      : 'rango no disponible';
+    const hierarchyHtml = CARD_RARITY_ORDER.map(itemId => {
+      const item = CARD_RARITY_META[itemId];
+      const itemLabel = CARD_RARITY_LABELS[itemId];
+      const active = itemId === rarityId ? ' <strong>← esta carta</strong>' : '';
+      return `<li><strong>${item.rank}. ${itemLabel}</strong> · ${item.group}${active}</li>`;
+    }).join('');
+    if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${icon}" alt="Rareza ${label}">`;
+    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Rareza: ${label}`;
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Nivel ${rarity.rank} de 9 · ${rarity.group}`;
+    if (els.cardMetaInfoBody) {
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Qué representa:</strong> ${rarity.description}</p><p><strong>Jerarquía:</strong> nivel ${rarity.rank} de 9.</p><p><strong>Rango lógico actual:</strong> ${rangeText}${rangeInfo ? ` · bono de rareza +${rangeInfo.bonus} PB` : ''}.</p>${scoreInfo ? `<p><strong>Esta carta:</strong> ${scoreInfo.baseScore} puntos base · ${scoreInfo.battlePoints} PB finales.</p>` : ''}<p><strong>Orden de rarezas:</strong></p><ul class="rarity-info-order-list">${hierarchyHtml}</ul>`;
+    }
+  } else if (kind === 'casterProgression') {
+    const baseCard = card?.id ? (CARD_LIBRARY[card.id] || card) : card;
+    const progression = getCasterProgressedStats(baseCard);
+    if (!progression) return;
+    if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = id === 'specialCounter'
+      ? `<img src="${CASTER_SPECIAL_COUNTER_ASSET}" alt="Special Counter">`
+      : `<img src="${PURE_ELEMENT_ASSET}" alt="Elemento puro">`;
+    if (els.cardMetaInfoTitle) {
+      const titles = { pureGeneration:'Generación de Elemento puro', pureMaximum:'Máximo de Elemento puro', pureTrigger:'Disparador de Elemento puro', specialCounter:'Special Counter' };
+      els.cardMetaInfoTitle.textContent = titles[id] || 'Progresión de Kaster';
+    }
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Nivel de Kaster ${progression.level} · sistema de progresión`;
+    if (els.cardMetaInfoBody) {
+      const requirement = progression.xpRequired > 0 ? `${progression.xp}/${progression.xpRequired} XP` : 'Nivel máximo';
+      const details = id === 'specialCounter'
+        ? `<p><strong>Special Counters iniciales:</strong> ${progression.startingSpecialCounters}.</p><p>La progresión global entrega <strong>+1 Special Counter inicial al llegar al nivel 9</strong>.</p>`
+        : `<p><strong>Generación base:</strong> +${progression.pureGenerationBase}.</p><p><strong>Máximo base:</strong> ${progression.pureMaxBase}.</p><p><strong>Estado actual:</strong> ${progression.pureUnlocked ? `+${progression.pureGeneration} por activación · máximo ${progression.pureMax}` : 'bloqueado hasta nivel 4'}.</p><p><strong>Disparador:</strong> cuando el rival entra en su fase de Extracción, al inicio de su turno.</p><p>Al nivel 7 la generación aumenta en +1 y al nivel 10 el máximo aumenta en +3.</p>`;
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Progreso:</strong> Nivel ${progression.level} · ${requirement} · ${progression.totalXp} XP total acumulada.</p>${details}`;
+    }
   } else if (kind === 'cardType') {
     const type = getCardTypeProfile(id);
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${type.icon}" alt="${type.label}">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Tipo de carta: ${type.label}`;
-    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Enfoque: ${type.focus || 'General'}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = buildWeaponModalBody(card);
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = type.focus || 'Definición general';
+    if (els.cardMetaInfoBody) {
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${type.summary}</p>${buildSemanticTagChainHtml(['Tipo de carta', type.label])}<p>${type.description}</p>`;
+    }
   } else if (kind === 'trait') {
     const trait = getCardTraitProfile(id);
     if (!trait) return;
@@ -35558,19 +41239,19 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     }
   } else if (kind === 'race') {
     const race = getRaceProfile(id);
-    const gender = getGenderProfile(card?.gender || 'none');
     const icon = getRaceIcon(card, id);
-    if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<span class="race-modal-icon-gendered">${buildGenderMarkBadgeHtml(card)}<img src="${icon}" alt="${race.label}"></span>`;
+    if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${icon}" alt="${race.label}">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Raza: ${race.label}`;
-    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = getMetaClassificationText(race, 'race', { includeModes: false });
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = '';
     if (els.cardMetaInfoBody) {
+      const raceFocusTags = getProfileFocusTags(race, 'raza', race.label);
       const humanExtraWeaponHtml = race.id === 'human' && getCardExtraWeapons(card).length
         ? `<p><strong>Esta raza habilita en esta carta:</strong></p><div class="meta-source-factor-list">${getCardExtraWeapons(card).map(extraWeapon => {
           const weaponInfo = getWeaponInfoProfile(extraWeapon.weaponType);
           return `<button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="extraWeapon" data-factor-source="human"><img src="${FACTOR_DB.extraWeapon.icon}" alt="Arma extra"><span>Arma extra</span></button><button type="button" class="card-info-inline-chip" data-info-kind="extraWeapon" data-info-id="${extraWeapon.id || extraWeapon.weaponType}"><img src="${weaponInfo.icon}" alt="${weaponInfo.label}"><span>${weaponInfo.label}</span></button>`;
-        }).join('')}</div><p><strong>Origen:</strong> Humano es la raza que concede Arma extra en esta carta por su versatilidad para usar armas y equipo.</p>`
+        }).join('')}</div>`
         : '';
-      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${race.summary}</p>${buildMetaClassificationHtml(race, 'race', { includeModes: false })}${buildTagListHtml(race.tags)}<p>${race.description}</p>${humanExtraWeaponHtml}`;
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${race.summary}</p>${buildSemanticTagChainHtml(['Raza', race.label, ...raceFocusTags])}<p>${race.description}</p>${humanExtraWeaponHtml}`;
       bindInlineInfoButtons(els.cardMetaInfoBody, card);
     }
   } else if (kind === 'quality') {
@@ -35578,8 +41259,9 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     if (!quality) return;
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${quality.icon}" alt="${quality.label}">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Cualidad: ${quality.label}`;
-    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = getMetaClassificationText(quality, 'quality', { includeModes: false });
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = '';
     if (els.cardMetaInfoBody) {
+      const qualityFocusTags = getProfileFocusTags(quality, 'cualidad', quality.label);
       const granted = card ? getCardAllFactors(card).filter(f => f.source === quality.id) : [];
       const grantedAbilities = card ? (Array.isArray(card.abilities) ? card.abilities.filter(ability => ability.sourceQuality === quality.id) : []) : [];
       const grantsHtml = granted.length ? `<p><strong>Esta cualidad habilita en esta carta:</strong></p><div class="meta-source-factor-list">${granted.map(f => {
@@ -35587,12 +41269,11 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
         const level = getFactorDisplayLevel(f);
         return `<button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="${f.id}" data-factor-level="${level}" data-factor-source="${f.source || ''}"><img src="${factor?.icon || ''}" alt="${factor?.label || f.id}"><span>${factor?.label || f.id} ${level}</span></button>`;
       }).join('')}</div>` : '';
-      const abilityGrantsHtml = grantedAbilities.length ? `<p><strong>Esta cualidad concede habilidad:</strong></p><div class="meta-source-factor-list">${grantedAbilities.map(ability => {
+      const abilityGrantsHtml = grantedAbilities.length ? `<p><strong>Esta cualidad habilita en esta carta:</strong></p><div class="meta-source-factor-list">${grantedAbilities.map(ability => {
         const info = getAbilityProfile(ability.id);
         return `<button type="button" class="card-info-inline-chip" data-info-kind="ability" data-info-id="${info.id}" data-source-quality="${quality.id}"><img src="${info.icon}" alt="${info.label}"><span>${info.label}</span></button>`;
-      }).join('')}</div>${quality.id === 'stalker' ? '<p><strong>Origen:</strong> Acechador es la cualidad que concede Acechar.</p>' : ''}` : '';
-      const assassinExtraWeaponHtml = '';
-      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${quality.summary}</p>${buildMetaClassificationHtml(quality, 'quality', { includeModes: false })}${buildTagListHtml(quality.tags)}<p>${quality.description}</p>${grantsHtml}${abilityGrantsHtml}${assassinExtraWeaponHtml}`;
+      }).join('')}</div>` : '';
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${quality.summary}</p>${buildSemanticTagChainHtml(['Cualidad', quality.label, ...qualityFocusTags])}<p>${quality.description}</p>${grantsHtml}${abilityGrantsHtml}`;
       bindInlineInfoButtons(els.cardMetaInfoBody, card);
     }
   } else if (kind === 'family') {
@@ -35600,8 +41281,20 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     if (!family) return;
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<div class="meta-info-family-star">★</div>`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Familia: ${family.label}`;
-    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Enfoque: ${family.focus}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${family.summary}</p>${buildTagListHtml(family.tags)}<p>${family.description}</p>`;
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = '';
+    if (els.cardMetaInfoBody) {
+      const familyFocusTags = getProfileFocusTags(family, 'familia', family.label);
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${family.summary}</p>${buildSemanticTagChainHtml(['Familia', family.label, ...familyFocusTags])}<p>${family.description}</p>`;
+    }
+  } else if (kind === 'effectTaxonomy') {
+    const info = getEffectTaxonomyInfo(id);
+    if (!info) return;
+    if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<div class="meta-info-taxonomy-glyph" aria-hidden="true">✦</div>`;
+    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = info.label;
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = '';
+    if (els.cardMetaInfoBody) {
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${info.summary}</p><p>${info.description}</p>`;
+    }
   } else if (kind === 'factor') {
     const factor = getFactorProfile(id);
     if (!factor) return;
@@ -35617,26 +41310,18 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     const hiddenSourceName = extra?.hiddenSourceName || '';
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${factor.icon}" alt="${factor.label}">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `${factor.label}${(factor?.pdaByLevel || shouldShowFactorLevelBadge(id, factorEntryForPda)) ? ` ${level}` : ''}`;
-    if (els.cardMetaInfoCategory) {
-      const normalizedCategory = getMetaClassificationText(factor, 'factor');
-      const baseCategory = (id === 'lethality')
-        ? `${normalizedCategory} · ${pda} PDA · umbral ${getLethalityConfig(level).threshold} vida`
-        : (factor?.pdaByLevel ? `${normalizedCategory} · ${pda} PDA${['criticalHit'].includes(id) ? ` · x${multiplier} daño` : ''}` : `${normalizedCategory}`);
-      els.cardMetaInfoCategory.textContent = (id === 'hidden' && hiddenSourceName)
-        ? `${baseCategory} · Cortina activa de ${hiddenSourceName}`
-        : baseCategory;
-    }
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = '';
     const intrinsicSpellFactor = isSpellCard(card)
       || factorEntry?.source === 'spell'
       || factorEntry?.sourceType === 'card';
     const sourceHtml = (!intrinsicSpellFactor && sourceProfile) ? `<p><strong>Habilitado por:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="${sourceProfile.kind}" data-info-id="${sourceProfile.id}"><img src="${sourceProfile.icon || getRaceIcon(card, sourceProfile.id)}" alt="${sourceProfile.label}"><span>${sourceProfile.label}</span></button></p>` : '';
-    const jointWeaponId = factorEntry?.sourceWeapon || factorEntry?.requiresWeaponType || '';
+    const jointWeaponId = id === 'binding' ? '' : (factorEntry?.sourceWeapon || factorEntry?.requiresWeaponType || '');
     const jointWeapon = jointWeaponId ? getWeaponInfoProfile(jointWeaponId) : null;
     const jointWeaponHtml = jointWeapon ? `<p><strong>Requiere conjuntamente:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="weapon" data-info-id="${jointWeapon.id}"><img src="${jointWeapon.icon}" alt="${jointWeapon.label}"><span>${jointWeapon.label}</span></button>. La cualidad y el arma deben estar presentes al mismo tiempo.</p>` : '';
     if (els.cardMetaInfoBody) {
       const pdaHtml = (id === 'lethality')
         ? `<p><strong>Condición:</strong> debe causar al menos 1 de daño real antes de comparar Letalidad.</p><p><strong>Probabilidad de ejecución:</strong> ${pda} PDA.</p>${getLethalityConfig(level).directThreshold ? `<p><strong>Ejecución directa:</strong> ${getLethalityConfig(level).directThreshold} o menos de vida, sin tirada.</p>` : ''}`
-        : (factor?.pdaByLevel ? `<p><strong>Probabilidad de acierto:</strong> ${pda} PDA.</p>` : '');
+        : (factor?.pdaByLevel && id !== 'criticalHit' && id !== 'disarm' && id !== 'binding' ? `<p><strong>Probabilidad de acierto:</strong> ${pda} PDA.</p>` : '');
       const hiddenSourceHtml = (id === 'hidden')
         ? `<p><strong>Otorgado por:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="weapon" data-info-id="smokeBomb"><img src="${SMOKE_BOMB_ICON_ASSET}" alt="Bomba de humo"><span>Bomba de humo</span></button>${hiddenSourceName ? ` de <strong>${hiddenSourceName}</strong>` : ''}. La bomba de humo es la que permite usar Oculto mientras la invocación permanezca dentro de la cortina.</p>`
         : '';
@@ -35646,7 +41331,13 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
           return `<button type="button" class="card-info-inline-chip" data-info-kind="extraWeapon" data-info-id="${extraWeapon.id || extraWeapon.weaponType}"><img src="${weaponInfo.icon}" alt="${weaponInfo.label}"><span>${weaponInfo.label}</span></button>`;
         }).join('')}</p>`
         : '';
-      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${factor.summary}</p>${buildMetaClassificationHtml(factor, 'factor')}${buildTagListHtml(factor.tags)}<p>${factor.descriptions?.[level] || factor.summary}</p>${pdaHtml}${hiddenSourceHtml}${sourceHtml}${jointWeaponHtml}${extraWeaponDetailsHtml}`;
+      const semanticTagsHtml = buildFactorSemanticTagChainHtml(factor);
+      const factorDescription = id === 'disarm'
+        ? `Tiene ${pda} PDA para desarmar al objetivo impactado. El objetivo pierde el uso de su arma activa y debe usar su ataque base hasta recuperar el arma.`
+        : id === 'binding'
+          ? `Atadura ${level} permanece durante ${getBindingDurationByLevel(level)} fases. En cada cambio de fase se resuelven dos comprobaciones separadas de ${pda} PDA con el mismo margen: una para Movimiento y otra para Ataque. Si Atadura acierta Movimiento, la invocación no puede moverse durante esa fase; si acierta Ataque, no puede atacar durante esa fase.`
+          : getFactorModalDescription(factor, level);
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${factor.summary}</p>${semanticTagsHtml}<p>${factorDescription}</p>${pdaHtml}${hiddenSourceHtml}${sourceHtml}${jointWeaponHtml}${extraWeaponDetailsHtml}`;
       bindInlineInfoButtons(els.cardMetaInfoBody, card);
     }
   } else if (kind === 'spellRule') {
@@ -35692,14 +41383,16 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     const description = String(ability.description || '').replaceAll('{unitName}', runtimeName);
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${ability.icon}" alt="${ability.label}">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Habilidad: ${ability.label}`;
-    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = getMetaClassificationText(ability, 'ability');
+    const usesSemanticAbility = Array.isArray(ability?.semanticBranches) && ability.semanticBranches.length > 0;
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = usesSemanticAbility ? '' : getMetaClassificationText(ability, 'ability');
     if (els.cardMetaInfoBody) {
       const sourceQuality = id === 'stalk' ? getQualityProfile(extra?.sourceQuality || extra?.infoSourceId || 'stalker') : null;
       const sourceHtml = sourceQuality ? `<p><strong>Otorgada por:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="quality" data-info-id="${sourceQuality.id}"><img src="${sourceQuality.icon}" alt="${sourceQuality.label}"><span>${sourceQuality.label}</span></button></p>` : '';
       const completeMovementChip = id === 'stalk'
         ? `<p><strong>Movilidad concedida:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="movementType" data-info-id="complete" data-info-source-kind="ability" data-info-source-id="stalk"><img src="${MOVEMENT_TYPE_DB.complete.icon}" alt="Movilidad completa"><span>Movilidad completa</span></button></p>`
         : '';
-      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${ability.summary}</p>${buildMetaClassificationHtml(ability, 'ability')}${buildTagListHtml(ability.tags)}<p>${description}</p>${sourceHtml}${completeMovementChip}`;
+      const semanticHtml = usesSemanticAbility ? buildAbilitySemanticTagChainsHtml(ability) : `${buildMetaClassificationHtml(ability, 'ability')}${buildTagListHtml(ability.tags)}`;
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${String(ability.summary || '').replaceAll('{unitName}', runtimeName)}</p>${semanticHtml}<p>${description}</p>${sourceHtml}${completeMovementChip}`;
       bindInlineInfoButtons(els.cardMetaInfoBody, card);
     }
   } else if (kind === 'power') {
@@ -35715,7 +41408,7 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
       els.cardMetaInfoIcon.innerHTML = `<img src="${powerIcon}" alt="${powerLabel}">`;
     }
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Poder: ${powerLabel}`;
-    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = getPowerClassificationText(power, card);
+    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = (Array.isArray(power?.semanticBranches) && power.semanticBranches.length) ? '' : getPowerClassificationText(power, card);
     if (els.cardMetaInfoBody) {
       const bombsHtml = runtimeBombs != null ? `<p><strong>Bombas disponibles en arena:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="weapon" data-info-id="smokeBomb"><img src="${SMOKE_BOMB_ICON_ASSET}" alt="Bomba de humo"><span>${runtimeBombs}</span></button></p>` : '';
       if (power.id === 'confianzaTransmitida') {
@@ -35883,21 +41576,32 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
           <p><strong>Enfriamiento:</strong> 12 fases.</p>
           </div>`;
       } else if (power.id === 'shizukesaNoShiin') {
-        const kurayamiHeroHtml = buildPowerHeroHtml(power, card, {
-          summary: power.summary || 'Poder activo de marcado, canalización, infiltración y ejecución.',
-          tags: power.tags || ['poder', 'activa', 'física', 'estratégica', 'mortalidad', 'oculto', 'ejecución'],
-          classificationOptions: { includeModes: getCardTypeId(card) !== 'spell' }
-        });
+        const hiddenFactor = getFactorProfile?.('hidden');
+        const criticalFactor = getFactorProfile?.('criticalHit');
+        const hiddenChip = hiddenFactor
+          ? `<button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="hidden"><img src="${hiddenFactor.icon}" alt="${hiddenFactor.label}"><span>${hiddenFactor.label}</span></button>`
+          : 'Oculto';
+        const criticalChip = criticalFactor
+          ? `<button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="criticalHit" data-factor-level="5" data-factor-source="assassin"><img src="${criticalFactor.icon}" alt="${criticalFactor.label}"><span>${criticalFactor.label} 5</span></button>`
+          : 'Golpe crítico 5';
+        const kurayamiHeroHtml = buildPowerHeroHtml(power, card, { summary: power.summary });
         els.cardMetaInfoBody.innerHTML = `
           ${kurayamiHeroHtml}
           <div class="power-detail-lower">
-          <p><strong>I. Activación:</strong> consume 1 Oscuridad y marca una invocación enemiga que se encuentre dentro de un radio de 5 casillas de Kurayami.</p>
-          <p><strong>II. Canalización:</strong> Kurayami canaliza durante 3 fases. Mientras canaliza, permanece inmóvil y muestra el sello oscuro alrededor de su ficha.</p>
-          <p><strong>III. Infiltración:</strong> al completar la canalización obtiene <button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="hidden"><img src="${HIDDEN_FACTOR_ICON_ASSET}" alt="Oculto"><span>Oculto</span></button> y se desplaza automáticamente hasta una casilla libre adyacente al objetivo, usando la misma estela doble de sombras que Densetsu no Sennyū.</p>
-          <p><strong>IV. Ataque:</strong> al llegar, ejecuta automáticamente su ataque base con +1 de daño. El golpe ignora Armadura, Evasión, Esquive, Desvío, escudos y cualquier otro efecto clasificado como defensivo. El Crítico 5 se calcula sobre el daño total.</p>
-          <p><strong>V. Ejecución:</strong> si el objetivo queda con 3 de vida o menos, es ejecutado. Después Kurayami se restaura, pierde Oculto y recupera su movilidad base.</p>
-          <p><strong>VI. Enfriamiento:</strong> después de resolverse o interrumpirse, Shizukesa no Shi-in entra en enfriamiento durante 6 fases. Kurayami no puede volver a activarlo ni aparecer como opción de ventana de acción hasta completar ese contador.</p>
-          <p><strong>Pasiva Ninja:</strong> mientras Kurayami permanezca activo en arena, los Ninjas aliados situados en el lado rival ganan +1 velocidad y +2 precisión.</p>
+            <p>${power.description
+              .replace('Oculto', hiddenChip)
+              .replace('Golpe crítico 5', criticalChip)}</p>
+          </div>`;
+      } else if (power.id === 'kurayamiNinjaAura') {
+        const ninja = getFamilyProfile?.('ninja');
+        const ninjaChip = ninja
+          ? `<button type="button" class="card-info-inline-chip" data-info-kind="family" data-info-id="ninja"><span>${ninja.label} ★</span></button>`
+          : 'Ninja';
+        const auraHeroHtml = buildPowerHeroHtml(power, card, { summary: power.summary });
+        els.cardMetaInfoBody.innerHTML = `
+          ${auraHeroHtml}
+          <div class="power-detail-lower">
+            <p>Mientras Kurayami permanezca activo en la arena, todas las invocaciones aliadas de familia ${ninjaChip} que estén situadas en el lado rival obtienen <strong>+1 de Velocidad</strong> y <strong>+2 de Precisión</strong>.</p>
           </div>`;
       } else if (power.id === 'sutokaHatsuenDan') {
         const sutokaHeroHtml = buildPowerHeroHtml(power, card, {
@@ -35912,19 +41616,25 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
           <p><strong>II. Pasivo · Familia.</strong> Cualquier <button type="button" class="card-info-inline-chip" data-info-kind="family" data-info-id="ninja"><span>Ninja ★</span></button> aliado dentro de la cortina de una <button type="button" class="card-info-inline-chip" data-info-kind="weapon" data-info-id="smokeBomb"><img src="${SMOKE_BOMB_ICON_ASSET}" alt="Bomba de humo"><span>Bomba de humo</span></button> de Naito sutoka puede beneficiarse de <button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="hidden"><img src="${HIDDEN_FACTOR_ICON_ASSET}" alt="Oculto"><span>Oculto</span></button>. Solo Naito puede lanzar bombas y consumir sus cargas.</p>
           ${bombsHtml}
           </div>`;
+      } else if (power.id === 'bukiUtsushi') {
+        const disarm = getFactorProfile?.('disarm');
+        const disarmChip = disarm
+          ? `<button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="disarm" data-factor-level="3" data-factor-source="assassin"><img src="${disarm.icon}" alt="${disarm.label}"><span>${disarm.label} 3</span></button>`
+          : 'Desarmar 3';
+        const bukiHeroHtml = buildPowerHeroHtml(power, card, { summary: power.summary });
+        els.cardMetaInfoBody.innerHTML = `
+          ${bukiHeroHtml}
+          <div class="power-detail-lower">
+            <p><strong>I. Disparador.</strong> Cada invocación dañada por Kurokage tiene <strong>3 PDA</strong> para ser ${disarmChip}.</p>
+            <p><strong>II. Buki Utsushi.</strong> Kurokage selecciona una de las armas desarmadas disponibles, la recoge con la cadena y la equipa como arma secundaria. El arma capturada transmite únicamente sus estadísticas básicas: tipo de arma, modo de combate, alcance, precisión, daño y naturaleza del daño. No transmite Factores, aplicaciones especiales de daño, Habilidades ni Poderes.</p>
+            <p><strong>III. Activa.</strong> Cuando Kurokage ya posee un arma capturada, puede cambiar entre las armas que tenga disponibles, incluyendo su Kusarigama y el arma capturada.</p>
+          </div>`;
       } else if (power.id === 'densetsuNoSennyu') {
-        const goemonHeroHtml = buildPowerHeroHtml(power, card, {
-          summary: power.summary || 'Poder pasivo de infiltración automática.',
-          tags: power.tags || ['poder', 'pasiva', 'virtual', 'aceleradora', 'movilidad', 'sombras'],
-          classificationOptions: { includeModes: getCardTypeId(card) !== 'spell' }
-        });
+        const goemonHeroHtml = buildPowerHeroHtml(power, card, { summary: power.summary });
         els.cardMetaInfoBody.innerHTML = `
           ${goemonHeroHtml}
           <div class="power-detail-lower">
-          <p><strong>Disparador:</strong> el sistema calcula la ruta válida más corta hasta una casilla libre adyacente al Kaster rival. Si Goemon necesita de <strong>1 a 3 movimientos</strong> para llegar a esa casilla de ataque, activa automáticamente <strong>Densetsu no Sennyū</strong>.</p><p><strong>Cómo se cuenta:</strong> no se cuenta la casilla que ocupa Goemon ni la casilla que ocupa el Kaster. Solo se cuentan los pasos reales de la ruta.</p>
-          <p><strong>Efecto:</strong> Goemon se desplaza por su cuenta hasta una casilla válida adyacente al Kaster rival, usando un rastro de sombras para mostrar el movimiento rápido.</p>
-          <p><strong>Importante:</strong> este poder <strong>no realiza el ataque automáticamente</strong>. Después de llegar a rango, el jugador decide si ataca o no.</p>
-          <p><strong>Sinergia:</strong> si luego Goemon daña al Kaster rival, puede activar <button type="button" class="card-info-inline-chip" data-info-kind="ability" data-info-id="botinValioso"><img src="${getAbilityProfile('botinValioso').icon}" alt="Botín valioso"><span>Botín valioso</span></button> para robar 1 elemento del stock enemigo. Usa <strong>3 PDA</strong> como valor definitivo.</p>
+            <p>${power.description}</p>
           </div>`;
       } else if (power.id === 'tentorou') {
         const movement = MOVEMENT_TYPE_DB.complete;
@@ -35986,18 +41696,6 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
       }
       bindInlineInfoButtons(els.cardMetaInfoBody, card);
     }
-  } else if (kind === 'family') {
-    const familyId = id || 'general';
-    const label = familyId === 'ninja' ? 'Familia Ninja' : `Familia ${familyId}`;
-    if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<div class="meta-info-letter-icon meta-info-letter-icon-small">★</div>`;
-    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = label;
-    if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = 'Sinergia de familia';
-    if (els.cardMetaInfoBody) {
-      els.cardMetaInfoBody.innerHTML = familyId === 'ninja'
-        ? `<p><strong>Resumen:</strong> La familia Ninja agrupa invocaciones de sigilo, movilidad y táctica oportunista.</p>${buildTagListHtml(['familia', 'ninja', 'sinergia', 'movilidad', 'sigilo'])}<p>Cuando Naito Sutoka está en la arena, cualquier Ninja aliado puede beneficiarse de sus bombas de humo. Los Ninjas aliados que permanezcan dentro de la cortina de humo obtienen <button type="button" class="card-info-inline-chip" data-info-kind="factor" data-info-id="hidden"><img src="${HIDDEN_FACTOR_ICON_ASSET}" alt="Oculto"><span>Oculto</span></button> mientras no revelen su posición con una acción dirigida.</p>`
-        : `<p><strong>Resumen:</strong> Esta familia define una sinergia compartida entre cartas relacionadas.</p>`;
-      bindInlineInfoButtons(els.cardMetaInfoBody, card);
-    }
   } else if (kind === 'weaponDetail') {
     const weapon = getWeaponInfoProfile(id);
     const damageNature = card ? getDamageNatureProfile(card) : null;
@@ -36005,7 +41703,7 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     const modeId = profile?.combatMode || profile?.type || 'melee';
     const mode = COMBAT_MODE_DB[modeId] || COMBAT_MODE_DB.melee;
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${weapon.icon}" alt="${weapon.label}">`;
-    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Arma: ${weapon.label}`;
+    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `${getWeaponSemanticContext(weapon, card).root}: ${weapon.label}`;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = getMetaClassificationText({ ...weapon, classification: { applicationModes: [], applicationTags: [], natures: [damageNature?.id || 'physical'], functionalCategories: ['offensive'] } }, 'weapon', { includeModes: false });
     if (els.cardMetaInfoBody) {
       els.cardMetaInfoBody.innerHTML = buildWeaponDetailHtml(weapon, card);
@@ -36025,7 +41723,7 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     }
     const damageNature = card ? getDamageNatureProfile(card) : null;
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${weapon.icon}" alt="${weapon.label}">`;
-    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Arma / ataque: ${weapon.label}`;
+    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `${getWeaponSemanticContext(weapon, card).root}: ${weapon.label}`;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = getMetaClassificationText({ ...weapon, classification: { applicationModes: [], applicationTags: [], natures: [damageNature?.id || 'physical'], functionalCategories: ['offensive'] } }, 'weapon', { includeModes: false });
     if (els.cardMetaInfoBody) {
       els.cardMetaInfoBody.innerHTML = buildWeaponInfoHtml(weapon, card);
@@ -36064,31 +41762,31 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${mode.icon}" alt="${mode.label}">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Modo de combate: ${mode.label}`;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Enfoque: ${mode.focus}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${mode.summary}</p>${buildTagListHtml(mode.tags)}<p>${mode.description}</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${mode.summary}</p>${buildSemanticTagChainHtml([mode.label])}<p>${mode.description}</p>`;
   } else if (kind === 'damageApplication') {
     const app = DAMAGE_APPLICATION_DB[id] || DAMAGE_APPLICATION_DB.oscillationPartial;
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${app.icon}" alt="${app.label}">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Aplicación de daño: ${app.label}`;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Enfoque: ${app.focus}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${app.summary}</p>${buildTagListHtml(app.tags)}<p>${app.description}</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${app.summary}</p>${buildSemanticTagChainHtml(['Aplicación de daño', app.label])}<p>${app.description}</p>`;
   } else if (kind === 'damageNature') {
     const nature = DAMAGE_NATURE_DB[id] || DAMAGE_NATURE_DB.physical;
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<div class="meta-info-letter-icon">${nature.letter}</div>`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Tipo de daño: ${nature.label}`;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Enfoque: ${nature.focus}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${nature.summary}</p>${buildTagListHtml(nature.tags)}<p>${nature.description}</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${nature.summary}</p>${buildSemanticTagChainHtml(['Tipo de daño', nature.label.replace(/^Daño\s+/i, '')])}<p>${nature.description}</p>`;
   } else if (kind === 'attackRange') {
     const info = getAttackRangeMeta(card);
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${info.icon}" alt="Alcance">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = info.label;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Enfoque: ${info.focus}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${info.summary}</p>${buildTagListHtml(info.tags)}<p>${info.description}</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${info.summary}</p>${buildSemanticTagChainHtml(info.semanticTags || ['Estadística ofensiva', 'Alcance'])}<p>${info.description}</p>`;
   } else if (kind === 'attackPrecision') {
     const info = getAttackPrecisionMeta(card);
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${info.icon}" alt="Precisión">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = info.label;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Enfoque: ${info.focus}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${info.summary}</p>${buildTagListHtml(info.tags)}<p>${info.description}</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${info.summary}</p>${buildSemanticTagChainHtml(info.semanticTags || ['Estadística ofensiva', 'Precisión'])}<p>${info.description}</p>`;
   } else if (kind === 'combatEvasionPenalty') {
     const level = Math.max(0, Number(extra?.level || 0));
     const value = Number(extra?.value || -level || 0);
@@ -36115,7 +41813,7 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${PURE_ELEMENT_ASSET}" alt="Elemento puro">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = 'Elemento puro';
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Base ${caster?.pureBase || 0} · Cadencia ${caster?.pureCadence || 0} · Máximo ${caster?.pureMax || 0}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Disponible:</strong> ${caster?.pureElement || 0}/${caster?.pureMax || 0}.</p>${buildTagListHtml(['Elemento puro', 'Kaster', 'recurso', 'habilidades', 'Kasteo'])}<p>El Kaster inicia con 0 y, cada tercera vez que alcanza su propia fase de Kasteo, genera una cantidad igual a su cadencia sin superar el máximo. Las habilidades de Kaster consumen este recurso.</p><div class="meta-pure-element-meter">${renderPureElementMeterHtml(caster)}</div>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Disponible:</strong> ${caster?.pureElement || 0}/${caster?.pureMax || 0}.</p>${buildTagListHtml(['Elemento puro', 'Kaster', 'recurso', 'habilidades', 'Extracción rival'])}<p>El Kaster genera una cantidad igual a su ratio cuando el rival entra en su fase de Extracción, sin superar el máximo. En la progresión nueva, este sistema se desbloquea al nivel 4. Las habilidades de Kaster consumen este recurso.</p><div class="meta-pure-element-meter">${renderPureElementMeterHtml(caster)}</div>`;
   } else if (kind === 'casterAbilityCard') {
     const abilityCard = CARD_LIBRARY[id];
     if (!abilityCard) return;
@@ -36162,7 +41860,7 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<div class="meta-info-heart-icon-wrap"><span class="unit-heart-icon meta-info-heart-icon" aria-hidden="true"></span></div>`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = 'Vida actual y máxima';
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Estado actual: ${current}/${maxLife}${bonus > 0 ? ` · base ${baseLife} +${bonus}` : ''}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> la invocación tiene <strong>${current}</strong> de vida actual y puede recuperarse hasta <strong>${maxLife}</strong>.</p>${buildTagListHtml(['vida actual', 'vida máxima', 'supervivencia', 'estadística primaria'])}<p>La primera cifra representa la vida que conserva en este momento. La segunda representa su límite efectivo actual. Un aumento de vida máxima amplía ese límite, pero no cura automáticamente la vida actual.</p>${bonus > 0 ? `<p><strong>Composición del máximo:</strong> base ${baseLife} + bono ${bonus} = ${maxLife}.</p>` : `<p><strong>Vida máxima base:</strong> ${baseLife}.</p>`}`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> la invocación tiene <strong>${current}</strong> de Vida actual y puede recuperarse hasta <strong>${maxLife}</strong> de Vida máxima.</p>${buildSemanticTagChainHtml(['Estadística defensiva', 'Vida máxima'])}<p>La primera cifra representa la Vida que conserva en este momento y la segunda representa su límite efectivo actual. La curación recupera Vida únicamente hasta alcanzar la Vida máxima y no puede superarla. Si un efecto aumenta la Vida máxima, ese límite se amplía, pero el aumento del máximo no cura automáticamente la Vida actual.</p>${bonus > 0 ? `<p><strong>Composición del máximo actual:</strong> base ${baseLife} + bono ${bonus} = ${maxLife}.</p>` : ''}`;
   } else if (kind === 'lifeMaxBonus') {
     const totalBonus = getCardRuntimeMaxHpBonusTotal(card);
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<div class="meta-info-heart-icon-wrap"><span class="unit-heart-icon meta-info-heart-icon" aria-hidden="true"></span></div>`;
@@ -36177,19 +41875,35 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${getElementCostIcon('random')}" alt="Costo">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = 'Costo de la carta';
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Costo total: ${total} · Distribución: ${summary}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta cuesta ${total} recurso${total === 1 ? '' : 's'} para ser kasteada.</p>${buildTagListHtml(['costo', 'kasteo', 'dominio base', 'aleatorio', 'recursos'])}<p><strong>Distribución actual:</strong> ${getCardCostSummary(card)}</p><p>Primero se cubre el costo fijo del dominio base. Después, si la carta tiene costo aleatorio, esa parte se paga con cualquier elemento disponible restante, incluyendo recursos sobrantes del mismo dominio base.</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta cuesta ${total} recurso${total === 1 ? '' : 's'} para ser casteada.</p>${buildSemanticTagChainHtml(['Estadística de casteo', 'Costo'])}<p>El costo corresponde a la cantidad de elementos disponibles de tu stock que debes consumir para poder castear la carta. Primero se cubre el costo fijo del dominio base. Después, si la carta tiene costo aleatorio, esa parte se paga con cualquier elemento disponible restante, incluyendo recursos sobrantes del mismo dominio base.</p>`;
   } else if (kind === 'castTime') {
     const castTime = Number(card?.castPhases ?? 0);
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<div class="meta-info-svg-wrap">${CAST_ENTRY_ICON_INLINE_SVG}</div>`;
-    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = 'Tiempo de kasteo';
+    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = 'Tiempo de casteo';
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Valor base: ${castTime} fase${castTime === 1 ? '' : 's'}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta requiere ${castTime} fase${castTime === 1 ? '' : 's'} para completar su kasteo.</p>${buildTagListHtml(['kasteo', 'tempo', 'cola', 'fases', 'entrada a la arena'])}<p>El tiempo de kasteo define cuántas fases deben pasar antes de que la invocación materialice su ficha en la arena. En la lógica actual del juego, el kaster procesa su cola de forma secuencial: solo una carta puede estar en kasteo activo al mismo tiempo y las demás esperan su turno.</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta requiere ${castTime} fase${castTime === 1 ? '' : 's'} para completar su casteo.</p>${buildSemanticTagChainHtml(['Estadística de casteo', 'Tiempo de casteo'])}<p>El tiempo de casteo define cuántas fases deben pasar antes de que la invocación materialice su ficha en la arena. El Kaster procesa su cola de forma secuencial: solo una carta puede permanecer en casteo activo al mismo tiempo y las demás esperan su turno. Mientras el Kaster está ejecutando un casteo, sus capacidades de atacar y defenderse permanecen inhabilitadas hasta que esa acción deja de estar activa.</p>`;
   } else if (kind === 'restoreTime') {
     const restoreTime = Number(card?.stats?.restore ?? 0);
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<div class="meta-info-svg-wrap">${RESTORE_ICON_INLINE_SVG}</div>`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = 'Tiempo de restauración';
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Valor base: ${restoreTime} fase${restoreTime === 1 ? '' : 's'}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta necesita ${restoreTime} fase${restoreTime === 1 ? '' : 's'} para salir de restauración.</p>${buildTagListHtml(['restauración', 'reciclaje', 'reingreso', 'tempo', 'respawn'])}<p>Cuando una invocación es destruida, vuelve a su punto de restauración y entra en espera antes de poder reincorporarse al ciclo del Spellbook. Este valor mide el tiempo base de recuperación de la carta antes de quedar otra vez disponible para ser usada.</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta necesita ${restoreTime} fase${restoreTime === 1 ? '' : 's'} para completar su restauración.</p>${buildSemanticTagChainHtml(['Estadística de casteo', 'Restauración'])}<p>La Restauración ocurre cuando una invocación termina un combate de forma efectiva y permanece con vida, o cuando completa un ataque contra el Kaster rival. La invocación vuelve a su Nexo y comienza su tiempo de Restauración. Mientras ese tiempo no haya terminado, permanece en restauración y no está disponible para actuar ni para ser seleccionada normalmente como objetivo. Al completar el contador vuelve a quedar activa desde su Nexo. La Restauración es independiente de la Estasis de Spellbook, que regula cuándo una carta que regresó al Spellbook vuelve a estar disponible para castearse.</p>`;
+  } else if (kind === 'spellbookStasis') {
+    const info = getDisplayedSpellbookCooldown(card);
+    const total = Math.max(0, Number(info.total || 0));
+    const base = Math.max(0, Number(info.base || 0));
+    const learned = Math.max(0, Number(info.learned || 0));
+    if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${SPELLBOOK_COOLDOWN_ICON_ASSET}" alt="Estasis de Spellbook">`;
+    if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = 'Estasis de Spellbook';
+    if (info.mode === 'grants') {
+      if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Modificador aplicado: +${total} fase${total === 1 ? '' : 's'}`;
+      if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta añade <strong>+${total}</strong> fase${total === 1 ? '' : 's'} de Estasis de Spellbook a la copia de Invocación que reciba este efecto.</p>${buildSemanticTagChainHtml(['Estadística de casteo', 'Estasis de Spellbook'])}<p>La Estasis de Spellbook es el enfriamiento que impide volver a castear temporalmente una copia de Invocación después de que esa copia regresa al Spellbook. Este valor transmitido no reemplaza su Estasis base: se suma a ella como un modificador mientras la regla que lo concede permanezca vinculada a esa copia.</p><p>La Estasis de Spellbook es independiente del Tiempo de Restauración. Restauración regula cuándo una Invocación vuelve a quedar activa desde su Nexo; Estasis regula cuándo una copia que ya regresó al Spellbook vuelve a quedar disponible para ser casteada.</p>`;
+    } else {
+      const cost = Math.max(0, Math.floor(Number(getCardTotalCost(card)) || 0));
+      const composition = learned > 0 ? `<p><strong>Composición actual:</strong> ${base} fase${base === 1 ? '' : 's'} base + ${learned} por modificadores = <strong>${total}</strong>.</p>` : '';
+      if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Valor actual: ${total} fase${total === 1 ? '' : 's'}${learned > 0 ? ` · base ${base} + modificadores ${learned}` : ''}`;
+      if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Cuando esta Invocación regresa al Spellbook, su copia permanece en Estasis durante <strong>${total}</strong> fase${total === 1 ? '' : 's'} antes de volver a estar disponible para castearse.</p>${buildSemanticTagChainHtml(['Estadística de casteo', 'Estasis de Spellbook'])}<p>La Estasis de Spellbook funciona como un enfriamiento de reutilización. Mientras su contador sea mayor que 0, la copia permanece bloqueada en el Spellbook y no puede volver a ser casteada. Su valor base se determina de forma inversa al Costo total de la Invocación: Costo 0 = 5 fases, 1 = 4, 2 = 3, 3 = 2, 4 = 1 y 5 o más = 0. Con Costo ${cost}, esta carta tiene una Estasis base de <strong>${base}</strong>.</p><p>Habilidades u otros efectos pueden añadir fases adicionales a esa Estasis sin cambiar su valor base. La Estasis es independiente del Tiempo de Restauración: Restauración actúa sobre la Invocación en su Nexo; Estasis actúa sobre la copia cuando ya regresó al Spellbook.</p>${composition}`;
+    }
   } else if (kind === 'movementType') {
     const movement = getMovementProfile(id || card?.movementType || 'basic');
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${movement.icon}" alt="${movement.label}">`;
@@ -36200,20 +41914,20 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
       const sourceAbility = sourceAbilityId ? getAbilityProfile(sourceAbilityId) : null;
       const sourceHtml = sourceAbility ? `<p><strong>Otorgada por:</strong> <button type="button" class="card-info-inline-chip" data-info-kind="ability" data-info-id="${sourceAbility.id}"><img src="${sourceAbility.icon}" alt="${sourceAbility.label}"><span>${sourceAbility.label}</span></button></p>` : '';
       const completeExtra = movement.id === 'complete' ? `<p><strong>Regla:</strong> La invocación puede moverse libremente en todas las direcciones posibles de la arena mientras tenga velocidad disponible.</p>` : '';
-      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${movement.summary}</p>${buildTagListHtml(movement.tags)}<p>${movement.description}</p>${sourceHtml}${completeExtra}`;
+      els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${movement.summary}</p>${buildSemanticTagChainHtml(['Estadística de desplazamiento', 'Movilidad'])}<p>${movement.description}</p>${sourceHtml}${completeExtra}`;
     }
   } else if (kind === 'speedStat') {
     const speed = Number(card?.stats?.mov ?? 0);
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="assets/icons/factor-velocidad.svg" alt="Velocidad">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Velocidad ${speed}`;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = 'Estadística de desplazamiento';
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta puede recorrer ${speed} casilla${speed === 1 ? '' : 's'} cuando tiene movimiento disponible.</p>${buildTagListHtml(['velocidad', 'desplazamiento', 'movilidad', 'arena'])}<p>La velocidad define cuántas casillas puede recorrer una invocación durante su movimiento. Se interpreta junto con el tipo de movilidad, porque no solo importa cuánto se mueve, sino hacia dónde puede hacerlo.</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> Esta carta puede recorrer ${speed} casilla${speed === 1 ? '' : 's'} cuando aplica su movilidad.</p>${buildSemanticTagChainHtml(['Estadística de desplazamiento', 'Velocidad'])}<p>La Velocidad define cuántas casillas puede recorrer una invocación cuando aplica su Movilidad, ya sea durante la fase de Resolución o cuando una regla, Poder, Habilidad o efecto le habilite movimiento. La Movilidad define el patrón o las direcciones disponibles; la Velocidad define cuánto puede desplazarse.</p>`;
   } else if (kind === 'biotype') {
     const biotype = getBiotypeProfile(id || getEffectiveBiotypeId(card));
     if (els.cardMetaInfoIcon) els.cardMetaInfoIcon.innerHTML = `<img src="${biotype.icon}" alt="${biotype.label}">`;
     if (els.cardMetaInfoTitle) els.cardMetaInfoTitle.textContent = `Biotipo: ${biotype.label}`;
     if (els.cardMetaInfoCategory) els.cardMetaInfoCategory.textContent = `Enfoque: ${biotype.focus}`;
-    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${biotype.summary}</p>${buildTagListHtml(biotype.tags)}<p>${biotype.description}</p>`;
+    if (els.cardMetaInfoBody) els.cardMetaInfoBody.innerHTML = `<p><strong>Resumen:</strong> ${biotype.summary}</p>${buildSemanticTagChainHtml(['Estadística de desplazamiento', 'Biotipo'])}<p>${biotype.description}</p>`;
   } else if (kind === 'domain') {
     els.cardMetaInfoOverlay.dataset.metaTheme = id || '';
     const domain = DOMAIN_ART_DB[id] || getDomainArtProfile(card);
@@ -36239,7 +41953,7 @@ function openCardMetaInfo(kind, id, card = null, extra = {}) {
 
 function closeCardMetaInfo() {
   if (!els.cardMetaInfoOverlay) return;
-  els.cardMetaInfoOverlay.classList.remove('guardian-meta-theme', 'card-element-meta-theme');
+  els.cardMetaInfoOverlay.classList.remove('guardian-meta-theme', 'card-element-meta-theme', 'meta-info-factor-mode');
   els.cardMetaInfoOverlay.style.removeProperty('--meta-theme-color');
   delete els.cardMetaInfoOverlay.dataset.elementTheme;
   state.cardMetaInfoHistory = [];
@@ -38060,10 +43774,10 @@ const SPELLBOOK_COOLDOWN_ICON_ASSET = 'assets/icons/factor-enfriamiento-spellboo
 function getInvocationBaseSpellbookCooldown(card) {
   if (!card || getCardTypeId(card) !== 'invocation') return 0;
   const cost = Math.max(0, Math.floor(Number(getCardTotalCost(card)) || 0));
-  if (cost <= 0) return 5;
-  if (cost === 1) return 3;
-  if (cost === 2) return 1;
-  return 0;
+  // Estasis base inversa al costo: 0→5, 1→4, 2→3, 3→2, 4→1, 5+→0.
+  // Esto hace que las invocaciones muy baratas sean más dinámicas al entrar,
+  // pero paguen esa ventaja permaneciendo más tiempo en Estasis al regresar.
+  return Math.max(0, 5 - Math.min(cost, 5));
 }
 
 function getAbilitySpellbookCooldownContribution(entry) {
@@ -39076,7 +44790,7 @@ function renderEmboscadaRivalSelectionModal() {
   overlay.innerHTML = `<div class="tactica-guerra-selection-shell emboscada-selection-shell">
     <button type="button" class="tactica-guerra-selection-close" aria-label="Cerrar">×</button>
     <header>
-      <img src="${card?.spellIcon || card?.thumbnailImage || 'assets/spell-emboscada.png'}" alt="">
+      <img src="${card?.spellIcon || card?.thumbnailImage || 'assets/spell-emboscada.webp'}" alt="">
       <div><strong>Emboscada</strong><span>Selecciona la invasora rival</span></div>
     </header>
     <p class="tactica-guerra-selection-help">Selecciona la invocación rival que ingresó a tu lado de la arena. Esa unidad será el objetivo exclusivo de todas las invocaciones vinculadas por Emboscada hasta que vuelvan a restaurarse.</p>
@@ -39180,7 +44894,7 @@ function renderEmboscadaAlliedSelectionModal() {
   overlay.innerHTML = `<div class="tactica-guerra-selection-shell emboscada-selection-shell">
     <button type="button" class="tactica-guerra-selection-close" aria-label="Cerrar">×</button>
     <header>
-      <img src="${card?.spellIcon || card?.thumbnailImage || 'assets/spell-emboscada.png'}" alt="">
+      <img src="${card?.spellIcon || card?.thumbnailImage || 'assets/spell-emboscada.webp'}" alt="">
       <div><strong>Emboscada</strong><span>Objetivo: ${escapeHtml(rivalCard?.name || 'Invasora rival')}</span></div>
     </header>
     <p class="tactica-guerra-selection-help">Selecciona una o varias invocaciones aliadas de tu lado. Cada selección consume <strong>1 Agua</strong>. El orden de selección será el orden de colocación de sus nuevos nexos dentro de radio ${EMBOSCADA_RADIUS} alrededor de la invasora. ${pending.quickDefense ? '<strong>Defensa rápida:</strong> se resolverá como instantáneo.' : '<strong>Kasteo normal:</strong> 2 fases.'}</p>
@@ -39636,7 +45350,7 @@ function renderInterceptarAlliedSelectionModal() {
   overlay.innerHTML = `<div class="tactica-guerra-selection-shell interceptar-selection-shell">
     <button type="button" class="tactica-guerra-selection-close" aria-label="Cerrar">×</button>
     <header>
-      <img src="${card?.spellIcon || card?.thumbnailImage || 'assets/spell-interceptar.png'}" alt="">
+      <img src="${card?.spellIcon || card?.thumbnailImage || 'assets/spell-interceptar.webp'}" alt="">
       <div><strong>Interceptar</strong><span>Selecciona tu invocación</span></div>
     </header>
     <p class="tactica-guerra-selection-help">Selecciona una sola invocación aliada activa. Después elegirás la invocación rival que haya ingresado a tu lado de la arena.${pending.artimana ? ' <strong>Artimaña:</strong> se resolverá como instantáneo.' : ' <strong>Kasteo normal:</strong> 2 fases.'}</p>
@@ -39703,7 +45417,7 @@ function renderInterceptarRivalSelectionModal() {
   overlay.innerHTML = `<div class="tactica-guerra-selection-shell interceptar-selection-shell">
     <button type="button" class="tactica-guerra-selection-close" aria-label="Cerrar">×</button>
     <header>
-      <img src="${card?.spellIcon || card?.thumbnailImage || 'assets/spell-interceptar.png'}" alt="">
+      <img src="${card?.spellIcon || card?.thumbnailImage || 'assets/spell-interceptar.webp'}" alt="">
       <div><strong>Interceptar</strong><span>Selecciona la invocación rival</span></div>
     </header>
     <p class="tactica-guerra-selection-help">El nuevo nexo de tu invocación aparecerá automáticamente en la casilla inmediatamente inferior, frente al rival seleccionado.</p>
@@ -40909,6 +46623,7 @@ function renderSpellInfoRows(card) {
   if (els.cardInfoSpellbookCooldown) {
     const cooldownChip = renderSpellbookCooldownChip(card);
     els.cardInfoSpellbookCooldown.innerHTML = cooldownChip ? `<div class="card-info-chip-stack">${cooldownChip}</div>` : '';
+    if (cooldownChip) bindInlineInfoButtons(els.cardInfoSpellbookCooldown, card);
   }
   if (els.cardInfoUtilityFactors) {
     const spellFactors = getCardAllFactors(card);
@@ -40940,28 +46655,43 @@ function enforceDamageApplicationVisibility(card, root = els.cardInfoOverlay) {
 
 
 const CARD_RARITY_ICON_ASSETS = {
+  // Conserva exactamente el orden visual previo de los sprites (1→9).
   ordinary: 'assets/rarities/rarity-ordinary.png',
   uncommon: 'assets/rarities/rarity-uncommon.png',
-  extraordinary: 'assets/rarities/rarity-extraordinary.png',
-  singular: 'assets/rarities/rarity-singular.png',
-  infrequent: 'assets/rarities/rarity-infrequent.png',
-  unusual: 'assets/rarities/rarity-unusual.png',
-  strange: 'assets/rarities/rarity-strange.png',
-  mythic: 'assets/rarities/rarity-mythic.png',
-  legendary: 'assets/rarities/rarity-legendary.png',
+  infrequent: 'assets/rarities/rarity-extraordinary.png',
+  unusual: 'assets/rarities/rarity-singular.png',
+  extraordinary: 'assets/rarities/rarity-infrequent.png',
+  strange: 'assets/rarities/rarity-unusual.png',
+  singular: 'assets/rarities/rarity-strange.png',
+  legendary: 'assets/rarities/rarity-mythic.png',
+  mythic: 'assets/rarities/rarity-legendary.png',
 };
 
 const CARD_RARITY_LABELS = {
   ordinary: 'Ordinaria',
   uncommon: 'Poco ordinaria',
-  extraordinary: 'Extra ordinaria',
-  singular: 'Singular',
   infrequent: 'Infrecuente',
   unusual: 'Inhabitual',
+  extraordinary: 'Extraordinaria',
   strange: 'Extraña',
-  mythic: 'Mítica',
+  singular: 'Singular',
   legendary: 'Legendaria',
+  mythic: 'Mítica',
 };
+
+const CARD_RARITY_META = Object.freeze({
+  ordinary: Object.freeze({ rank: 1, group: 'Bajas (Básicas)', description: 'La carta base, común y corriente. Forma el esqueleto de cualquier mazo.' }),
+  uncommon: Object.freeze({ rank: 2, group: 'Bajas (Básicas)', description: 'Un paso inmediato arriba de la común. Sigue siendo muy vista en los sobres.' }),
+  infrequent: Object.freeze({ rank: 3, group: 'Bajas (Básicas)', description: 'Ya no sale en todos lados, pero los jugadores conseguirán muchas de ellas.' }),
+  unusual: Object.freeze({ rank: 4, group: 'Medias (Especiales)', description: 'Algo que no ocurre habitualmente. Ideal para abrir el nivel de diseño medio.' }),
+  extraordinary: Object.freeze({ rank: 5, group: 'Medias (Especiales)', description: 'Va más allá de lo ordinario. Cartas con mecánicas más complejas.' }),
+  strange: Object.freeze({ rank: 6, group: 'Medias (Especiales)', description: 'Algo raro de ver. Cartas difíciles de comprender o encontrar en la naturaleza.' }),
+  singular: Object.freeze({ rank: 7, group: 'Altas (Supremas)', description: 'Única en su tipo. El puente perfecto y antesala hacia lo legendario.' }),
+  legendary: Object.freeze({ rank: 8, group: 'Altas (Supremas)', description: 'Personajes con historia, reliquias o deidades. Muy baja tasa de aparición.' }),
+  mythic: Object.freeze({ rank: 9, group: 'Altas (Supremas)', description: 'La cúspide del juego. Fuerzas divinas o prohibidas. La joya de la corona.' }),
+});
+
+const CARD_RARITY_ORDER = Object.freeze(['ordinary','uncommon','infrequent','unusual','extraordinary','strange','singular','legendary','mythic']);
 
 function normalizeCardRarityId(rarity = '') {
   const value = String(rarity || '').trim().toLowerCase();
@@ -40994,7 +46724,10 @@ function normalizeCardRarityId(rarity = '') {
 }
 
 function getCardVisualRarity(card) {
-  const forcedId = card?.forceRarityId ? normalizeCardRarityId(card.forceRarityId) : '';
+  // Una carta normal tiene una sola verdad: PB calculado → rareza → ícono/bono.
+  // forceRarityId queda reservado para muestras de booster/debug o un override explícito de desarrollo.
+  const allowForcedRarity = card?.boosterDebugSample === true || card?.allowForcedRarity === true || card?.rarityOverrideMode === 'debug';
+  const forcedId = allowForcedRarity && card?.forceRarityId ? normalizeCardRarityId(card.forceRarityId) : '';
   let scoreRarity = null;
   if (!forcedId) {
     try {
@@ -41004,10 +46737,14 @@ function getCardVisualRarity(card) {
     }
   }
   const id = forcedId || scoreRarity?.rarityId || normalizeCardRarityId(card?.rarity);
+  const meta = CARD_RARITY_META[id] || CARD_RARITY_META.ordinary;
   return {
     id,
     label: forcedId ? (CARD_RARITY_LABELS[id] || 'Ordinaria') : (scoreRarity?.rarityLabel || CARD_RARITY_LABELS[id] || 'Ordinaria'),
     asset: CARD_RARITY_ICON_ASSETS[id] || CARD_RARITY_ICON_ASSETS.ordinary,
+    rank: meta.rank,
+    group: meta.group,
+    description: meta.description,
   };
 }
 
@@ -41042,8 +46779,15 @@ function renderCardInfoRarityBadge(card) {
   badge.className = `card-info-rarity-badge rarity-${rarity.id}`;
   badge.dataset.infoKind = 'battleScoreRarity';
   badge.dataset.infoId = rarity.id;
-  badge.title = `Rareza: ${rarity.label}`;
+  badge.title = `Rareza: ${rarity.label} · nivel ${rarity.rank} de 9`;
+  badge.setAttribute('aria-label', `Consultar rareza ${rarity.label}`);
   badge.innerHTML = `<img src="${rarity.asset}" alt="Rareza ${rarity.label}">`;
+  badge.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    openCardMetaInfo('battleScoreRarity', rarity.id, card);
+  });
   els.cardInfoPreview.appendChild(badge);
   els.cardInfoRarityBadge = badge;
 }
@@ -41142,7 +46886,7 @@ function resolveCardInfoTheme(card, meta = {}) {
   const elementId = getCardElementId(card);
   return {
     elementId,
-    color: getElementColorById(elementId, '#9b4dff'),
+    color: getElementColorById(elementId, '#5400FF'),
     playerId: null,
     source: 'card',
   };
@@ -41165,7 +46909,7 @@ function applyCardMetaInfoTheme(card = null) {
   const mainColor = els.cardInfoOverlay?.style.getPropertyValue('--card-info-theme-color')?.trim();
   const mainElementId = els.cardInfoOverlay?.dataset?.elementId || '';
   const fallbackTheme = sourceCard ? resolveCardInfoTheme(sourceCard, state.infoCard || {}) : null;
-  const color = mainColor || fallbackTheme?.color || '#9b4dff';
+  const color = mainColor || fallbackTheme?.color || '#5400FF';
   els.cardMetaInfoOverlay.classList.add('card-element-meta-theme');
   els.cardMetaInfoOverlay.style.setProperty('--meta-theme-color', color);
   if (mainElementId || fallbackTheme?.elementId) els.cardMetaInfoOverlay.dataset.elementTheme = mainElementId || fallbackTheme.elementId;
@@ -41198,6 +46942,9 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
       card = buildSpellbookPersistentCardInfoViewModel(card, LOCAL_PLAYER_ID, Number(tab), Number(slotIndex));
     }
   }
+  if (getCardTypeId(card) === 'kaster' && (meta?.source === 'libraryBuilder' || meta?.source === 'cardCreator')) {
+    card = buildCasterProgressedInfoCard(card);
+  }
   const isSpell = isSpellCard(card);
   const isAbility = getCardTypeId(card) === 'ability';
   const isSpellLikeSupportCard = isSpell || isAbility;
@@ -41212,6 +46959,7 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
   renderCardInfoRarityBadge(card);
   bindCardInfoName(card);
   setCardInfoType(getCardTypeId(card));
+  renderCasterLevelProgress(card);
   renderCardInfoBattlePointsChip(card);
   updateCardInfoLibraryNav(card.id, meta);
   renderCardInfoMeta(card);
@@ -41290,12 +47038,14 @@ function openCardInfo(cardId, slotIndex, tab, meta = {}) {
   if (els.cardInfoSpellbookCooldown) {
     const cooldownChip = renderSpellbookCooldownChip(card);
     els.cardInfoSpellbookCooldown.innerHTML = cooldownChip ? `<div class="card-info-chip-stack">${cooldownChip}</div>` : '';
+    if (cooldownChip) bindInlineInfoButtons(els.cardInfoSpellbookCooldown, card);
   }
   if (els.cardInfoUtilityFactors) {
     const utilityFactorChips = getCardUtilityFactors(card).map(factorEntry => renderFactorChip(factorEntry, card)).join('');
     els.cardInfoUtilityFactors.innerHTML = utilityFactorChips ? `<div class="card-info-chip-stack card-info-chip-stack-factors">${utilityFactorChips}</div>` : '';
     if (utilityFactorChips) bindInlineInfoButtons(els.cardInfoUtilityFactors, card);
   }
+  if (getCardTypeId(card) === 'kaster' && (meta?.source === 'libraryBuilder' || meta?.source === 'cardCreator')) renderLibraryCasterSystemRows(card);
   renderCardInfoCooldownTray(card, { show: true });
   enforceDamageApplicationVisibility(card);
   els.cardInfoOverlay.classList.add('open');
@@ -41333,6 +47083,7 @@ function openKasterInfo(playerId) {
   bindCardInfoName(entityCard);
   const statusLabel = isCasterInOwnSide(playerId) ? 'Kaster · zona aliada' : 'Kaster · zona enemiga';
   setCardInfoType('kaster', statusLabel);
+  renderCasterLevelProgress(null);
   renderCardInfoBattlePointsChip(entityCard);
   renderCardInfoMeta(entityCard);
   renderCardInfoSummaryTags(entityCard);
@@ -41755,6 +47506,16 @@ function startKastFromInfo() {
 function handleKeyDown(event) {
   const key = event.key;
 
+  if (isTokenTuningToolOpen()) {
+    if (key === 'Escape') {
+      const closeBtn = tokenTuningState.ui?.panel?.querySelector?.('.token-tuning-close');
+      closeBtn?.click?.();
+    }
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    return;
+  }
+
   if (state.hattoriAbilitySelectionActive || state.hattoriReactionPromptActive || state.tokugawaAbilitySelectionActive) {
     if (key === 'Escape' && state.hattoriAbilitySelectionActive) closeHattoriAbilitySelection('cancelled');
     if (key === 'Escape' && state.tokugawaAbilitySelectionActive) cancelTokugawaReposition('cancelled');
@@ -41775,6 +47536,10 @@ function handleKeyDown(event) {
     if (getGloriaLatenteQuickCastMode()) {
       closeCardInfo();
       resolveGloriaLatenteQuickReactionDecision(false, 'cancelled');
+      return;
+    }
+    if (['farolEnlazadoLamp', 'farolEnlazadoCircle'].includes(String(state.pendingPowerAction?.kind || ''))) {
+      cancelFarolEnlazadoTargeting();
       return;
     }
     if (state.pendingPowerAction?.kind === 'despliegueAnticipadoTarget') {
@@ -41894,6 +47659,8 @@ function cancelCapturedQuickReactionAction() {
   let cancelled = false;
 
   if (isEmboscadaTargetingKind(kind)) cancelled = cancelEmboscadaTargeting('Emboscada cancelada.');
+  else if (kind === 'minokageShippuUgachi') cancelled = cancelMinokagePowerTargeting('Shippū Ugachi cancelado.');
+  else if (kind === 'kaguyaChargedShot') cancelled = cancelKaguyaChargedShotTargeting('Disparo energizado cancelado.');
   else if (['tacticaGuerraSelection', 'tacticaGuerraDestination'].includes(kind)) cancelled = cancelTacticaGuerraTargeting('Táctica de guerra cancelada.');
   else if (['interceptarAlliedSelection', 'interceptarRivalSelection'].includes(kind)) cancelled = cancelInterceptarTargeting('Interceptar cancelado.');
   else if (kind === 'gloriaLatenteTarget') cancelled = cancelGloriaLatenteTargeting('Gloria latente cancelada.');
@@ -41905,6 +47672,16 @@ function cancelCapturedQuickReactionAction() {
   else if (kind === 'gurenGanLocation') cancelled = cancelGurenGanLocationTargeting('Guren Gan cancelado.');
   else if (kind === 'despliegueAnticipadoTarget') cancelled = cancelDespliegueAnticipadoTargeting('Despliegue anticipado cancelado.');
 
+  if (!cancelled && flow.actionSelectionActive) {
+    clearQuickReactionActionSelection({ render: false });
+    clearQuickReactionCommandDock();
+    flow.locked = false;
+    flow.active = false;
+    flow.executing = false;
+    finishQuickReactionPhaseIntro('cancelled');
+    cancelled = true;
+  }
+
   if (!cancelled) {
     const dockVisible = Boolean(document.getElementById('quickReactionCommandDock')?.classList?.contains('visible'));
     const modalVisible = Boolean(els.quickReactionModal?.classList?.contains('visible'));
@@ -41914,7 +47691,7 @@ function cancelCapturedQuickReactionAction() {
     }
   }
 
-  if (cancelled && (flow.phaseIntro || flow.locked || flow.active || flow.executing)) {
+  if (cancelled && !flow.actionSelectionActive && (flow.phaseIntro || flow.locked || flow.active || flow.executing)) {
     forceReleaseQuickReactionManualPowerFlow('cancelled');
   }
   if (cancelled) {
@@ -41929,6 +47706,11 @@ function cancelCurrentCancelableAction() {
     finishOffTurnCasterReposition('cancelled');
     hideQuickReactionCancelHint();
     renderAll();
+    return true;
+  }
+  if (['farolEnlazadoLamp', 'farolEnlazadoCircle'].includes(String(state.pendingPowerAction?.kind || ''))) {
+    cancelFarolEnlazadoTargeting('Farol Enlazado cancelado.');
+    hideQuickReactionCancelHint();
     return true;
   }
   if (state.pendingPowerAction?.kind === 'smokeBomb') {
@@ -42084,6 +47866,10 @@ function selectCardSlot(slotIndex) {
     log('Ese espacio está vacío.');
     return;
   }
+  const card = CARD_LIBRARY[cardId];
+  // Etapa 3 · una carta sin elementos hábiles queda realmente inhabilitada en
+  // el Spellbook. No abre el modal para descubrir después que no puede pagarse.
+  if (card && !canPayCardCostForPlayer(LOCAL_PLAYER_ID, card)) return;
   state.selectedCardSlot = slotIndex;
   state.infoCard = { cardId, slotIndex, tab: state.activeTab };
   state.pendingCard = null;
@@ -42132,6 +47918,7 @@ function selectCasterPlacement(key) {
 }
 
 function handleCellClick(row, col) {
+  if (isTokenTuningToolOpen()) return;
   if (state.actionExecutionLock) {
     log('Espera a que termine la acción en curso antes de mover o seleccionar otra cosa.');
     return;
@@ -42142,7 +47929,9 @@ function handleCellClick(row, col) {
     return;
   }
   if (state.pendingPowerAction) {
-    if (state.pendingPowerAction.kind === 'cargaRealLocation') resolveCargaRealLocation(LOCAL_PLAYER_ID, row, col);
+    if (state.pendingPowerAction.kind === 'farolEnlazadoCircle') resolveFarolEnlazadoCircleTarget(Number(state.pendingPowerAction.playerId), state.pendingPowerAction.unitId, row, col);
+    else if (state.pendingPowerAction.kind === 'farolEnlazadoLamp') resolveFarolEnlazadoLamp(Number(state.pendingPowerAction.playerId), state.pendingPowerAction.unitId, row, col);
+    else if (state.pendingPowerAction.kind === 'cargaRealLocation') resolveCargaRealLocation(LOCAL_PLAYER_ID, row, col);
     else if (['kouutenLocation', 'kouutenRecastLocation'].includes(state.pendingPowerAction.kind)) resolveKouutenLocation(LOCAL_PLAYER_ID, row, col);
     else if (state.pendingPowerAction.kind === 'gurenGanLocation') resolveGurenGanLocation(LOCAL_PLAYER_ID, row, col);
     else if (state.pendingPowerAction.kind === 'smokeBomb') resolveSmokeBombAt(row, col);
@@ -42453,11 +48242,14 @@ function renderRandomCostSelector() {
   const remaining = Math.max(0, payment.needed - selectedTotal);
   const isGioshoninPayment = payment.mode === 'gioshoninSupply';
   const isKishimotoPayment = payment.mode === 'kishimotoLimits';
+  const isTakedaOldFriendPayment = payment.mode === 'takedaOldFriend';
   if (els.randomCostTitle) els.randomCostTitle.textContent = isGioshoninPayment
     ? 'Mercancía de guerra · Pago de elementos'
     : isKishimotoPayment
       ? 'Límites Superados · Pago de elementos'
-      : `Costo aleatorio · ${card?.name || 'Carta'}`;
+      : isTakedaOldFriendPayment
+        ? 'El viejo amigo · Pago de elementos'
+        : `Costo aleatorio · ${card?.name || 'Carta'}`;
   if (els.randomCostBody) {
     const fixedHtml = (payment.fixedEntries || []).map(entry => `
       <div class="random-cost-locked-entry">
@@ -42468,7 +48260,9 @@ function renderRandomCostSelector() {
       ? `<p>Selecciona exactamente ${payment.needed} elemento${payment.needed === 1 ? '' : 's'} que Gioshonin consumirá para restaurar el recurso de la invocación aliada.</p><p>Este pago no cambia el costo del Spellbook ni utiliza la Fuente directamente: consume recursos que ya extrajiste durante la partida.</p>`
       : isKishimotoPayment
         ? `<p>Selecciona exactamente ${payment.needed} elementos cualesquiera de tu stock.</p><p>Al confirmar, Kishimoto los consumirá para aumentar en 1 tu límite de invocaciones mientras permanezca activo en arena.</p>`
-        : `
+        : isTakedaOldFriendPayment
+          ? `<p>Selecciona exactamente ${payment.needed} elementos cualesquiera de tu stock para activar <strong>El viejo amigo</strong>.</p><p>Miyamoto Musashi será kasteado de forma instantánea desde tu Spellbook y entrará con su restauración triplicada.</p>`
+          : `
       <p>Selecciona el elemento a consumir para cubrir la parte aleatoria del costo.</p>
       <p><strong>Costo base obligatorio:</strong> estos recursos ya quedan reservados primero.</p>
       <div class="random-cost-locked-list">${fixedHtml}</div>
@@ -42535,6 +48329,10 @@ function confirmRandomCostSelection() {
     resolveKishimotoLimitsPayment({ ...payment }, selection);
     return;
   }
+  if (payment.mode === 'takedaOldFriend') {
+    void resolveTakedaOldFriendCostPayment({ ...payment }, selection);
+    return;
+  }
   completeCastPaymentAndQueue(selection);
 }
 
@@ -42548,7 +48346,14 @@ function cancelRandomCostSelection() {
     return;
   }
   if (mode === 'kishimotoLimits') {
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'kishimotoLimits' });
     log('Pago de Límites Superados cancelado.');
+    renderAll();
+    return;
+  }
+  if (mode === 'takedaOldFriend') {
+    resolveQuickReactionDeferredInvocationAction('cancelled', { actionId: 'takedaOldFriend' });
+    log('El viejo amigo: pago cancelado. Takeda conserva la oportunidad para un cambio de fase posterior.');
     renderAll();
     return;
   }
@@ -42650,20 +48455,204 @@ function getPlayerHandCardIds(playerId) {
   return player.handTabs.flat().filter(Boolean);
 }
 
+function getBattleSpellbookSpecialCastAvailability(playerId, card) {
+  if (!card) return { available: false, message: 'Carta no disponible.' };
+  if (card.id === SHIRAHADORI_ABILITY_CARD_ID) return getShirahadoriAbilityCastAvailability(playerId);
+  if (card.id === DESPLIEGUE_ANTICIPADO_CARD_ID) return getDespliegueAnticipadoCastAvailability(playerId);
+  if (card.id === GLORIA_LATENTE_CARD_ID) return getGloriaLatenteCastAvailability(playerId);
+  if (card.id === TACTICA_GUERRA_CARD_ID) return getTacticaGuerraCastAvailability(playerId);
+  if (card.id === INTERCEPTAR_CARD_ID) return getInterceptarCastAvailability(playerId);
+  if (card.id === EMBOSCADA_CARD_ID) return getEmboscadaCastAvailability(playerId);
+  return { available: true, message: '' };
+}
+
+function hasBattleSpellbookPlacementOpportunity(playerId, card) {
+  if (!card) return false;
+  const typeId = getCardTypeId(card);
+  // Los hechizos resuelven su propia referencia/objetivo. Las invocaciones y
+  // estructuras sí necesitan una casilla legal alrededor del Kaster antes de
+  // poder considerarse un kasteo real disponible.
+  if (typeId !== 'invocation' && typeId !== 'structure') return true;
+  const caster = state.players?.[playerId]?.caster;
+  if (!caster) return false;
+  const deltas = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  return deltas.some(([dr, dc]) => canUseCastReferenceCell(card, Number(caster.row) + dr, Number(caster.col) + dc, playerId));
+}
+
+function getBattleSpellbookCastingAvailability(playerId, card, tabIndex, slotIndex) {
+  if (!card) return { available: false, reason: 'missing' };
+  if (isCasterAbilityCard(card)) return { available: false, reason: 'caster-ability' };
+  if (Number(state.activePlayer) !== Number(playerId) || currentPhase().id !== 'casting') {
+    return { available: false, reason: 'phase' };
+  }
+  if (!isCasterInOwnSide(playerId)) return { available: false, reason: 'caster-zone' };
+  if (getSpellbookUseCooldown(playerId, tabIndex, slotIndex) > 0) return { available: false, reason: 'cooldown' };
+  const payment = getCostPaymentStatus(playerId, card);
+  if (!payment.ok) return { available: false, reason: 'cost', payment };
+  if (getCardTypeId(card) === 'spell') {
+    const spellUserStatus = canCasterUseSpell(playerId, card);
+    if (!spellUserStatus.ok) return { available: false, reason: 'spell-user', message: spellUserStatus.message };
+  }
+  const limitStatus = canQueueInvocationForPlayer(playerId, card);
+  if (!limitStatus.ok) return { available: false, reason: 'invocation-limit', message: limitStatus.message };
+  if (!hasBattleSpellbookPlacementOpportunity(playerId, card)) return { available: false, reason: 'placement' };
+  const special = getBattleSpellbookSpecialCastAvailability(playerId, card);
+  if (!special.available) return { available: false, reason: 'special', message: special.message };
+  return { available: true, reason: 'ready', payment };
+}
+
 function canPlayerCastAnyCard(playerId) {
   const player = state.players[playerId];
-  if (!player) return false;
-  if (currentPhase().id !== 'casting') return false;
-  if (!isCasterInOwnSide(playerId)) return false;
+  if (!player || currentPhase().id !== 'casting' || Number(state.activePlayer) !== Number(playerId)) return false;
   return (player.handTabs || []).some((tab, tabIndex) => (tab || []).some((cardId, slotIndex) => {
     const card = CARD_LIBRARY[cardId];
-    return card && getSpellbookUseCooldown(playerId, tabIndex, slotIndex) <= 0 && !isCasterAbilityCard(card) && canPayCardCostForPlayer(playerId, card);
+    return Boolean(card && getBattleSpellbookCastingAvailability(playerId, card, tabIndex, slotIndex).available);
   }));
 }
 
 
+// =========================================================
+// ROK v5.7.284 · Etapa 3 · avance automático sin acciones
+// =========================================================
+const NO_ACTION_PHASE_CHECK_DELAY_MS = 140;
+const noActionPhaseRuntime = {
+  timer: null,
+  advancing: false,
+  lastReason: '',
+  lastPhaseKey: '',
+  autoAdvanceCount: 0,
+};
+
+function getNoActionPhaseKey() {
+  return `${Number(state.turnSerial || 0)}:${Number(state.activePlayer || 0)}:${Number(state.phaseIndex || 0)}:${currentPhase()?.id || 'unknown'}`;
+}
+
+function hasPlayerVoluntaryBattleActionNow(playerId) {
+  const player = state.players?.[playerId];
+  if (!player || Number(state.activePlayer) !== Number(playerId)) return false;
+  if (canActivateTokugawaNativeAbility?.(playerId)) return true;
+  if (buildHattoriQuickReactionCandidate?.(playerId)) return true;
+  for (const unit of player.units || []) {
+    if (!unit || unit.status === 'restoring') continue;
+    if (getVoluntaryPowerActionDescriptorsNow(playerId, unit, { phaseTransition: false }).length > 0) return true;
+  }
+  const kouuten = getKouutenProgressiveState?.(playerId, false);
+  if (kouuten?.active && (kouuten.armed || (!kouuten.awaitingResolution && canPayKouutenRecastCost(playerId)))) return true;
+  return false;
+}
+
+function hasCasterResolutionMovement(playerId) {
+  const caster = state.players?.[playerId]?.caster;
+  if (!caster || Number(caster.movesLeft || 0) <= 0) return false;
+  const deltas = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  return deltas.some(([dr, dc]) => {
+    const row = Number(caster.row) + dr;
+    const col = Number(caster.col) + dc;
+    return isInside(row, col) && !isMovementStepBlockedForPlayer(row, col, playerId, caster.movesLeft ?? 1);
+  });
+}
+
+function canPlayerPerformAnyResolutionAction(playerId) {
+  const player = state.players?.[playerId];
+  if (!player || currentPhase().id !== 'resolution' || Number(state.activePlayer) !== Number(playerId)) return false;
+  if (getKurokagiBukiStageBlocker(playerId)) return true;
+  if (hasPlayerVoluntaryBattleActionNow(playerId)) return true;
+  if (hasCasterResolutionMovement(playerId)) return true;
+  const casterSource = buildCasterAttackSource(playerId, { allowAi: true });
+  if (casterSource && getTargetsInRangeForSource(casterSource).length > 0) return true;
+
+  for (const unit of player.units || []) {
+    if (!unit || unit.status === 'restoring' || unitHasParalysis(unit)) continue;
+    if (unitHasKurokagiBukiPickupReady(unit)) return true;
+    if (!unit.minokageChanneling && !unit.kaguyaChanneling && getInvocationMovementOptionsForUnit(playerId, unit).length > 0) return true;
+    if (unitHasAttackSpentThisResolution(unit) || unit.minokageChanneling || unit.kaguyaChanneling) continue;
+    if (getTargetsInRangeForUnit(playerId, unit).length > 0) return true;
+  }
+  return false;
+}
+
+function isAutomaticNoActionPhaseCheckBusy() {
+  if (!isBattleHudScreenActive() || state.gameOver) return true;
+  if (Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID)) return true;
+  if (schedulePhaseIntroFlow?.active || schedulePhaseStartActions?.timer) return true;
+  if (state.extractionAnimating || state.aiThinking || state.opponentActionResolving || state.opponentActionNoticeAwaiting) return true;
+  if (state.actionExecutionLock || isGlobalGameplayPaused()) return true;
+  if (hasPendingCastTravelResolutions()) return true;
+  if (state.pendingPowerAction || state.randomCostPayment || state.hattoriAbilitySelectionActive || state.hattoriReactionPromptActive || state.tokugawaAbilitySelectionActive) return true;
+  if (state.offTurnCasterReposition?.active) return true;
+  if (isQuickReactionFlowBlockingInput() || isQuickReactionPromptVisible()) return true;
+  if (document.querySelector('.transition-overlay.show, #quickReactionModal.visible, #quickReactionCommandDock.visible')) return true;
+  return false;
+}
+
+function maybeAutoAdvanceNoActionPhase(reason = 'state-settled') {
+  if (noActionPhaseRuntime.advancing || isAutomaticNoActionPhaseCheckBusy()) return false;
+  const playerId = Number(state.activePlayer);
+  const phaseId = currentPhase().id;
+  if (!['casting', 'resolution'].includes(phaseId)) return false;
+
+  if (phaseId === 'casting') {
+    if (state.pendingCard || canPlayerCastAnyCard(playerId) || hasPlayerVoluntaryBattleActionNow(playerId)) return false;
+    noActionPhaseRuntime.advancing = true;
+    noActionPhaseRuntime.lastReason = reason;
+    noActionPhaseRuntime.lastPhaseKey = getNoActionPhaseKey();
+    noActionPhaseRuntime.autoAdvanceCount += 1;
+    try {
+      autoAdvanceCastingToResolution(playerId, { reason: 'no-actions' });
+      try { markBattleActivity('auto-no-casting-actions'); } catch (_) {}
+      if (isOnlineMatchActive()) void commitOnlineStateBarrier(`auto-no-casting-actions:${noActionPhaseRuntime.lastPhaseKey}`);
+      return true;
+    } finally {
+      noActionPhaseRuntime.advancing = false;
+    }
+  }
+
+  if (canPlayerPerformAnyResolutionAction(playerId)) return false;
+  noActionPhaseRuntime.advancing = true;
+  noActionPhaseRuntime.lastReason = reason;
+  noActionPhaseRuntime.lastPhaseKey = getNoActionPhaseKey();
+  noActionPhaseRuntime.autoAdvanceCount += 1;
+  try {
+    log(`Jugador ${playerId}: sin acciones disponibles en Resolución. Entrega el turno automáticamente.`);
+    try { markBattleActivity('auto-no-resolution-actions'); } catch (_) {}
+    nextPhase(true);
+    if (isOnlineMatchActive()) void commitOnlineStateBarrier(`auto-no-resolution-actions:${noActionPhaseRuntime.lastPhaseKey}`);
+    return true;
+  } finally {
+    noActionPhaseRuntime.advancing = false;
+  }
+}
+
+function scheduleAutomaticNoActionPhaseCheck(reason = 'state-change', delay = NO_ACTION_PHASE_CHECK_DELAY_MS) {
+  clearTimeout(noActionPhaseRuntime.timer);
+  const scheduledPhaseKey = getNoActionPhaseKey();
+  noActionPhaseRuntime.timer = setTimeout(() => {
+    noActionPhaseRuntime.timer = null;
+    // Un render de la fase anterior nunca puede cerrar la fase siguiente.
+    if (scheduledPhaseKey !== getNoActionPhaseKey()) return;
+    maybeAutoAdvanceNoActionPhase(reason);
+  }, Math.max(40, Number(delay) || NO_ACTION_PHASE_CHECK_DELAY_MS));
+}
+
+window.ROK_NO_ACTION_PHASE = {
+  check: () => maybeAutoAdvanceNoActionPhase('manual-check'),
+  getState: () => ({
+    advancing: noActionPhaseRuntime.advancing,
+    lastReason: noActionPhaseRuntime.lastReason,
+    lastPhaseKey: noActionPhaseRuntime.lastPhaseKey,
+    autoAdvanceCount: noActionPhaseRuntime.autoAdvanceCount,
+    canCast: currentPhase().id === 'casting' ? canPlayerCastAnyCard(state.activePlayer) : null,
+    canResolve: currentPhase().id === 'resolution' ? canPlayerPerformAnyResolutionAction(state.activePlayer) : null,
+  }),
+};
+
+
 function checkRiskZoneAttack(playerId, unit) {
   if (!unit || unit.status === 'restoring') return false;
+  if (unitBindingBlocksAttack(unit)) {
+    log(`${CARD_LIBRARY[unit.cardId]?.name || 'Invocación'} alcanza la zona de riesgo, pero Atadura bloquea su ataque durante esta fase.`);
+    return false;
+  }
   const riskRow = getEnemyRiskRow(playerId);
   if (unit.row !== riskRow) return false;
   const card = CARD_LIBRARY[unit.cardId];
@@ -42717,7 +48706,7 @@ function restoreInvocation(playerId, unit, reason = 'restauración') {
     && (unit?.kurokagiBukiResolutionPending || unitHasKurokagiBukiPickupReady(unit))
   ) {
     unit.movesLeft = 0;
-    log('Kurokagi no se restaura todavía: debe completar Buki Utsushi con el arma que acaba de desarmar.');
+    log('Kurokage no se restaura todavía: debe completar Buki Utsushi con el arma que acaba de desarmar.');
     return false;
   }
   cancelMinokageChargesTargetingUnit(playerId, unit?.id, 'la invocación objetivo dejó la arena');
@@ -42983,6 +48972,10 @@ function clearTransientBattleUiForRestart() {
 }
 
 function cancelBattleRuntimeForRestart(reason = 'match-reset') {
+  try { stopRpsInitiativeRuntime(reason); } catch (_) {}
+  try { resetOpeningElementIntroRuntime(reason); } catch (_) {}
+  try { releaseGameMenuOfflinePause(); } catch (_) {}
+  try { resetBattleInactivityRuntime(reason); } catch (_) {}
   try { window.ROK_ONLINE_FX?.cancelAll?.(); } catch (_) {}
   // Cualquier frame/microtask visual todavía pendiente pertenece al match que
   // está cerrando. Se invalida antes de tocar el estado nuevo.
@@ -43088,19 +49081,39 @@ function replaceBattleStateForNewMatch(options = {}) {
   return state;
 }
 
-function startFreshBattleRuntimeAfterReset(options = {}) {
-  initializeElementDecks();
-  prepareStartingElementStocks();
-  enterPhase(true, true);
-  renderAll();
-  const introTransitions = [
-    { text: options.title || 'NUEVA PARTIDA', playerId: 1, duration: 1000 },
-    { text: '10 ELEMENTOS INICIALES', playerId: 1, duration: 880 },
-  ];
-  queueTransitions(introTransitions);
-  if (!isOnlineMatchActive() || Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) {
-    schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+function getOfflineRematchLoadout(playerId = 1) {
+  try {
+    const selectedId = String(state.players?.[playerId]?.selectedSpellbookId || '');
+    if (!selectedId) return null;
+    loadSpellbookStorage();
+    const spellbook = getSavedSpellbookById(selectedId);
+    if (!spellbook || getSpellbookMatchIssue(spellbook)) return null;
+    return serializeSpellbookMatchLoadout(spellbook);
+  } catch (_) {
+    return null;
   }
+}
+
+function startFreshBattleRuntimeAfterReset(options = {}) {
+  resetBattleInactivityRuntime('fresh-battle-runtime');
+  initializeElementDecks();
+  renderAll();
+  void runInitiativeSelection({ mode: 'bot', localPlayerId: 1, matchSerial: state.matchSerial }).then(async winner => {
+    if (!winner || !mainMenuBattleStarted || state.gameOver) return;
+    state.activePlayer = winner;
+    if (String(state.matchMode || '') === TEST_MATCH_MODE_ID) prepareTestMatchRuntime();
+    else prepareStartingElementStocks();
+    enterPhase(true, true);
+    renderAll();
+    if (String(state.matchMode || '') === TEST_MATCH_MODE_ID) {
+      const introTransitions = [{ text: 'EXTRACCIÓN', playerId: winner, duration: 900 }];
+      queueTransitions(introTransitions);
+      schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+      return;
+    }
+    await playOpeningElementIntro();
+    if (!isOnlineMatchActive() || Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) schedulePhaseStartActions(0);
+  });
 }
 
 function resetBattleForRematch(preserveWins = true) {
@@ -43112,8 +49125,21 @@ function resetBattleForRematch(preserveWins = true) {
     });
     return;
   }
-  replaceBattleStateForNewMatch({ preserveWins, aiEnabled: state.aiEnabled, reason: 'offline-rematch' });
-  startFreshBattleRuntimeAfterReset();
+
+  // Una revancha offline debe conservar la CONFIGURACIÓN del duelo, no el
+  // runtime del duelo que acaba de morir. Guardamos únicamente el Spellbook y
+  // el modo, reconstruimos INITIAL_BATTLE_STATE y volvemos a pasar por la
+  // iniciativa antes de repartir recursos o entrar en una fase.
+  const localLoadout = getOfflineRematchLoadout(1);
+  const previousMatchMode = String(state.matchMode || 'normal');
+  const previousAiEnabled = Boolean(state.aiEnabled);
+  replaceBattleStateForNewMatch({ preserveWins, aiEnabled: previousAiEnabled, reason: 'offline-rematch' });
+  state.matchMode = previousMatchMode;
+  if (localLoadout) applySpellbookLoadoutToPlayer(1, localLoadout);
+  else applyEffectiveCasterStatsToRuntimePlayer(1);
+  applyEffectiveCasterStatsToRuntimePlayer(2);
+  if (previousMatchMode === TEST_MATCH_MODE_ID) configureTestBotPlayer(2);
+  startFreshBattleRuntimeAfterReset({ matchMode: previousMatchMode });
 }
 
 function exitMatchToMainMenu() {
@@ -43155,6 +49181,11 @@ function showMatchResultOverlay(winnerPlayerId, defeatedPlayerId) {
 
 function handleCasterDefeat(defeatedPlayerId, winnerPlayerId = null) {
   if (state.gameOver) return;
+  state.gameOver = true;
+  // El match termina aquí, no cuando el usuario pulsa un botón del resultado.
+  // Invalida timers, resoluciones, transiciones y ventanas de la partida
+  // derrotada para que ninguna tarea pueda escribir sobre una revancha nueva.
+  cancelBattleRuntimeForRestart('match-finished');
   state.gameOver = true;
   const winner = Number(winnerPlayerId) && Number(winnerPlayerId) !== Number(defeatedPlayerId)
     ? Number(winnerPlayerId)
@@ -43243,20 +49274,50 @@ function announceOnlineMatchStarted(options = {}) {
   document.getElementById('matchResultOverlay')?.remove();
   clearTransientBattleUiForRestart();
   renderAll();
-  const introTransitions = [
-    { text: serial > 1 ? 'NUEVA PARTIDA' : 'INICIA EL COMBATE', playerId: 1, duration: 1000 },
-    { text: '10 ELEMENTOS INICIALES', playerId: 1, duration: 880 },
-  ];
-  queueTransitions(introTransitions);
-  if (Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) {
-    schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
-  }
+  const localSlot = Number(window.ROK_ONLINE_PVP?.getSession?.().playerSlot || LOCAL_PLAYER_ID || 1);
+
+  // PvP usa una compuerta real de inicio. Hasta que Piedra/Papel/Tijera no se
+  // resuelva no existen recursos iniciales ni una fase jugable.
+  void runInitiativeSelection({ mode: 'online', localPlayerId: localSlot, matchSerial: serial }).then(async winner => {
+    if (!winner || !isOnlineMatchActive() || Number(state.matchSerial || 0) !== serial) return;
+    if (localSlot === 1) {
+      state.activePlayer = winner;
+      prepareStartingElementStocks();
+      enterPhase(true, true);
+      state.actionExecutionLock = true;
+      state.actionExecutionLockReason = 'opening-intro';
+      renderAll();
+      try { await window.ROK_ONLINE_PVP?.commitStateBarrier?.('initiative-rps-resolved'); } catch (_) {}
+    } else {
+      const deadline = Date.now() + 6500;
+      while (Date.now() < deadline) {
+        const ready = Number(state.matchSerial || 0) === serial
+          && Number(state.activePlayer) === Number(winner)
+          && Boolean(state.openingElementsDealt)
+          && String(state.actionExecutionLockReason || '') === 'opening-intro';
+        if (ready) break;
+        await new Promise(resolve => window.setTimeout(resolve, 80));
+      }
+      if (!state.openingElementsDealt || Number(state.matchSerial || 0) !== serial) return;
+    }
+
+    await playOpeningElementIntro();
+    if (String(state.actionExecutionLockReason || '') === 'opening-intro') {
+      state.actionExecutionLock = false;
+      state.actionExecutionLockReason = '';
+      renderPhaseUI();
+    }
+    if (Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) schedulePhaseStartActions(0);
+  });
   return true;
 }
 
 function showOnlineMatchFinished(control = {}) {
   const winner = Number(control.winnerPlayer || 0);
   const defeated = Number(control.defeatedPlayer || (winner ? getOpponentId(winner) : 0));
+  const alreadyFrozen = state.gameOver === true && String(state.actionExecutionLockReason || '') === 'match-finished';
+  state.gameOver = true;
+  if (!alreadyFrozen) cancelBattleRuntimeForRestart('online-match-finished');
   state.gameOver = true;
   state.aiThinking = false;
   state.enemyResolutionRunning = false;
@@ -43484,8 +49545,8 @@ function findAiCastCandidate(playerId) {
     return null;
   }
 
-  // El viejo amigo debería traer a Musashi automáticamente. Si la invocación
-  // falló por falta de casilla u otra interrupción, Musashi conserva prioridad.
+  // El viejo amigo ahora es una activa con ventana de acción. Si Takeda no la
+  // ha consumido o el llamado no pudo resolverse, Musashi conserva prioridad normal.
   if (!hasAiCardPresence(playerId, 'miyamotoMusashi')) {
     const takedaActive = (state.players?.[playerId]?.units || []).some(unit => unit && unit.status !== 'restoring' && isTakedaUnit(unit));
     if (!takedaActive) return null;
@@ -44505,7 +50566,7 @@ function createCombatSideNode(side, opponentSide = null) {
   const elementId = getUnitElementId(side.playerId, side.unit);
   const element = getElementById(elementId);
   row.dataset.elementId = elementId;
-  row.style.setProperty('--combat-element-color', element?.color || '#9b4dff');
+  row.style.setProperty('--combat-element-color', element?.color || '#5400FF');
   if ((side.unit.damageFlashUntil || 0) > Date.now()) row.classList.add('damage-flash');
 
   const mini = document.createElement('div');
@@ -44951,8 +51012,66 @@ function setHudMode(mode) {
   log(`HUD ${state.hudMode === 'overlay' ? 'overlay' : 'anclado'} seleccionado.`);
 }
 
+const GAME_MENU_GAMEPLAY_PAUSE_TOKEN = 'game-menu-offline';
+let gameMenuPausedAnimations = [];
+let gameMenuSuppressedQuickReactionShield = false;
+
+function isGameMenuOfflinePauseAllowed() {
+  return Boolean(document.body.classList.contains('rok-battle-mode') && !isOnlineMatchActive());
+}
+
+function pauseBattleVisualAnimationsForGameMenu() {
+  gameMenuPausedAnimations = [];
+  const stage = document.getElementById('rokAppStage');
+  if (!stage?.getAnimations) return;
+  try {
+    gameMenuPausedAnimations = stage.getAnimations({ subtree: true }).filter(animation => {
+      try {
+        const target = animation.effect?.target;
+        if (target?.closest?.('#gameMenuOverlay')) return false;
+        if (animation.playState === 'running' || animation.playState === 'pending') {
+          animation.pause();
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    });
+  } catch (_) { gameMenuPausedAnimations = []; }
+}
+
+function resumeBattleVisualAnimationsFromGameMenu() {
+  const animations = gameMenuPausedAnimations;
+  gameMenuPausedAnimations = [];
+  animations.forEach(animation => {
+    try { if (animation.playState === 'paused') animation.play(); } catch (_) {}
+  });
+}
+
+function acquireGameMenuOfflinePause() {
+  if (!isGameMenuOfflinePauseAllowed()) return false;
+  acquireGlobalGameplayPause(GAME_MENU_GAMEPLAY_PAUSE_TOKEN);
+  document.body.classList.add('rok-game-menu-paused');
+  try { hideBattleInactivityPrompt('game-menu-pause'); } catch (_) {}
+  try { markBattleActivity('game-menu-pause', { keepPrompt: true }); } catch (_) {}
+  pauseBattleVisualAnimationsForGameMenu();
+  return true;
+}
+
+function releaseGameMenuOfflinePause() {
+  releaseGlobalGameplayPause(GAME_MENU_GAMEPLAY_PAUSE_TOKEN);
+  document.body.classList.remove('rok-game-menu-paused');
+  resumeBattleVisualAnimationsFromGameMenu();
+  try { markBattleActivity('game-menu-resume'); } catch (_) {}
+}
+
 function openGameMenu() {
-  if (!els.gameMenuOverlay) return;
+  if (!els.gameMenuOverlay || els.gameMenuOverlay.classList.contains('open')) return;
+  const quickShield = document.getElementById('quickReactionInputShield');
+  gameMenuSuppressedQuickReactionShield = Boolean(quickShield?.classList?.contains('visible'));
+  if (gameMenuSuppressedQuickReactionShield) {
+    try { hideQuickReactionInputShield({ force: true }); } catch (_) {}
+  }
+  acquireGameMenuOfflinePause();
   els.gameMenuOverlay.classList.add('open');
   els.gameMenuOverlay.setAttribute('aria-hidden', 'false');
   if (els.gameMenuBtn) els.gameMenuBtn.setAttribute('aria-expanded', 'true');
@@ -44965,6 +51084,28 @@ function closeGameMenu() {
   els.gameMenuOverlay.classList.remove('open');
   els.gameMenuOverlay.setAttribute('aria-hidden', 'true');
   if (els.gameMenuBtn) els.gameMenuBtn.setAttribute('aria-expanded', 'false');
+  releaseGameMenuOfflinePause();
+  if (gameMenuSuppressedQuickReactionShield) {
+    gameMenuSuppressedQuickReactionShield = false;
+    try {
+      const quick = state.quickReactionWindow || {};
+      const stillNeedsShield = Boolean(quick.active || quick.locked || quick.actionSelectionActive || els.quickReactionModal?.classList?.contains('visible'));
+      if (stillNeedsShield) showQuickReactionInputShield();
+    } catch (_) {}
+  }
+}
+
+function priorityGameMenuPointerDown(event) {
+  if (!document.body.classList.contains('rok-battle-mode') || !els.gameMenuBtn || event.button > 0) return;
+  const rect = els.gameMenuBtn.getBoundingClientRect();
+  const x = Number(event.clientX);
+  const y = Number(event.clientY);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+  openGameMenu();
 }
 
 function toggleGameSettingsPanel() {
@@ -44975,6 +51116,14 @@ function toggleGameSettingsPanel() {
 }
 
 function returnToMainMenuFromGameMenu() {
+  // Salir desde una batalla siempre destruye la sesión actual. No se permite
+  // dejar timers, FX, listeners o resoluciones vivas detrás del menú principal.
+  const inBattle = document.body.classList.contains('rok-battle-mode') || mainMenuBattleStarted || isOnlineMatchActive();
+  if (inBattle) {
+    releaseGameMenuOfflinePause();
+    exitMatchToMainMenu();
+    return;
+  }
   closeGameMenu();
   showMainMenu();
 }
@@ -45146,6 +51295,7 @@ function performRenderAll(reasons = []) {
     cleanupInvalidGloriaLatenteLinks();
     safeRenderStep('refreshGuardianAuraState', refreshGuardianAuraState);
     safeRenderStep('refreshSmokeZoneEffects', refreshSmokeZoneEffects);
+    safeRenderStep('refreshFarolPortalTeleports', refreshFarolPortalTeleports);
     safeRenderStep('refreshLongNightEffects', refreshLongNightEffects);
     safeRenderStep('syncSaqueadorNovatoSigiloState', syncSaqueadorNovatoSigiloState);
     safeRenderStep('applyFountainColors', applyFountainColors);
@@ -45165,6 +51315,7 @@ function performRenderAll(reasons = []) {
     safeRenderStep('renderLongNightLayer', renderLongNightLayer);
     safeRenderStep('renderArenaEffectTrackers', renderArenaEffectTrackers);
     safeRenderStep('renderDroppedWeaponsLayer', renderDroppedWeaponsLayer);
+    safeRenderStep('renderFarolPortals', renderFarolPortals);
     safeRenderStep('renderUnits', renderUnits);
     safeRenderStep('renderDespliegueAnticipadoTargetingGuide', renderDespliegueAnticipadoTargetingGuide);
     safeRenderStep('renderParalysisLinksLayer', renderParalysisLinksLayer);
@@ -45198,6 +51349,7 @@ function performRenderAll(reasons = []) {
       ROK_RENDER_AGAIN = false;
       requestRenderAll('render-reentrant');
     }
+    scheduleAutomaticNoActionPhaseCheck('render-settled');
   }
 }
 
@@ -45214,6 +51366,14 @@ function cancelScheduledRenderFrame() {
 
 function resetRenderEngineForMatch() {
   cancelScheduledRenderFrame();
+  clearTimeout(noActionPhaseRuntime?.timer);
+  if (typeof noActionPhaseRuntime === 'object' && noActionPhaseRuntime) {
+    noActionPhaseRuntime.timer = null;
+    noActionPhaseRuntime.advancing = false;
+    noActionPhaseRuntime.lastReason = '';
+    noActionPhaseRuntime.lastPhaseKey = '';
+    noActionPhaseRuntime.autoAdvanceCount = 0;
+  }
   ROK_RENDER_PENDING_REASONS.clear();
   ROK_RENDER_AGAIN = false;
   ROK_RENDER_ONLINE_DIRTY_QUEUED = false;
@@ -45363,7 +51523,7 @@ function renderPhaseUI() {
   syncQuickReactionPageFocus(getActiveQuickReactionPageTab());
   if (els.nextPhaseBtn) {
     const extractionLocked = currentPhase().id === 'extraction';
-    els.nextPhaseBtn.disabled = extractionLocked || isOffTurnCasterRepositionBlockingInput() || state.extractionAnimating || state.aiThinking || state.opponentActionResolving || state.actionExecutionLock || Boolean(getKurokagiBukiStageBlocker(state.activePlayer)) || (state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) || (isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID));
+    els.nextPhaseBtn.disabled = extractionLocked || isGlobalGameplayPaused() || isOffTurnCasterRepositionBlockingInput() || state.extractionAnimating || state.aiThinking || state.opponentActionResolving || state.actionExecutionLock || Boolean(getKurokagiBukiStageBlocker(state.activePlayer)) || (state.aiEnabled && state.activePlayer !== LOCAL_PLAYER_ID) || (isOnlineMatchActive() && Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID));
   }
   renderSpellbookPageAvailabilityHints();
   updateOpponentThinkingNotice();
@@ -45538,11 +51698,18 @@ function beginSpellbookDragCast(cardId, tabIndex, slotIndex) {
 
 function setupSpellbookCardDrag(cardNode, cardId, tabIndex, slotIndex) {
   if (!cardNode || !cardId) return;
-  cardNode.draggable = true;
+  const card = CARD_LIBRARY[cardId];
+  const costAvailable = Boolean(card && canPayCardCostForPlayer(LOCAL_PLAYER_ID, card));
+  cardNode.draggable = costAvailable;
   cardNode.classList.add('spellbook-draggable-card');
   cardNode.querySelectorAll('img').forEach(img => { img.draggable = false; });
 
   cardNode.addEventListener('dragstart', event => {
+    const liveCostCard = CARD_LIBRARY[cardId];
+    if (!liveCostCard || !canPayCardCostForPlayer(LOCAL_PLAYER_ID, liveCostCard)) {
+      event.preventDefault();
+      return;
+    }
     if (cardId === SHIRAHADORI_ABILITY_CARD_ID) {
       const availability = getShirahadoriAbilityCastAvailability(LOCAL_PLAYER_ID);
       if (!availability.available) {
@@ -45627,11 +51794,18 @@ function renderCards() {
       const card = CARD_LIBRARY[cardId];
       const cardNode = createCardElement(card);
       cardNode.dataset.cardId = cardId;
+      const costAvailable = Boolean(card && canPayCardCostForPlayer(LOCAL_PLAYER_ID, card));
+      const costUnavailable = !costAvailable;
+      slot.classList.toggle('spellbook-cost-unavailable', costUnavailable);
+      cardNode.classList.toggle('spellbook-cost-unavailable-card', costUnavailable);
+      cardNode.setAttribute('aria-disabled', costUnavailable ? 'true' : 'false');
+      if (costUnavailable) cardNode.dataset.spellbookCostUnavailable = 'true';
       if (card?.id === SHIRAHADORI_ABILITY_CARD_ID) {
         const shirahadoriAvailability = getShirahadoriAbilityCastAvailability(LOCAL_PLAYER_ID);
         const disabledWithoutUser = !shirahadoriAvailability.available;
         const shirahadoriCooldown = getSpellbookUseCooldown(LOCAL_PLAYER_ID, state.activeTab, i);
-        const readyToUse = !disabledWithoutUser
+        const readyToUse = costAvailable
+          && !disabledWithoutUser
           && Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)
           && currentPhase().id === 'casting'
           && shirahadoriCooldown <= 0;
@@ -45656,7 +51830,7 @@ function renderCards() {
           }
         }
       }
-      setupSpellbookCardDrag(cardNode, cardId, state.activeTab, i);
+      if (costAvailable) setupSpellbookCardDrag(cardNode, cardId, state.activeTab, i);
       if (isHideyoshiWarColleaguesInstantReady(card)) cardNode.classList.add('war-colleagues-ready');
       if ([DESPLIEGUE_ANTICIPADO_CARD_ID, GLORIA_LATENTE_CARD_ID, TACTICA_GUERRA_CARD_ID, INTERCEPTAR_CARD_ID, EMBOSCADA_CARD_ID].includes(card.id)) {
         const availability = card.id === DESPLIEGUE_ANTICIPADO_CARD_ID
@@ -45677,21 +51851,24 @@ function renderCards() {
               : card.id === INTERCEPTAR_CARD_ID
                 ? 'Interceptar listo: hay una invocación aliada y un invasor rival con casilla frontal libre.'
                 : 'Emboscada lista: hay una invasora rival, invocaciones aliadas y Agua disponible.';
-        slot.classList.toggle('despliegue-spell-unavailable', !availability.available);
-        slot.classList.toggle('despliegue-spell-ready', availability.available);
-        cardNode.classList.toggle('despliegue-spell-unavailable-card', !availability.available);
-        cardNode.classList.toggle('despliegue-spell-ready-card', availability.available);
-        slot.title = availability.available ? readyTitle : availability.message;
-        if (availability.available) {
+        const spellReady = Boolean(availability.available && costAvailable);
+        slot.classList.toggle('despliegue-spell-unavailable', !spellReady);
+        slot.classList.toggle('despliegue-spell-ready', spellReady);
+        cardNode.classList.toggle('despliegue-spell-unavailable-card', !spellReady);
+        cardNode.classList.toggle('despliegue-spell-ready-card', spellReady);
+        slot.title = costUnavailable ? '' : (availability.available ? readyTitle : availability.message);
+        if (spellReady) {
           const readyDot = document.createElement('span');
           readyDot.className = 'spellbook-action-ready-indicator';
           readyDot.title = 'Requisitos de arena cumplidos';
           slot.appendChild(readyDot);
         }
       }
+      if (costUnavailable) cardNode.setAttribute('aria-disabled', 'true');
       cardNode.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (costUnavailable) return;
         const dragEndedAt = Number(cardNode.dataset.spellbookDragEndedAt || 0);
         if (dragEndedAt && Date.now() - dragEndedAt < 250) return;
         selectCardSlot(i);
@@ -45719,6 +51896,7 @@ function renderCards() {
       }
       slot.addEventListener('click', (event) => {
         event.preventDefault();
+        if (costUnavailable) return;
         selectCardSlot(i);
       });
     } else {
@@ -45764,7 +51942,7 @@ function createCardElement(card, options = {}) {
   wrap.dataset.cardType = cardTypeId;
   wrap.classList.toggle('card-catalyst', isCatalystCard(card));
   wrap.classList.toggle('card-no-art-layer', !usesArtLayer);
-  wrap.style.setProperty('--card-element-color', element?.color || '#9b4dff');
+  wrap.style.setProperty('--card-element-color', element?.color || '#5400FF');
   wrap.innerHTML = `
     <img class="card-layer card-bg" src="${bgImage}" alt="fondo" onerror="this.onerror=null;this.src='assets/card-bg-darkness.jpg';">
     ${usesArtLayer ? `<img class="card-layer card-art" src="${artImage}" alt="arte" onerror="this.onerror=null;this.src='assets/invocation-art.png';">` : ''}
@@ -46030,7 +52208,7 @@ function renderArenaEffectTrackers() {
 }
 
 function renderResources() {
-  const resources = sortResourcesForPlayer(localPlayer().resources, LOCAL_PLAYER_ID);
+  const resources = sortResourcesForPlayer(localPlayer().resources, LOCAL_PLAYER_ID).filter(resource => !isOpeningElementResourceHidden(resource));
   const fragment = document.createDocumentFragment();
   resources.forEach(res => {
     const token = document.createElement('div');
@@ -46093,19 +52271,79 @@ function appendEnemyMiniResourceToken(container, resource, count = 1) {
   container.appendChild(token);
 }
 
-function renderEnemyMiniResources(enemy, enemyId, grouped = false) {
+function getEnemyMiniResourceLayoutSignature(ordered, width) {
+  const counts = new Map();
+  ordered.forEach(resource => {
+    const id = String(resource?.id || 'unknown');
+    counts.set(id, (counts.get(id) || 0) + 1);
+  });
+  const composition = Array.from(counts.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([id, count]) => `${id}:${count}`)
+    .join('|');
+  return `${Math.max(0, Math.round(Number(width || 0)))}::${composition}`;
+}
+
+function enemyMiniResourcesNeedGrouping(container, ordered) {
+  if (!container || !ordered.length) return false;
+
+  const visibleWidth = Math.max(0, Math.round(container.getBoundingClientRect().width || container.clientWidth || 0));
+  const signature = getEnemyMiniResourceLayoutSignature(ordered, visibleWidth);
+  if (container.dataset.layoutSignature === signature && container.dataset.layoutGrouped != null) {
+    return container.dataset.layoutGrouped === '1';
+  }
+
+  // v552 · Nunca se vuelve a pintar el HUD visible primero como elementos sueltos
+  // para medirlo. Esa secuencia era la causa del parpadeo: cada renderAll()
+  // mostraba un frame sin agrupación y el requestAnimationFrame siguiente lo
+  // reconstruía agrupado. La medición se hace ahora con una copia invisible.
+  let grouped = container.dataset.layoutGrouped === '1';
+  if (visibleWidth > 1 && container.parentElement) {
+    const probe = container.cloneNode(false);
+    probe.removeAttribute('id');
+    probe.removeAttribute('aria-label');
+    probe.classList.add('enemy-mini-resources-layout-probe');
+    probe.style.setProperty('position', 'absolute', 'important');
+    probe.style.setProperty('left', '-100000px', 'important');
+    probe.style.setProperty('top', '0', 'important');
+    probe.style.setProperty('width', `${visibleWidth}px`, 'important');
+    probe.style.setProperty('max-width', `${visibleWidth}px`, 'important');
+    probe.style.setProperty('min-width', `${visibleWidth}px`, 'important');
+    probe.style.setProperty('visibility', 'hidden', 'important');
+    probe.style.setProperty('opacity', '0', 'important');
+    probe.style.setProperty('pointer-events', 'none', 'important');
+    probe.style.setProperty('contain', 'layout style paint', 'important');
+
+    const probeFragment = document.createDocumentFragment();
+    ordered.forEach(resource => appendEnemyMiniResourceToken(probeFragment, resource, 1));
+    probe.appendChild(probeFragment);
+    container.parentElement.appendChild(probe);
+    grouped = probe.scrollWidth > probe.clientWidth + 2;
+    probe.remove();
+  } else if (container.dataset.layoutGrouped == null) {
+    // Si el HUD todavía está oculto/no tiene geometría, usa una decisión estable
+    // para reservas grandes y vuelve a medir cuando ya tenga ancho real.
+    grouped = ordered.length > 10;
+  }
+
+  container.dataset.layoutSignature = signature;
+  container.dataset.layoutGrouped = grouped ? '1' : '0';
+  return grouped;
+}
+
+function renderEnemyMiniResources(enemy, enemyId) {
   const container = els.enemyMiniResources;
   if (!container) return;
   const fragment = document.createDocumentFragment();
-  const ordered = sortResourcesForPlayer(enemy.resources || [], enemyId);
+  const ordered = sortResourcesForPlayer(enemy.resources || [], enemyId).filter(resource => !isOpeningElementResourceHidden(resource));
+  const grouped = enemyMiniResourcesNeedGrouping(container, ordered);
+
   if (!grouped) {
     ordered.forEach(resource => appendEnemyMiniResourceToken(fragment, resource, 1));
     container.replaceChildren(fragment);
-    window.requestAnimationFrame(() => {
-      if (container.scrollWidth > container.clientWidth + 2) renderEnemyMiniResources(enemy, enemyId, true);
-    });
     return;
   }
+
   const groups = new Map();
   ordered.forEach(resource => {
     const id = resource.id || 'unknown';
@@ -46123,7 +52361,7 @@ function renderEnemyMiniHud() {
   const enemy = state.players[enemyId];
   if (!enemy) return;
 
-  renderEnemyMiniResources(enemy, enemyId, false);
+  renderEnemyMiniResources(enemy, enemyId);
 
   const castFragment = document.createDocumentFragment();
   (enemy.castQueue || []).forEach((item, index) => {
@@ -46483,6 +52721,64 @@ function renderMoveOptions() {
         fragment.appendChild(button);
       }
     }
+    return;
+  }
+
+  if (state.pendingPowerAction?.kind === 'farolEnlazadoCircle') {
+    const pending = state.pendingPowerAction;
+    const sourceUnit = getUnitById(Number(pending.playerId), pending.unitId);
+    if (!sourceUnit || !unitCanActivateFarolEnlazado(Number(pending.playerId), sourceUnit)) {
+      cancelFarolEnlazadoTargeting('Farol Enlazado se canceló porque la Farolera dejó de estar disponible.');
+      return;
+    }
+    getFarolCirclePlacementCells(Number(pending.playerId), sourceUnit).forEach(opt => {
+      const pos = cellCenter(opt.row, opt.col);
+      const size = getBoardCellSizePercent(opt.row);
+      const div = document.createElement('button');
+      div.type = 'button';
+      div.className = 'move-option move-option-power farol-circle-target';
+      div.style.left = `${pos.x}%`;
+      div.style.top = `${pos.y}%`;
+      div.style.width = `${size.width}%`;
+      div.style.height = `${size.height}%`;
+      div.title = `Farol Enlazado · fijar círculo en ${coordLabel(opt.row, opt.col)}`;
+      div.innerHTML = '<span class="farol-lantern-target-glyph">◎</span>';
+      div.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        resolveFarolEnlazadoCircleTarget(Number(pending.playerId), pending.unitId, opt.row, opt.col);
+      });
+      fragment.appendChild(div);
+    });
+    return;
+  }
+
+  if (state.pendingPowerAction?.kind === 'farolEnlazadoLamp') {
+    const pending = state.pendingPowerAction;
+    const sourceUnit = getUnitById(Number(pending.playerId), pending.unitId);
+    if (!sourceUnit || !unitCanActivateFarolEnlazado(Number(pending.playerId), sourceUnit)) {
+      cancelFarolEnlazadoTargeting('Farol Enlazado se canceló porque la Farolera dejó de estar disponible.');
+      return;
+    }
+    getFarolLanternDestinationCells(Number(pending.playerId), sourceUnit).forEach(opt => {
+      const pos = cellCenter(opt.row, opt.col);
+      const size = getBoardCellSizePercent(opt.row);
+      const div = document.createElement('button');
+      div.type = 'button';
+      div.className = 'move-option move-option-power farol-lantern-target';
+      div.style.left = `${pos.x}%`;
+      div.style.top = `${pos.y}%`;
+      div.style.width = `${size.width}%`;
+      div.style.height = `${size.height}%`;
+      div.title = `Farol Enlazado · lanzar lámpara en ${coordLabel(opt.row, opt.col)}`;
+      div.innerHTML = '<span class="farol-lantern-target-glyph">✦</span>';
+      div.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        resolveFarolEnlazadoLamp(Number(pending.playerId), pending.unitId, opt.row, opt.col);
+      });
+      fragment.appendChild(div);
+    });
     return;
   }
 
@@ -47187,6 +53483,481 @@ function renderMinokageChannelFxLayer() {
   });
 }
 
+
+/* ========================================================================== 
+   R.O.K Lite · Etapa 4/4 · herramienta temporal de ajuste de tokens
+   ========================================================================== */
+const ROK_TOKEN_TUNING_STORAGE_KEY = 'rok_token_tuning_v2';
+const ROK_TOKEN_TUNING_DEFAULT = Object.freeze({ scale: 1, x: 0, y: 0 });
+const tokenTuningState = {
+  loaded: false,
+  values: Object.create(null),
+  selectedKey: '',
+  entriesSignature: '',
+  ui: null,
+  pausedAnimations: [],
+};
+const TOKEN_TUNING_GAMEPLAY_PAUSE_TOKEN = 'token-tuning-editor';
+
+function isTokenTuningToolOpen() {
+  return Boolean(tokenTuningState.ui?.panel?.classList?.contains('open'));
+}
+
+function pauseBattleVisualAnimationsForTokenTuning() {
+  tokenTuningState.pausedAnimations = [];
+  const stage = document.getElementById('rokAppStage');
+  if (!stage?.getAnimations) return;
+  try {
+    tokenTuningState.pausedAnimations = stage.getAnimations({ subtree: true }).filter(animation => {
+      try {
+        const target = animation.effect?.target;
+        if (target?.closest?.('#tokenTuningPanel, #tokenTuningToggle')) return false;
+        if (animation.playState === 'running' || animation.playState === 'pending') {
+          animation.pause();
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    });
+  } catch (_) { tokenTuningState.pausedAnimations = []; }
+}
+
+function resumeBattleVisualAnimationsFromTokenTuning() {
+  const animations = tokenTuningState.pausedAnimations || [];
+  tokenTuningState.pausedAnimations = [];
+  animations.forEach(animation => {
+    try { if (animation.playState === 'paused') animation.play(); } catch (_) {}
+  });
+}
+
+function acquireTokenTuningGameplayPause() {
+  acquireGlobalGameplayPause(TOKEN_TUNING_GAMEPLAY_PAUSE_TOKEN);
+  document.body.classList.add('rok-token-tuning-paused');
+  try { hideBattleInactivityPrompt('token-tuning-pause'); } catch (_) {}
+  try { markBattleActivity('token-tuning-pause', { keepPrompt: true }); } catch (_) {}
+  pauseBattleVisualAnimationsForTokenTuning();
+  try { renderPhaseUI(); } catch (_) {}
+}
+
+function releaseTokenTuningGameplayPause() {
+  releaseGlobalGameplayPause(TOKEN_TUNING_GAMEPLAY_PAUSE_TOKEN);
+  document.body.classList.remove('rok-token-tuning-paused');
+  resumeBattleVisualAnimationsFromTokenTuning();
+  try { markBattleActivity('token-tuning-resume'); } catch (_) {}
+  try { renderPhaseUI(); } catch (_) {}
+}
+
+function sanitizeTokenTuningValue(value, fallback, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function normalizeTokenTuningRecord(value = null) {
+  return {
+    scale: Number(sanitizeTokenTuningValue(value?.scale, 1, 0.25, 6).toFixed(2)),
+    x: Number(sanitizeTokenTuningValue(value?.x, 0, -160, 160).toFixed(1)),
+    y: Number(sanitizeTokenTuningValue(value?.y, 0, -160, 160).toFixed(1)),
+  };
+}
+
+function loadTokenTuningSettings() {
+  if (tokenTuningState.loaded) return tokenTuningState.values;
+  tokenTuningState.loaded = true;
+  try {
+    const raw = localStorage.getItem(ROK_TOKEN_TUNING_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      Object.entries(parsed).forEach(([key, value]) => {
+        if (!key) return;
+        tokenTuningState.values[key] = normalizeTokenTuningRecord(value);
+      });
+    }
+  } catch (_) {}
+  return tokenTuningState.values;
+}
+
+function persistTokenTuningSettings() {
+  loadTokenTuningSettings();
+  try { localStorage.setItem(ROK_TOKEN_TUNING_STORAGE_KEY, JSON.stringify(tokenTuningState.values)); } catch (_) {}
+}
+
+function getTokenTuning(key) {
+  loadTokenTuningSettings();
+  return normalizeTokenTuningRecord(tokenTuningState.values[key] || ROK_TOKEN_TUNING_DEFAULT);
+}
+
+function escapeTokenTuningSelectorValue(value = '') {
+  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function isDefaultTokenTuning(value) {
+  const tune = normalizeTokenTuningRecord(value);
+  return Math.abs(tune.scale - 1) < 0.001 && Math.abs(tune.x) < 0.001 && Math.abs(tune.y) < 0.001;
+}
+
+function getTokenTuningKeyForRenderedUnit(type, playerId, unitState = null, guardianState = null) {
+  if (type === 'invocation' && unitState?.cardId) return `invocation:${unitState.cardId}`;
+  if (type === 'caster') {
+    const caster = state.players?.[playerId]?.caster;
+    const id = caster?.cardId || caster?.casterId;
+    return id ? `caster:${id}` : '';
+  }
+  if (type === 'guardian') return `guardian:${getPlayerDomainId(playerId) || 'default'}`;
+  if (type === 'structure' && unitState?.cardId) return `structure:${unitState.cardId}`;
+  return '';
+}
+
+function applyTokenTuningToNode(node, key) {
+  if (!node || !key) return;
+  const tune = getTokenTuning(key);
+  node.dataset.tokenTuneKey = key;
+  node.style.setProperty('--rok-token-tune-scale', String(tune.scale));
+  node.style.setProperty('--rok-token-tune-x', `${tune.x}px`);
+  node.style.setProperty('--rok-token-tune-y', `${tune.y}px`);
+}
+
+function applyTokenTuningToRenderedNodes(key = '') {
+  if (!els.unitsLayer) return;
+  const nodes = key
+    ? els.unitsLayer.querySelectorAll(`.unit[data-token-tune-key="${escapeTokenTuningSelectorValue(key)}"]`)
+    : els.unitsLayer.querySelectorAll('.unit[data-token-tune-key]');
+  nodes.forEach(node => applyTokenTuningToNode(node, node.dataset.tokenTuneKey));
+  syncTokenTuningSelectionHighlight();
+}
+
+function getTokenTuningOwnerLabel(playerId) {
+  return Number(playerId) === Number(LOCAL_PLAYER_ID) ? 'Tuyo' : 'Rival';
+}
+
+function collectTokenTuningEntries() {
+  const entries = [];
+  const seen = new Map();
+
+  const addEntry = entry => {
+    if (!entry?.key) return;
+    const existing = seen.get(entry.key);
+    if (existing) {
+      // Si la misma pieza visual existe en ambos lados, una sola regla CSS debe
+      // seguir gobernándola. La lista deja claro que está presente en ambos.
+      const owners = new Set([...(existing.owners || []), ...(entry.owners || [])]);
+      existing.owners = [...owners];
+      existing.sublabel = `${existing.kindLabel} · ${existing.owners.join(' / ')}`;
+      return;
+    }
+    const clone = { ...entry, owners: [...(entry.owners || [])] };
+    clone.sublabel = `${clone.kindLabel} · ${clone.owners.join(' / ')}`;
+    seen.set(clone.key, clone);
+    entries.push(clone);
+  };
+
+  for (const playerId of [1, 2]) {
+    const player = state.players?.[playerId];
+    if (!player) continue;
+    const ownerLabel = getTokenTuningOwnerLabel(playerId);
+    const caster = player.caster;
+    const casterId = caster?.cardId || caster?.casterId;
+    if (casterId) {
+      const card = caster?.cardId ? CARD_LIBRARY[caster.cardId] : null;
+      addEntry({
+        key: `caster:${casterId}`,
+        kind: 'caster',
+        kindLabel: 'Kaster',
+        label: card?.name || caster?.name || caster?.shortName || `Kaster J${playerId}`,
+        owners: [ownerLabel],
+      });
+    }
+
+    for (const unit of player.units || []) {
+      if (!unit?.cardId || unit.restoreAnimating || unit.status === 'restoring') continue;
+      if (isOnlineUnitConcealedFromViewer(playerId, unit)) continue;
+      const card = CARD_LIBRARY[unit.cardId];
+      if (!card) continue;
+      const typeId = getCardTypeId(card);
+      const kind = typeId === 'structure' ? 'structure' : 'invocation';
+      addEntry({
+        key: `${kind}:${unit.cardId}`,
+        kind,
+        kindLabel: kind === 'structure' ? 'Estructura' : 'Invocación',
+        cardId: unit.cardId,
+        label: card.name || unit.cardId,
+        owners: [ownerLabel],
+      });
+    }
+
+    const activeGuardians = (player.guardians || []).filter(guardian => guardian?.active !== false || guardian?.destroying);
+    if (activeGuardians.length) {
+      const domainId = getPlayerDomainId(playerId) || 'default';
+      addEntry({
+        key: `guardian:${domainId}`,
+        kind: 'guardian',
+        kindLabel: 'Estructura / Guardián',
+        label: `Guardián · ${getDomainTheme(domainId)?.label || domainId}`,
+        owners: [ownerLabel],
+      });
+    }
+  }
+
+  return entries;
+}
+
+function clearTokenTuningSelectionVisuals() {
+  if (!els.unitsLayer) return;
+  // v568 · La selección del editor no modifica en absoluto la ficha real.
+  // Limpiamos restos de versiones anteriores (clase/foil) y solo manejamos
+  // el indicador azul independiente.
+  els.unitsLayer.querySelectorAll('.unit.token-tuning-selected').forEach(node => node.classList.remove('token-tuning-selected'));
+  els.unitsLayer.querySelectorAll('.token-tuning-editor-foil-img, .token-tuning-editor-indicator').forEach(node => node.remove());
+}
+
+function applyTokenTuningSelectionVisual(node) {
+  if (!node) return;
+  // No crear wrapper, clon/foil ni clase de selección sobre .unit. La ficha
+  // debe conservar exactamente el mismo tamaño/render que tiene sin editor.
+  if (!node.querySelector(':scope > .token-tuning-editor-indicator')) {
+    const dot = document.createElement('span');
+    dot.className = 'token-tuning-editor-indicator';
+    dot.title = 'Ficha seleccionada para edición';
+    dot.setAttribute('aria-hidden', 'true');
+    node.appendChild(dot);
+  }
+}
+
+function syncTokenTuningSelectionHighlight() {
+  if (!els.unitsLayer) return;
+  clearTokenTuningSelectionVisuals();
+  if (!isTokenTuningToolOpen()) return;
+  const selected = tokenTuningState.selectedKey;
+  if (!selected) return;
+  els.unitsLayer.querySelectorAll(`.unit[data-token-tune-key="${escapeTokenTuningSelectorValue(selected)}"]`).forEach(applyTokenTuningSelectionVisual);
+}
+
+function setTokenTuningValue(key, field, value) {
+  if (!key || !['scale', 'x', 'y'].includes(field)) return;
+  const current = getTokenTuning(key);
+  const next = { ...current };
+  if (field === 'scale') next.scale = sanitizeTokenTuningValue(value, current.scale, 0.25, 6);
+  if (field === 'x') next.x = sanitizeTokenTuningValue(value, current.x, -160, 160);
+  if (field === 'y') next.y = sanitizeTokenTuningValue(value, current.y, -160, 160);
+  tokenTuningState.values[key] = normalizeTokenTuningRecord(next);
+  persistTokenTuningSettings();
+  applyTokenTuningToRenderedNodes(key);
+  syncTokenTuningControls();
+}
+
+function resetTokenTuningValue(key) {
+  if (!key) return;
+  loadTokenTuningSettings();
+  delete tokenTuningState.values[key];
+  persistTokenTuningSettings();
+  applyTokenTuningToRenderedNodes(key);
+  const nodes = els.unitsLayer?.querySelectorAll?.(`.unit[data-token-tune-key="${escapeTokenTuningSelectorValue(key)}"]`) || [];
+  nodes.forEach(node => {
+    node.style.removeProperty('--rok-token-tune-scale');
+    node.style.removeProperty('--rok-token-tune-x');
+    node.style.removeProperty('--rok-token-tune-y');
+  });
+  syncTokenTuningControls();
+}
+
+function resetAllTokenTuningValues() {
+  tokenTuningState.values = Object.create(null);
+  persistTokenTuningSettings();
+  els.unitsLayer?.querySelectorAll?.('.unit[data-token-tune-key]')?.forEach(node => {
+    node.style.removeProperty('--rok-token-tune-scale');
+    node.style.removeProperty('--rok-token-tune-x');
+    node.style.removeProperty('--rok-token-tune-y');
+  });
+  syncTokenTuningControls();
+}
+
+function buildTokenTuningCss() {
+  loadTokenTuningSettings();
+  const entriesByKey = new Map(collectTokenTuningEntries().map(entry => [entry.key, entry]));
+  const keys = Object.keys(tokenTuningState.values).filter(key => !isDefaultTokenTuning(tokenTuningState.values[key]));
+  const lines = [
+    '/* R.O.K Lite · Ajustes de tokens exportados desde la herramienta de prueba */',
+    '/* Pegar estas reglas al final de style.css. */',
+    '',
+    '.unit[data-token-tune-key] > .unit-token-img,',
+    '.unit[data-token-tune-key] > .unit-hitbox {',
+    '  scale: var(--rok-token-tune-scale, 1);',
+    '  translate: var(--rok-token-tune-x, 0px) var(--rok-token-tune-y, 0px);',
+    '}',
+    '',
+  ];
+  if (!keys.length) lines.push('/* No hay ajustes distintos de los valores base. */');
+  keys.sort().forEach(key => {
+    const tune = getTokenTuning(key);
+    const entry = entriesByKey.get(key);
+    if (entry) lines.push(`/* ${entry.sublabel}: ${entry.label} */`);
+    lines.push(`.unit[data-token-tune-key="${String(key).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"] {`);
+    lines.push(`  --rok-token-tune-scale: ${Number(tune.scale.toFixed(2))};`);
+    lines.push(`  --rok-token-tune-x: ${Number(tune.x.toFixed(1))}px;`);
+    lines.push(`  --rok-token-tune-y: ${Number(tune.y.toFixed(1))}px;`);
+    lines.push('}', '');
+  });
+  return lines.join('\n');
+}
+
+function downloadTokenTuningCss() {
+  const css = buildTokenTuningCss();
+  const blob = new Blob([css], { type: 'text/css;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `rok-token-ajustes-${new Date().toISOString().slice(0, 10)}.css`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  if (tokenTuningState.ui?.status) tokenTuningState.ui.status.textContent = 'CSS exportado. Envíame ese archivo para fijar los valores en el siguiente parche.';
+}
+
+function syncTokenTuningControls() {
+  const ui = tokenTuningState.ui;
+  if (!ui) return;
+  const key = tokenTuningState.selectedKey;
+  const enabled = Boolean(key);
+  ui.controls.classList.toggle('disabled', !enabled);
+  ui.controls.querySelectorAll('input, button[data-token-control]').forEach(node => { node.disabled = !enabled; });
+  if (!enabled) return;
+  const tune = getTokenTuning(key);
+  const values = { scale: tune.scale, x: tune.x, y: tune.y };
+  Object.entries(values).forEach(([field, value]) => {
+    const range = ui.panel.querySelector(`[data-token-range="${field}"]`);
+    const number = ui.panel.querySelector(`[data-token-number="${field}"]`);
+    if (range) range.value = String(value);
+    if (number) number.value = String(value);
+  });
+}
+
+function refreshTokenTuningToolEntries() {
+  const ui = tokenTuningState.ui;
+  if (!ui) return;
+  const entries = collectTokenTuningEntries();
+  const signature = entries.map(entry => `${entry.key}:${entry.label}:${entry.sublabel}`).join('|');
+  if (signature === tokenTuningState.entriesSignature) {
+    syncTokenTuningSelectionHighlight();
+    return;
+  }
+  tokenTuningState.entriesSignature = signature;
+  ui.list.replaceChildren();
+  entries.forEach(entry => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'token-tuning-entry';
+    button.dataset.tokenTuningKey = entry.key;
+    button.innerHTML = `<strong>${escapeHtml(entry.label)}</strong><small>${escapeHtml(entry.sublabel)}</small>`;
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      tokenTuningState.selectedKey = entry.key;
+      ui.list.querySelectorAll('.token-tuning-entry').forEach(node => node.classList.toggle('active', node === button));
+      ui.selected.textContent = entry.label;
+      ui.status.textContent = 'Ajusta tamaño y posición. Cada pieza conserva su propio valor al cambiar de selección; token e hitbox se transforman juntos.';
+      syncTokenTuningControls();
+      syncTokenTuningSelectionHighlight();
+    });
+    ui.list.appendChild(button);
+  });
+  if (!entries.some(entry => entry.key === tokenTuningState.selectedKey)) {
+    tokenTuningState.selectedKey = entries[0]?.key || '';
+  }
+  if (tokenTuningState.selectedKey) {
+    const activeEntry = entries.find(entry => entry.key === tokenTuningState.selectedKey);
+    ui.list.querySelectorAll('.token-tuning-entry').forEach(node => node.classList.toggle('active', node.dataset.tokenTuningKey === tokenTuningState.selectedKey));
+    ui.selected.textContent = activeEntry?.label || 'Selecciona una pieza';
+  } else {
+    ui.selected.textContent = 'Sin piezas disponibles';
+  }
+  syncTokenTuningControls();
+  syncTokenTuningSelectionHighlight();
+}
+
+function installTokenTuningTool() {
+  if (tokenTuningState.ui || document.getElementById('tokenTuningToggle')) return;
+  loadTokenTuningSettings();
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.id = 'tokenTuningToggle';
+  toggle.className = 'token-tuning-toggle';
+  toggle.textContent = 'AJUSTAR TOKENS';
+  toggle.title = 'Herramienta temporal para ajustar tamaño y posición de fichas';
+
+  const panel = document.createElement('aside');
+  panel.id = 'tokenTuningPanel';
+  panel.className = 'token-tuning-panel';
+  panel.setAttribute('aria-hidden', 'true');
+  panel.innerHTML = `
+    <header class="token-tuning-header">
+      <div><strong>AJUSTE DE TOKENS</strong><small>Arena completa · ambos jugadores</small></div>
+      <button type="button" class="token-tuning-close" aria-label="Cerrar">×</button>
+    </header>
+    <div class="token-tuning-list" data-token-tuning-list></div>
+    <div class="token-tuning-controls" data-token-tuning-controls>
+      <div class="token-tuning-selected"><small>PIEZA</small><strong data-token-selected>Selecciona una pieza</strong></div>
+      <label><span>Tamaño</span><input type="range" min="0.25" max="6" step="0.01" data-token-range="scale"><input type="number" min="0.25" max="6" step="0.01" data-token-number="scale"></label>
+      <label><span>Posición X</span><input type="range" min="-160" max="160" step="1" data-token-range="x"><input type="number" min="-160" max="160" step="1" data-token-number="x"></label>
+      <label><span>Posición Y</span><input type="range" min="-160" max="160" step="1" data-token-range="y"><input type="number" min="-160" max="160" step="1" data-token-number="y"></label>
+      <div class="token-tuning-actions">
+        <button type="button" data-token-control="reset">Restablecer pieza</button>
+        <button type="button" class="token-tuning-save" data-token-control="save">Guardar CSS</button>
+      </div>
+      <button type="button" class="token-tuning-reset-all" data-token-control="reset-all">Restablecer todos</button>
+      <p class="token-tuning-status" data-token-status>Selecciona una pieza visible de cualquiera de los dos jugadores.</p>
+    </div>`;
+  document.body.append(toggle, panel);
+
+  const ui = tokenTuningState.ui = {
+    toggle,
+    panel,
+    list: panel.querySelector('[data-token-tuning-list]'),
+    controls: panel.querySelector('[data-token-tuning-controls]'),
+    selected: panel.querySelector('[data-token-selected]'),
+    status: panel.querySelector('[data-token-status]'),
+  };
+
+  const setOpen = open => {
+    const wasOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', open);
+    panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    toggle.classList.toggle('active', open);
+    if (open) {
+      if (!wasOpen) acquireTokenTuningGameplayPause();
+      refreshTokenTuningToolEntries();
+      syncTokenTuningSelectionHighlight();
+    } else {
+      clearTokenTuningSelectionVisuals();
+      if (wasOpen) releaseTokenTuningGameplayPause();
+    }
+  };
+  toggle.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); setOpen(!panel.classList.contains('open')); });
+  panel.querySelector('.token-tuning-close')?.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); setOpen(false); });
+  panel.addEventListener('pointerdown', event => event.stopPropagation());
+  panel.addEventListener('click', event => event.stopPropagation());
+  panel.addEventListener('wheel', event => event.stopPropagation(), { passive: true });
+
+  ['scale', 'x', 'y'].forEach(field => {
+    const range = panel.querySelector(`[data-token-range="${field}"]`);
+    const number = panel.querySelector(`[data-token-number="${field}"]`);
+    const update = source => {
+      if (!tokenTuningState.selectedKey) return;
+      setTokenTuningValue(tokenTuningState.selectedKey, field, source.value);
+    };
+    range?.addEventListener('input', () => update(range));
+    number?.addEventListener('input', () => update(number));
+  });
+  panel.querySelector('[data-token-control="reset"]')?.addEventListener('click', () => resetTokenTuningValue(tokenTuningState.selectedKey));
+  panel.querySelector('[data-token-control="reset-all"]')?.addEventListener('click', () => {
+    if (window.confirm?.('¿Restablecer todos los ajustes temporales de tokens?') === false) return;
+    resetAllTokenTuningValues();
+    if (ui.status) ui.status.textContent = 'Todos los ajustes volvieron a sus valores base.';
+  });
+  panel.querySelector('[data-token-control="save"]')?.addEventListener('click', downloadTokenTuningCss);
+  refreshTokenTuningToolEntries();
+}
+
 function getCasterPersistentInvocationCast(playerId) {
   const player = state.players?.[playerId];
   const activeItem = player?.castQueue?.[0] || null;
@@ -47262,6 +54033,8 @@ function renderUnits() {
   }
   els.unitsLayer.replaceChildren(fragment);
   renderKaguyaChargeFxLayer();
+  refreshTokenTuningToolEntries();
+  syncTokenTuningSelectionHighlight();
 }
 
 
@@ -47476,6 +54249,8 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
   }
   const unitState = unitId && playerId ? state.players[playerId].units.find(u => u.id === unitId) : null;
   const guardianState = type === 'guardian' && guardianId && playerId ? state.players[playerId]?.guardians?.find(item => String(item.id) === String(guardianId)) : null;
+  const tokenTuningKey = getTokenTuningKeyForRenderedUnit(type, playerId, unitState, guardianState);
+  if (tokenTuningKey) applyTokenTuningToNode(div, tokenTuningKey);
   const actionWindowCandidate = playerId != null ? getQuickReactionVisualCandidate(playerId, type, unitId, guardianId) : null;
   if (unitState?.cardId) {
     div.dataset.cardId = unitState.cardId;
@@ -47538,7 +54313,7 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
   if (type === 'guardian' && guardianId) {
     if (guardianState?.destroying) {
       div.classList.add('structure-destroying');
-      div.style.setProperty('--destroy-color', getOwnerColor(playerId) || '#9b4dff');
+      div.style.setProperty('--destroy-color', getOwnerColor(playerId) || '#5400FF');
     }
   }
   if (state.selectedMover && state.selectedMover.playerId === playerId) {
@@ -47849,6 +54624,7 @@ function renderUnit(row, col, type, src, label, playerId = null, spawnId = null,
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation?.();
+    if (isTokenTuningToolOpen()) return;
 
     const pendingDespliegue = state.pendingPowerAction;
     if (type === 'invocation' && unitId && ['despliegueAnticipadoTarget', 'gloriaLatenteTarget', 'shirahadoriAbilityTarget'].includes(pendingDespliegue?.kind)) {
@@ -48235,7 +55011,7 @@ function renderVisualDevShowcase() {
         originSlot: 0,
       };
       player.units = [...previousUnits, fakeUnit];
-      renderUnit(fakeUnit.row, fakeUnit.col, 'invocation', sampleCard.tokenImage || sampleCard.artImage || 'assets/invocation-token.png', sampleCard.name, LOCAL_PLAYER_ID, null, '#9b4dff', sampleUnitId);
+      renderUnit(fakeUnit.row, fakeUnit.col, 'invocation', sampleCard.tokenImage || sampleCard.artImage || 'assets/invocation-token.png', sampleCard.name, LOCAL_PLAYER_ID, null, '#5400FF', sampleUnitId);
       player.units = previousUnits;
 
       const sampleNode = els.unitsLayer.querySelector(`[data-unit-id="${sampleUnitId}"]`);
@@ -48392,7 +55168,7 @@ function renderCasterWidePanel() {
         elementId,
       });
   const domain = DOMAIN_ART_DB[elementId] || DOMAIN_ART_DB.oscuridad;
-  const casterName = getCasterDisplayName(caster, `Kaster J${playerId}`);
+  const casterName = getCasterCompactDisplayName(caster, `Kaster J${playerId}`);
 
   if (els.casterWideBg) {
     els.casterWideBg.src = getElementBackgroundForCard(card, elementId);
@@ -48717,22 +55493,45 @@ function getEffectiveCardCostSummary(card, playerId = null) {
 const RARITY_SCORE_TABLE = [
   { id: 'ordinary', label: 'Ordinaria', min: 0, max: 99, bonus: 0 },
   { id: 'uncommon', label: 'Poco ordinaria', min: 100, max: 199, bonus: 25 },
-  { id: 'extraordinary', label: 'Extra ordinaria', min: 200, max: 324, bonus: 50 },
-  { id: 'singular', label: 'Singular', min: 325, max: 474, bonus: 80 },
-  { id: 'infrequent', label: 'Infrecuente', min: 475, max: 649, bonus: 115 },
-  { id: 'unusual', label: 'Inhabitual', min: 650, max: 849, bonus: 155 },
-  { id: 'strange', label: 'Extraña', min: 850, max: 1099, bonus: 200 },
-  { id: 'mythic', label: 'Mítica', min: 1100, max: 1399, bonus: 260 },
-  { id: 'legendary', label: 'Legendaria', min: 1400, max: Infinity, bonus: 350 },
+  { id: 'infrequent', label: 'Infrecuente', min: 200, max: 324, bonus: 50 },
+  { id: 'unusual', label: 'Inhabitual', min: 325, max: 474, bonus: 80 },
+  { id: 'extraordinary', label: 'Extraordinaria', min: 475, max: 649, bonus: 115 },
+  { id: 'strange', label: 'Extraña', min: 650, max: 849, bonus: 155 },
+  { id: 'singular', label: 'Singular', min: 850, max: 1099, bonus: 200 },
+  { id: 'legendary', label: 'Legendaria', min: 1100, max: 1399, bonus: 260 },
+  { id: 'mythic', label: 'Mítica', min: 1400, max: Infinity, bonus: 350 },
 ];
 
 const PB_VALUE_TABLES = {
-  damageLife: { 0: 0, 1: 5, 2: 10, 3: 20, 4: 25, 5: 35, 6: 40, 7: 50, 8: 55, 9: 65, 10: 75 },
-  precision: { 1: -250, 2: -180, 3: -120, 4: -70, 5: -30, 6: 0, 7: 50, 8: 80, 9: 120, 10: 170 },
+  // Tempo compartido: Costo, Kasteo y Restauración usan la misma curva,
+  // pero cada variable se puntúa por separado.
   costTempo: { 0: 200, 1: 160, 2: 120, 3: 85, 4: 55, 5: 35, 6: 15, 7: 0 },
+  // Estasis de Spellbook: la DURACIÓN sigue naciendo del costo (0→5 ... 5+→0),
+  // pero su descuento PB usa una curva compensatoria más fuerte para que las
+  // Invocaciones baratas/rápidas no suban de rareza únicamente por su tempo.
+  // Segunda calibración experimental, lineal por fase:
+  // 5 fases=-800, 4=-640, 3=-480, 2=-320, 1=-160 y 0=0.
+  spellbookCooldown: { 0: 0, 1: -160, 2: -320, 3: -480, 4: -640, 5: -800 },
+  precision: {
+    1: -250, 2: -180, 3: -120, 4: -70, 5: -30, 6: 0,
+    7: 100, 8: 150, 9: 210, 10: 330,
+    11: 480, 12: 660, 13: 870, 14: 1110, 15: 1380,
+  },
   range: { 1: 0, 2: 30, 3: 55, 4: 75, 5: 100 },
-  speed: { 6: 120, 5: 80, 4: 40, 3: 0, 2: -40, 1: -80, 0: -140, "-1": -220, "-2": -320 },
+  // La velocidad ya no toma 3 como cero. Empieza a aportar desde Velocidad 1.
+  speed: { 0: 0, 1: 10, 2: 20, 3: 30, 4: 40, 5: 80, 6: 120, 7: 180, 8: 250, 9: 330, 10: 420 },
 };
+
+function getCombinedDamageLifeBattleScore(damage = 0, life = 0) {
+  const total = Math.max(0, Math.min(70, Math.round((Number(damage) || 0) + (Number(life) || 0))));
+  if (total <= 0) return 0;
+  if (total === 1) return 5;
+  if (total === 2) return 10;
+  if (total === 3) return 20;
+  if (total === 4) return 25;
+  // Desde 5, la curva aumenta +20 PB por cada punto combinado adicional.
+  return 55 + ((total - 5) * 20);
+}
 
 const PB_DAMAGE_APPLICATION_TABLES = {
   penetration: { 1: 30, 2: 45, 3: 65, 4: 90, 5: 120 },
@@ -48752,32 +55551,8 @@ const PB_DAMAGE_APPLICATION_TABLES = {
   bounce: { 1: 40, 2: 60, 3: 90, 4: 130, 5: 180 },
 };
 
-const PB_FACTOR_TABLE = {
-  hidden: { base: 45, perLevel: 0, note: 'Impide ser seleccionado hasta romper el ocultamiento.' },
-  campeo: { base: 22, perLevel: 10, note: 'Movilidad de retroceso con permanencia táctica en zona de riesgo.' },
-  blindness: { base: 35, perLevel: 0, note: 'Penaliza precisión y velocidad hasta restauración.' },
-  burn: { base: 18, perLevel: 12, note: 'Daño elemental progresivo; el nivel mejora su aplicación y duración.' },
-  unionStrength: { base: 30, perLevel: 20, note: 'Reduce el espacio efectivo ocupado por copias iguales dentro del límite de invocaciones.' },
-  extraAttack: { base: 35, perLevel: 20, note: 'Permite atacar más de una vez; se calcula por nivel sin duplicar daño base.' },
-  extraWeapon: { base: 25, perLevel: 0, note: 'Utilidad: habilita arma adicional, no suma daño/precisión/rango de esa arma otra vez.' },
-  attackSpeed: { base: 10, perLevel: 12, note: 'Mejora la prioridad para atacar primero en combate.' },
-  disarm: { base: 28, perLevel: 10, note: 'Inutiliza el arma activa del objetivo.' },
-  paralysis: { base: 38, perLevel: 15, note: 'Bloquea acciones durante una duración escalada por nivel.' },
-  stun: { base: 15, perLevel: 18, note: 'Impide movimiento y acciones durante una cantidad de fases igual al nivel.' },
-  push: { base: 10, perLevel: 12, note: 'Desplaza al objetivo una cantidad de casillas determinada por el nivel.' },
-  healing: { base: 12, perLevel: 10, note: 'Recupera vida al cumplirse el disparador definido por el factor.' },
-  lethality: { base: 20, perLevel: 14, note: 'Factor ofensivo de ejecución condicionado a daño real.' },
-  armor: { base: 12, perLevel: 10, note: 'Reducción física defensiva por nivel.' },
-  diversion: { base: 16, perLevel: 13, note: 'Defensa reactiva por PDA antes de Evasión.' },
-  dodgeProjectile: { base: 18, perLevel: 13, note: 'Defensa anti-distancia/proyectiles.' },
-  evasion: { base: 14, perLevel: 12, note: 'Reduce precisión enemiga en combate cuerpo a cuerpo.' },
-  armorPenetration: { base: 18, perLevel: 10, note: 'Ignora puntos de Armadura física antes de reducir el daño.' },
-  criticalHit: { base: 15, perLevel: 12, note: 'Factor ofensivo de probabilidad/multiplicador.' },
-  precision: { base: 10, perLevel: 8, note: 'Factor de precisión cuando exista como factor real.' },
-};
-
-// Tabla inicial de rasgos. Los rasgos se calculan tanto en invocaciones como
-// en hechizos porque modifican reglas reales de construcción o kasteo.
+// Tabla inicial de rasgos. Los rasgos siguen siendo reglas excepcionales del juego
+// y se amplían de forma explícita conforme se incorporen nuevos rasgos.
 const PB_TRAIT_TABLE = {
   limitesforzados: { value: 35, note: 'Permite superar el límite normal de copias dentro del Spellbook.' },
   casteorapido: { value: 125, note: 'Abre una ventana reactiva y permite usar la carta fuera de la fase normal de Kasteo.' },
@@ -48787,27 +55562,28 @@ const PB_TRAIT_TABLE = {
 };
 
 // Disponibilidad de hechizos: más usuarios u objetivos válidos aumentan el PB.
-// Cinco categorías válidas, más de cinco o ausencia de limitación usan el tope.
 const PB_SPELL_ACCESS_TABLE = { 1: 20, 2: 45, 3: 70, 4: 95, 5: 120 };
 
-const PB_POWER_TABLE = {
-  despliegueAnticipado: { value: 110, note: 'Vínculo persistente con reducción de costo y bloqueo posterior de uso.' },
-  cargaReal: { value: 105, note: 'Franja completa bidireccional que combina impacto, control y desplazamiento.' },
-  gloriaLatente: { value: 130, note: 'Vínculo persistente con vida máxima adicional y restauración reducida a 0.' },
-  kouuten: { value: 135, note: 'Bombardeo de área con núcleo garantizado e impactos externos aleatorios.' },
-  gurenGan: { value: 165, note: 'Impacto amplio con daño principal, salpicaduras aleatorias y daño especial a estructuras.' },
-  kageNoMichi: { value: 95, note: 'Hechizo/campo con ocultamiento y soporte limitado por condiciones.' },
-  tentorou: { value: 150, note: 'Cuatro campos temporales de revelación y movilidad completa durante 10 fases, con posiciones aleatorias.' },
-  tacticaGuerra: { value: 125, note: 'Reposiciona el nexo de una invocación aliada, paga según su dominio y la restaura de inmediato al resolverse.' },
-  interceptar: { value: 145, note: 'Reposiciona automáticamente un nexo frente a un invasor, restaura a 0 y fuerza combate inmediato; Artimaña permite respuesta durante el turno rival.' },
-  emboscada: { value: 165, note: 'Reposicionamiento múltiple, restauración 0, Movilidad completa y bloqueo de objetivo hasta restaurarse; Defensa rápida permite respuesta instantánea.' },
-  senjinNoKosei: { value: 95, note: 'Aura de mando: Evasión para Guerreros y +1 ataque a Guerreros Samurái.' },
-  colegasDeGuerra: { value: 90, note: 'Poder de vínculo y escalado condicionado.' },
-  sukiruCharenji: { value: 135, note: 'Cadena reactiva fuerte, pero condicionada a ser atacado, costo alto y riesgo de daño.' },
-  mercanciaDeGuerra: { value: 105, note: 'Soporte logístico con reciclaje de equipos y restauración localizada de consumibles/armas.' },
-  bukiUtsushi: { value: 125, note: 'Permite recoger un arma desarmada, equipar su perfil básico y alternarla con la Kusarigama.' },
-  genyutsuShinigamiKarasu: { value: 110, note: 'Control mágico flexible: Ceguera rival o Vigilia temporal para Ninja aliado.' },
-  sabotajeApresurado: { value: 72, note: 'Sigilo pasivo en lado rival y extracción adicional al golpear la zona de riesgo.' },
+// Fallback temporal. NO es el motor nuevo: solo conserva cartas todavía no migradas
+// a pbEffects durante la revisión carta por carta.
+const PB_LEGACY_POWER_TABLE = {
+  despliegueAnticipado: { value: 110, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  cargaReal: { value: 105, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  gloriaLatente: { value: 130, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  kouuten: { value: 135, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  gurenGan: { value: 165, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  kageNoMichi: { value: 95, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  tentorou: { value: 150, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  tacticaGuerra: { value: 125, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  interceptar: { value: 145, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  emboscada: { value: 165, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  senjinNoKosei: { value: 95, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  colegasDeGuerra: { value: 90, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  sukiruCharenji: { value: 135, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  mercanciaDeGuerra: { value: 105, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  bukiUtsushi: { value: 125, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  genyutsuShinigamiKarasu: { value: 110, note: 'LEGADO: pendiente de migrar a pbEffects.' },
+  sabotajeApresurado: { value: 72, note: 'LEGADO: pendiente de migrar a pbEffects.' },
 };
 
 const PB_MOVEMENT_TABLE = {
@@ -48830,12 +55606,114 @@ const PB_MOVEMENT_TABLE = {
   completa: 120,
 };
 
+// =========================================================
+// PB UNIVERSAL v1 · LENGUAJE SEMÁNTICO DE EFECTOS
+// =========================================================
+const PB_UNIVERSAL_EFFECT_SCHEMA_VERSION = 1;
+const PB_EFFECT_PRACTICAL_SIDE_COUNT = 5;
+const PB_EFFECT_PRACTICAL_TOTAL_CAP = 12;
+const PB_EFFECT_TARGET_MARGINAL = Object.freeze({
+  1: 1.00,
+  2: 0.32,
+  3: 0.40,
+  4: 0.45,
+  5: 0.45,
+  6: 1.00,
+  7: 1.50,
+  8: 2.00,
+  9: 1.50,
+  10: 1.00,
+  11: 0.60,
+  12: 0.25,
+  13: 0.00,
+});
+
+const PB_EFFECT_PROPERTY_BASE = Object.freeze({
+  damage: 10,
+  life: 10,
+  attack: 10,
+  speed: 8,
+  precision: 10,
+  range: 10,
+  cost: 15,
+  cast: 15,
+  restore: 15,
+  spellbookCooldown: 15,
+  movement: 14,
+  push: 10,
+  stun: 18,
+  paralysis: 20,
+  binding: 18,
+  burn: 12,
+  hidden: 30,
+  blindness: 18,
+  disarm: 24,
+  healing: 10,
+  lethality: 20,
+  armor: 12,
+  armorPenetration: 14,
+  defenseBypass: 26,
+  powerCooldown: 10,
+  diversion: 15,
+  dodgeProjectile: 17,
+  evasion: 16,
+  criticalHit: 14,
+  attackSpeed: 10,
+  extraAttack: 25,
+  extraWeapon: 18,
+  weaponCopy: 28,
+  weaponSwitch: 14,
+  limitCapacity: 22,
+  positioning: 14,
+  teleport: 22,
+  silence: 25,
+  destroy: 32,
+  create: 18,
+  draw: 15,
+  discard: 15,
+  resource: 30,
+  genericFactor: 12,
+  genericEffect: 12,
+});
+
+const PB_EFFECT_TARGET_TYPE_COVERAGE = Object.freeze({
+  any: 1,
+  card: 1,
+  entity: 1,
+  invocation: .88,
+  kaster: .55,
+  structure: .65,
+  guardian: .65,
+  spell: .80,
+  ability: .75,
+  equipment: .70,
+  trap: .70,
+  cell: .75,
+  player: .45,
+  self: 1,
+});
+
+const PB_EFFECT_SIDE_WEIGHTS = Object.freeze({
+  favorable: 1,
+  collateral: .72,
+  selfDrawback: .85,
+});
+
+// Vocabulario canónico que se usará al migrar descripciones. No puntúa por texto:
+// la puntuación usa pbEffects estructurado y estas palabras sirven como sintaxis humana estable.
+const PB_LOGIC_KEYWORDS = Object.freeze({
+  operations: Object.freeze(['aumenta', 'reduce', 'aplica', 'inflige', 'cura', 'otorga', 'elimina', 'niega', 'restaura', 'destruye', 'crea', 'mueve', 'empuja', 'teletransporta', 'roba']),
+  properties: Object.freeze(['Daño', 'Vida', 'Ataque', 'Velocidad', 'Precisión', 'Alcance', 'Costo', 'Kasteo', 'Restauración', 'Estasis de Spellbook', 'Recurso', 'Quemadura', 'Aturdimiento', 'Parálisis', 'Atadura', 'Oculto', 'Ceguera']),
+  quantifiers: Object.freeze(['una carta', 'hasta N cartas', 'todas las cartas', 'todas las invocaciones', 'todo objetivo en la trayectoria']),
+  sides: Object.freeze(['aliado', 'rival', 'ambos']),
+});
+
 function clampBattleScore(value = 0) {
   return Math.max(0, Math.round(Number(value) || 0));
 }
 
-function getTableValueByNumber(table = {}, value = 0, cap = 10) {
-  const number = Math.max(-2, Math.min(cap, Math.round(Number(value) || 0)));
+function getTableValueByNumber(table = {}, value = 0, cap = 10, floor = -2) {
+  const number = Math.max(floor, Math.min(cap, Math.round(Number(value) || 0)));
   if (Object.prototype.hasOwnProperty.call(table, number)) return Number(table[number] || 0);
   if (Object.prototype.hasOwnProperty.call(table, String(number))) return Number(table[String(number)] || 0);
   const keys = Object.keys(table).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
@@ -48846,7 +55724,7 @@ function getTableValueByNumber(table = {}, value = 0, cap = 10) {
 function addBattleScoreBreakdown(breakdown, label, value, detail = '', options = {}) {
   const points = Math.round(Number(value) || 0);
   if (!points && !options.keepZero) return;
-  breakdown.push({ label, points, detail });
+  breakdown.push({ label, points, detail, engine: options.engine || '' });
 }
 
 function getBattleScoreRarity(baseScore = 0) {
@@ -48857,37 +55735,20 @@ function getBattleScoreRarity(baseScore = 0) {
 function normalizeDamageApplicationId(id = '') {
   const value = String(id || '').trim();
   const aliases = {
-    penetration: 'penetration',
-    penetrante: 'penetration',
-    line: 'line',
-    linea: 'line',
-    splashX: 'splashX',
-    salpicaduraX: 'splashX',
-    salpicaduraAdyacente: 'splashX',
-    splashHorizontal: 'splashHorizontal',
-    salpicaduraHorizontal: 'splashHorizontal',
-    splashVertical: 'splashVertical',
-    salpicaduraVertical: 'splashVertical',
-    splashCross: 'splashCross',
-    salpicaduraCruz: 'splashCross',
-    splashRandom: 'splashRandom',
-    salpicaduraAleatoria: 'splashRandom',
-    cone: 'cone',
-    cono: 'cone',
-    splashCone: 'splashCone',
-    sweep: 'sweep',
-    barrido: 'sweep',
-    oscillationPartial: 'oscillationPartial',
-    oscilacionParcial: 'oscillationPartial',
-    partialOscillation: 'oscillationPartial',
-    oscillationComplete: 'oscillationComplete',
-    oscilacionCompleta: 'oscillationComplete',
-    completeOscillation: 'oscillationComplete',
-    expansiveArea: 'expansiveArea',
-    areaExpansiva: 'expansiveArea',
-    area: 'area',
-    bounce: 'bounce',
-    rebote: 'bounce',
+    penetration: 'penetration', penetrante: 'penetration',
+    line: 'line', linea: 'line', chargeLane: 'line', trayectoria: 'line',
+    splash: 'splashX', salpicadura: 'splashX', splashX: 'splashX', salpicaduraX: 'splashX', salpicaduraAdyacente: 'splashX',
+    splashHorizontal: 'splashHorizontal', salpicaduraHorizontal: 'splashHorizontal',
+    splashVertical: 'splashVertical', salpicaduraVertical: 'splashVertical',
+    splashCross: 'splashCross', salpicaduraCruz: 'splashCross',
+    splashRandom: 'splashRandom', salpicaduraAleatoria: 'splashRandom',
+    cone: 'cone', cono: 'cone', splashCone: 'splashCone', salpicaduraCono: 'splashCone',
+    sweep: 'sweep', barrido: 'sweep',
+    oscillationPartial: 'oscillationPartial', oscilacionParcial: 'oscillationPartial', partialOscillation: 'oscillationPartial',
+    oscillationComplete: 'oscillationComplete', oscilacionCompleta: 'oscillationComplete', completeOscillation: 'oscillationComplete',
+    expansiveArea: 'expansiveArea', areaExpansiva: 'expansiveArea', gurenGanArea: 'expansiveArea', radial: 'expansiveArea',
+    area: 'area', kouutenArea: 'area', impactArea: 'area', burstArea: 'area', circle: 'area',
+    bounce: 'bounce', rebote: 'bounce',
   };
   return aliases[value] || value;
 }
@@ -48897,7 +55758,7 @@ function getDamageApplicationScore(applicationId = '', range = 1) {
   const table = PB_DAMAGE_APPLICATION_TABLES[id];
   if (!table) return { id, points: 0, includesRange: false };
   const safeRange = Math.max(1, Math.min(5, Math.round(Number(range) || 1)));
-  return { id, points: getTableValueByNumber(table, safeRange, 5), includesRange: true };
+  return { id, points: getTableValueByNumber(table, safeRange, 5, 0), includesRange: true };
 }
 
 function getMovementBattleScore(card) {
@@ -48905,15 +55766,315 @@ function getMovementBattleScore(card) {
   return Number(PB_MOVEMENT_TABLE[movementType] ?? 0);
 }
 
-function getFactorBattleScoreValue(factorEntry = {}) {
-  const id = factorEntry.id || '';
-  const level = Math.max(1, Math.min(5, Number(factorEntry.level || 1) || 1));
-  const config = PB_FACTOR_TABLE[id];
-  if (!config) return { points: 15 + (level * 8), note: 'Factor provisional por nivel.' };
-  const levelMultiplier = id === 'extraWeapon' ? 1 : level;
-  return { points: Math.round(config.base + (config.perLevel || 0) * levelMultiplier), note: config.note };
+function getPbTargetCountMultiplier(count = 1) {
+  const safe = Math.max(0, Math.min(13, Math.round(Number(count) || 0)));
+  if (safe <= 0) return 0;
+  let total = 0;
+  for (let index = 1; index <= safe; index += 1) total += Number(PB_EFFECT_TARGET_MARGINAL[index] ?? 0);
+  return Number(total.toFixed(4));
 }
 
+function normalizePbTargetSide(side = 'enemy') {
+  const value = String(side || '').trim().toLowerCase();
+  const aliases = {
+    ally: 'allied', allied: 'allied', aliado: 'allied', aliados: 'allied', owner: 'allied',
+    enemy: 'enemy', rival: 'enemy', rivales: 'enemy', opponent: 'enemy',
+    self: 'self', usuario: 'self', source: 'self',
+    all: 'all', ambos: 'all', global: 'all', everyone: 'all',
+  };
+  return aliases[value] || 'enemy';
+}
+
+function normalizePbEffectPolarity(effect = {}) {
+  const explicit = String(effect?.polarity || '').trim().toLowerCase();
+  if (['positive', 'negative', 'neutral'].includes(explicit)) return explicit;
+  const operation = String(effect?.operation || effect?.op || '').trim().toLowerCase();
+  if (['increase', 'grant', 'heal', 'restore', 'create', 'draw', 'aumenta', 'otorga', 'cura', 'restaura', 'crea'].includes(operation)) return 'positive';
+  if (['decrease', 'damage', 'applynegative', 'destroy', 'discard', 'stun', 'paralyze', 'push', 'silence', 'reduce', 'inflige', 'reduce', 'destruye', 'descarta', 'empuja'].includes(operation)) return 'negative';
+  const property = String(effect?.property || effect?.effect || '').trim();
+  if (['damage','burn','stun','paralysis','binding','blindness','disarm','lethality','push','silence','destroy'].includes(property)) return 'negative';
+  if (['life','attack','speed','precision','range','armor','healing','hidden','evasion','extraAttack','extraWeapon','attackSpeed','armorPenetration'].includes(property)) return 'positive';
+  return 'neutral';
+}
+
+function resolvePbEffectTargetTotal(effect = {}) {
+  const target = effect?.target && typeof effect.target === 'object' ? effect.target : {};
+  const raw = target.count ?? effect.targetCount ?? 1;
+  if (Number.isFinite(Number(raw))) return Math.max(0, Math.min(PB_EFFECT_PRACTICAL_TOTAL_CAP, Math.round(Number(raw))));
+  const mode = String(raw || target.countMode || '').trim().toLowerCase();
+  if (['scalable', 'unbounded', 'unlimited', 'indefinite', 'trayectoria'].includes(mode)) {
+    return Math.max(1, Math.min(PB_EFFECT_PRACTICAL_TOTAL_CAP, Math.round(Number(target.practicalMax || effect.practicalMax || PB_EFFECT_PRACTICAL_TOTAL_CAP))));
+  }
+  if (['all', 'todos', 'todas'].includes(mode)) {
+    const side = normalizePbTargetSide(target.side || effect.targetSide || 'enemy');
+    if (side === 'all') return Math.max(1, Math.min(PB_EFFECT_PRACTICAL_TOTAL_CAP, Math.round(Number(target.practicalCount || PB_EFFECT_PRACTICAL_SIDE_COUNT * 2))));
+    return Math.max(1, Math.min(PB_EFFECT_PRACTICAL_TOTAL_CAP, Math.round(Number(target.practicalCount || PB_EFFECT_PRACTICAL_SIDE_COUNT))));
+  }
+  return 1;
+}
+
+function getPbEffectMagnitudeMultiplier(magnitude = 1) {
+  const value = Math.max(0, Number(magnitude) || 0);
+  if (value <= 0) return 0;
+  if (value <= 1) return value;
+  if (value <= 5) return 1 + ((value - 1) * .70);
+  return 3.8 + ((value - 5) * .35);
+}
+
+function getPbEffectDurationMultiplier(duration = null) {
+  if (!duration) return 1;
+  const data = typeof duration === 'number' ? { type: 'phases', value: duration } : duration;
+  const type = String(data?.type || '').trim().toLowerCase();
+  const value = Math.max(0, Number(data?.value ?? data?.phases ?? data?.turns ?? 0) || 0);
+  if (['instant', 'instantaneous', 'inmediato'].includes(type)) return 1;
+  if (['phase', 'phases', 'fase', 'fases'].includes(type)) {
+    const first = Math.min(5, value) * .06;
+    const tail = Math.max(0, Math.min(20, value) - 5) * .025;
+    return Math.min(1.75, 1 + first + tail);
+  }
+  if (['turn', 'turns', 'turno', 'turnos'].includes(type)) return Math.min(1.8, 1 + (Math.min(3, value) * .18) + (Math.max(0, Math.min(6, value) - 3) * .08));
+  if (['untilrestore', 'until_restore', 'hasta-restaurar', 'hasta_restaurar'].includes(type)) return 1.40;
+  if (['untilweaponrecovered', 'until_weapon_recovered', 'hasta-recuperar-arma', 'hasta_recuperar_arma'].includes(type)) return 1.55;
+  if (['whileactive', 'while_active', 'mientras-activo', 'sourceactive'].includes(type)) return 1.45;
+  if (['untilbroken', 'until_broken', 'hasta-romper'].includes(type)) return 1.35;
+  if (['permanent', 'permanente'].includes(type)) return 1.70;
+  return 1;
+}
+
+function getPbEffectFrequencyMultiplier(frequency = '') {
+  const value = String(frequency || '').trim().toLowerCase();
+  const table = {
+    oncepermatch: .70,
+    once: 1,
+    active: 1,
+    trigger: 1.10,
+    onceperturn: 1.15,
+    onceperphase: 1.30,
+    everyhit: 1.40,
+    everyattack: 1.45,
+    continuous: 1.55,
+    passive: 1.20,
+  };
+  return Number(table[value] ?? 1);
+}
+
+function getPbEffectProbabilityMultiplier(effect = {}) {
+  const raw = effect?.probability ?? effect?.chance;
+  if (raw == null || raw === '') return 1;
+  let value = Number(raw);
+  if (!Number.isFinite(value)) return 1;
+  if (value > 1) value /= 100;
+  return Math.max(0, Math.min(1, value));
+}
+
+function getPbEffectConditionMultiplier(effect = {}) {
+  const explicit = Number(effect?.conditionMultiplier ?? effect?.availabilityMultiplier);
+  if (Number.isFinite(explicit)) return Math.max(.20, Math.min(1, explicit));
+  const conditions = Array.isArray(effect?.conditions) ? effect.conditions.filter(Boolean).length : Math.max(0, Number(effect?.conditionCount || 0));
+  if (!conditions) return 1;
+  return Math.max(.45, 1 - (conditions * .10));
+}
+
+function getPbEffectRepeatMultiplier(effect = {}) {
+  const count = Math.max(1, Number(effect?.repeatCount ?? effect?.ticks ?? 1) || 1);
+  return Math.min(2.40, 1 + ((count - 1) * .35));
+}
+
+function getPbEffectTypeCoverageMultiplier(effect = {}) {
+  const target = effect?.target && typeof effect.target === 'object' ? effect.target : {};
+  const type = String(target.type || effect.targetType || 'any').trim();
+  return Number(PB_EFFECT_TARGET_TYPE_COVERAGE[type] ?? .85);
+}
+
+function getPbEffectPropertyBase(effect = {}) {
+  const property = String(effect?.property || effect?.effect || 'genericEffect').trim();
+  const explicit = Number(effect?.baseValue);
+  if (Number.isFinite(explicit)) return Math.max(0, explicit);
+  return Number(PB_EFFECT_PROPERTY_BASE[property] ?? PB_EFFECT_PROPERTY_BASE.genericEffect);
+}
+
+function getPbEffectRelationCoefficient(polarity = 'neutral', side = 'enemy') {
+  const normalizedSide = normalizePbTargetSide(side);
+  if (polarity === 'neutral') return .50;
+  const positive = polarity === 'positive';
+  if (normalizedSide === 'self') return positive ? 1 : -PB_EFFECT_SIDE_WEIGHTS.selfDrawback;
+  if (normalizedSide === 'allied') return positive ? 1 : -PB_EFFECT_SIDE_WEIGHTS.collateral;
+  if (normalizedSide === 'enemy') return positive ? -PB_EFFECT_SIDE_WEIGHTS.collateral : 1;
+  return .50;
+}
+
+function compressPbUniversalEffectValue(value = 0) {
+  const sign = value < 0 ? -1 : 1;
+  const absolute = Math.abs(Number(value) || 0);
+  const threshold = 650;
+  if (absolute <= threshold) return value;
+  const compressed = threshold + (300 * (1 - Math.exp(-(absolute - threshold) / 300)));
+  return sign * compressed;
+}
+
+function evaluatePbUniversalEffect(effect = {}, context = {}) {
+  const normalized = effect && typeof effect === 'object' ? effect : {};
+  const polarity = normalizePbEffectPolarity(normalized);
+  const target = normalized.target && typeof normalized.target === 'object' ? normalized.target : {};
+  const side = normalizePbTargetSide(target.side || normalized.targetSide || 'enemy');
+  const totalCount = resolvePbEffectTargetTotal(normalized);
+  const property = String(normalized.property || normalized.effect || 'genericEffect').trim();
+  const magnitude = Math.max(0, Number(normalized.magnitude ?? normalized.value ?? normalized.amount ?? 1) || 0);
+  const base = getPbEffectPropertyBase(normalized);
+  const magnitudeMultiplier = getPbEffectMagnitudeMultiplier(magnitude);
+  const durationMultiplier = getPbEffectDurationMultiplier(normalized.duration);
+  const frequencyMultiplier = getPbEffectFrequencyMultiplier(normalized.frequency || normalized.activation || '');
+  const probabilityMultiplier = getPbEffectProbabilityMultiplier(normalized);
+  const conditionMultiplier = getPbEffectConditionMultiplier(normalized);
+  const repeatMultiplier = getPbEffectRepeatMultiplier(normalized);
+  const typeCoverageMultiplier = getPbEffectTypeCoverageMultiplier(normalized);
+
+  const evaluateGroup = (groupSide, groupCount) => {
+    const targetMultiplier = getPbTargetCountMultiplier(groupCount);
+    const relation = getPbEffectRelationCoefficient(polarity, groupSide);
+    return base * magnitudeMultiplier * targetMultiplier * durationMultiplier * frequencyMultiplier * probabilityMultiplier * conditionMultiplier * repeatMultiplier * typeCoverageMultiplier * relation;
+  };
+
+  let raw = 0;
+  let groupDetail = '';
+  if (side === 'all') {
+    const alliedCount = Math.ceil(totalCount / 2);
+    const enemyCount = Math.floor(totalCount / 2);
+    const alliedValue = evaluateGroup('allied', alliedCount);
+    const enemyValue = evaluateGroup('enemy', enemyCount);
+    raw = alliedValue + enemyValue;
+    groupDetail = `ambos bandos ${alliedCount}+${enemyCount}`;
+  } else {
+    raw = evaluateGroup(side, totalCount);
+    groupDetail = `${side} ×${totalCount}`;
+  }
+
+  const compressed = compressPbUniversalEffectValue(raw);
+  return {
+    schemaVersion: PB_UNIVERSAL_EFFECT_SCHEMA_VERSION,
+    points: Math.round(compressed),
+    rawPoints: raw,
+    property,
+    polarity,
+    side,
+    targetCount: totalCount,
+    detail: `${property} ${magnitude} · ${groupDetail} · obj×${getPbTargetCountMultiplier(side === 'all' ? Math.ceil(totalCount / 2) : totalCount).toFixed(2)} · dur×${durationMultiplier.toFixed(2)} · freq×${frequencyMultiplier.toFixed(2)} · prob×${probabilityMultiplier.toFixed(2)} · cond×${conditionMultiplier.toFixed(2)}`,
+    components: { base, magnitudeMultiplier, durationMultiplier, frequencyMultiplier, probabilityMultiplier, conditionMultiplier, repeatMultiplier, typeCoverageMultiplier },
+  };
+}
+
+function normalizePbEffects(value) {
+  if (!value) return [];
+  return (Array.isArray(value) ? value : [value]).filter(item => item && typeof item === 'object');
+}
+
+function addUniversalPbEffectsToBreakdown(breakdown, effects, labelPrefix = 'Efecto', options = {}) {
+  let total = 0;
+  normalizePbEffects(effects).forEach((effect, index) => {
+    const result = evaluatePbUniversalEffect(effect, options.context || {});
+    total += result.points;
+    const label = effect.label || effect.name || `${labelPrefix}${normalizePbEffects(effects).length > 1 ? ` ${index + 1}` : ''}`;
+    addBattleScoreBreakdown(breakdown, label, result.points, result.detail, { keepZero: true, engine: 'universal' });
+  });
+  return Math.round(total);
+}
+
+// Semántica de Factores: describe QUÉ hacen, no cuánto PB valen.
+// El valor sale exclusivamente de evaluatePbUniversalEffect().
+const PB_FACTOR_SEMANTICS = Object.freeze({
+  hidden: entry => [{ property: 'hidden', operation: 'grant', polarity: 'positive', magnitude: 1, target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'untilBroken' }, frequency: 'passive', label: 'Oculto' }],
+  campeo: entry => [{ property: 'positioning', operation: 'grant', polarity: 'positive', magnitude: 1, target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'whileActive' }, frequency: 'passive', label: 'Campeo' }],
+  blindness: entry => {
+    const profile = FACTOR_DB.blindness || {};
+    return [
+      { property: 'precision', operation: 'decrease', polarity: 'negative', magnitude: Math.max(1, Number(profile.precisionPenalty || 4)), target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'untilRestore' }, label: 'Ceguera · Precisión' },
+      { property: 'speed', operation: 'decrease', polarity: 'negative', magnitude: Math.max(1, Number(profile.speedPenalty || 1)), target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'untilRestore' }, label: 'Ceguera · Velocidad' },
+    ];
+  },
+  burn: entry => {
+    const level = Math.max(1, Math.min(5, Number(entry?.level || 1) || 1));
+    const profile = FACTOR_DB.burn || {};
+    const duration = Math.max(1, Number(entry?.durationPhases ?? profile.durationByLevel?.[level] ?? 6));
+    return [{ property: 'damage', operation: 'damage', polarity: 'negative', magnitude: 1, repeatCount: 3, target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'phases', value: duration }, frequency: 'trigger', label: `Quemadura ${level}` }];
+  },
+  unionStrength: entry => [{ property: 'limitCapacity', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'invocation', side: 'allied', count: 'all', practicalCount: 3 }, duration: { type: 'whileActive' }, frequency: 'trigger', label: 'Fuerza de unión' }],
+  extraAttack: entry => [{ property: 'extraAttack', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, frequency: 'everyAttack', label: 'Ataque extra' }],
+  extraWeapon: entry => [{ property: 'extraWeapon', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(FACTOR_DB.extraWeapon?.extraWeaponsByLevel?.[Math.max(1, Math.min(3, Number(entry?.level || 1)))] || entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'permanent' }, label: 'Arma extra' }],
+  attackSpeed: entry => [{ property: 'attackSpeed', operation: 'increase', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'whileActive' }, label: 'Velocidad de ataque' }],
+  disarm: entry => {
+    const level = Math.max(1, Math.min(5, Number(entry?.level || 1) || 1));
+    const profile = FACTOR_DB.disarm || {};
+    const explicitPda = Number(entry?.pdaOverride ?? entry?.pda);
+    const pda = Number.isFinite(explicitPda) ? Math.max(0, Math.min(6, explicitPda)) : Math.max(0, Number(profile.pdaByLevel?.[level] ?? level));
+    return [{ property: 'disarm', operation: 'applynegative', polarity: 'negative', magnitude: 1, probability: Math.min(1, pda / 6), target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'untilWeaponRecovered' }, frequency: 'everyHit', label: `Desarmar ${level}` }];
+  },
+  binding: entry => {
+    const level = Math.max(1, Math.min(5, Number(entry?.level || 1) || 1));
+    const profile = FACTOR_DB.binding || {};
+    const pda = Math.max(0, Math.min(6, Number(entry?.pdaOverride ?? entry?.pda ?? profile.pdaByLevel?.[level] ?? level)));
+    const duration = Math.max(1, Number(entry?.durationPhases ?? profile.durationByLevel?.[level] ?? ((level * 2) + 1)));
+    const probability = Math.min(1, pda / 6);
+    return [
+      { property: 'movement', operation: 'restrict', polarity: 'negative', magnitude: 1, probability, target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'phases', value: duration }, frequency: 'trigger', label: `Atadura ${level} · Movimiento` },
+      { property: 'attack', operation: 'restrict', polarity: 'negative', magnitude: 1, probability, target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'phases', value: duration }, frequency: 'trigger', label: `Atadura ${level} · Ataque` },
+    ];
+  },
+  paralysis: entry => {
+    const level = Math.max(1, Math.min(5, Number(entry?.level || 1) || 1));
+    const duration = Math.max(1, Number(entry?.durationPhases ?? FACTOR_DB.paralysis?.durationByLevel?.[level] ?? ((level * 2) + 1)));
+    return [{ property: 'paralysis', operation: 'paralyze', polarity: 'negative', magnitude: 1, target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'phases', value: duration }, frequency: 'trigger', label: `Parálisis ${level}` }];
+  },
+  stun: entry => {
+    const level = Math.max(1, Math.min(5, Number(entry?.level || 1) || 1));
+    const duration = Math.max(1, Number(entry?.durationPhases ?? FACTOR_DB.stun?.durationByLevel?.[level] ?? level));
+    return [{ property: 'stun', operation: 'stun', polarity: 'negative', magnitude: 1, target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'phases', value: duration }, frequency: 'trigger', label: `Aturdimiento ${level}` }];
+  },
+  push: entry => [{ property: 'push', operation: 'push', polarity: 'negative', magnitude: Math.max(1, Number(entry?.distance ?? entry?.level ?? 1)), target: { type: 'invocation', side: 'enemy', count: 1 }, duration: { type: 'instant' }, label: 'Empujar' }],
+  healing: entry => [{ property: 'life', operation: 'heal', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, frequency: 'trigger', label: 'Sanación' }],
+  lethality: entry => [{ property: 'lethality', operation: 'applynegative', polarity: 'negative', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'invocation', side: 'enemy', count: 1 }, frequency: 'trigger', label: 'Letalidad' }],
+  armor: entry => [{ property: 'armor', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'whileActive' }, label: 'Armadura' }],
+  diversion: entry => [{ property: 'diversion', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, frequency: 'trigger', label: 'Desvío' }],
+  dodgeProjectile: entry => [{ property: 'dodgeProjectile', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, frequency: 'trigger', label: 'Esquive de proyectil' }],
+  evasion: entry => [{ property: 'evasion', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, frequency: 'trigger', label: 'Evasión' }],
+  armorPenetration: entry => [{ property: 'armorPenetration', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, frequency: 'everyAttack', label: 'Penetración de armadura' }],
+  criticalHit: entry => {
+    const level = Math.max(1, Math.min(10, Number(entry?.level || 1) || 1));
+    const profile = FACTOR_DB.criticalHit || {};
+    const pda = Math.max(0, Number(profile.pdaByLevel?.[level] ?? level + 1));
+    const multiplier = Math.max(1, Number(profile.multiplierByLevel?.[level] ?? level + 1));
+    return [{
+      property: 'criticalHit',
+      operation: 'multiplyDamage',
+      polarity: 'positive',
+      // El factor valora la amenaza extra del crítico; la cantidad de objetivos
+      // de un Poder que lo distribuya se modela en pbEffects de ese Poder.
+      magnitude: Math.max(1, multiplier - 1),
+      probability: Math.min(1, pda / 6),
+      target: { type: 'self', side: 'self', count: 1 },
+      frequency: 'everyAttack',
+      label: `Golpe crítico ${level}`,
+    }];
+  },
+  precision: entry => [{ property: 'precision', operation: 'increase', polarity: 'positive', magnitude: Math.max(1, Number(entry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'whileActive' }, label: 'Precisión' }],
+});
+
+function getFactorUniversalPbEffects(factorEntry = {}) {
+  const id = String(factorEntry?.id || '').trim();
+  const builder = PB_FACTOR_SEMANTICS[id];
+  if (typeof builder === 'function') return normalizePbEffects(builder(factorEntry));
+  return [{ property: 'genericFactor', operation: 'grant', polarity: 'positive', magnitude: Math.max(1, Number(factorEntry?.level || 1)), target: { type: 'self', side: 'self', count: 1 }, duration: { type: 'whileActive' }, label: getFactorProfile(id)?.label || id || 'Factor' }];
+}
+
+function getFactorBattleScoreValue(factorEntry = {}) {
+  const effects = getFactorUniversalPbEffects(factorEntry);
+  const results = effects.map(effect => evaluatePbUniversalEffect(effect));
+  return {
+    points: Math.round(results.reduce((sum, result) => sum + result.points, 0)),
+    note: results.map(result => result.detail).join(' · '),
+    engine: 'universal',
+    effects: results,
+  };
+}
 
 function getTraitBattleScoreValue(traitProfile = null) {
   const normalizedId = normalizeSpellbookTraitId(traitProfile?.id || traitProfile || '');
@@ -48945,9 +56106,7 @@ function getSpellRuleMandatoryRestrictionCount(rule = {}) {
 function getSpellAccessBattleScore(rule = null, role = 'target') {
   const maxGroups = 5;
   const maxPoints = PB_SPELL_ACCESS_TABLE[maxGroups];
-  if (!rule || typeof rule !== 'object') {
-    return { points: maxPoints, groups: maxGroups, unrestricted: true, note: 'Sin limitación específica.' };
-  }
+  if (!rule || typeof rule !== 'object') return { points: maxPoints, groups: maxGroups, unrestricted: true, note: 'Sin limitación específica.' };
   const mode = String(rule.mode || '').trim().toLowerCase();
   const unrestrictedModes = new Set(['any', 'unrestricted', 'global', 'arenalocation', 'arenaarea', 'location']);
   const explicitlyUnrestricted = role === 'user'
@@ -48956,10 +56115,8 @@ function getSpellAccessBattleScore(rule = null, role = 'target') {
   if (explicitlyUnrestricted) {
     return { points: maxPoints, groups: maxGroups, unrestricted: true, note: role === 'user' ? 'Puede usarlo cualquier Kaster.' : 'Puede aplicarse sin limitarse a un grupo de cartas.' };
   }
-
   const values = getSpellRuleRestrictionValues(rule, role);
   let groups = values.size;
-  // Una restricción que solo indica el tipo de carta se considera un único grupo.
   if (!groups && Array.isArray(rule.cardTypes) && rule.cardTypes.filter(Boolean).length) groups = 1;
   if (!groups) groups = 1;
   const mandatoryPenalty = getSpellRuleMandatoryRestrictionCount(rule);
@@ -48984,12 +56141,95 @@ function addCardTraitBattleScores(card, breakdown) {
   });
 }
 
-function getPowerBattleScoreValue(card = null) {
-  const power = getPowerProfile?.(card?.power) || card?.power;
-  if (!power?.id) return { points: 0, note: '' };
-  const config = PB_POWER_TABLE[power.id];
-  if (!config) return { points: 65, note: 'Poder provisional pendiente de tabla específica.' };
-  return { points: config.value, note: config.note };
+function getPowerStructuredPbEffects(card = null, powerOrEntry = null) {
+  const power = powerOrEntry ? (getPowerProfile?.(powerOrEntry) || powerOrEntry) : (getPowerProfile?.(card?.power) || card?.power);
+  const cardFallback = !powerOrEntry ? card?.powerPbEffects : null;
+  return normalizePbEffects(power?.pbEffects || power?.pbSchema?.effects || cardFallback);
+}
+
+function getPowerFactorApplications(powerOrEntry = null) {
+  const power = getPowerProfile?.(powerOrEntry) || powerOrEntry;
+  return Array.isArray(power?.factorApplications) ? power.factorApplications.filter(Boolean) : [];
+}
+
+// Un Factor nativo ya puntúa como capacidad base de la carta. Si un Poder lo
+// distribuye sobre más objetivos, solo se añade el valor marginal adicional.
+// Si el Factor no es nativo del ataque, la aplicación del Poder recibe el valor
+// completo escalado por cantidad de objetivos.
+function evaluatePbPowerFactorApplication(application = {}, context = {}) {
+  const factorId = String(application?.factorId || application?.id || '').trim();
+  if (!factorId) return { points: 0, detail: 'Aplicación de Factor sin id.', engine: 'universal-factor-application' };
+  const level = Math.max(1, Number(application?.level || 1) || 1);
+  const factorEntry = { id: factorId, level, pdaOverride: application?.pdaOverride };
+  const baseResult = getFactorBattleScoreValue(factorEntry);
+  const basePoints = Math.max(0, Number(baseResult.points || 0));
+  const targetEffect = { target: application.target || { type: 'invocation', side: 'enemy', count: 1 } };
+  const count = resolvePbEffectTargetTotal(targetEffect);
+  const totalMultiplier = getPbTargetCountMultiplier(count);
+  const baselineMultiplier = application?.inheritedBase === true ? getPbTargetCountMultiplier(1) : 0;
+  const incrementalMultiplier = Math.max(0, totalMultiplier - baselineMultiplier);
+  const conditionMultiplier = getPbEffectConditionMultiplier(application);
+  const points = Math.round(basePoints * incrementalMultiplier * conditionMultiplier);
+  return {
+    points,
+    basePoints,
+    targetCount: count,
+    targetMultiplier: totalMultiplier,
+    inheritedBase: application?.inheritedBase === true,
+    detail: `${getFactorProfile(factorId)?.label || factorId} ${level} · objetivos ${count} · factor base ${basePoints} · escala adicional ×${incrementalMultiplier.toFixed(2)}`,
+    engine: 'universal-factor-application',
+  };
+}
+
+function getPowerBattleScoreValue(card = null, powerOrEntry = null) {
+  const power = powerOrEntry ? (getPowerProfile?.(powerOrEntry) || powerOrEntry) : (getPowerProfile?.(card?.power) || card?.power);
+  if (!power?.id) return { points: 0, note: '', engine: 'none' };
+  const effects = getPowerStructuredPbEffects(card, power);
+  const factorApplications = getPowerFactorApplications(power);
+  if (effects.length || factorApplications.length) {
+    const results = effects.map(effect => evaluatePbUniversalEffect(effect, { card, source: 'power', powerId: power.id }));
+    const factorResults = factorApplications.map(application => evaluatePbPowerFactorApplication(application, { card, power }));
+    const points = Math.round([...results, ...factorResults].reduce((sum, result) => sum + Number(result.points || 0), 0));
+    return { points, note: [...results, ...factorResults].map(result => result.detail).join(' · '), engine: 'universal', effects: results, factorApplications: factorResults };
+  }
+  const config = PB_LEGACY_POWER_TABLE[power.id];
+  if (!config) return { points: 65, note: 'LEGADO provisional: poder todavía sin pbEffects.', engine: 'legacy' };
+  return { points: config.value, note: config.note, engine: 'legacy' };
+}
+
+function getAbilityStructuredPbEffects(abilityEntry = null) {
+  const id = typeof abilityEntry === 'string' ? abilityEntry : abilityEntry?.id;
+  const profile = getAbilityProfile?.(id) || abilityEntry;
+  return normalizePbEffects(profile?.pbEffects || profile?.pbSchema?.effects || abilityEntry?.pbEffects);
+}
+
+function getCardOwnStructuredPbEffects(card = null) {
+  return [
+    ...normalizePbEffects(card?.pbEffects),
+    ...normalizePbEffects(card?.spellRules?.effect?.pbEffects),
+  ];
+}
+
+function getInvocationStaticSpellbookCooldown(card) {
+  if (!card || getCardTypeId(card) !== 'invocation') return 0;
+  const displayed = getDisplayedSpellbookCooldown?.(card);
+  return Math.max(0, Number(displayed?.base ?? displayed?.total ?? getInvocationBaseSpellbookCooldown(card) ?? 0));
+}
+
+function getPbEngineMigrationState(card = null) {
+  if (!card) return { structured: 0, legacy: 0, mode: 'universal' };
+  let structured = getCardOwnStructuredPbEffects(card).length;
+  let legacy = 0;
+  getCardPowerEntries(card).forEach(({ profile }) => {
+    const structuredCount = getPowerStructuredPbEffects(card, profile).length + getPowerFactorApplications(profile).length;
+    if (structuredCount) structured += structuredCount;
+    else legacy += 1;
+  });
+  (Array.isArray(card?.abilities) ? card.abilities : []).forEach(entry => {
+    if (getAbilityStructuredPbEffects(entry).length) structured += 1;
+    else legacy += 1;
+  });
+  return { structured, legacy, mode: legacy > 0 ? (structured > 0 ? 'hybrid' : 'legacy-compatible') : 'universal' };
 }
 
 function calculateCardBattleScore(card) {
@@ -49004,63 +56244,112 @@ function calculateCardBattleScore(card) {
   const costTotal = getCardTotalCost(card);
   const castPhases = Math.max(0, Number(card.castPhases ?? 0));
   const damage = Math.max(0, Number(attack.damage ?? stats.damage ?? 0));
+  const life = Math.max(0, Number(stats.life ?? stats.def ?? 0));
+  const migration = getPbEngineMigrationState(card);
 
-  // Aportes compartidos por conjuros: daño real, costo y tiempo de kasteo.
-  addBattleScoreBreakdown(breakdown, 'Daño', getTableValueByNumber(PB_VALUE_TABLES.damageLife, damage, 10), `Daño ${damage}`);
-  addBattleScoreBreakdown(breakdown, 'Costo', getTableValueByNumber(PB_VALUE_TABLES.costTempo, costTotal, 7), `Costo total ${costTotal}`, { keepZero: true });
-  addBattleScoreBreakdown(breakdown, 'Kasteo', getTableValueByNumber(PB_VALUE_TABLES.costTempo, castPhases, 7), `${castPhases} fase(s)`, { keepZero: true });
+  // Costo y Kasteo son dimensiones independientes aunque compartan curva.
+  addBattleScoreBreakdown(breakdown, 'Costo', getTableValueByNumber(PB_VALUE_TABLES.costTempo, costTotal, 7, 0), `Costo total ${costTotal}`, { keepZero: true });
+  addBattleScoreBreakdown(breakdown, 'Kasteo', getTableValueByNumber(PB_VALUE_TABLES.costTempo, castPhases, 7, 0), `${castPhases} fase(s)`, { keepZero: true });
 
   if (!isSupportCard) {
     const restore = Math.max(0, Number(stats.restore ?? 0));
-    const life = Math.max(0, Number(stats.life ?? stats.def ?? 0));
-    const speed = Math.max(-2, Number(stats.mov ?? 3));
+    const speed = Math.max(0, Number(stats.mov ?? 0));
     const precision = Math.max(1, Number(attack.precision ?? 6));
     const range = Math.max(1, Number(attack.range ?? 1));
+    const combined = Math.max(0, Math.min(70, Math.round(damage + life)));
 
-    addBattleScoreBreakdown(breakdown, 'Vida', getTableValueByNumber(PB_VALUE_TABLES.damageLife, life, 10), `Vida ${life}`);
-    addBattleScoreBreakdown(breakdown, 'Precisión', getTableValueByNumber(PB_VALUE_TABLES.precision, precision, 10), `${precision} PDA`, { keepZero: true });
-    addBattleScoreBreakdown(breakdown, 'Restauración', getTableValueByNumber(PB_VALUE_TABLES.costTempo, restore, 7), `${restore} fase(s)`, { keepZero: true });
+    addBattleScoreBreakdown(breakdown, 'Daño + Vida', getCombinedDamageLifeBattleScore(damage, life), `${damage} + ${life} = ${combined}`, { keepZero: true });
+    addBattleScoreBreakdown(breakdown, 'Precisión', getTableValueByNumber(PB_VALUE_TABLES.precision, precision, 15, 1), `${precision} PDA`, { keepZero: true });
+    addBattleScoreBreakdown(breakdown, 'Restauración', getTableValueByNumber(PB_VALUE_TABLES.costTempo, restore, 7, 0), `${restore} fase(s)`, { keepZero: true });
+
+    if (typeId === 'invocation') {
+      const spellbookCooldown = getInvocationStaticSpellbookCooldown(card);
+      addBattleScoreBreakdown(breakdown, 'Estasis de Spellbook', getTableValueByNumber(PB_VALUE_TABLES.spellbookCooldown, spellbookCooldown, 5, 0), `${spellbookCooldown} fase(s)`, { keepZero: true });
+    }
 
     const applicationScore = getDamageApplicationScore(attack.applicationId, range);
     if (applicationScore.points) {
       addBattleScoreBreakdown(breakdown, 'Aplicación de daño', applicationScore.points, `${applicationScore.id} · alcance ${Math.min(5, range)}`);
     } else {
-      addBattleScoreBreakdown(breakdown, 'Modo/rango', getTableValueByNumber(PB_VALUE_TABLES.range, range, 5), `Alcance ${range}`, { keepZero: true });
+      addBattleScoreBreakdown(breakdown, 'Modo/rango', getTableValueByNumber(PB_VALUE_TABLES.range, range, 5, 0), `Alcance ${range}`, { keepZero: true });
     }
 
     const movementScore = getMovementBattleScore(card);
     addBattleScoreBreakdown(breakdown, 'Movilidad especial', movementScore, card.movementType || 'basic', { keepZero: true });
-    addBattleScoreBreakdown(breakdown, 'Velocidad', getTableValueByNumber(PB_VALUE_TABLES.speed, speed, 6), `Velocidad/MOV ${speed}`, { keepZero: true });
-  } else if (isSupportCard) {
-    // Hechizos y Habilidades no suman precisión, restauración, rango, movilidad ni velocidad propios.
-    // En su lugar se mide cuánto restringen al usuario y al objetivo.
+    addBattleScoreBreakdown(breakdown, 'Velocidad', getTableValueByNumber(PB_VALUE_TABLES.speed, speed, 10, 0), `Velocidad/MOV ${speed}`, { keepZero: true });
+  } else {
+    // Hechizos y Habilidades no tienen stats físicos propios. Hasta migrarlos a pbEffects,
+    // su daño declarado se conserva como fallback legado para no perder fuerza de forma silenciosa.
+    if (damage > 0 && getCardOwnStructuredPbEffects(card).length === 0 && !getCardPowerEntries(card).some(({ profile }) => getPowerStructuredPbEffects(card, profile).length || getPowerFactorApplications(profile).length)) {
+      addBattleScoreBreakdown(breakdown, 'Daño declarado · legado', getCombinedDamageLifeBattleScore(damage, 0), `Daño ${damage}; migrar este efecto a pbEffects.`, { engine: 'legacy' });
+    }
     const userAccess = getSpellAccessBattleScore(card?.spellRules?.user, 'user');
     const targetAccess = getSpellAccessBattleScore(card?.spellRules?.target, 'target');
     addBattleScoreBreakdown(breakdown, 'Disponibilidad de usuarios', userAccess.points, userAccess.note);
     addBattleScoreBreakdown(breakdown, 'Disponibilidad de objetivos', targetAccess.points, targetAccess.note);
   }
 
-  // Los rasgos alteran reglas reales y se calculan para invocaciones y hechizos.
   addCardTraitBattleScores(card, breakdown);
 
-  const seenFactors = new Set();
-  const allFactors = getCardAllFactors(card);
-  allFactors.forEach(factorEntry => {
-    if (!factorEntry?.id) return;
-    const key = `${factorEntry.id}:${factorEntry.level || 1}:${factorEntry.source || ''}`;
-    if (seenFactors.has(key)) return;
-    seenFactors.add(key);
-    const factor = getFactorProfile(factorEntry.id);
-    const score = getFactorBattleScoreValue(factorEntry);
-    addBattleScoreBreakdown(breakdown, `Factor: ${factor?.label || factorEntry.id}`, score.points, `Nivel ${factorEntry.level || 1}. ${score.note}`);
+
+  // Capacidad de Habilidades: cada slot disponible es una ventaja propia de la
+  // carta y aporta +35 PB, tenga o no una Habilidad equipada en ese momento.
+  const abilitySlotCount = Math.max(0, Math.floor(Number(card?.abilitySlots) || 0));
+  if (abilitySlotCount > 0) {
+    addBattleScoreBreakdown(
+      breakdown,
+      'Slots de Habilidad',
+      abilitySlotCount * 35,
+      `${abilitySlotCount} slot(s) × 35 PB`,
+      { engine: 'universal' }
+    );
+  }
+
+  // Factores: ya usan el motor universal semántico. Si al migrar un Poder sus pbEffects
+  // incluyen explícitamente los Factores, puede marcar pbEffectsCoverFactors para evitar duplicación.
+  const powerProfiles = getCardPowerProfiles(card);
+  const coverFactors = card?.pbEffectsCoverFactors === true || powerProfiles.some(profile => profile?.pbEffectsCoverFactors === true);
+  if (!coverFactors) {
+    const seenFactors = new Set();
+    getCardAllFactors(card).forEach(factorEntry => {
+      if (!factorEntry?.id) return;
+      const key = `${factorEntry.id}:${factorEntry.level || 1}:${factorEntry.source || ''}`;
+      if (seenFactors.has(key)) return;
+      seenFactors.add(key);
+      const factor = getFactorProfile(factorEntry.id);
+      const score = getFactorBattleScoreValue(factorEntry);
+      addBattleScoreBreakdown(breakdown, `Factor: ${factor?.label || factorEntry.id}`, score.points, score.note, { engine: 'universal' });
+    });
+  }
+
+  // Efectos estructurados propios de la carta/hechizo.
+  addUniversalPbEffectsToBreakdown(breakdown, getCardOwnStructuredPbEffects(card), 'Efecto', { context: { card, source: 'card' } });
+
+  // Poderes: cada Poder real se calcula por separado. Las cartas antiguas siguen
+  // entrando como un único Poder mediante `card.power`.
+  getCardPowerEntries(card).forEach(({ profile: power }, index) => {
+    const powerScore = getPowerBattleScoreValue(card, power);
+    const prefix = powerScore.engine === 'legacy' ? 'Poder · legado' : 'Poder';
+    addBattleScoreBreakdown(
+      breakdown,
+      `${prefix}${getCardPowerEntries(card).length > 1 ? ` ${index + 1}` : ''}: ${power?.label || power?.name || power?.id || index + 1}`,
+      powerScore.points,
+      powerScore.note || '',
+      { keepZero: true, engine: powerScore.engine }
+    );
   });
 
-  const powerScore = getPowerBattleScoreValue(card);
-  const power = getPowerProfile?.(card?.power) || card?.power;
-  addBattleScoreBreakdown(breakdown, 'Poder', powerScore.points, power?.label || power?.name || powerScore.note || '');
-
-  const abilityCount = Array.isArray(card.abilities) ? card.abilities.length : 0;
-  if (abilityCount) addBattleScoreBreakdown(breakdown, 'Habilidades', abilityCount * 35, `${abilityCount} habilidad(es) provisional`);
+  // Habilidades equipadas: universal cuando su perfil tenga pbEffects; +35 solo como fallback temporal.
+  (Array.isArray(card.abilities) ? card.abilities : []).forEach((abilityEntry, index) => {
+    const abilityId = typeof abilityEntry === 'string' ? abilityEntry : abilityEntry?.id;
+    const profile = getAbilityProfile?.(abilityId) || abilityEntry || {};
+    const effects = getAbilityStructuredPbEffects(abilityEntry);
+    if (effects.length) {
+      addUniversalPbEffectsToBreakdown(breakdown, effects, `Habilidad: ${profile.label || profile.name || abilityId || index + 1}`, { context: { card, source: 'ability', abilityId } });
+    } else {
+      addBattleScoreBreakdown(breakdown, `Habilidad · legado: ${profile.label || profile.name || abilityId || index + 1}`, 0, 'Efecto pendiente de pbEffects; la capacidad de equiparla ya se valora mediante Slots de Habilidad.', { keepZero: true, engine: 'legacy' });
+    }
+  });
 
   const rawScore = breakdown.reduce((sum, entry) => sum + entry.points, 0);
   const baseScore = clampBattleScore(rawScore);
@@ -49077,8 +56366,34 @@ function calculateCardBattleScore(card) {
     rarityBonus: rarity.bonus,
     battlePoints,
     breakdown,
-    penalties: [],
+    penalties: breakdown.filter(entry => entry.points < 0),
+    pbEngine: {
+      version: PB_UNIVERSAL_EFFECT_SCHEMA_VERSION,
+      mode: migration.mode,
+      structuredComponents: migration.structured,
+      legacyComponents: migration.legacy,
+    },
   };
+}
+
+if (typeof window !== 'undefined') {
+  window.ROK_PB_ENGINE = Object.freeze({
+    version: PB_UNIVERSAL_EFFECT_SCHEMA_VERSION,
+    calculateCard(cardOrId) {
+      const card = typeof cardOrId === 'string' ? CARD_LIBRARY?.[cardOrId] : cardOrId;
+      return calculateCardBattleScore(card);
+    },
+    evaluateEffect(effect) { return evaluatePbUniversalEffect(effect); },
+    targetMultiplier(count) { return getPbTargetCountMultiplier(count); },
+    keywords: PB_LOGIC_KEYWORDS,
+    config: Object.freeze({
+      targetMarginal: PB_EFFECT_TARGET_MARGINAL,
+      propertyBase: PB_EFFECT_PROPERTY_BASE,
+      sideWeights: PB_EFFECT_SIDE_WEIGHTS,
+      practicalSideCount: PB_EFFECT_PRACTICAL_SIDE_COUNT,
+      practicalTotalCap: PB_EFFECT_PRACTICAL_TOTAL_CAP,
+    }),
+  });
 }
 
 function formatSignedPoints(points = 0) {
@@ -49094,6 +56409,7 @@ function buildBattleScoreDebugPanelHtml(card) {
     ['Rareza sugerida', result.rarityLabel],
     ['Bono rareza', `+${result.rarityBonus}`],
     ['PB final', result.battlePoints],
+    ['Motor PB', `${result.pbEngine?.mode || 'universal'} · v${result.pbEngine?.version || 1}`],
   ].map(([label, value]) => `<div class="rarity-debug-summary-row"><span>${label}</span><strong>${value}</strong></div>`).join('');
 
   const positiveRows = result.breakdown.map(entry => `
@@ -49110,8 +56426,8 @@ function buildBattleScoreDebugPanelHtml(card) {
       <div class="rarity-debug-list-title">Cálculo por ventaja real</div>
       <ul class="rarity-debug-list">${positiveRows || '<li><span>Sin aportes</span><strong>0</strong></li>'}</ul>
       <p class="rarity-debug-note">${['spell', 'ability'].includes(result.typeId)
-        ? `${result.typeId === 'ability' ? 'Habilidad' : 'Hechizo'}: no suma precisión, restauración, rango, movilidad ni velocidad propios. Sí suma costo, kasteo, disponibilidad, rasgos, factores y efecto.`
-        : 'Invocación: calcula sus estadísticas de combate, aplicación, movilidad, rasgos, factores y poder sin cobrar dos veces el nombre de raza, cualidad o tipo.'}</p>
+        ? `${result.typeId === 'ability' ? 'Habilidad' : 'Hechizo'}: usa Costo/Kasteo, disponibilidad y el motor universal para Factores/Efectos. Los componentes todavía sin pbEffects aparecen marcados como LEGADO.`
+        : 'Invocación: Daño+Vida se calculan juntos; Costo/Kasteo/Restauración son independientes; Estasis de Spellbook resta PB según su curva; cada Slot de Habilidad aporta +35 PB; Factores usan el motor universal. Poderes/Habilidades sin pbEffects quedan marcados como LEGADO hasta su revisión.'}</p>
     </div>`;
 }
 
@@ -49206,7 +56522,7 @@ function hideBattleScoreDebugToggleButton() {
 function log(message) { els.systemLog.textContent = message; }
 
 function hexToRgbParts(hex) {
-  const clean = String(hex || '#9b4dff').replace('#', '').trim();
+  const clean = String(hex || '#5400FF').replace('#', '').trim();
   const full = clean.length === 3 ? clean.split('').map(ch => ch + ch).join('') : clean;
   const value = parseInt(full, 16);
   if (!Number.isFinite(value)) return '155, 77, 255';
@@ -49552,3 +56868,5 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 window.addEventListener('resize', updateCombatHudFixedPosition);
 window.addEventListener('scroll', updateCombatHudFixedPosition, true);
+
+// ROK v5.7.285 · Etapa 4 · registro compartido de arenas + carruseles Online + Tutorial

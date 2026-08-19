@@ -25,6 +25,7 @@
   const SYNC_WATCHDOG_MS = 1800;
   const REMOTE_DEFENSE_TIMEOUT_MS = 45000;
   const REMOTE_ACTION_WINDOW_TIMEOUT_MS = 60000;
+  const RECONNECT_GRACE_MS = 60000;
   const SESSION_STORAGE_KEY = 'rok_online_room_session_v2';
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const FRIEND_CODE_LENGTH = 8;
@@ -33,11 +34,27 @@
   const AVATAR_JOBS_ROOT = 'avatarJobs';
   const CUSTOM_PROFILE_AVATAR_ID = 'custom-caster';
   const MAX_CASTER_AVATAR_SOURCE_BYTES = 10 * 1024 * 1024;
-  const LOBBY_COUNTDOWN_MS = 3400;
+  const LOBBY_COUNTDOWN_MS = 6200;
+  const SHARED_ARENAS = window.ROK_ARENA_REGISTRY || {};
   const ARENA_OPTIONS = Object.freeze({
-    classic: { id: 'classic', label: 'Arena clásica', src: 'assets/arena.webp' },
-    egypt: { id: 'egypt', label: 'Arena Egipto', src: 'assets/arena-egipto.webp' },
+    ...Object.fromEntries(Object.values(SHARED_ARENAS)
+      .filter(arena => arena && arena.pvp)
+      .map(arena => [arena.id, {
+        id: arena.id,
+        label: arena.label,
+        previewImage: arena.previewImage,
+        battleImage: arena.battleImage,
+      }])),
+    random: {
+      id: 'random',
+      label: 'Random',
+      previewImage: 'assets/arenas/previews/japan.webp',
+      battleImage: 'assets/arena.webp',
+      random: true,
+    },
   });
+  const CONCRETE_ARENA_IDS = Object.freeze(Object.keys(ARENA_OPTIONS).filter(id => id !== 'random'));
+
 
   const ONLINE_SNAPSHOT_SCHEMA_VERSION = 5;
   const ONLINE_SNAPSHOT_HASH_VERSION = 2;
@@ -66,6 +83,7 @@
     'resolutionSerial',
     'arenaEntrySerial',
     'smokeZones',
+    'farolPortals',
     'celestialLamps',
     'longNightEffects',
     'activeSpellLinks',
@@ -88,6 +106,7 @@
   // hacen que cada snapshot sea reemplazo de estado, no un merge parcial.
   const SNAPSHOT_ARRAY_KEYS = new Set([
     'smokeZones',
+    'farolPortals',
     'celestialLamps',
     'longNightEffects',
     'activeSpellLinks',
@@ -124,6 +143,7 @@
   let roomPath = '';
   let playerSlot = 0;
   let roomUnsubscribe = null;
+  let roomSessionGeneration = 0;
   let authoritativeUnsubscribe = null;
   let interactionUnsubscribe = null;
   let priorityActionUnsubscribe = null;
@@ -134,6 +154,10 @@
   let fxListenerStartedAt = 0;
   const handledFxEventIds = new Set();
   let presenceDisconnect = null;
+  let connectionUnsubscribe = null;
+  let opponentReconnectTimer = null;
+  let opponentReconnectDeadline = 0;
+  let reconnectCandidate = null;
   let syncTimer = null;
   let publishTimer = null;
   let localStateDirty = false;
@@ -216,6 +240,8 @@
   let lobbyListingDisconnect = null;
   let lobbyGuestUidDisconnect = null;
   let lobbyDisconnectKey = '';
+  let onlineSpellbookCarouselIndex = 0;
+  let onlineArenaCarouselIndex = 0;
 
   // Cuenta de jugador + sistema social. La identidad online usa un UID real
   // de Firebase Authentication (email/contraseña); no se crean usuarios
@@ -385,10 +411,16 @@
     ui.status = document.getElementById('onlineLobbyStatus');
     ui.startBtn = document.getElementById('onlineStartMatchBtn');
     ui.readyBtn = ui.startBtn;
-    ui.selectSpellbookBtn = document.getElementById('onlineSelectSpellbookBtn');
     ui.localSpellbookName = document.getElementById('onlineLocalSpellbookName');
-    ui.arenaSelect = document.getElementById('onlineArenaSelect');
+    ui.spellbookCarouselViewport = document.getElementById('onlineSpellbookCarouselViewport');
+    ui.spellbookPrevBtn = document.getElementById('onlineSpellbookPrevBtn');
+    ui.spellbookNextBtn = document.getElementById('onlineSpellbookNextBtn');
+    ui.arenaPreviewWrap = document.getElementById('onlineArenaPreviewWrap');
     ui.arenaPreview = document.getElementById('onlineArenaPreview');
+    ui.arenaName = document.getElementById('onlineArenaName');
+    ui.arenaPrevBtn = document.getElementById('onlineArenaPrevBtn');
+    ui.arenaNextBtn = document.getElementById('onlineArenaNextBtn');
+    ui.arenaRandomBtn = document.getElementById('onlineArenaRandomBtn');
     ui.roomRole = document.getElementById('onlineRoomRole');
     ui.roomName = document.getElementById('onlineRoomName');
     ui.roomConnection = document.getElementById('onlineRoomConnection');
@@ -404,6 +436,9 @@
     ui.badge = document.getElementById('onlineMatchBadge');
     ui.badgeText = document.getElementById('onlineMatchBadgeText');
     ui.leaveBtn = document.getElementById('onlineLeaveRoomBtn');
+    ui.reconnectNotice = document.getElementById('onlineReconnectNotice');
+    ui.reconnectNoticeText = document.getElementById('onlineReconnectNoticeText');
+    ui.reconnectSeconds = document.getElementById('onlineReconnectSeconds');
   }
 
   function setStatus(message, kind = '') {
@@ -420,8 +455,11 @@
     if (ui.joinBackBtn) ui.joinBackBtn.disabled = disabled;
     if (ui.joinRefreshBtn) ui.joinRefreshBtn.disabled = disabled;
     if (disabled) {
-      if (ui.selectSpellbookBtn) ui.selectSpellbookBtn.disabled = true;
-      if (ui.arenaSelect) ui.arenaSelect.disabled = true;
+      if (ui.spellbookPrevBtn) ui.spellbookPrevBtn.disabled = true;
+      if (ui.spellbookNextBtn) ui.spellbookNextBtn.disabled = true;
+      if (ui.arenaPrevBtn) ui.arenaPrevBtn.disabled = true;
+      if (ui.arenaNextBtn) ui.arenaNextBtn.disabled = true;
+      if (ui.arenaRandomBtn) ui.arenaRandomBtn.disabled = true;
       if (ui.readyBtn) ui.readyBtn.disabled = true;
     } else if (roomCache) {
       renderRoomLobby(roomCache);
@@ -470,7 +508,7 @@
   function applyArenaToBattle(arenaId) {
     const arena = getArenaOption(arenaId);
     const image = document.querySelector('.arena-img');
-    if (image && image.getAttribute('src') !== arena.src) image.setAttribute('src', arena.src);
+    if (image && image.getAttribute('src') !== arena.battleImage) image.setAttribute('src', arena.battleImage);
     return arena;
   }
 
@@ -504,7 +542,27 @@
     });
     entries.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
     ui.availableRoomsList.replaceChildren();
-    if (!entries.length) {
+    if (reconnectCandidate) {
+      const reconnectRow = document.createElement('article');
+      reconnectRow.className = 'online-available-room online-reconnect-room';
+      const copy = document.createElement('div');
+      copy.className = 'online-available-room-copy';
+      const name = document.createElement('strong');
+      name.textContent = 'Partida interrumpida';
+      const meta = document.createElement('span');
+      const remaining = reconnectCandidate.player?.connected === false
+        ? Math.max(0, Math.ceil(((Number(reconnectCandidate.player?.lastSeenAt || getServerNow()) + RECONNECT_GRACE_MS) - getServerNow()) / 1000))
+        : Math.ceil(RECONNECT_GRACE_MS / 1000);
+      meta.textContent = `Sala ${reconnectCandidate.code} · reconexión disponible · ${remaining}s`;
+      copy.append(name, meta);
+      const reconnect = document.createElement('button');
+      reconnect.type = 'button';
+      reconnect.textContent = 'RECONECTARSE';
+      reconnect.addEventListener('click', () => { reconnect.disabled = true; void reconnectSavedMatch(); });
+      reconnectRow.append(copy, reconnect);
+      ui.availableRoomsList.appendChild(reconnectRow);
+    }
+    if (!entries.length && !reconnectCandidate) {
       const empty = document.createElement('div');
       empty.className = 'online-room-empty';
       empty.textContent = 'No hay partidas disponibles de tus amigos en este momento.';
@@ -539,12 +597,13 @@
 
   async function startAvailableRoomListeners() {
     stopAvailableRoomListeners();
-    if (ui.availableRoomsList) ui.availableRoomsList.innerHTML = '<div class="online-room-empty">Buscando partidas de tus amigos…</div>';
+    if (ui.availableRoomsList) ui.availableRoomsList.innerHTML = '<div class="online-room-empty">Buscando partidas y reconexiones…</div>';
     const api = await loadFirebase();
+    await refreshReconnectCandidate(api);
     const friendIds = await getFriendIds();
     if (!friendIds.length) {
       renderAvailableRooms();
-      setStatus('Todavía no tienes amigos agregados. Añade amigos desde tu perfil para ver sus partidas.', '');
+      setStatus(reconnectCandidate ? 'Tienes una partida interrumpida disponible para reconexión.' : 'Todavía no tienes amigos agregados. Añade amigos desde tu perfil para ver sus partidas.', reconnectCandidate ? 'working' : '');
       return;
     }
     friendIds.forEach(friendUid => {
@@ -590,7 +649,7 @@
   async function publishOpenRoomListing(api, code, room = null) {
     if (!code || playerSlot !== 1) return;
     const profile = socialProfileCache || await ensureSocialProfile();
-    const arenaId = normalizeArenaId(room?.arenaId || ui.arenaSelect?.value || 'classic');
+    const arenaId = normalizeArenaId(room?.arenaId || roomCache?.arenaId || 'classic');
     await api.set(api.ref(db, `${OPEN_ROOMS_ROOT}/${uid}/${normalizeRoomCode(code)}`), {
       hostUid: uid,
       hostName: profile.displayName,
@@ -626,6 +685,99 @@
     setPlayerReadyBadge(ready, Boolean(record?.ready), connected || (isHost && Boolean(record)));
   }
 
+  function getOnlineSpellbookOptions() {
+    try { return window.ROK_SPELLBOOK_MATCH?.getOnlineOptions?.() || []; }
+    catch (_) { return []; }
+  }
+
+  function renderOnlineSpellbookCarousel(localLoadout = null, locked = false) {
+    const viewport = ui.spellbookCarouselViewport;
+    if (!viewport) return;
+    const options = getOnlineSpellbookOptions();
+    viewport.replaceChildren();
+    if (!options.length) {
+      const empty = document.createElement('div');
+      empty.className = 'online-carousel-empty';
+      empty.textContent = 'No hay Spellbooks con Fuente elemental configurada.';
+      viewport.appendChild(empty);
+      if (ui.localSpellbookName) ui.localSpellbookName.textContent = 'Sin seleccionar';
+      if (ui.spellbookPrevBtn) ui.spellbookPrevBtn.disabled = true;
+      if (ui.spellbookNextBtn) ui.spellbookNextBtn.disabled = true;
+      return;
+    }
+    const activeId = String(localLoadout?.id || localLoadout?.spellbookId || window.ROK_SPELLBOOK_MATCH?.getPreferredOnlineId?.() || '');
+    const activeIndex = options.findIndex(option => option.id === activeId);
+    if (activeIndex >= 0) onlineSpellbookCarouselIndex = activeIndex;
+    onlineSpellbookCarouselIndex = ((onlineSpellbookCarouselIndex % options.length) + options.length) % options.length;
+    const slots = options.length === 1
+      ? [{ index: onlineSpellbookCarouselIndex, role: 'current' }]
+      : [
+          { index: (onlineSpellbookCarouselIndex - 1 + options.length) % options.length, role: 'previous' },
+          { index: onlineSpellbookCarouselIndex, role: 'current' },
+          { index: (onlineSpellbookCarouselIndex + 1) % options.length, role: 'next' },
+        ];
+    slots.forEach(slot => {
+      const data = options[slot.index];
+      const node = window.ROK_SPELLBOOK_MATCH?.createOnlineOptionElement?.(data.id);
+      if (!node) return;
+      node.classList.add('online-spellbook-carousel-card', `is-${slot.role}`);
+      node.dataset.carouselRole = slot.role;
+      node.setAttribute('aria-hidden', slot.role === 'current' ? 'false' : 'true');
+      viewport.appendChild(node);
+    });
+    const current = options[onlineSpellbookCarouselIndex];
+    if (ui.localSpellbookName) ui.localSpellbookName.textContent = current?.name || localLoadout?.name || 'Sin seleccionar';
+    const disabled = locked || options.length <= 1;
+    if (ui.spellbookPrevBtn) ui.spellbookPrevBtn.disabled = disabled;
+    if (ui.spellbookNextBtn) ui.spellbookNextBtn.disabled = disabled;
+  }
+
+  async function shiftOnlineSpellbook(direction) {
+    if (!roomCache || roomCache.status === 'countdown') return;
+    const options = getOnlineSpellbookOptions();
+    if (options.length <= 1) return;
+    onlineSpellbookCarouselIndex = (onlineSpellbookCarouselIndex + (direction < 0 ? -1 : 1) + options.length) % options.length;
+    const selected = options[onlineSpellbookCarouselIndex];
+    const loadout = window.ROK_SPELLBOOK_MATCH?.getOnlineLoadoutById?.(selected.id);
+    if (!loadout) return;
+    renderOnlineSpellbookCarousel(loadout, true);
+    await setLobbyLoadout(loadout);
+  }
+
+  function renderOnlineArenaCarousel(arenaId, locked = false) {
+    const arena = getArenaOption(arenaId);
+    const concreteIndex = CONCRETE_ARENA_IDS.indexOf(arena.id);
+    if (concreteIndex >= 0) onlineArenaCarouselIndex = concreteIndex;
+    if (ui.arenaPreview) {
+      ui.arenaPreview.src = arena.previewImage;
+      ui.arenaPreview.alt = arena.random ? 'Selección aleatoria de arena' : `Preview de ${arena.label}`;
+    }
+    if (ui.arenaPreviewWrap) ui.arenaPreviewWrap.classList.toggle('is-random', Boolean(arena.random));
+    if (ui.arenaName) ui.arenaName.textContent = arena.random ? 'Arena aleatoria' : arena.label;
+    const disableArrows = locked || playerSlot !== 1 || CONCRETE_ARENA_IDS.length <= 1;
+    if (ui.arenaPrevBtn) ui.arenaPrevBtn.disabled = disableArrows;
+    if (ui.arenaNextBtn) ui.arenaNextBtn.disabled = disableArrows;
+    if (ui.arenaRandomBtn) {
+      ui.arenaRandomBtn.disabled = locked || playerSlot !== 1;
+      ui.arenaRandomBtn.classList.toggle('selected', Boolean(arena.random));
+      ui.arenaRandomBtn.setAttribute('aria-pressed', arena.random ? 'true' : 'false');
+    }
+  }
+
+  async function shiftOnlineArena(direction) {
+    if (playerSlot !== 1 || !roomCache || roomCache.status === 'countdown' || !CONCRETE_ARENA_IDS.length) return;
+    const currentId = normalizeArenaId(roomCache.arenaId);
+    const currentIndex = CONCRETE_ARENA_IDS.indexOf(currentId);
+    if (currentIndex >= 0) onlineArenaCarouselIndex = currentIndex;
+    onlineArenaCarouselIndex = (onlineArenaCarouselIndex + (direction < 0 ? -1 : 1) + CONCRETE_ARENA_IDS.length) % CONCRETE_ARENA_IDS.length;
+    await changeLobbyArena(CONCRETE_ARENA_IDS[onlineArenaCarouselIndex]);
+  }
+
+  function pickRandomConcreteArenaId() {
+    if (!CONCRETE_ARENA_IDS.length) return 'classic';
+    return CONCRETE_ARENA_IDS[Math.floor(Math.random() * CONCRETE_ARENA_IDS.length)] || 'classic';
+  }
+
   function renderRoomLobby(room) {
     if (!room) return;
     setOnlineLobbyView('room');
@@ -635,7 +787,7 @@
     renderLobbyPlayer(p2, 2, room);
     const localRecord = getRoomPlayerRecord(room, playerSlot);
     const localLoadout = localRecord?.loadout || getLocalSelectedLoadout();
-    if (ui.localSpellbookName) ui.localSpellbookName.textContent = localLoadout?.name || 'Sin seleccionar';
+    renderOnlineSpellbookCarousel(localLoadout, room.status === 'countdown');
     if (ui.roomRole) ui.roomRole.textContent = playerSlot === 1 ? 'HOST · JUGADOR 1' : 'INVITADO · JUGADOR 2';
     if (ui.roomName) ui.roomName.textContent = room.status === 'countdown' ? 'El duelo está por comenzar' : 'Preparando duelo';
     const bothConnected = Boolean(p1?.connected && p2?.connected && room.guestUid);
@@ -644,12 +796,8 @@
       ui.roomConnection.classList.toggle('connected', bothConnected);
     }
     const arena = getArenaOption(room.arenaId);
-    if (ui.arenaSelect) {
-      ui.arenaSelect.value = arena.id;
-      ui.arenaSelect.disabled = playerSlot !== 1 || room.status === 'countdown';
-    }
-    if (ui.arenaPreview) ui.arenaPreview.src = arena.src;
-    applyArenaToBattle(arena.id);
+    renderOnlineArenaCarousel(arena.id, room.status === 'countdown');
+    if (!arena.random) applyArenaToBattle(arena.id);
     const localReady = Boolean(localRecord?.ready);
     if (ui.readyBtn) {
       ui.readyBtn.textContent = localReady ? 'CANCELAR LISTO' : 'LISTO';
@@ -657,7 +805,6 @@
       ui.readyBtn.disabled = Boolean(room.status === 'countdown' || !localLoadout || getLoadoutIssue(localLoadout));
       ui.readyBtn.setAttribute('aria-hidden', 'false');
     }
-    if (ui.selectSpellbookBtn) ui.selectSpellbookBtn.disabled = room.status === 'countdown';
   }
 
   function stopLobbyCountdown() {
@@ -670,6 +817,7 @@
       ui.countdown.classList.remove('visible');
       ui.countdown.setAttribute('aria-hidden', 'true');
     }
+    try { window.ROK_VERSUS_INTRO?.hideOnline?.(); } catch (_) {}
   }
 
   function renderLobbyCountdown(startAt) {
@@ -679,30 +827,38 @@
       stopLobbyCountdown();
       lobbyCountdownStartAt = target;
     }
-    const paint = () => {
-      const remaining = target - Date.now();
-      let text = '¡COMBATE!';
-      if (remaining > 2400) text = '3';
-      else if (remaining > 1400) text = '2';
-      else if (remaining > 400) text = '1';
-      if (ui.countdown) {
-        ui.countdown.classList.add('visible');
-        ui.countdown.setAttribute('aria-hidden', 'false');
-        const label = ui.countdown.querySelector('span');
-        if (label && label.textContent !== text) {
-          label.textContent = text;
-          label.style.animation = 'none';
-          void label.offsetWidth;
-          label.style.animation = '';
+    if (ui.countdown) {
+      ui.countdown.classList.remove('visible');
+      ui.countdown.setAttribute('aria-hidden', 'true');
+    }
+    const arena = getArenaOption(roomCache?.arenaId);
+    const shown = Boolean(window.ROK_VERSUS_INTRO?.showOnline?.({
+      room: roomCache,
+      localPlayerSlot: playerSlot,
+      arena,
+      startAt: target,
+    }));
+    if (!shown) {
+      const paint = () => {
+        const remaining = target - Date.now();
+        let text = '¡COMBATE!';
+        if (remaining > 2400) text = '3';
+        else if (remaining > 1400) text = '2';
+        else if (remaining > 400) text = '1';
+        if (ui.countdown) {
+          ui.countdown.classList.add('visible');
+          ui.countdown.setAttribute('aria-hidden', 'false');
+          const label = ui.countdown.querySelector('span');
+          if (label && label.textContent !== text) label.textContent = text;
         }
-      }
-      if (remaining <= -700 && lobbyCountdownTimer) {
-        window.clearInterval(lobbyCountdownTimer);
-        lobbyCountdownTimer = null;
-      }
-    };
-    paint();
-    if (!lobbyCountdownTimer) lobbyCountdownTimer = window.setInterval(paint, 100);
+        if (remaining <= -700 && lobbyCountdownTimer) {
+          window.clearInterval(lobbyCountdownTimer);
+          lobbyCountdownTimer = null;
+        }
+      };
+      paint();
+      if (!lobbyCountdownTimer) lobbyCountdownTimer = window.setInterval(paint, 100);
+    }
   }
 
   async function setLobbyLoadout(loadout) {
@@ -768,7 +924,8 @@
     try {
       const api = await loadFirebase();
       await removeOpenRoomListing(api, roomCode, uid);
-      await api.update(api.ref(db, roomPath), { status: 'countdown', startAt: Date.now() + LOBBY_COUNTDOWN_MS });
+      const resolvedArenaId = normalizeArenaId(roomCache.arenaId) === 'random' ? pickRandomConcreteArenaId() : normalizeArenaId(roomCache.arenaId);
+      await api.update(api.ref(db, roomPath), { arenaId: resolvedArenaId, status: 'countdown', startAt: Date.now() + LOBBY_COUNTDOWN_MS });
     } catch (error) {
       reportOnlineError(error, 'No se pudo iniciar la cuenta regresiva');
     }
@@ -845,7 +1002,10 @@
 
 
   function getLocalSelectedLoadout() {
-    return window.ROK_SPELLBOOK_MATCH?.getPendingOnlineLoadout?.() || null;
+    const pending = window.ROK_SPELLBOOK_MATCH?.getPendingOnlineLoadout?.() || null;
+    if (pending) return pending;
+    const preferredId = window.ROK_SPELLBOOK_MATCH?.getPreferredOnlineId?.() || '';
+    return preferredId ? (window.ROK_SPELLBOOK_MATCH?.getOnlineLoadoutById?.(preferredId) || null) : null;
   }
 
   function getLoadoutIssue(loadout) {
@@ -1272,6 +1432,7 @@
     }
     const previousPhaseContext = currentPhaseContext();
     const oldPhaseKey = previousPhaseContext.key;
+    const wasLocalStateReady = localStateReady;
     const previousMatchSerial = currentMatchSerial();
     const incomingMatchSerial = Math.max(1, Number(snapshot.matchSerial || 1));
     const matchChanged = incomingMatchSerial !== previousMatchSerial;
@@ -1316,9 +1477,21 @@
       lastKnownRevision = Math.max(lastKnownRevision, Number(revision || 0));
       lastSnapshotText = makeBattleSnapshotPacket().text;
       localStateReady = true;
+      const openingSkip = state.openingExtractionSkippedByPlayer || {};
+      const initialOpeningState = Boolean(state.openingElementsDealt)
+        && Number(state.turnSerial || 1) <= 1
+        && Number(state.phaseIndex || 0) === 0
+        && openingSkip[1] !== true
+        && openingSkip[2] !== true;
+      const awaitingInitiativeState = !state.openingElementsDealt
+        && state.actionExecutionLock === true
+        && String(state.actionExecutionLockReason || '') === 'awaiting-initiative';
+      if ((!wasLocalStateReady || matchChanged) && initialOpeningState) {
+        try { window.ROK_OPENING_ELEMENTS?.stage?.(); } catch (_) {}
+      }
       showBattleScreen();
       flushBattleRender('remote-authoritative-snapshot');
-      if (matchChanged) {
+      if (matchChanged || (!wasLocalStateReady && (initialOpeningState || awaitingInitiativeState))) {
         try { window.ROK_MATCH_LIFECYCLE?.announceOnlineMatchStarted?.({ matchSerial: incomingMatchSerial, remote: true }); } catch (_) {}
       }
     } finally {
@@ -1376,6 +1549,8 @@
 
   function deliverRemotePhaseIfLocal(options = {}) {
     if (!ROK_ONLINE_MATCH_ACTIVE || Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID) || state.gameOver) return false;
+    if (!state.openingElementsDealt) return false;
+    if (state.actionExecutionLock === true && ['awaiting-initiative', 'opening-intro'].includes(String(state.actionExecutionLockReason || ''))) return false;
     const phaseKey = currentLocalPhaseKey();
     if (!phaseKey || lastStartedPhaseKey === phaseKey) return true;
     if (phaseDeliveryInFlightKey === phaseKey && phaseDeliveryPromise) return false;
@@ -1555,6 +1730,193 @@
 
   function clearSession() {
     try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (_) {}
+    reconnectCandidate = null;
+  }
+
+  function readSavedSession() {
+    try {
+      const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (!parsed || typeof parsed !== 'object') return null;
+      const code = normalizeRoomCode(parsed.roomCode || '');
+      const slot = Number(parsed.playerSlot || 0);
+      const sessionUid = String(parsed.uid || '');
+      if (!code || ![1, 2].includes(slot) || !sessionUid) return null;
+      return { roomCode: code, playerSlot: slot, uid: sessionUid };
+    } catch (_) { return null; }
+  }
+
+  function getServerNow() {
+    return Date.now() + Number(firebaseServerTimeOffsetMs || 0);
+  }
+
+  function hideOpponentReconnectNotice() {
+    clearInterval(opponentReconnectTimer);
+    opponentReconnectTimer = null;
+    opponentReconnectDeadline = 0;
+    ui.reconnectNotice?.classList.remove('visible', 'expired');
+    ui.reconnectNotice?.setAttribute('aria-hidden', 'true');
+    try { releaseGlobalGameplayPause?.('online-opponent-disconnected'); } catch (_) {}
+  }
+
+  function finishMatchAfterReconnectTimeout(reason = 'timeout') {
+    clearInterval(opponentReconnectTimer);
+    opponentReconnectTimer = null;
+    opponentReconnectDeadline = 0;
+    try { releaseGlobalGameplayPause?.('online-opponent-disconnected'); } catch (_) {}
+    setStatus(reason === 'left' ? 'El rival abandonó la partida.' : 'El rival no se reconectó dentro del tiempo permitido.', 'error');
+    window.setTimeout(() => {
+      try { exitMatchToMainMenu(); }
+      catch (_) { try { showMainMenu(); } catch (_) {} }
+    }, 900);
+  }
+
+  function showOpponentReconnectNotice(opponentRecord = null) {
+    const disconnectedAt = Math.max(0, Number(opponentRecord?.lastSeenAt || getServerNow()));
+    const deadline = disconnectedAt + RECONNECT_GRACE_MS;
+    if (deadline <= getServerNow()) {
+      finishMatchAfterReconnectTimeout('timeout');
+      return;
+    }
+    opponentReconnectDeadline = deadline;
+    ui.reconnectNotice?.classList.add('visible');
+    ui.reconnectNotice?.classList.remove('expired');
+    ui.reconnectNotice?.setAttribute('aria-hidden', 'false');
+    if (ui.reconnectNoticeText) ui.reconnectNoticeText.textContent = 'El rival se ha desconectado. Esperando reconexión…';
+    try { acquireGlobalGameplayPause?.('online-opponent-disconnected'); } catch (_) {}
+    clearInterval(opponentReconnectTimer);
+    const tick = () => {
+      const remaining = Math.max(0, opponentReconnectDeadline - getServerNow());
+      if (ui.reconnectSeconds) ui.reconnectSeconds.textContent = String(Math.ceil(remaining / 1000));
+      if (remaining <= 0) {
+        clearInterval(opponentReconnectTimer);
+        opponentReconnectTimer = null;
+        if (ui.reconnectNotice) ui.reconnectNotice.classList.add('expired');
+        if (ui.reconnectNoticeText) ui.reconnectNoticeText.textContent = 'Tiempo de reconexión agotado. La partida terminará.';
+        finishMatchAfterReconnectTimeout('timeout');
+      }
+    };
+    tick();
+    opponentReconnectTimer = window.setInterval(tick, 250);
+  }
+
+  function handleMatchPlayersPresence(players = {}) {
+    if (!roomCode || !playerSlot || leavingRoom || !ROK_ONLINE_MATCH_ACTIVE) return;
+    roomCache = roomCache && typeof roomCache === 'object' ? roomCache : {};
+    roomCache.players = players || {};
+    const opponentSlot = playerSlot === 1 ? 2 : 1;
+    const opponent = getRoomPlayerRecord(roomCache, opponentSlot);
+    if (!opponent) return;
+    if (opponent.leftMatch === true) {
+      hideOpponentReconnectNotice();
+      if (ui.reconnectNotice) {
+        ui.reconnectNotice.classList.add('visible', 'expired');
+        ui.reconnectNotice.setAttribute('aria-hidden', 'false');
+      }
+      if (ui.reconnectNoticeText) ui.reconnectNoticeText.textContent = 'El rival abandonó la partida.';
+      if (ui.reconnectSeconds) ui.reconnectSeconds.textContent = '0';
+      finishMatchAfterReconnectTimeout('left');
+      return;
+    }
+    if (opponent.connected === false) {
+      showOpponentReconnectNotice(opponent);
+      return;
+    }
+    hideOpponentReconnectNotice();
+    if (ui.badgeText) ui.badgeText.textContent = `PVP conectado · J${playerSlot} · rev ${lastKnownRevision}`;
+  }
+
+  async function armPresenceForCurrentConnection(api, generation = roomSessionGeneration) {
+    if (generation !== roomSessionGeneration || !roomPath || !uid || !playerSlot) return;
+    const presenceRef = api.ref(db, `${roomPath}/players/${uid}`);
+    if (presenceDisconnect) {
+      try { await presenceDisconnect.cancel(); } catch (_) {}
+      presenceDisconnect = null;
+    }
+    presenceDisconnect = api.onDisconnect(presenceRef);
+    await presenceDisconnect.update({
+      connected: false,
+      lastSeenAt: api.serverTimestamp(),
+    });
+    await api.update(presenceRef, {
+      uid,
+      slot: playerSlot,
+      connected: true,
+      leftMatch: false,
+      lastSeenAt: api.serverTimestamp(),
+    });
+  }
+
+  function attachConnectionPresenceListener(api, generation = roomSessionGeneration) {
+    if (connectionUnsubscribe) { try { connectionUnsubscribe(); } catch (_) {} connectionUnsubscribe = null; }
+    connectionUnsubscribe = api.onValue(api.ref(db, '.info/connected'), snapshot => {
+      if (generation !== roomSessionGeneration || snapshot.val() !== true || leavingRoom || !roomPath || !playerSlot) return;
+      void armPresenceForCurrentConnection(api, generation).catch(error => {
+        if (generation === roomSessionGeneration) reportOnlineError(error, 'No se pudo restaurar la presencia online');
+      });
+    });
+  }
+
+  async function getReconnectableSavedSession(api) {
+    const saved = readSavedSession();
+    if (!saved || !uid || saved.uid !== uid) return null;
+    try {
+      const snapshot = await api.get(api.ref(db, roomRefPath(saved.roomCode)));
+      const room = snapshot.val();
+      if (!room) { clearSession(); return null; }
+      const expectedUid = getRoomPlayerUid(room, saved.playerSlot);
+      const authoritative = getAuthoritativeGameState(room);
+      const player = getRoomPlayerRecord(room, saved.playerSlot);
+      if (expectedUid !== uid || !authoritative?.snapshot || !player || player.leftMatch === true) {
+        clearSession();
+        return null;
+      }
+      const lastSeen = Math.max(0, Number(player.lastSeenAt || 0));
+      // Después de un refresh, RTDB puede tardar unos instantes en ejecutar
+      // onDisconnect de la conexión anterior. Si todavía figura connected=true,
+      // la sesión del mismo UID sigue siendo recuperable. El límite de 60 s se
+      // aplica en cuanto Firebase confirma connected=false.
+      if (player.connected === false && lastSeen && getServerNow() > lastSeen + RECONNECT_GRACE_MS) {
+        clearSession();
+        return null;
+      }
+      return { code: saved.roomCode, slot: saved.playerSlot, room, player };
+    } catch (error) {
+      if (!isPermissionDeniedError(error)) reportOnlineError(error, 'No se pudo revisar una partida para reconexión');
+      return null;
+    }
+  }
+
+  async function refreshReconnectCandidate(api = null) {
+    const firebase = api || await loadFirebase();
+    reconnectCandidate = await getReconnectableSavedSession(firebase);
+    renderAvailableRooms();
+    return reconnectCandidate;
+  }
+
+  async function reconnectSavedMatch() {
+    if (!reconnectCandidate) {
+      const api = await loadFirebase();
+      reconnectCandidate = await getReconnectableSavedSession(api);
+    }
+    if (!reconnectCandidate) {
+      setStatus('La ventana de reconexión ya no está disponible.', 'error');
+      renderAvailableRooms();
+      return false;
+    }
+    setLobbyBusy(true);
+    try {
+      await attachToRoom(reconnectCandidate.code, reconnectCandidate.slot);
+      setStatus('Reconectando a la partida…', 'working');
+      reconnectCandidate = null;
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo reconectar a la partida');
+      setStatus(readableFirebaseError(error), 'error');
+      return false;
+    } finally {
+      setLobbyBusy(false);
+    }
   }
 
   async function createRoom() {
@@ -1677,6 +2039,7 @@
     async function attachToRoom(code, slot) {
     const api = await loadFirebase();
     await detachRoomListener();
+    const generation = ++roomSessionGeneration;
     roomCode = normalizeRoomCode(code);
     roomPath = roomRefPath(roomCode);
     playerSlot = Number(slot);
@@ -1703,18 +2066,18 @@
     handledInteractionIds.clear();
     saveSession();
 
-    const presenceRef = api.ref(db, `${roomPath}/players/${uid}`);
     try {
-      presenceDisconnect = api.onDisconnect(presenceRef);
-      await presenceDisconnect.update({ connected: false, lastSeenAt: Date.now() });
-      await api.update(presenceRef, { uid, slot: playerSlot, connected: true, lastSeenAt: Date.now() });
+      await armPresenceForCurrentConnection(api, generation);
+      attachConnectionPresenceListener(api, generation);
     } catch (_) {}
 
     // En lobby sí observamos la sala completa. Al comenzar el duelo este listener
     // se sustituye por canales pequeños para que un FX no vuelva a descargar toda la sala.
     roomUnsubscribe = api.onValue(api.ref(db, roomPath), snapshot => {
-      void handleRoomValue(snapshot.val());
+      if (generation !== roomSessionGeneration) return;
+      void handleRoomValue(snapshot.val(), generation);
     }, error => {
+      if (generation !== roomSessionGeneration) return;
       reportOnlineError(error, 'Se perdió la lectura de la sala');
       setStatus(readableFirebaseError(error), 'error');
     });
@@ -1727,8 +2090,8 @@
     roomCache.game.authoritative = authoritative || null;
   }
 
-  function handleAuthoritativeValue(authoritative) {
-    if (!authoritative?.snapshot || leavingRoom) return;
+  function handleAuthoritativeValue(authoritative, generation = roomSessionGeneration) {
+    if (generation !== roomSessionGeneration || !authoritative?.snapshot || leavingRoom) return;
     const revision = Number(authoritative.revision || 0);
     if (!Number.isFinite(revision) || revision < 1) return;
 
@@ -1919,8 +2282,9 @@
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
       initializeElementDecks();
-      if (typeof prepareStartingElementStocks === 'function') prepareStartingElementStocks();
-      enterPhase(true, true);
+      state.openingElementsDealt = false;
+      state.actionExecutionLock = true;
+      state.actionExecutionLockReason = 'awaiting-initiative';
       state.gameOver = false;
       state.matchSerial = Math.max(2, Number(nextSerial || 2));
       state.matchWins = wins;
@@ -2005,19 +2369,21 @@
     }
   }
 
-  function attachMatchListeners(api) {
-    if (!roomPath) return;
+  function attachMatchListeners(api, generation = roomSessionGeneration) {
+    if (!roomPath || generation !== roomSessionGeneration) return;
     if (roomUnsubscribe) {
       try { roomUnsubscribe(); } catch (_) {}
       roomUnsubscribe = null;
     }
     if (!authoritativeUnsubscribe) {
       authoritativeUnsubscribe = api.onValue(api.ref(db, authoritativeGamePath()), snapshot => {
-        handleAuthoritativeValue(snapshot.val());
-      }, error => reportOnlineError(error, 'Se perdió el canal autoritativo de la partida'));
+        if (generation !== roomSessionGeneration) return;
+        handleAuthoritativeValue(snapshot.val(), generation);
+      }, error => { if (generation === roomSessionGeneration) reportOnlineError(error, 'Se perdió el canal autoritativo de la partida'); });
     }
     if (!interactionUnsubscribe) {
       interactionUnsubscribe = api.onChildAdded(api.ref(db, interactionsPath()), snapshot => {
+        if (generation !== roomSessionGeneration) return;
         const interaction = snapshot.val();
         if (!interaction || String(interaction.id || snapshot.key || '') === '') return;
         void handleIncomingInteraction({ ...interaction, id: String(interaction.id || snapshot.key || '') });
@@ -2025,30 +2391,34 @@
     }
     if (!priorityActionUnsubscribe) {
       priorityActionUnsubscribe = api.onValue(api.ref(db, `${roomPath}/game/priorityAction`), snapshot => {
+        if (generation !== roomSessionGeneration) return;
         handleIncomingPriorityAction(snapshot.val() || null);
       }, error => reportOnlineError(error, 'Se perdió el canal de acciones prioritarias'));
     }
     if (!matchPlayersUnsubscribe) {
       matchPlayersUnsubscribe = api.onValue(api.ref(db, `${roomPath}/players`), snapshot => {
-        roomCache = roomCache && typeof roomCache === 'object' ? roomCache : {};
-        roomCache.players = snapshot.val() || {};
+        if (generation !== roomSessionGeneration) return;
+        handleMatchPlayersPresence(snapshot.val() || {});
       });
     }
     if (!matchStatusUnsubscribe) {
       matchStatusUnsubscribe = api.onValue(api.ref(db, `${roomPath}/status`), snapshot => {
+        if (generation !== roomSessionGeneration) return;
         roomCache = roomCache && typeof roomCache === 'object' ? roomCache : {};
         roomCache.status = snapshot.val() || roomCache.status || 'playing';
       });
     }
     if (!matchControlUnsubscribe) {
       matchControlUnsubscribe = api.onValue(api.ref(db, matchControlPath()), snapshot => {
+        if (generation !== roomSessionGeneration) return;
         handleMatchControlValue(snapshot.val());
       }, error => reportOnlineError(error, 'Se perdió el control de revancha'));
     }
     startSyncLoop();
   }
 
-  async function handleRoomValue(room) {
+  async function handleRoomValue(room, generation = roomSessionGeneration) {
+    if (generation !== roomSessionGeneration) return;
     if (!room || leavingRoom) {
       if (roomCode && !leavingRoom) {
         setStatus('La sala fue cerrada o eliminada.', 'error');
@@ -2095,9 +2465,10 @@
 
     stopLobbyCountdown();
     void cancelLobbyDisconnects();
-    handleAuthoritativeValue(authoritative);
+    handleAuthoritativeValue(authoritative, generation);
     const api = await loadFirebase();
-    attachMatchListeners(api);
+    if (generation !== roomSessionGeneration || leavingRoom) return;
+    attachMatchListeners(api, generation);
   }
 
   async function startFreshOnlineBattleAsHost() {
@@ -2142,8 +2513,9 @@
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
       initializeElementDecks();
-      if (typeof prepareStartingElementStocks === 'function') prepareStartingElementStocks();
-      enterPhase(true, true);
+      state.openingElementsDealt = false;
+      state.actionExecutionLock = true;
+      state.actionExecutionLockReason = 'awaiting-initiative';
       localStateReady = false;
       lastObservedPhaseKey = currentLocalPhaseKey();
       lastStartedPhaseKey = '';
@@ -2170,12 +2542,9 @@
         await removeOpenRoomListing(api, roomCode, uid);
       } catch (_) {}
       closeLobby();
-      const introTransitions = [
-        { text: 'INICIA EL COMBATE', playerId: 1, duration: 1050 },
-        { text: '10 ELEMENTOS INICIALES', playerId: 1, duration: 900 },
-      ];
-      queueTransitions(introTransitions);
-      schedulePhaseStartActions(sumTransitionDurations(introTransitions) - 120);
+      try {
+        window.ROK_MATCH_LIFECYCLE?.announceOnlineMatchStarted?.({ matchSerial: currentMatchSerial(), host: true });
+      } catch (_) {}
     } catch (error) {
       reportOnlineError(error, 'No se pudo iniciar la batalla online');
       setStatus(readableFirebaseError(error), 'error');
@@ -2211,6 +2580,62 @@
       reportOnlineError(error, 'No se pudo reparar una divergencia PvP');
       return false;
     }
+  }
+
+
+  async function prepareInitiativeRound(round = 1, matchSerial = currentMatchSerial()) {
+    if (!roomPath || !uid || !playerSlot || leavingRoom) return false;
+    try {
+      const api = await loadFirebase();
+      await api.update(api.ref(db, `${roomPath}/players/${uid}`), {
+        initiativeChoice: null,
+        initiativeRound: Math.max(1, Number(round || 1)),
+        initiativeMatchSerial: Math.max(1, Number(matchSerial || currentMatchSerial() || 1)),
+        initiativeChosenAt: null,
+      });
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo preparar Piedra/Papel/Tijera');
+      return false;
+    }
+  }
+
+  async function submitInitiativeChoice(choice = '', round = 1, matchSerial = currentMatchSerial()) {
+    const safeChoice = String(choice || '');
+    if (!['rock', 'paper', 'scissors'].includes(safeChoice)) return false;
+    if (!roomPath || !uid || !playerSlot || leavingRoom) return false;
+    try {
+      const api = await loadFirebase();
+      await api.update(api.ref(db, `${roomPath}/players/${uid}`), {
+        initiativeChoice: safeChoice,
+        initiativeRound: Math.max(1, Number(round || 1)),
+        initiativeMatchSerial: Math.max(1, Number(matchSerial || currentMatchSerial() || 1)),
+        initiativeChosenAt: api.serverTimestamp(),
+      });
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo registrar Piedra/Papel/Tijera');
+      return false;
+    }
+  }
+
+  function getInitiativeState(round = 1, matchSerial = currentMatchSerial()) {
+    const targetRound = Math.max(1, Number(round || 1));
+    const targetSerial = Math.max(1, Number(matchSerial || currentMatchSerial() || 1));
+    const p1 = getRoomPlayerRecord(roomCache, 1) || {};
+    const p2 = getRoomPlayerRecord(roomCache, 2) || {};
+    const readChoice = record => {
+      if (Number(record?.initiativeRound || 0) !== targetRound) return '';
+      if (Number(record?.initiativeMatchSerial || 0) !== targetSerial) return '';
+      const choice = String(record?.initiativeChoice || '');
+      return ['rock', 'paper', 'scissors'].includes(choice) ? choice : '';
+    };
+    return {
+      round: targetRound,
+      matchSerial: targetSerial,
+      player1Choice: readChoice(p1),
+      player2Choice: readChoice(p2),
+    };
   }
 
   function startSyncLoop() {
@@ -2987,7 +3412,8 @@
   }
 
   async function handleIncomingInteraction(interaction) {
-    if (!interaction || interaction.status !== 'pending') return;
+    const generation = roomSessionGeneration;
+    if (!interaction || interaction.status !== 'pending' || generation !== roomSessionGeneration || leavingRoom) return;
     if (Math.max(1, Number(interaction.matchSerial || 1)) !== currentMatchSerial()) return;
     if (Number(interaction.targetPlayer) !== Number(LOCAL_PLAYER_ID)) return;
     const interactionId = String(interaction.id || '');
@@ -2997,8 +3423,10 @@
     trimHandledInteractions();
     try {
       const api = await loadFirebase();
+      if (generation !== roomSessionGeneration || leavingRoom) return;
       const interactionRef = api.ref(db, `${interactionsPath()}/${interactionId}`);
       const revisionReady = await ensureAuthoritativeRevision(interaction.baseRevision);
+      if (generation !== roomSessionGeneration || leavingRoom) return;
       if (!revisionReady) {
         reportOnlineError(new Error(`No llegó la revisión ${Number(interaction.baseRevision || 0)} antes de la interacción ${interactionId}.`), 'Ventana online desfasada');
         return;
@@ -3010,6 +3438,7 @@
           const result = typeof runner === 'function'
             ? await runner(String(interaction.kind || ''), deepClone(interaction.payload || {}))
             : 'unsupported';
+          if (generation !== roomSessionGeneration || leavingRoom) return;
           const responsePacket = makeBattleSnapshotPacket();
           if (!responsePacket.snapshot) throw new Error(`La ventana ${interactionId} produjo un estado inválido.`);
           await api.runTransaction(interactionRef, current => {
@@ -3063,6 +3492,7 @@
           allowCounter: payload.allowCounter !== false,
           isDirectAttack: Boolean(payload.isDirectAttack),
         });
+        if (generation !== roomSessionGeneration || leavingRoom) return;
         await api.runTransaction(interactionRef, current => {
           if (!current || current.id !== interactionId || current.status !== 'pending') return;
           return {
@@ -3101,6 +3531,7 @@
   }
 
   async function detachRoomListener() {
+    roomSessionGeneration += 1;
     for (const unsubscribe of [
       roomUnsubscribe,
       authoritativeUnsubscribe,
@@ -3142,6 +3573,11 @@
       try { await presenceDisconnect.cancel(); } catch (_) {}
       presenceDisconnect = null;
     }
+    if (connectionUnsubscribe) {
+      try { connectionUnsubscribe(); } catch (_) {}
+      connectionUnsubscribe = null;
+    }
+    hideOpponentReconnectNotice();
     await cancelLobbyDisconnects();
     stopSyncLoop();
   }
@@ -3157,6 +3593,16 @@
     try {
       if (oldRoomPath && oldSlot) {
         try { await clearPriorityAction('', 'leave-room'); } catch (_) {}
+        if (wasPlaying && db && firebaseApiPromise) {
+          try {
+            const api = await firebaseApiPromise;
+            await api.update(api.ref(db, `${oldRoomPath}/players/${uid}`), {
+              connected: false,
+              leftMatch: true,
+              lastSeenAt: api.serverTimestamp(),
+            });
+          } catch (_) {}
+        }
       }
       await detachRoomListener();
       stopLobbyCountdown();
@@ -3171,7 +3617,7 @@
             await api.remove(api.ref(db, `${oldRoomPath}/players/${uid}`));
             await api.remove(api.ref(db, `${oldRoomPath}/guestUid`));
           } else {
-            await api.update(api.ref(db, `${oldRoomPath}/players/${uid}`), { connected: false, lastSeenAt: Date.now() });
+            await api.update(api.ref(db, `${oldRoomPath}/players/${uid}`), { connected: false, leftMatch: true, lastSeenAt: api.serverTimestamp() });
           }
         } catch (_) {}
       }
@@ -4713,8 +5159,11 @@
     ui.joinRefreshBtn?.addEventListener('click', () => { void startAvailableRoomListeners(); });
     ui.copyBtn?.addEventListener('click', () => { void copyRoomCode(); });
     ui.readyBtn?.addEventListener('click', () => { void toggleLobbyReady(); });
-    ui.selectSpellbookBtn?.addEventListener('click', () => { window.ROK_SPELLBOOK_MATCH?.openOnlineSelector?.(); });
-    ui.arenaSelect?.addEventListener('change', event => { void changeLobbyArena(event.currentTarget.value); });
+    ui.spellbookPrevBtn?.addEventListener('click', () => { void shiftOnlineSpellbook(-1); });
+    ui.spellbookNextBtn?.addEventListener('click', () => { void shiftOnlineSpellbook(1); });
+    ui.arenaPrevBtn?.addEventListener('click', () => { void shiftOnlineArena(-1); });
+    ui.arenaNextBtn?.addEventListener('click', () => { void shiftOnlineArena(1); });
+    ui.arenaRandomBtn?.addEventListener('click', () => { void changeLobbyArena('random'); });
     ui.leaveBtn?.addEventListener('click', () => { void leaveRoom({ silent: false, keepMenu: false }); });
     ui.overlay?.addEventListener('click', event => {
       if (event.target === ui.overlay && !roomCode) closeLobby();
@@ -4724,7 +5173,7 @@
       if (!roomPath || !playerSlot || !db || !firebaseApiPromise || !uid) return;
       void firebaseApiPromise.then(api => api.update(api.ref(db, `${roomPath}/players/${uid}`), {
         connected: false,
-        lastSeenAt: Date.now(),
+        lastSeenAt: api.serverTimestamp(),
       })).catch(() => {});
     });
 
@@ -4775,10 +5224,15 @@
     setLobbyLoadout,
     showJoinBrowser,
     leaveRoom,
+    reconnectSavedMatch,
+    getReconnectCandidate: () => reconnectCandidate,
     requestRemoteCasterDefense,
     requestRemoteActionWindow,
     notifyMatchFinished,
     requestRematch,
+    prepareInitiativeRound,
+    submitInitiativeChoice,
+    getInitiativeState,
     setPriorityAction,
     clearPriorityAction,
     emitVisualEvent,
