@@ -72,7 +72,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v5.7.325';
+const GAME_VERSION = 'v5.7.326';
 
 // PvP online · canal efímero de FX. El snapshot conserva el estado lógico;
 // este canal reproduce el trayecto visual exacto en el segundo navegador.
@@ -492,6 +492,7 @@ window.ROK_ONLINE_FX = {
 };
 
 const PATCH_NOTES = [
+  'v543: PvP Online · corrige la compuerta real de inicio. Al entrar ambos jugadores en LISTO, la presentación VS pasa al frente y el lobby se oculta durante la cinemática. Piedra/Papel/Tijera se vuelve una pausa local explícita del gameplay online y la guardia de inactividad queda desactivada hasta terminar iniciativa + introducción de elementos. El cliente invitado ya infiere correctamente el estado awaiting-initiative desde openingElementsDealt=false, por lo que también abre RPS en la primera partida. La compuerta de intro se identifica por sala+matchSerial para que una sala nueva con serial 1 no herede el bloqueo de una partida anterior. Tras resolver RPS, ambos clientes establecen localmente opening-intro, esperan el reparto autoritativo y desbloquean la partida solo al concluir la introducción inicial.',
   'v542: Restaura los Spellbooks base permanentes Deck básico Hattori (27/30) y Deck básico Tokugawa (30/30). Los presets se fusionan con los Spellbooks locales aunque localStorage esté vacío, aparecen en Mis Spellbooks, Player vs Bot y Versus Online, y son utilizables como mazos de prueba sin exigir colección. Los presets son de solo lectura para evitar que se pierdan; se pueden duplicar para editar. El almacenamiento local conserva únicamente mazos creados por el usuario y evita duplicados históricos por nombre/id.',
   'v541: Segunda calibración experimental de Estasis de Spellbook para cartas iniciales/baratas. La duración base por Costo se mantiene (0→5, 1→4, 2→3, 3→2, 4→1, 5+→0), pero el descuento PB se escala linealmente desde 5 fases=-800 hasta 0 fases=0: 4=-640, 3=-480, 2=-320 y 1=-160. El objetivo es que el tempo barato no convierta por sí solo cartas comunes en rarezas altas.',
   'v540: Calibración experimental de Estasis de Spellbook para reducir la inflación de PB en Invocaciones de bajo costo. La duración base por Costo no cambia (0→5, 1→4, 2→3, 3→2, 4→1, 5+→0 fases), pero el descuento PB se vuelve más agresivo: 5 fases=-450, 4=-350, 3=-250, 2=-150, 1=-50 y 0=0. Costo, Kasteo y Restauración conservan sus curvas positivas actuales; este ajuste se prueba antes de seguir recalibrando rarezas carta por carta.',
@@ -9015,9 +9016,22 @@ function getBattleInactivityPhaseKey() {
 }
 
 function isLocalBattleTurnForInactivity() {
+  const openingLockReason = String(state?.actionExecutionLockReason || '');
+  const openingGateActive = state?.openingElementsDealt !== true
+    || openingLockReason === 'awaiting-initiative'
+    || openingLockReason === 'opening-intro';
+  let initiativeActive = false;
+  try {
+    initiativeActive = Boolean(
+      window.ROK_INITIATIVE_RPS?.getState?.().active
+      || document.getElementById('rpsInitiativeOverlay')?.classList?.contains('open')
+    );
+  } catch (_) {}
   return Boolean(
     isBattleHudScreenActive()
     && !state?.gameOver
+    && !openingGateActive
+    && !initiativeActive
     && Number(state?.activePlayer) === Number(LOCAL_PLAYER_ID)
     && !(state?.aiEnabled && Number(state?.activePlayer) !== Number(LOCAL_PLAYER_ID))
   );
@@ -14280,6 +14294,8 @@ const rpsInitiativeRuntime = {
   onlineUpdateHandler: null,
 };
 
+const RPS_INITIATIVE_GAMEPLAY_PAUSE_TOKEN = 'online-initiative-rps';
+
 function getRpsChoice(id) {
   return RPS_INITIATIVE_CHOICES[String(id || '')] || null;
 }
@@ -14381,6 +14397,8 @@ function stopRpsInitiativeRuntime(reason = 'cancelled') {
   const root = document.getElementById('rpsInitiativeOverlay');
   root?.classList.remove('open', 'resolving', 'revealed');
   root?.setAttribute('aria-hidden', 'true');
+  try { releaseGlobalGameplayPause(RPS_INITIATIVE_GAMEPLAY_PAUSE_TOKEN); } catch (_) {}
+  try { hideBattleInactivityPrompt(`initiative-rps:${reason}`); } catch (_) {}
   if (typeof resolver === 'function' && reason !== 'completed') {
     try { resolver(0); } catch (_) {}
   }
@@ -14462,6 +14480,11 @@ async function runInitiativeSelection(options = {}) {
   const mode = options.mode === 'online' ? 'online' : 'bot';
   const localPlayerId = Math.max(1, Math.min(2, Number(options.localPlayerId || (mode === 'online' ? window.ROK_ONLINE_PVP?.getSession?.().playerSlot : 1) || 1)));
   const rivalPlayerId = localPlayerId === 1 ? 2 : 1;
+  if (mode === 'online') {
+    try { acquireGlobalGameplayPause(RPS_INITIATIVE_GAMEPLAY_PAUSE_TOKEN); } catch (_) {}
+    try { hideBattleInactivityPrompt('initiative-rps-open'); } catch (_) {}
+    try { markBattleActivity('initiative-rps-open'); } catch (_) {}
+  }
   const root = ensureRpsInitiativeOverlay();
   const flyer = root.querySelector('#rpsInitiativeFlyer');
   const result = root.querySelector('#rpsInitiativeResult');
@@ -14522,6 +14545,10 @@ async function runInitiativeSelection(options = {}) {
       root.setAttribute('aria-hidden', 'true');
       if (rpsInitiativeRuntime.pollTimer) clearInterval(rpsInitiativeRuntime.pollTimer);
       rpsInitiativeRuntime.pollTimer = null;
+      if (mode === 'online') {
+        try { releaseGlobalGameplayPause(RPS_INITIATIVE_GAMEPLAY_PAUSE_TOKEN); } catch (_) {}
+        try { markBattleActivity('initiative-rps-complete'); } catch (_) {}
+      }
       try { resolver?.(winner); } catch (_) {}
     };
 
@@ -49355,7 +49382,13 @@ function handleCasterDefeat(defeatedPlayerId, winnerPlayerId = null) {
   }
 }
 
-let lastOnlineMatchIntroSerial = 0;
+let lastOnlineMatchIntroKey = '';
+
+function getOnlineMatchIntroKey(matchSerial = 1) {
+  let roomCode = '';
+  try { roomCode = String(window.ROK_ONLINE_PVP?.getSession?.().roomCode || ''); } catch (_) {}
+  return `${roomCode || 'online'}:${Math.max(1, Number(matchSerial || 1))}`;
+}
 
 function setOnlineRematchButtonState(mode = '', control = null) {
   const overlay = document.getElementById('matchResultOverlay');
@@ -49399,10 +49432,15 @@ function resetStateForOnlineRematch(options = {}) {
 
 function announceOnlineMatchStarted(options = {}) {
   const serial = Math.max(1, Number(options.matchSerial || state.matchSerial || 1));
-  if (lastOnlineMatchIntroSerial === serial) return false;
-  lastOnlineMatchIntroSerial = serial;
+  const introKey = getOnlineMatchIntroKey(serial);
+  if (lastOnlineMatchIntroKey === introKey) return false;
+  lastOnlineMatchIntroKey = introKey;
   document.getElementById('matchResultOverlay')?.remove();
   clearTransientBattleUiForRestart();
+  state.actionExecutionLock = true;
+  state.actionExecutionLockReason = 'awaiting-initiative';
+  try { hideBattleInactivityPrompt('awaiting-initiative'); } catch (_) {}
+  try { markBattleActivity('awaiting-initiative'); } catch (_) {}
   renderAll();
   const localSlot = Number(window.ROK_ONLINE_PVP?.getSession?.().playerSlot || LOCAL_PLAYER_ID || 1);
 
@@ -49420,21 +49458,29 @@ function announceOnlineMatchStarted(options = {}) {
       try { await window.ROK_ONLINE_PVP?.commitStateBarrier?.('initiative-rps-resolved'); } catch (_) {}
     } else {
       const deadline = Date.now() + 6500;
+      let ready = false;
       while (Date.now() < deadline) {
-        const ready = Number(state.matchSerial || 0) === serial
+        ready = Number(state.matchSerial || 0) === serial
           && Number(state.activePlayer) === Number(winner)
-          && Boolean(state.openingElementsDealt)
-          && String(state.actionExecutionLockReason || '') === 'opening-intro';
+          && Boolean(state.openingElementsDealt);
         if (ready) break;
         await new Promise(resolve => window.setTimeout(resolve, 80));
       }
-      if (!state.openingElementsDealt || Number(state.matchSerial || 0) !== serial) return;
+      if (!ready || !state.openingElementsDealt || Number(state.matchSerial || 0) !== serial) return;
+      // actionExecutionLock es UI/runtime local y deliberadamente no viaja en el
+      // snapshot autoritativo. El invitado debe entrar por sí mismo en la misma
+      // compuerta de introducción que el Host.
+      state.actionExecutionLock = true;
+      state.actionExecutionLockReason = 'opening-intro';
+      renderPhaseUI();
     }
 
+    try { resetBattleInactivityRuntime('opening-elements-intro'); } catch (_) {}
     await playOpeningElementIntro();
     if (String(state.actionExecutionLockReason || '') === 'opening-intro') {
       state.actionExecutionLock = false;
       state.actionExecutionLockReason = '';
+      try { markBattleActivity('opening-intro-complete'); } catch (_) {}
       renderPhaseUI();
     }
     if (Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) schedulePhaseStartActions(0);

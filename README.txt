@@ -227,3 +227,12 @@ ROK v8.40 / game v5.7.323 — Calibración de Estasis/PB
 - Se prueba una curva de descuento PB más fuerte: Estasis 5=-450 PB, 4=-350, 3=-250, 2=-150, 1=-50 y 0=0.
 - Costo, Tiempo de Kasteo y Restauración conservan sus curvas positivas actuales.
 - Objetivo del ajuste: impedir que las Invocaciones iniciales/baratas escalen a rarezas demasiado altas únicamente por tener tempo bajo; la curva queda sujeta a calibración durante la revisión carta por carta.
+
+
+ROK v8.43 / game v5.7.326 — PvP Online · lobby → VS → RPS → inicio real
+- Al quedar ambos jugadores LISTO, la presentación VS pasa a primer plano y el lobby se oculta durante la cinemática; si el inicio se cancela, el lobby vuelve a mostrarse.
+- El cliente invitado detecta la iniciativa mediante openingElementsDealt=false, sin depender de actionExecutionLock (que es runtime local y no viaja en el snapshot).
+- La compuerta que evita duplicar RPS usa sala + matchSerial, por lo que entrar a otra sala con serial 1 vuelve a ejecutar Piedra/Papel/Tijera correctamente.
+- Piedra/Papel/Tijera adquiere una pausa local explícita del gameplay online. La inactividad no corre mientras faltan los elementos iniciales, durante awaiting-initiative, RPS ni opening-intro.
+- Tras resolver RPS, el Host publica jugador inicial + elementos; el invitado espera ese estado autoritativo y entra localmente en opening-intro. Ambos desbloquean la partida solo al terminar la animación de elementos.
+- Corrige el caso en el que la ventana de inactividad podía aparecer debajo de RPS y quedar imposible de clicar.

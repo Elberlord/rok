@@ -807,6 +807,12 @@
     }
   }
 
+  function setLobbyOverlayVisibleForMatchIntro(visible) {
+    if (!ui.overlay) return;
+    ui.overlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    ui.overlay.classList.toggle('visible', Boolean(visible));
+  }
+
   function stopLobbyCountdown() {
     if (lobbyCountdownTimer) window.clearInterval(lobbyCountdownTimer);
     lobbyCountdownTimer = null;
@@ -838,6 +844,11 @@
       arena,
       startAt: target,
     }));
+    // La cinemática VS es una pantalla completa. Si permanece el lobby visible,
+    // su z-index tapa la presentación y el duelo parece comenzar "por detrás".
+    // Solo ocultamos el lobby cuando la presentación real está disponible; el
+    // contador legado sigue dentro del lobby como fallback.
+    setLobbyOverlayVisibleForMatchIntro(!shown);
     if (!shown) {
       const paint = () => {
         const remaining = target - Date.now();
@@ -1483,15 +1494,22 @@
         && Number(state.phaseIndex || 0) === 0
         && openingSkip[1] !== true
         && openingSkip[2] !== true;
-      const awaitingInitiativeState = !state.openingElementsDealt
-        && state.actionExecutionLock === true
-        && String(state.actionExecutionLockReason || '') === 'awaiting-initiative';
+      // actionExecutionLock es runtime local y no forma parte de SNAPSHOT_KEYS.
+      // La señal autoritativa de que aún estamos antes de la iniciativa es que
+      // los elementos iniciales todavía no han sido repartidos.
+      const awaitingInitiativeState = !state.openingElementsDealt && state.gameOver !== true;
+      if (awaitingInitiativeState) {
+        state.actionExecutionLock = true;
+        state.actionExecutionLockReason = 'awaiting-initiative';
+      }
       if ((!wasLocalStateReady || matchChanged) && initialOpeningState) {
         try { window.ROK_OPENING_ELEMENTS?.stage?.(); } catch (_) {}
       }
       showBattleScreen();
       flushBattleRender('remote-authoritative-snapshot');
-      if (matchChanged || (!wasLocalStateReady && (initialOpeningState || awaitingInitiativeState))) {
+      if (awaitingInitiativeState) {
+        // announceOnlineMatchStarted tiene su propia compuerta sala+matchSerial,
+        // por lo que es seguro invocarlo ante cada snapshot previo al reparto.
         try { window.ROK_MATCH_LIFECYCLE?.announceOnlineMatchStarted?.({ matchSerial: incomingMatchSerial, remote: true }); } catch (_) {}
       }
     } finally {
@@ -2454,6 +2472,7 @@
         }
       } else {
         stopLobbyCountdown();
+        setLobbyOverlayVisibleForMatchIntro(true);
         if (!room.guestUid) setStatus('Lobby abierto. Esperando que uno de tus amigos se una.', 'working');
         else if (!bothConnected) setStatus('El segundo jugador está en el lobby, pero todavía no terminó de conectar.', 'working');
         else if (!p1?.loadout || !p2?.loadout) setStatus('Ambos están conectados. Falta seleccionar uno o más Spellbooks.', 'working');

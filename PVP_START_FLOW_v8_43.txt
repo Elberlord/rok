@@ -1,0 +1,22 @@
+ROK v8.43 · Flujo de inicio PvP Online
+
+Flujo esperado:
+1. Host e invitado seleccionan Spellbook y marcan LISTO.
+2. Firebase cambia la sala a countdown con startAt compartido.
+3. Ambos clientes reproducen la presentación VS y ocultan el lobby durante ella.
+4. Al finalizar startAt, Host crea/publica el snapshot inicial con openingElementsDealt=false.
+5. Ambos clientes abren Piedra/Papel/Tijera. La partida permanece pausada y la guardia de inactividad no corre.
+6. Cada cliente escribe únicamente su initiativeChoice en su registro de jugador.
+7. Al existir ambas elecciones, ambos resuelven el mismo ganador. En empate se prepara una ronda nueva.
+8. Host fija activePlayer, reparte elementos iniciales, entra en fase inicial y publica barrera initiative-rps-resolved.
+9. Invitado espera openingElementsDealt=true + activePlayer=ganador.
+10. Ambos reproducen la introducción de elementos bajo actionExecutionLockReason=opening-intro local.
+11. Solo al terminar esa introducción se libera el input y se programan las acciones de fase del jugador que inicia.
+
+Regresiones cubiertas:
+- VS detrás del lobby: corregido.
+- Invitado sin RPS en primera partida: corregido.
+- Nueva sala con matchSerial=1 que no repetía RPS por serial heredado: corregido.
+- Inactividad ejecutándose durante RPS: corregido.
+- Aviso de inactividad debajo del overlay RPS sin poder clicar: eliminado por diseño; no debe generarse en esa etapa.
+- Invitado esperando un actionExecutionLockReason remoto que nunca viaja por SNAPSHOT_KEYS: corregido; opening-intro se establece localmente.
