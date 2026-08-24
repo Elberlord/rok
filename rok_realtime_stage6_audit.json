@@ -1,0 +1,487 @@
+{
+  "format": "ROK_REALTIME_STAGE6_AUDIT_V1",
+  "build": "v5.7.360-RT0818-S6",
+  "balanceProfile": "rt0818-stage6-audit-recovery-v1",
+  "generatedAt": "2026-08-20",
+  "summary": {
+    "rosterCount": 28,
+    "explicitModeRules": 28,
+    "configurablePowerCount": 11,
+    "issueCount": 0
+  },
+  "issues": [],
+  "stallHardening": {
+    "unifiedEscapeCancel": true,
+    "specialKurokagiCleanup": true,
+    "spellActionTimeoutExemption": true,
+    "orphanTargetRecovery": true,
+    "knownLockOwnerRecovery": true,
+    "lockTimestamps": true
+  },
+  "suggestedPlayAdded": [
+    "spellDespliegueAnticipado",
+    "abilityShirahadori"
+  ],
+  "roster": [
+    {
+      "cardId": "kiaraFaroleraUmbral",
+      "name": "Farolera del Umbral",
+      "qualities": [
+        "hechicero"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "defensive"
+      ],
+      "defaultMode": "defensive",
+      "configurablePower": true,
+      "auditedActionId": "farolEnlazado"
+    },
+    {
+      "cardId": "naitoSutoka",
+      "name": "Kagero, Ichisoku (Ninja)",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt",
+        "defensive"
+      ],
+      "defaultMode": "assassination",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "ninjaNaitoSutoka",
+      "name": "Naito sutoka",
+      "qualities": [
+        "assassin",
+        "stalker"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt",
+        "defensive"
+      ],
+      "defaultMode": "assassination",
+      "configurablePower": true,
+      "auditedActionId": "sutokaSmokeBomb"
+    },
+    {
+      "cardId": "ninjaOjoDeBuho",
+      "name": "Fukurō no Me",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt"
+      ],
+      "defaultMode": "hunt",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "ninjaOdaNoKage",
+      "name": "\"Ninja\" Oda no Kage",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt"
+      ],
+      "defaultMode": "assassination",
+      "configurablePower": true,
+      "auditedActionId": "odaNoKageShadow"
+    },
+    {
+      "cardId": "gioshoninMercaderErrante",
+      "name": "Gioshonin, el Mercader Errante",
+      "qualities": [
+        "stalker"
+      ],
+      "movementType": "retreat",
+      "allowedModes": [
+        "assassination",
+        "hunt",
+        "defensive"
+      ],
+      "defaultMode": "defensive",
+      "configurablePower": true,
+      "auditedActionId": "gioshoninSupply"
+    },
+    {
+      "cardId": "ninjaYasuganaHattori",
+      "name": "Yasugana Hattori",
+      "qualities": [
+        "hero",
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt",
+        "defensive"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": true,
+      "auditedActionId": "yasuganaGenyutsu"
+    },
+    {
+      "cardId": "ninjaSaqueadorNovato",
+      "name": "Saqueador novato",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "hunt",
+        "siege"
+      ],
+      "defaultMode": "assassination",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "ninjaJunkaiButai1",
+      "name": "Junkai butai #1",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "ninjaJunkaiButai2",
+      "name": "Junkai butai #2",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt",
+        "defensive"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "ninjaIchikawaGoemon",
+      "name": "Ichikawa Goemon",
+      "qualities": [
+        "hero",
+        "bandit"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt",
+        "defensive",
+        "siege"
+      ],
+      "defaultMode": "assassination",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "ninjaKurokagiButai3",
+      "name": "Kurokage",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": true,
+      "auditedActionId": "kurokagiWeaponShift"
+    },
+    {
+      "cardId": "samuraiAkari",
+      "name": "Akari",
+      "qualities": [
+        "shooter",
+        "warrior"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "hunt",
+        "defensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "ninjaKurayami",
+      "name": "Kurayami",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt"
+      ],
+      "defaultMode": "assassination",
+      "configurablePower": true,
+      "auditedActionId": "kurayamiDeathSeal"
+    },
+    {
+      "cardId": "ninjaMinokageNoKurai",
+      "name": "“Ninja” Minokage no Kurai",
+      "qualities": [
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt"
+      ],
+      "defaultMode": "assassination",
+      "configurablePower": true,
+      "auditedActionId": "minokageShippuUgachi"
+    },
+    {
+      "cardId": "samuraiKaguya",
+      "name": "Samurai Kaguya",
+      "qualities": [
+        "shooter"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "hunt",
+        "defensive"
+      ],
+      "defaultMode": "hunt",
+      "configurablePower": true,
+      "auditedActionId": "kaguyaChargedShot"
+    },
+    {
+      "cardId": "samuraiNobunagaOda",
+      "name": "\"Samurai\" \"Daimyo\" Nobunaga Oda",
+      "qualities": [
+        "hero",
+        "caudillo"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "defensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiKarunobuTaicho",
+      "name": "Karunobu Taichō",
+      "qualities": [
+        "caudillo",
+        "warrior"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "defensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiTakedaShingen",
+      "name": "Takeda Shingen",
+      "qualities": [
+        "hero",
+        "warrior"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "defensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": true,
+      "auditedActionId": "takedaOldFriend"
+    },
+    {
+      "cardId": "miyamotoMusashi",
+      "name": "Miyamoto Musashi",
+      "qualities": [
+        "hero",
+        "sentinel"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "defensive",
+        "siege"
+      ],
+      "defaultMode": "defensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiBushiInquebrantable",
+      "name": "Samurai Bushi inquebrantable",
+      "qualities": [
+        "warrior"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiBushiIniciado",
+      "name": "Bushi iniciado",
+      "qualities": [
+        "warrior"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiRegenteKishimoto",
+      "name": "Regente Kishimoto",
+      "qualities": [
+        "summoner"
+      ],
+      "movementType": "retreat",
+      "allowedModes": [
+        "offensive",
+        "defensive"
+      ],
+      "defaultMode": "defensive",
+      "configurablePower": true,
+      "auditedActionId": "kishimotoLimits"
+    },
+    {
+      "cardId": "samuraiOSenseiUeshiba",
+      "name": "O-sensei Ueshiba",
+      "qualities": [
+        "hero",
+        "master"
+      ],
+      "movementType": "retreat",
+      "allowedModes": [
+        "offensive",
+        "defensive"
+      ],
+      "defaultMode": "defensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiToyotomiHideyoshi",
+      "name": "Toyotomi hideyoshi",
+      "qualities": [
+        "hero",
+        "warrior"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "defensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiBushiHonorable",
+      "name": "Samurai Bushi honorable",
+      "qualities": [
+        "warrior"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiShiroNoBushi",
+      "name": "Samurai Shiro no Bushi",
+      "qualities": [
+        "warrior"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "offensive",
+        "siege"
+      ],
+      "defaultMode": "offensive",
+      "configurablePower": false,
+      "auditedActionId": null
+    },
+    {
+      "cardId": "samuraiShinraHitokiri",
+      "name": "Samurai Shinra Hitokiri",
+      "qualities": [
+        "warrior",
+        "assassin"
+      ],
+      "movementType": "basic",
+      "allowedModes": [
+        "assassination",
+        "offensive",
+        "hunt",
+        "siege"
+      ],
+      "defaultMode": "hunt",
+      "configurablePower": false,
+      "auditedActionId": null
+    }
+  ]
+}

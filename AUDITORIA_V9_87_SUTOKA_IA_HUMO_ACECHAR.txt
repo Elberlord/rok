@@ -1,0 +1,42 @@
+R.O.K Lite v9.87 — Naito Sutoka: IA táctica de humo + Acechar
+Base: v9.86 CAMPEO_KAGUYA_AKARI_MODOS
+
+CAMBIOS SOLICITADOS
+1. Modos de combate de Naito Sutoka
+   - Asesinato
+   - Ofensivo
+   - Cacería
+   - Defensivo
+   - Asedio
+
+2. Bomba de humo: conservación táctica del consumible
+   - Ya no se activa automáticamente solo por estar disponible.
+   - Asesinato: busca una cortina situada en el corredor útil entre Sutoka y el Kaster rival.
+   - Cacería: busca una cortina situada en el corredor útil entre Sutoka y la Invocación más vulnerable.
+   - Ofensivo: el objetivo táctico pasa a ser la Invocación rival de mayor poder; el humo solo se usa si mejora la aproximación.
+   - Asedio: usa la misma lógica de corredor hacia Guardián/Estructura cuando existe una ganancia real.
+   - Si el objetivo estratégico ya está dentro del alcance normal de Sutoka, conserva la bomba y ataca normalmente.
+   - Si Sutoka ya está Oculta, no gasta otra bomba para la misma aproximación.
+
+3. Defensivo: protección selectiva
+   - La IA ya no valora por igual a todas las Invocaciones aliadas.
+   - Prioridad explícita: Yasugana Hattori, Kurayami, Minokage no Kurai y Kurokage.
+   - También puede proteger otras piezas Ninja si están entre las de mayor impacto vivo del equipo.
+   - Sutoka se prioriza a sí misma cuando está expuesta/en peligro.
+   - La reacción automática de humo solo protege una pieza estratégica cuando Sutoka está configurada en Defensivo.
+   - El uso manual del Poder no se restringe.
+
+4. Acechar + Asesinato
+   - Una vez Acechar está activo en territorio rival, Sutoka intenta bordear al Kaster.
+   - Selecciona una casilla libre detrás y a un flanco del Kaster, dentro de su Alcance 2.
+   - Mientras exista una ruta de flanqueo válida, no interrumpe la infiltración solo porque el Kaster entre prematuramente en alcance.
+   - Al alcanzar una posición válida detrás del Kaster, ejecuta el ataque normal.
+   - Si no existe casilla de flanco legal, conserva el comportamiento normal de Asesinato como fallback.
+
+5. Alcance/arma/balance
+   - No se modificaron stats, alcance, daño, número de bombas ni geometría de la kusarigama/cadena.
+   - No se modificó layout ni escalado.
+
+VALIDACIÓN
+- game.js: node --check OK.
+- Cache-bust actualizado a v9.87.

@@ -1,0 +1,2127 @@
+R.O.K LITE — INFORME GENERAL CONSOLIDADO
+Build actual: v8.71
+Game version: v5.7.353-RT0815
+Fecha de consolidación: 2026-08-19
+
+======================================================================
+RT-08.15 — HUD DE TURNO / MOUSE DE DEFENSA / LIMPIEZA DE INFORMES
+======================================================================
+
+1. INDICADOR DE TURNO EN MODO POR TURNOS
+- Solo funciona en Manual / modo por turnos.
+- Si el jugador local tiene el turno, su HUD muestra permanentemente:
+  TU TURNO
+- Si el rival tiene el turno, el texto desaparece del HUD local y el HUD rival
+  muestra:
+  TURNO DEL RIVAL
+- Cada burbuja usa el color elemental del Kaster correspondiente.
+- En cada transición real de fase se ejecuta una sola secuencia de foil sobre
+  el HUD activo.
+- La secuencia usa dos barridos cortos dentro de la misma transición.
+- Renders repetidos de la misma fase NO vuelven a disparar el foil.
+- Tiempo real no muestra estos indicadores.
+
+2. ATAJOS DE MOUSE — DEFENSA DEL KASTER
+Mientras state.pendingCasterDefense está activo, toda interacción de mouse queda
+capturada por esa decisión. No puede atravesar hasta Arena, Spellbook, HUD ni
+otros controles.
+
+Atajos:
+- Clic derecho: Defender.
+- Clic izquierdo: Contraatacar, solo si Contraatacar es legal.
+- Clic de rueda / botón central: Counter especial / escudo definitivo, solo si
+  existe una carga disponible.
+
+Reglas de seguridad:
+- Si el ataque es a distancia y no permite Contraatacar, el clic izquierdo se
+  consume pero NO inventa un contraataque ilegal.
+- Si no hay Counter especial disponible, el clic central se consume sin cerrar
+  la ventana.
+- Los botones visibles de la ventana siguen funcionando.
+- Al resolver mediante mouse se bloquean también click/auxclick/contextmenu
+  posteriores del mismo gesto para impedir clic accidental sobre lo que había
+  detrás.
+
+3. REPORTES
+Se eliminaron los archivos históricos individuales de reporte del paquete.
+A partir de esta build existe UN SOLO archivo:
+INFORME_GENERAL_ROK_LITE.txt
+
+Este archivo conserva íntegramente el último reporte técnico RT-08.14 y resume
+el historial estructural anterior.
+
+Archivos de texto/reportes retirados de la raíz:
+ - RT0813_STAGE1_ARENA_GRID_EXPANSION.txt
+ - PB_UNIVERSAL_v1.txt
+ - RT05_STAGE5.txt
+ - ONLINE_DEPLOY_CHECKLIST.txt
+ - PVP_FIX_v8_45.txt
+ - PVP_FIX_v8_44.txt
+ - RT083_STAGE8_3.txt
+ - RT088_VIEWPORT_X_TUNING_PAUSE.txt
+ - RT01_STAGE1.txt
+ - RT0811_TIMING_AI_PROGRESSIVE.txt
+ - RT087_RESOURCE_CURVE.txt
+ - RT03_STAGE3.txt
+ - RT0814_POWER_AUDIT_BINDING_RIVAL_HUD.txt
+ - PVP_ONLINE_AUDIT_v8_41.txt
+ - RT081_STAGE8_1.txt
+ - PVP_START_FLOW_v8_43.txt
+ - RT0812_STALL_DIAGNOSIS_FIX.txt
+ - RT0813_STAGE5_PANEL_POLISH.txt
+ - README.txt
+ - RT085_STAGE8_5.txt
+ - RT0813_STAGE3_POWER_AUTOMATION.txt
+ - RT07_COMPATIBILITY_AUDIT.txt
+ - RT089_REAL_CONTAINER_WIDTH.txt
+ - SPELLBOOKS_BASE_v8_42.txt
+ - RT06_STAGE6.txt
+ - RT02_STAGE2.txt
+ - RT04_STAGE4.txt
+ - RT084_STAGE8_4.txt
+ - RT0810_INTRINSIC_CONTENT_WIDTH.txt
+ - RT086_STAGE8_6.txt
+ - RT082_STAGE8_2.txt
+ - RT07_STAGE7.txt
+ - RT0813_STAGE2_INVOCATION_PANEL.txt
+ - RT0813_STAGE4_UI_MIGRATION.txt
+ - RT07_LOCAL_TEST_FIX.txt
+
+======================================================================
+HISTORIAL CONSOLIDADO — RESUMEN
+======================================================================
+
+RT-01 — Base Tiempo real:
+selector Manual/Tiempo real, reloj y separación del flujo de turnos.
+
+RT-02 — Recursos RT iniciales.
+
+RT-03 — Movimiento automático de Invocaciones, WASD del Kaster y resolución RT.
+
+RT-04 — Modos de combate por copia.
+
+RT-05 — Efectos temporales y automatización de habilidades.
+
+RT-06 — PvP Online Host-authoritative para Tiempo real.
+
+RT-07 — Compatibilidad/balance por carta + arreglo de pruebas file://.
+
+RT-08.1 — Tempo maestro 1/2/3 s.
+RT-08.2 — Capacidad elemental total 60.
+RT-08.3 — Panel dedicado de Modos y defensa táctica.
+RT-08.4 — Kasteo directo desde Spellbook + Poderes automáticos RT.
+RT-08.5 — Tiempo de Pensamiento acumulativo.
+RT-08.6 — Ajustes visuales.
+RT-08.7 — Curva progresiva de recursos.
+RT-08.8/08.9/08.10 — viewport, ajuste X y protección de contenido interno.
+RT-08.11 — relojes separados, Velocidad, Asedio, Elemento puro y Kasteo progresivo.
+RT-08.12 — corrección de stalls/promesas huérfanas.
+RT-08.13 S1 — cuadrícula ampliada verticalmente.
+RT-08.13 S2 — Panel permanente de Invocaciones.
+RT-08.13 S3 — Poder AUTO/MANUAL por copia + habilidad armada.
+RT-08.13 S4 — migración de persistentes fuera de Arena.
+RT-08.13 S5 — pulido visual y calibración del Panel.
+RT-08.14 — auditoría de Poderes, reparación de Atadura y HUD rival apilado.
+RT-08.15 — indicador explícito de turno + atajos de defensa + reporte único.
+
+======================================================================
+NOTA ONLINE
+======================================================================
+
+Esta build NO cambia Firebase respecto a RT-08.14.
+Mantiene los comandos incorporados anteriormente, incluidos:
+- progressive-recast
+- power-automation
+- power-arm
+
+Para un despliegue Online nuevo deben usarse firebase-online.js y
+firebase-rtdb-rules.json incluidos en este ZIP.
+
+======================================================================
+REPORTE TÉCNICO CONSERVADO ÍNTEGRAMENTE — RT-08.14
+======================================================================
+
+R.O.K LITE — RT-08.14 — AUDITORÍA DE PODERES / ATADURA / HUD RIVAL
+
+Base: v8.69 / RT-08.13 Etapa 5.
+Build: v8.70 / game v5.7.352-RT0814.
+
+ALCANCE DE LA AUDITORÍA
+Se revisaron las Invocaciones del CARD_LIBRARY que poseen power/powers o
+abilities declaradas. El criterio fue separar:
+- activa voluntaria implementada -> switch AUTO/MANUAL;
+- pasiva/disparador -> sigue automática por regla;
+- activa declarada pero todavía sin lógica -> NO se finge compatibilidad.
+
+INVENTARIO
+1. Farolera del Umbral — Farol Enlazado — Activa, 2 etapas.
+   AUTO/MANUAL: sí. Manual, AUTO y RT armado usan la misma compuerta y targeting.
+
+2. Naito Sutoka — Sutoka hatsuen-dan — Activo/Pasivo.
+   AUTO/MANUAL: sí.
+   CORREGIDO: la reacción defensiva al ser seleccionado ya no ignora el switch.
+   - Manual+MANUAL: conserva ventana.
+   - Manual+AUTO: lanza humo automáticamente si puede cubrir al objetivo.
+   - RT+AUTO: automático.
+   - RT+MANUAL desarmado: no pregunta ni reacciona.
+   - RT+MANUAL armado: reacciona y consume ARMADA al proteger.
+
+3. Oda no Kage — Sombra del clan Oda — Pasiva/Activa.
+   AUTO/MANUAL: sí para la activación del vínculo.
+   La ejecución y sustitución posteriores continúan como disparadores/pasivas.
+
+4. Gioshonin, el Mercader Errante — Mercancía de guerra — Pasiva/Activa.
+   AUTO/MANUAL: sí.
+   CORREGIDO: Manual+AUTO antes solo abría targeting y luego lo limpiaba sin
+   resolver. Ahora elige aliado/opción, paga costo aleatorio válido y aplica.
+
+5. Yasugana Hattori — Genyutsu, Shinigami Karasu — Activa.
+   AUTO/MANUAL: sí. Ceguera/Vigilia siguen usando disponibilidad real.
+
+6. Saqueador novato — Sabotaje apresurado — Pasiva.
+   AUTO/MANUAL: no corresponde.
+
+7. Ichikawa Goemon — Densetsu no Sennyū — Disparador.
+   Botín valioso — Pasiva.
+   AUTO/MANUAL: no corresponde.
+
+8. Kurokage (antiguo Kurokagi butai #3) — Buki Utsushi — Disparador/Activa.
+   AUTO/MANUAL: sí.
+   CORREGIDO: el sistema distingue las etapas reales:
+   - Desarmar sigue siendo disparador.
+   - Recoger arma caída puede automatizarse.
+   - Alternar arma capturada/principal puede automatizarse.
+   RT armado puede consumir la orden al recoger el arma.
+
+9. Akari — Vista aguda — Pasiva.
+   AUTO/MANUAL: no corresponde.
+
+10. Kurayami — Shizukesa no Shi-in — Activa; Aura Ninja — Pasiva.
+    AUTO/MANUAL: sí para Shizukesa.
+    CORREGIDO: el registro de Etapa 3 usaba el ID inexistente
+    selloMuerteKurayami; el ID real es shizukesaNoShiin. El switch vuelve a
+    aparecer y gobernar la activa.
+
+11. Minokage no Kurai — Yari: Shippū Ugachi — Activa/Pasiva.
+    AUTO/MANUAL: sí para la activa. La fase pasiva de salto permanece pasiva.
+
+12. Samurai Kaguya — Disparo energizado — Activa.
+    AUTO/MANUAL: sí. Canalización, objetivo tardío y cooldown permanecen iguales.
+
+13. Oda Nobunaga — Confianza transmitida — Pasiva.
+    Posicionamiento táctico — Activa DECLARADA COMO LÓGICA FUTURA en POWER_DB.
+    AUTO/MANUAL: no se expone todavía; no se inventó una resolución que las
+    reglas/código aún no definen.
+
+14. Karunobu Taichō — Senjin no Kosei — Pasiva.
+    AUTO/MANUAL: no corresponde.
+
+15. Takeda Shingen — El viejo amigo — Activa.
+    Dominio territorial — Pasiva.
+    AUTO/MANUAL: sí; AUTO utiliza la selección IA existente.
+
+16. Miyamoto Musashi — Legado del imbatible — Pasiva.
+    Dominio territorial / Vigilia — Pasivas.
+    AUTO/MANUAL: no corresponde.
+
+17. Regente Kishimoto — Llamado a la guerra — Pasiva.
+    Límites Superados — Activa.
+    AUTO/MANUAL: sí; conserva costo flexible y límite por turno.
+
+18. O-sensei Ueshiba — Habilidad definitiva — Pasiva.
+    Dominio territorial — Pasiva.
+    AUTO/MANUAL: no corresponde.
+
+19. Toyotomi Hideyoshi — Colegas de guerra — Pasiva.
+    Dominio territorial — Pasiva.
+    AUTO/MANUAL: no corresponde.
+
+20. Samurai Shinra Hitokiri — Sukiru Charenji — Pasiva.
+    AUTO/MANUAL: no corresponde.
+
+ATADURA — DIAGNÓSTICO
+La carta que actualmente porta Atadura 2 es Junkai butai #2. Kurokage es el
+antiguo Butai #3 renombrado, pero su factor es Desarmar/Buki Utsushi.
+
+El fallo de Junkai estaba causado por una migración incompleta Parálisis ->
+Atadura:
+- la animación/vínculo seguía leyendo exclusivamente factor 'paralysis';
+- applyBindingFromJunkai añadía 'binding' pero nunca marcaba linkEstablished;
+- clearUnitEngagement y los release/prune solo buscaban Parálisis;
+- Restauración no eliminaba Atadura;
+- executeOscillationPartialAttack restauraba a Junkai justo después de aplicar
+  Atadura, destruyendo el sourceUnitId del vínculo.
+
+REPARACIÓN DE ATADURA
+- Atadura de Junkai vuelve a establecer engagedWith mutuo y la cadena visual.
+- El factor sigue siendo Atadura: NO vuelve a aplicar Parálisis total.
+- Movimiento/Ataque del objetivo siguen resolviendo las dos PDA separadas por
+  fase de Atadura.
+- Junkai permanece en arena enlazado; ya no es restaurado al aplicar el factor.
+- El vínculo se libera al expirar Atadura, restaurarse cualquiera de las partes,
+  morir/desaparecer la fuente o romperse el engagement.
+- La capa visual heredada se reutiliza con etiqueta/estilo Atadura.
+
+HUD RIVAL
+- #opponentCasterHud sale de #boardContent.
+- Se ubica en game-shell, fila 2, columnas 3-6.
+- El HUD propio queda fila 3.
+- Board y Recursos abarcan filas 1-3 completas, por lo que el HUD rival no
+  recorta la altura de la Arena.
+- El rival usa la misma gramática visual: carta con fondo/arte/skin, nombre,
+  Elemento puro, WINS, Ataque, Vida, Cast y Counter.
+- Recursos y cola de kasteo rivales se conservan en una tercera zona compacta.
+
+VALIDACIÓN ESTÁTICA
+- node --check game.js
+- node --check firebase-online.js
+- firebase-rtdb-rules.json parseado
+- Firebase byte-idéntico a v8.69
+- ZIP íntegro
+
+No se afirma prueba visual de navegador; la validación de comportamiento final
+se realiza en la prueba jugable.
+
+
+
+======================================================================
+RT-08.16 — ARENA ZOOM / HUD RIVAL GEMELO / PANEL-CARTA / CSS CANÓNICO
+======================================================================
+
+CSS CANÓNICO
+Se tomó como base el CSS exportado por el usuario:
+rok-ui-ajustes-2026-08-20 (1).css
+
+Valores incorporados:
+- Tempo / Tiempo: X -42px · ancho 149%.
+- Zona de kasteo: X -52px · ancho 100%.
+- Spellbook: X -56px · ancho 100%.
+- Zona del Kaster: X -51px · ancho 98%.
+- Panel de Invocaciones: X -46px · ancho 100%.
+
+Se creó rok_ui_tuning_v3 para que ajustes antiguos de localStorage no vuelvan
+a aplicar geometrías anteriores encima de esta base.
+
+ARENA
+- Se revierte la deformación vertical de RT-08.13 S1.
+- Geometría de grid restaurada:
+  enemigo top 14%, alto 35.8%;
+  aliado top 53.7%, alto 35.8%.
+- La ampliación visual ahora es un zoom UNIFORME de board-content (1.24).
+- Imagen, cuadrícula, fichas, hitboxes, auras y FX se acercan juntos.
+- El board recorta el excedente como una cámara/viewport; no estira casillas.
+
+HUD RIVAL
+- Misma altura exterior que HUD aliado.
+- Mismo ancho 98%, desplazamiento X -51px, columnas, padding, gap y radio.
+- enemyMiniHud se mueve dentro de opponent-caster-wide-info.
+- Se conservan recursos y cola de kasteo rivales.
+
+PANEL DE INVOCACIONES
+- Cada Invocación propia en Arena se representa con una carta de 190px,
+  igual al tamaño de la carta del modal normal en combate.
+- La propia carta es el contenedor visual.
+- Dentro/sobre la carta viven:
+  INFO,
+  VIDA,
+  estados/factores,
+  combate/objetivo,
+  Poder,
+  AUTO/MANUAL,
+  Habilidad armada,
+  Modos de combate en RT.
+- Se elimina la tarjeta larga externa alrededor de la carta.
+- En Manual, clicar el fondo de la carta del Panel selecciona la Invocación
+  para su movimiento/ataque.
+- En Arena, el clic normal sobre el token de Invocación no abre Info ni la
+  selecciona; solo permanecen las selecciones contextuales exigidas por una
+  acción/targeting reglamentario.
+
+ELEMENTO PURO — TIEMPO REAL
+- pureElementPulseSeconds sigue definiendo cada cuántos segundos ocurre el pulso.
+- Cada pulso entrega exactamente +1 Elemento puro.
+- Ya no entrega pureCadence unidades de golpe.
+- Resultado esperado: 1, 1, 1... hasta pureMax.
+
+FIREBASE
+Sin cambios respecto a RT-08.15.
+
+
+======================================================================
+RT-08.17 · ETAPA 1 — FUNDACIÓN DE MODOS DE COMBATE
+======================================================================
+
+Primera etapa del nuevo bloque de IA táctica.
+
+MODOS CANÓNICOS
+1. Asesinato
+   - busca al Kaster rival;
+   - evita iniciar combate contra Invocaciones;
+   - un estado viejo "focus/Enfoque" migra automáticamente a assassination.
+
+2. Ofensivo
+   - busca la Invocación rival de mayor impacto;
+   - combina PB, daño, alcance, Vida, presión y viabilidad de dañarla/trabarla.
+
+3. Cacería
+   - busca la presa más vulnerable;
+   - considera golpes para eliminar, Vida, Defensa/Resistencia, distancia y
+     estados negativos.
+
+4. Defensivo
+   - no abre fuego solo porque un enemigo entre en alcance;
+   - responde/intercepta amenazas que ya comprometen al Kaster, Invocaciones o
+     estructuras del lado aliado.
+
+5. Asedio
+   - prioriza estructuras/Guardianes;
+   - después busca zona de riesgo evitando combates innecesarios.
+
+CURADURÍA CARTA POR CARTA
+La whitelist explícita de cada carta es ahora autoritativa.
+Cualidad + Movimiento queda como fallback para cartas futuras/no curadas.
+
+Casos importantes:
+- Sutoka: Asesinato / Ofensivo / Cacería / Defensivo.
+- Yasugana: Asesinato / Ofensivo / Cacería / Defensivo.
+- Junkai Butai #2: añade Defensivo para futura intercepción con Atadura.
+- Goemon: caso versátil con los cinco modos.
+- Guerreros frontales simples: Ofensivo/Asedio; no reciben todos los modos.
+
+PODERES
+El selector genérico ya utiliza el mismo criterio:
+- Asesinato: Kaster; si la activa no admite Kaster, solo bloqueador cercano.
+- Ofensivo: impacto + viabilidad.
+- Cacería: vulnerabilidad.
+- Defensivo: amenaza comprometida contra nuestro lado.
+- Asedio: perfil propio de prioridad de activas.
+
+PENDIENTE PARA SIGUIENTES ETAPAS
+- S2: cortina de humo/Oculto/terraformación como capacidades universales y
+  colocación de Poderes según modo.
+- S3: sinergias entre aliados (Vigilia, apoyo, reposicionamiento).
+- S4: inteligencia del Spellbook + recomendación + pausa de acción táctica.
+- S5: telemetría/exportación de aprendizaje para compartir registros entre
+  versiones.
+
+FIREBASE
+Sin cambios respecto a RT-08.16.
+
+
+======================================================================
+RT-08.17 · ETAPA 2 — ARENA AFFORDANCES Y PODERES ESPACIALES
+======================================================================
+
+OBJETIVO
+Crear una semántica universal para oportunidades del terreno y comenzar a
+hacer que los Poderes de posicionamiento/soporte cambien según el Modo.
+
+ARENA AFFORDANCES
+Taxonomía incorporada:
+- concealment_zone
+- concealment_route
+- reveal_zone
+- movement_zone
+- portal_link
+- hazard_zone
+- support_zone
+
+Productores conectados:
+- Bomba de humo -> concealment_zone.
+- Kage no Michi -> concealment_route.
+- Tentoro -> reveal_zone + movement_zone.
+- Farol Enlazado completo -> portal_link.
+
+OCULTO
+La elegibilidad ya no se resuelve exclusivamente por el nombre de Bomba de
+humo. Una zona puede declarar familias, cualidades o elementos compatibles.
+Se conserva compatibilidad con la regla histórica Ninja.
+
+MOVIMIENTO
+Una Invocación compatible puede usar Humo/Kage como waypoint:
+- Defensivo: refugio seguro, preferiblemente propio.
+- Asesinato: cobertura que progrese hacia Kaster.
+- Ofensivo: cobertura hacia amenaza principal.
+- Cacería: cobertura hacia presa vulnerable.
+- Asedio: cobertura útil hacia estructura/riesgo.
+Los perfiles agresivos salen de la cobertura cuando ya no mejora su progreso.
+
+SUTOKA
+Bomba de humo AUTO deja de centrarse automáticamente en Sutoka.
+Puntúa centros legales por:
+- Modo.
+- aliados Ninja cubiertos.
+- aliados actualmente amenazados.
+- lado aliado/rival.
+- progreso al objetivo.
+- cobertura de Sutoka.
+
+En Defensivo puede conservar la bomba si no existe valor protector suficiente.
+La reacción automática reutiliza el mismo evaluador y exige cubrir a la unidad
+que está siendo atacada.
+
+YASUGANA
+Defensivo:
+- amenaza activa + Ceguera legal -> Ceguera primero.
+- sin amenaza inmediata -> puede enseñar Vigilia.
+Los demás modos mantienen selección ofensiva/cacería correspondiente.
+
+FAROL ENLAZADO
+- Defensivo: seguridad y territorio propio.
+- otros perfiles: progreso hacia objetivo táctico.
+
+MANUAL + AUTO
+La automatización en Manual también ordena acciones por:
+peso del Modo + contexto.
+Sutoka/Yasugana usan la misma lógica táctica que Tiempo real.
+
+FIREBASE
+Sin cambios respecto a Etapa 1.
+
+SIGUIENTE
+Etapa 3: sinergias entre aliados y soporte coordinado:
+Vigilia + Sutoka, enable_setup, reposicionamiento útil, selección del aliado que
+más se beneficia y coordinación genérica Poder <-> affordance.
+
+
+======================================================================
+RT-08.17 · ETAPA 3 — SINERGIAS ENTRE ALIADOS + MODAL CONTENIDO
+======================================================================
+
+SUPPORT INTENT
+Se añade una capa reusable para:
+support, protect, enable_setup, reposition, reposition_ally, resupply,
+restore_capability, field_setup y concealment.
+
+YASUGANA / VIGILIA
+- ya no enseña Vigilia al primer Ninja;
+- puntúa amenaza, Vida, PB, Modo, distancia y ganancia de movilidad;
+- Sutoka con Bomba de humo recibe sinergia especial enable_setup;
+- en Defensivo esta combinación recibe prioridad alta.
+
+SUTOKA + VIGILIA
+En Defensivo, si Sutoka ya está segura pero tiene Vigilia y otra casilla segura
+mejora claramente la próxima cobertura de humo, puede reposicionarse para
+preparar la defensa en vez de quedarse inmóvil por la regla antigua.
+
+GIOSHONIN
+Mercancía de guerra selecciona objetivo y recurso por contexto:
+- presión enemiga;
+- impacto de la unidad;
+- Modo;
+- arma base perdida;
+- consumibles faltantes;
+- recuperación de setup.
+Reabastecer Bomba de humo de Sutoka recibe prioridad especial en Defensivo.
+
+PLAN EXPLICABLE
+realtimeSupportPlan conserva acción, objetivo, puntuación, Modo, tags y destino
+de setup para preparar la telemetría posterior.
+
+MODAL
+La causa del footer fuera del modal era la suma rígida:
+260 cabecera + 360 cuerpo + 52 acciones + gaps/padding.
+Ahora:
+- cardInfoOverlay es size-container;
+- cardInfoBox ocupa 100% real;
+- cabecera/cuerpo son filas flexibles;
+- acciones tienen fila propia protegida;
+- preview reduce tamaño antes de expulsar botones;
+- contenido hace scroll interno.
+Kastear y Salir permanecen dentro del contenedor.
+
+FIREBASE
+Sin cambios respecto a S2.
+
+SIGUIENTE
+Etapa 4: Spellbook táctico:
+recomendación de carta, marcado de pestaña/carta, pausa de acción y jugada
+sugerida/ejecución asistida para cartas que requieren decisiones espaciales.
+
+
+======================================================================
+RT-08.17 · ETAPA 4 — SPELLBOOK TÁCTICO + REGISTRO DE DEBUG + CSS USUARIO
+======================================================================
+
+CSS CANÓNICO
+- style.css del build anterior se reemplaza COMPLETAMENTE por el style.css
+  entregado por el usuario.
+- Sobre esa base solo se reaplican:
+  1) fix de contención del modal de Etapa 3;
+  2) estilos de recomendación del Spellbook de Etapa 4.
+- Cache bust nuevo: rok-v8-76-rt0817-s4-usercss1.
+
+SPELLBOOK TÁCTICO
+El Kaster analiza únicamente cartas realmente casteables ahora.
+Como máximo muestra:
+- JUGADA: recomendación principal.
+- OPCIÓN: alternativa secundaria.
+
+La puntuación considera:
+- legalidad y costo;
+- cartas de reposicionamiento/selección espacial;
+- aliados amenazados;
+- control disponible;
+- Gloria latente con aliados a poca Vida;
+- Interceptar/Emboscada/Táctica de guerra;
+- Carga Real/Kouuten/Guren Gan mediante sus evaluadores de impacto existentes.
+
+Si la mejor jugada supera el umbral alto y el usuario no está interactuando,
+el Spellbook cambia una sola vez a la pestaña de esa jugada.
+Después de que el usuario cambie una pestaña manualmente existe un período de
+gracia para que la IA no le pelee el control.
+
+PAUSA DE ACCIÓN DE CARTA
+En Tiempo real una carta táctica/espacial:
+- se sigue casteando con un clic;
+- antes de abrir el targeting congela la simulación;
+- el jugador conserva el estado exacto de la Arena mientras selecciona;
+- al completar o cancelar la interacción, Tiempo real se reanuda;
+- esta pausa NO consume Tiempo de Pensamiento.
+
+Online:
+- nuevo comando: spell-action-pause.
+- el Host es autoridad de la pausa.
+- firebase-online.js y firebase-rtdb-rules.json fueron actualizados.
+- las reglas nuevas deben publicarse para usar esta función en Firebase real.
+
+REGISTRO INTERNO DE PARTIDA
+Se crea ROK_MATCH_DIAGNOSTIC_V1.
+
+Registra:
+- build/balance/session/match;
+- snapshots periódicos;
+- turnos/fases/realtime elapsed;
+- estado de Kasters/Invocaciones;
+- Modos/Poder AUTO/armado;
+- supportPlan y arena affordances;
+- actionExecutionLock + razón;
+- opponentActionResolving + razón;
+- global pause tokens;
+- tempoPause + source;
+- targeting/pendingPowerAction/pendingCard;
+- errores JS y Promise rejection;
+- long tasks del navegador cuando PerformanceObserver las expone;
+- huecos del event loop;
+- mensajes del juego;
+- comienzo/fin de pausa de carta;
+- decisiones de recomendación.
+
+WATCHDOG DE BLOQUEO
+Cada segundo compara el progreso lógico.
+Si pasan 6.5 s sin progreso y existe un bloqueo explícito, DEBUG muestra una
+causa probable, por ejemplo:
+- actionExecutionLock no liberado;
+- pausa global no liberada;
+- quick reaction bloqueada sin modal;
+- poder pendiente sin superficie de selección;
+- manual-ability/spell-action pausado sin interacción;
+- castTravel/extraction/movement aún marcados;
+- defensa de Kaster pendiente con menú perdido;
+- render excesivamente lento.
+
+Un freeze completo del hilo principal no puede ejecutar UI mientras el hilo
+está detenido, pero el registro se persiste continuamente. Si el usuario fuerza
+un reload, la siguiente carga conserva la sesión anterior como registro
+recuperado.
+
+EXPORTACIÓN
+- Botón "Exportar registro" en FIN DEL MATCH.
+- Ctrl+Shift+L exporta el registro en cualquier momento si el hilo responde.
+- Si hubo reload después de una partida no cerrada, Ctrl+Shift+L desde fuera de
+  batalla puede exportar el registro recuperado.
+- Formato: TXT con diagnóstico, snapshot, últimas acciones, debug ribbon y
+  cronología completa.
+
+FIREBASE
+- Añadido spell-action-pause al whitelist cliente y reglas RTDB.
+- SchemaVersion de snapshot no cambia.
+
+
+======================================================================
+RT-08.17 · ETAPA 5 — JUGADA SUGERIDA + TELEMETRÍA TÁCTICA
+======================================================================
+
+JUGADA SUGERIDA
+Durante Pausa de acción de una carta táctica aparece un dock compacto:
+JUGADA SUGERIDA
+[descripción]
+[USAR SUGERENCIA]
+
+Aceptar ejecuta únicamente el PASO ACTUAL recomendado.
+Ignorarlo mantiene control manual total.
+
+Cobertura implementada:
+- Carga Real: mejor franja según enemigos/aliados.
+- Kouuten: mejor centro con evaluador existente.
+- Guren Gan: mejor centro con evaluador existente.
+- Bomba de humo: placement por Modo/amenaza/cobertura.
+- Farol Enlazado: círculo/lámpara según Modo.
+- Yasugana: Ceguera o Vigilia sobre mejor objetivo contextual.
+- Gloria latente: aliado con mayor combinación de daño recibido, presión y PB.
+- Interceptar: mejor interceptor y después invasora de mayor amenaza.
+- Táctica de guerra:
+  * sugiere primera Invocación;
+  * después permite confirmar;
+  * en cada nexo sugiere la mejor casilla según Modo/setup.
+- Emboscada:
+  * sugiere invasora;
+  * sugiere primer aliado;
+  * después permite pasar a nexos;
+  * cada nexo usa valoración por Modo alrededor de la invasora.
+
+El motor no juega cartas por sí solo.
+El botón USAR SUGERENCIA es siempre una aceptación explícita.
+
+TELEMETRÍA
+ROK_TACTICAL_TELEMETRY_V1 registra:
+- recomendación principal/secundaria del Spellbook;
+- carta táctica iniciada;
+- cada jugada sugerida;
+- sugerencias aceptadas;
+- selecciones manuales hechas mientras la carta está pausada;
+- suggestion visible en el momento de la elección manual;
+- Support Plans de Invocaciones;
+- finalización de la Pausa de acción;
+- inicio/fin de partida.
+
+Formato de salida:
+JSONL / NDJSON, una línea JSON por evento.
+
+Exportación:
+- Ctrl+Shift+T.
+- botón Exportar telemetría al terminar la partida.
+- conserva una sesión no cerrada si fue necesario recargar.
+
+BASE DE CONOCIMIENTO
+Se añade:
+rock_html_base/rok_tactical_knowledge.json
+
+Formato:
+ROK_TACTICAL_KNOWLEDGE_V1
+
+Contiene:
+- definición de los cinco Modos;
+- pesos conceptuales;
+- Arena Affordances;
+- sinergias conocidas;
+- principios de Jugada sugerida.
+
+IMPORTANTE:
+La telemetría NO cambia pesos automáticamente durante la partida.
+El ciclo acordado es:
+partida -> JSONL -> análisis -> actualización de rok_tactical_knowledge.json
+-> siguiente build.
+
+Esto mantiene la IA explicable y permite revisar por qué aprendió una regla.
+
+FIREBASE
+Sin cambios respecto a Etapa 4.
+spell-action-pause continúa usando las reglas publicadas en S4.
+
+SIGUIENTE
+Etapa 6:
+auditoría integral carta por carta de Modos, Poderes, sinergias, recomendaciones,
+Pausa de acción y Jugada sugerida; corrección de incompatibilidades descubiertas
+antes de cerrar este bloque de Tiempo real.
+
+
+======================================================================
+RT-08.18 · ETAPA 6 — AUDITORÍA INTEGRAL + RECUPERACIÓN DE BLOQUEOS
+======================================================================
+
+AUDITORÍA
+- 28 Invocaciones detectadas.
+- 28/28 con regla explícita de Modos.
+- 11 Poderes activos configurables auditados.
+- nuevo rok_realtime_stage6_audit.json.
+- auditoría runtime: window.ROK_STAGE6_AUDIT.run().
+
+CORRECCIÓN DE CUELGUES / ESC
+Se unificó la lista real de acciones cancelables con ESC y con el botón
+Cancelar. Antes esas listas no coincidían y una captura global podía tragarse
+ESC antes de que handleKeyDown llegara al cancelador correcto.
+
+Cobertura:
+Farol, Humo, Minokage, Kaguya, Yasugana, Kurayami, Gioshonin, Buki Utsushi,
+Shirahadori, Despliegue, Gloria, Táctica, Interceptar, Emboscada, Carga Real,
+Kouuten, Guren Gan, pagos aleatorios y reposicionamientos especiales.
+
+BUKI UTSUSHI
+Se encontró una ruta peligrosa concreta:
+borrar kurokagiBukiPickup genéricamente no limpiaba pickupReady,
+resolutionPending ni candidates. restoreInvocation podía continuar reteniendo
+Kurokage. S6 añade cancelación especializada, limpia esos estados y cierra la
+retención.
+
+WATCHDOG
+- Interacciones bajo Pausa de acción ya NO expiran a los 3.5 s.
+- Solo se cancelan automáticamente si pierden realmente fuente, objetivo o
+  casilla legal.
+- Recoveries se registran en debug + telemetría.
+- actionExecutionLock/opponentActionLock ahora guardan startedAt.
+- Locks conocidos sin dueño reciben recuperación conservadora.
+
+IA
+- Asedio prioriza Guardianes/Estructuras/RiskZone cuando un Poder los ofrece.
+- Buki Utsushi escoge arma según Modo:
+  Asesinato alcance/precisión; Cacería precisión/daño; Defensivo alcance/
+  precisión; Asedio daño; Ofensivo impacto general.
+
+JUGADA SUGERIDA
+Cobertura nueva:
+- Despliegue anticipado.
+- Shirahadori.
+
+CONOCIMIENTO
+rok_tactical_knowledge.json actualizado a 2026-08-20.s6.
+
+FIREBASE
+Sin cambios frente a v8.77.
+
+VALIDACIÓN
+- node --check game.js OK.
+- node --check firebase-online.js OK.
+- reglas Firebase JSON OK.
+- knowledge JSON OK.
+- audit JSON OK.
+- un informe TXT/MD.
+- Firebase byte-idéntico.
+- ZIP íntegro.
+No se afirma prueba runtime visual completa en navegador.
+
+
+======================================================================
+RT-08.18 · v8.79 — AJUSTES VISUALES GUARDAN DIRECTO EN style.css
+======================================================================
+
+PROBLEMA CORREGIDO
+Los botones "Guardar CSS" de AJUSTES VISUALES descargaban fragmentos separados.
+La geometría real seguía dependiendo de localStorage/valores canónicos de JS.
+En particular, Ancho X del ajuste de interfaz se exportaba solo como comentario;
+por eso ese ancho NO podía reconstruirse desde el CSS entregado.
+
+NUEVO FLUJO
+1. Se mueve un slider en AJUSTES VISUALES.
+2. El cambio se ve inmediatamente como borrador.
+3. Se pulsa "Guardar en style.css".
+4. Primera vez:
+   - Edge/Chrome abre selector de archivo.
+   - seleccionar EL style.css del proyecto.
+5. El juego escribe directamente el archivo.
+6. El handle queda persistido en IndexedDB.
+7. Guardados posteriores reutilizan el mismo style.css.
+8. El juego refresca la hoja CSS actual.
+9. Los borradores localStorage se eliminan después de una escritura correcta.
+
+BLOQUE CANÓNICO
+El style.css recibe/reemplaza un único bloque:
+R.O.K DIRECT VISUAL TUNING · START / END
+
+Ese bloque contiene:
+- posiciones X de todos los bloques de interfaz;
+- ratios REALES de Ancho X como --rok-ui-saved-*-width;
+- calibraciones individuales de fichas;
+- variables del Panel Dev Visual.
+
+INTERFAZ
+getUiTuningValue() ahora usa este orden:
+1. borrador local actual;
+2. variables canónicas guardadas dentro de style.css;
+3. defaults internos.
+
+Esto hace que un ZIP nuevo que reciba el style.css actualizado pueda reconstruir
+las dimensiones sin depender del localStorage del navegador anterior.
+
+FICHAS
+Cuando una ficha NO tiene borrador local, renderUnit ya no escribe variables
+inline por defecto. Deja que la regla de style.css sea autoritativa.
+Al abrir el editor, getTokenTuning puede leer el valor computado de la ficha
+para mostrar de nuevo su calibración.
+
+PANEL DEV VISUAL
+"Exportar CSS" pasa a "Guardar en style.css" y utiliza el mismo escritor directo.
+
+EDITOR VS
+Comparte el mismo FileSystemFileHandle. Vincular style.css desde el Editor VS
+también guarda ese handle en IndexedDB y AJUSTES VISUALES puede reutilizarlo.
+
+LIMITACIÓN DEL NAVEGADOR
+Por seguridad, JavaScript no puede escribir cualquier archivo del disco sin
+consentimiento. La PRIMERA vez se debe seleccionar style.css manualmente.
+Después, Edge/Chrome puede reutilizar el handle persistido; si el navegador
+revoca el permiso, Guardar solicitará permiso de escritura otra vez.
+
+FIREBASE
+Sin cambios frente a v8.78.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- reglas Firebase JSON parseadas
+- Firebase byte-idéntico a v8.78
+- un único informe TXT/MD
+- ZIP íntegro
+
+
+======================================================================
+RT-08.18 · v8.80 — LEGIBILIDAD DE BOTONES DEL PANEL DE INVOCACIONES
+======================================================================
+
+PROBLEMA
+La captura del usuario confirmó que los botones INFO y los Modos de combate
+tenían texto excesivamente pequeño.
+
+Causa encontrada en style.css:
+- .invocation-panel-overlay-modes .invocation-panel-mode-btn strong = 5.2px
+- .invocation-panel-overlay-btn = 7px
+- .invocation-manual-power-btn = 6px
+
+Al escalar la escena completa esos tamaños quedaban prácticamente ilegibles.
+
+CAMBIO
+- INFO: 9px, botón 28px alto.
+- Modos: 8.5px, botones 28px alto.
+- Grid de Modos: 2 columnas para dar espacio real a nombres como Asesinato,
+  Ofensivo, Cacería y Defensivo.
+- Título de Modos: 7 / 7.5px.
+- Poder AUTO/MANUAL: 7.5–8.5px y controles de 27–28px.
+
+NO SE TOCA
+- carta de Invocación de 190px;
+- posiciones guardadas por AJUSTES VISUALES;
+- guardado directo a style.css;
+- Firebase;
+- lógica de combate.
+
+FIREBASE
+Byte-idéntico a v8.79.
+
+
+======================================================================
+RT-08.18 · v8.81 — CASTEO RÁPIDO LATERAL + EXPORTACIÓN EXPLÍCITA
+======================================================================
+
+SPELLBOOK
+Se elimina por completo el auto-switch de recomendaciones.
+La IA ya no cambia state.activeTab ni renderiza JUGADA/OPCIÓN dentro del
+Spellbook normal.
+
+El usuario mantiene exactamente la página que estaba leyendo/preparando.
+
+RAIL DE CASTEO RÁPIDO
+En Tiempo real aparece:
+#realtimeQuickCastRail
+
+Ubicación:
+- dentro de .board;
+- lado derecho;
+- fuera de la cuadrícula;
+- aproximadamente en el antiguo espacio de ventanas persistentes/lámpara.
+
+Solo aparecen cartas con oportunidad rápida REAL.
+Orden:
+1. mayor prioridad.
+2. secundaria.
+3/4. siguientes si existen.
+
+Cobertura inicial real:
+- Gloria latente cuando existe daño letal pendiente.
+- Interceptar con Artimaña.
+- Emboscada con Defensa rápida.
+- Kouuten cuando su slot progresivo RT vuelve a estar READY.
+- futuros candidatos que expongan carta + slot de Spellbook.
+
+Al tocar miniatura:
+- no cambia la página del Spellbook;
+- inicia directamente el flujo;
+- si requiere target/casilla, activa spell-action pause;
+- Gloria usa su lock de daño pendiente y no duplica pausas.
+
+PODERES / EFECTOS
+Tiempo real ya no muestra la VENTANA DE ACCIÓN heredada.
+- Invocaciones siguen en Panel de Invocaciones.
+- Kaster/Habilidades nativas siguen en su UI propia.
+- solamente cartas de casteo rápido se muestran en el rail.
+- Hattori nativo deja de entrar como candidato de action-window RT.
+- el capturador global de clics/Enter de quick reaction se desactiva en RT.
+
+Manual NO se cambia.
+
+DEBUG / TELEMETRÍA
+Los botones ahora escriben archivos reales visibles.
+
+Cuando File System Access está disponible:
+- Exportar debug -> abre "Guardar como…" -> .txt
+- Exportar telemetría -> abre "Guardar como…" -> .jsonl
+- el usuario elige carpeta/nombre.
+- al terminar muestra ARCHIVO EXPORTADO + nombre.
+
+Si showSaveFilePicker no está disponible:
+- fallback a descarga normal con atributo download.
+- muestra DESCARGA INICIADA + nombre.
+
+Nombres:
+ROK_debug_<build>_match...txt
+ROK_telemetria_<build>_match...jsonl
+
+No se guardan silenciosamente dentro del ZIP/proyecto.
+
+FIREBASE
+Sin cambios frente a v8.80.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- reglas Firebase JSON
+- Firebase byte-idéntico
+- 1 informe
+- ZIP íntegro
+
+
+======================================================================
+RT-08.18 · v8.82 — QUICK CAST RAIL FIX + MINOKAGE CD 6 + CSS USUARIO
+======================================================================
+
+CASTEO RÁPIDO
+v8.81 todavía tenía dos dependencias problemáticas:
+- montaba el rail en .board;
+- el margen derecho real de la cuadrícula está definido dentro de .board-content;
+- el collector seguía apoyándose en la arquitectura de Ventana de acción.
+
+v8.82:
+- monta el rail en .board-content;
+- usa left: calc(var(--grid-left-base) + var(--grid-width-base) + 1.2%);
+- consulta directamente Interceptar, Emboscada, Gloria latente y Kouuten;
+- no depende de abrir Ventana de acción;
+- persiste mientras siga siendo legal;
+- ordena por prioridad;
+- registra quick-cast-rail-update en debug.
+
+MINOKAGE
+Shippū Ugachi:
+- cooldown 6;
+- empieza al aceptar el Poder;
+- bloquea otra activación mientras > 0;
+- baja una unidad por advancePhaseTransitionCounters();
+- Manual: 6 cambios de fase;
+- Tiempo real: 6 ciclos de Tempo.
+El cooldown se expone en runtime de carta como shippuUgachi.
+
+CSS USUARIO
+Interfaz integrada:
+- Tempo X -42 / ancho 149%;
+- Kasteo X -52 / ancho 100%;
+- Spellbook X -56 / ancho 100%;
+- Kaster X -51 / ancho 98%;
+- Panel Invocaciones X -46 / ancho 100%.
+
+Los anchos pasan de comentario a variables CSS reales --rok-ui-saved-*-width.
+
+Tokens:
+Kiara scale 1.69 / X0 / Y+11.
+Farolera scale 1.2 / X0 / Y-8.
+
+FIREBASE
+Sin cambios frente a v8.81.
+
+
+======================================================================
+RT-08.18 · v8.83 — ODA NO KAGE · GUARDIA ESTRICTA DE ALCANCE
+======================================================================
+
+REVISIÓN
+Oda no Kage:
+- Cusarigama principal: Rango 3.
+- Espada secundaria: Rango 1.
+- Sombra del clan Oda NO aumenta alcance.
+- No se encontró un bono propio que convierta Rango 3 en un valor mayor.
+- Local y rival consultan el mismo getTargetsInRangeForSource/canSelectTarget.
+
+RIESGO ENCONTRADO
+Aunque el selector ya filtraba por alcance, varias rutas posteriores confiaban
+en que el objetivo seguía siendo válido:
+- startRealtimeAutomaticAttack();
+- entrada a Oscilación parcial;
+- performInvocationCombatStrike().
+
+Un target stale, una redirección o una llamada secundaria podían llegar a una
+fase posterior sin una segunda barrera explícita.
+
+CAMBIO
+Se añade guardInvocationAttackRange():
+- calcula posición lógica actual de fuente y objetivo;
+- calcula rango efectivo actual;
+- usa getEffectiveTargetSelectionRange para no romper Disparo energizado de
+  Kaguya;
+- bloquea el ataque si distance > range;
+- registra attack-range-guard en el debug con:
+  carta, jugador, unitId, target, distancia, alcance permitido y coordenadas.
+
+Se aplica:
+1. justo antes de iniciar un ataque automático RT;
+2. al entrar en Oscilación parcial;
+3. antes de cada performInvocationCombatStrike de combate sostenido/respuesta.
+
+Para combate de Rango, si el vínculo queda fuera de alcance se limpia la
+relación de engagement en vez de permitir un golpe remoto.
+
+AUDITORÍA MANUAL
+window.ROK_STAGE6_AUDIT.odaNoKageRange(playerId)
+devuelve el arma activa y rango efectivo de cada Oda no Kage vivo.
+
+FIREBASE
+Sin cambios frente a v8.82.
+
+
+======================================================================
+RT-08.18 · v8.84 — MINOKAGE · ANIMACIÓN DE SALTO AL EVADIR
+======================================================================
+
+PROBLEMA
+La Evasión de Minokage sí ejecutaba la lógica:
+- modificaba precisión;
+- si el ataque fallaba, seleccionaba una casilla lateral;
+- movía lógicamente a Minokage.
+
+Pero la presentación visual podía pasar prácticamente desapercibida.
+
+Causa localizada:
+- los FX históricos .minokage-evasion-jump-fx y
+  .minokage-evasion-land-fx estaban explícitamente en display:none !important;
+- la Evasión reutilizaba solo minokage-passive-travel-token-fx;
+- sin un pulso visible de salida/aterrizaje era fácil percibir únicamente el
+  cambio de posición.
+
+v8.84
+Cuando Evasión provoca realmente el fallo:
+1. pulso visible en la casilla original;
+2. token original oculto;
+3. copia viajera de Minokage SIN Yari;
+4. arco/afterimages con salto máximo 115%;
+5. pulso visible al aterrizar;
+6. actualización lógica de casilla;
+7. texto EVASIÓN.
+
+El pulso viejo permanece desactivado para cualquier otro uso.
+Solo las instancias creadas por la Evasión actual reciben rok-evasion-live.
+
+ONLINE
+El cambio se implementa dentro de playMinokagePassiveTravelFx(options.evasion).
+El evento online minokage-travel ya transmite evasion:true, así que el rival
+reproduce la misma salida, viaje y aterrizaje.
+
+DEBUG
+Nuevos eventos:
+- minokage-evasion-fx-start
+- minokage-evasion-fx-land
+- minokage-evasion-fx-error
+
+FIREBASE
+Sin cambios frente a v8.83.
+
+
+======================================================================
+RT-08.18 · v8.85 — MINOKAGE CD6 REAL + QUICK ACTIONS EXTERNAS
+======================================================================
+
+STYLE.CSS DEL USUARIO
+Se sustituyó la base style.css del ZIP por el archivo recién entregado por el
+usuario, sin mezclarla con una base visual anterior.
+
+Tamaño base recibido: 3111311 bytes
+SHA-256 base recibida: 2cc923791e47a53c69e369e2ee29b1cc01437d41e72a968a674131f5ff85f956
+
+Después de esa base se añadió únicamente el bloque:
+R.O.K Lite · v8.85 · PARCHE LOCAL
+
+MINOKAGE · SHIPPŪ UGACHI
+Problema anterior:
+- el cooldown 6 se iniciaba en queueMinokageShippuCharge();
+- la habilidad canaliza 3 transiciones;
+- por tanto, al verse la embestida ya se habían descontado pasos.
+
+v8.85:
+- NO inicia cooldown al comenzar canalización;
+- después de terminar la embestida y sus impactos:
+  startMinokagePowerCooldown(liveUnit);
+- queda exactamente en 6;
+- el siguiente avance lógico baja a 5;
+- RT: 1 punto por ciclo de Tempo;
+- Manual: 1 punto por transición de fase;
+- unitCanActivateMinokageShippu() sigue bloqueando si cooldown > 0.
+
+VISIBILIDAD DEL COOLDOWN
+- Panel permanente de Invocaciones: ENFRIAMIENTO + contador.
+- MANUAL: botón bloqueado ENFRIAMIENTO · N.
+- AUTO: el mismo contador queda visible y la IA no obtiene descriptor utilizable.
+- Miniatura/status persistente: icono de Shippū Ugachi + contador N.
+- Modal del Poder declara cooldownPhases: 6.
+- Debug: minokage-power-cooldown-start.
+
+CASTEO RÁPIDO / VENTANAS PERSISTENTES
+Problema de v8.81/v8.82:
+- el rail se montaba en board o board-content;
+- seguía sujeto al árbol/overflow/transform de Arena;
+- Interceptar seguía usando activePlayer para decidir Artimaña incluso en RT.
+
+v8.85:
+- #realtimeQuickCastRail es hijo directo de document.body;
+- queda FUERA de .board, .board-content y .board-panel;
+- position: fixed;
+- se calcula contra getBoundingClientRect() de #board;
+- visualmente ocupa el mismo lateral derecho libre de Arena:
+  aproximadamente desde 80.5% del ancho del board;
+- no participa del zoom/pan/overflow del board;
+- se reposiciona cada sync, resize y orientationchange.
+
+RT:
+- Interceptar se considera Artimaña en RT cuando sus condiciones reales se
+  cumplen; no depende de activePlayer heredado.
+- Emboscada se considera Defensa rápida en RT cuando sus condiciones reales se
+  cumplen.
+- siguen exigiéndose slot listo, recursos, Kaster válido, aliados/rivales y
+  demás reglas de cada carta.
+- Gloria latente y Kouuten conservan su integración existente.
+
+FIREBASE
+Sin cambios frente a v8.84.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- reglas Firebase JSON
+- Firebase JS/rules byte-idénticos a v8.84
+- style.css empaquetado comienza byte por byte con el style.css entregado
+- un único INFORME_GENERAL_ROK_LITE.txt
+- ZIP íntegro
+
+
+======================================================================
+RT-08.18 · v8.86 — QUICK CAST HARD PAUSE + CSS VISUAL AUTORITATIVO
+======================================================================
+
+STYLE.CSS DEL USUARIO
+La build usa como prefijo byte-por-byte el style.css entregado en este turno.
+
+Bytes base: 3114810
+SHA-256 base: 8ea189b43045a1cdff29d39090fff40ada861fe31d050ede24168f797e20bf4b
+
+Después se añade únicamente el bloque localizado:
+R.O.K Lite · v8.86 · Quick Cast HARD PAUSE
+
+AJUSTES VISUALES · CORRECCIÓN DE AUTORIDAD
+Problema posible:
+- el CSS ya podía contener los valores guardados;
+- rok_ui_tuning_v3 / rok_token_tuning_v2 / rokVisualDevOverridesV3 podían
+  seguir existiendo en localStorage;
+- getUiTuningValue/getTokenTuning daban prioridad a esos borradores;
+- por tanto un valor viejo del navegador podía tapar el CSS nuevo.
+
+v8.86:
+- style.css es autoridad al arrancar;
+- loaders de UI, tokens y Panel Dev ignoran/limpian borradores viejos;
+- durante la sesión los sliders siguen funcionando en memoria;
+- para persistir entre recargas se usa Guardar en style.css.
+
+CASTEO RÁPIDO · PAUSA DURA
+Problema:
+- spell-action-pause dependía principalmente de tempoPause;
+- tempoPause tiene un único owner;
+- si una habilidad/acción ya poseía Tempo, la carta rápida podía quedar sin
+  ownership real o el Host Online incluso rechazaba la pausa;
+- al terminar el owner anterior la simulación podía continuar y volver inválida
+  la selección, cancelándola.
+
+v8.86:
+- token global dedicado: realtime-spell-action;
+- se adquiere ANTES de ejecutar la miniatura;
+- se conserva mientras tacticalSpellbookRuntime.spellAction.active;
+- se libera solo al completar/cancelar el targeting;
+- processRealtimeSecondTick() se detiene ante global gameplay pause;
+- processRealtimeActionClock() también tiene guardia explícita;
+- no avanzan movimiento, ataques, recursos, elemento puro ni kasteos
+  progresivos durante la decisión.
+
+ONLINE
+- Host ya no rechaza spell-action-pause porque otra fuente tenga Tempo;
+- apila el hard pause global;
+- cuando la otra fuente libera Tempo, syncRealtimeSpellActionPauseState()
+  toma el source spell-action si la decisión sigue abierta;
+- el Invitado refleja localmente la misma pausa inmediatamente tras confirmación
+  del Host, sin esperar al siguiente snapshot.
+
+DEBUG
+Nuevos/fortalecidos:
+- spell-action-hard-pause ACQUIRE/RELEASE
+- spell-action-pause START/STOP
+- quick-cast-rail-activated
+
+FIREBASE
+Sin cambios frente a v8.85.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- reglas Firebase JSON
+- Firebase JS/rules byte-idénticos a v8.85
+- style.css empaquetado comienza exactamente con el CSS entregado
+- un solo INFORME_GENERAL_ROK_LITE.txt
+- ZIP íntegro
+
+
+======================================================================
+RT-08.18 · v8.87 — QUICK CAST COMO MINIATURAS REALES DE CARTA
+======================================================================
+
+STYLE.CSS DEL USUARIO
+Se volvió a tomar como base exacta el style.css entregado en este turno.
+
+Bytes base: 3114810
+SHA-256 base: 8ea189b43045a1cdff29d39090fff40ada861fe31d050ede24168f797e20bf4b
+
+Después se añadió únicamente el bloque:
+R.O.K Lite · v8.87 · Quick Cast as TRUE CARD MINIATURES
+
+CAMBIO
+Se rehízo el render visual del rail de Casteo rápido.
+Antes:
+- botón/sección genérica;
+- miniatura al centro;
+- etiqueta afuera.
+
+Ahora:
+- cada sugerencia es la propia carta en tamaño mini;
+- mismo formato vertical de carta;
+- chip superior: acción;
+- chip inferior: nombre corto;
+- burbuja de prioridad;
+- halo especial en la recomendación principal.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- reglas Firebase JSON
+- style.css empaquetado empieza exactamente con el CSS del usuario
+- un solo INFORME_GENERAL_ROK_LITE.txt
+- ZIP íntegro
+
+
+======================================================================
+RT-08.18 · v8.88 — HATTORI / NEXUS / MINOKAGE / BALANCE RT
+======================================================================
+
+BASE
+Se parte de v8.87.
+El style.css de v8.87 queda preservado byte por byte como prefijo.
+SHA-256 del prefijo CSS: f96146aca98cad120b3a3327f51fb49ed49a4042124e3d97955230c11eb17609
+
+HATTORI HANZO
+- clic, Enter o Espacio sobre la carta del Kaster en HUD inferior derecho;
+- activa Ansatsu no Kokuin;
+- en RT no depende de activePlayer;
+- puede seleccionar cualquier Invocación física aliada válida;
+- ya no exige que esa Invocación esté previamente engaged;
+- la selección RT congela gameplay con token hattori-native-ability.
+
+ATADURA
+Duración global duplicada:
+Nv1 6 · Nv2 10 · Nv3 14 · Nv4 18 · Nv5 22.
+Atadura 2 de Junkai Butai #2 pasa a 10.
+
+KAGUYA
+Manual conserva 5 fases.
+Tiempo real usa 7 ciclos de Tempo (+2).
+El contador dinámico se usa en cola, UI, animación y logs.
+
+ASEDIO
+En RT, cualquier Invocación con ataque efectivo distance/range o alcance > 1
+recibe Asedio aunque su lista de modos sea curada.
+No se cambia su modo por defecto.
+
+KASTER RT
+Un movimiento completado cada 2000 ms.
+Validación:
+- input local;
+- autoridad applyRealtimeCasterMoveForPlayer;
+- por tanto también comandos Online del invitado.
+
+NEXO RT
+- invisible;
+- pointer-events none;
+- ya no sirve como selector de modos;
+- la gestión de modos sigue en Panel de Invocaciones;
+- una Invocación puede kastearse sobre casillas que ya tengan Nexo;
+- el Nexo deja de ser collider para ese kasteo.
+
+RESTAURACIÓN CON NEXO OCUPADO
+Si la casilla exacta del Nexo está físicamente ocupada:
+1. busca primero radio 1;
+2. si no hay hueco, radio 2;
+3. permite otras casillas con Nexo porque el Nexo es lógico/transparente;
+4. entre las candidatas prioriza la casilla más cercana al Kaster.
+Debug:
+realtime-nexus-fallback-landing.
+
+MINOKAGE · PASIVA
+La corrección anterior estaba centrada en Evasión.
+v8.88 separa y refuerza la animación de la PASIVA de ataque:
+- salto de acercamiento;
+- pulso de salida/aterrizaje;
+- token viajero visible;
+- afterimages;
+- Oscilación completa;
+- salto de retroceso con el mismo tratamiento.
+Online transmite passiveAttack en minokage-travel.
+Debug:
+minokage-passive-jump-start
+minokage-passive-jump-land
+
+FIREBASE
+Sin cambios frente a v8.87.
+
+
+======================================================================
+RT-08.18 · v8.89 — CASTEO RÁPIDO · CARTAS CUADRADAS
+======================================================================
+
+BASE
+Se parte de v8.88.
+style.css de v8.88 queda preservado byte por byte como prefijo.
+SHA-256 del prefijo: 7ba8fb94d9811b75f910da9bd3f52678df0acece903fe7544bce7c6c71b9fd0d
+
+POSICIÓN
+Antes:
+left = rect.left + rect.width * 0.805
+
+Ahora:
+left = rect.left + rect.width * 0.905
+
+Resultado:
++10 puntos porcentuales del ancho de la Arena hacia la derecha.
+
+PROPORCIÓN DE CARTA
+El skin canónico del juego define:
+--card-skin-aspect: 1595 / 1595
+= 1:1.
+
+Problema v8.87/v8.88:
+la miniatura de Casteo rápido forzaba 64x92 / 52x71, deformando la carta
+cuadrada y produciendo el aspecto vertical mostrado en la captura del usuario.
+
+v8.89:
+- button/card host: aspect-ratio var(--card-skin-aspect);
+- miniature: misma proporción;
+- .card real: misma proporción;
+- fallback img: misma proporción;
+- height deja de ser 92px fijo;
+- carta cabe dentro del modal sin deformarse.
+
+LIMPIEZA
+- se conserva el modal CASTEO RÁPIDO;
+- se conserva el número de prioridad;
+- se ocultan KASTEAR y el nombre redundante superpuesto;
+- la propia carta vuelve a ser la interfaz visual principal.
+
+LÓGICA
+No cambia:
+- Quick Cast Hard Pause;
+- Interceptar / Emboscada;
+- Hattori;
+- Nexo RT;
+- Minokage;
+- Atadura;
+- Kaguya;
+- Asedio;
+- movimiento de Kaster.
+
+FIREBASE
+Sin cambios frente a v8.88.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- Firebase rules JSON
+- Firebase JS/rules byte-idénticos a v8.88
+- style.css v8.88 preservado como prefijo exacto
+- un solo INFORME_GENERAL_ROK_LITE.txt
+- ZIP íntegro
+
+
+======================================================================
+RT-08.18 · v8.90 — NEXO VISIBLE + PASS-THROUGH
+======================================================================
+
+ACLARACIÓN CANÓNICA
+En Tiempo real, “Nexo transparente” significa:
+- NO bloquea movimiento;
+- NO bloquea destino;
+- NO bloquea kasteo de Invocaciones;
+- NO captura clics;
+- SÍ se ve normalmente.
+
+ERROR ANTERIOR
+v8.88/v8.89 interpretaron “transparente” literalmente y aplicaron:
+opacity: 0;
+visibility: hidden;
+
+Eso fue incorrecto.
+
+v8.90
+- clase semántica nueva:
+  realtime-pass-through-nexus
+- Nexo visible con su arte normal;
+- pointer-events: none;
+- no se usa como selector de modos.
+
+MOVIMIENTO
+isMovementDestinationBlockedForPlayer():
+- RT -> solo bloquea ocupación física;
+- spawn marker/Nexo NO bloquea;
+- Manual conserva la reserva histórica del punto de restauración.
+
+Por tanto en RT una Invocación puede:
+- atravesar una casilla con Nexo;
+- terminar su movimiento encima;
+- ser kasteada encima.
+
+RESTAURACIÓN
+Se conserva la lógica existente de v8.88:
+si la casilla exacta del Nexo está ocupada FÍSICAMENTE cuando la unidad vuelve,
+se busca una casilla libre alrededor y se prioriza la más cercana al Kaster.
+
+BASE
+style.css de v8.89 preservado byte por byte como prefijo.
+SHA-256 del prefijo: 65b39836cc7fc78aed7010289591db92c80f4fb48c7d4be521309bb0a3b3e2c3
+
+FIREBASE
+Sin cambios frente a v8.89.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- Firebase rules JSON
+- Firebase JS/rules byte-idénticos a v8.89
+- style.css v8.89 preservado como prefijo exacto
+- un solo INFORME_GENERAL_ROK_LITE.txt
+- ZIP íntegro
+
+
+======================================================================
+KIARA-01 · v8.91 — SEYRAN, GEÓMETRA DEL UMBRAL
+======================================================================
+
+Carta: Invocación de Agua
+Raza: Humano
+Género: Hombre
+Cualidades: Hechicero / Sabio
+Origen: ninguno
+Biotipo: Terrestre
+Slots de Habilidad: 3
+
+Costo: 3 Agua
+Kasteo: 2
+Vida: 4
+Defensa base: 0
+Daño: 2 Mágico
+Ataque: A distancia
+Alcance: 3
+PDA: 4
+Velocidad: 2
+Movilidad: Básica / estándar
+Restauración: 3
+Estasis base de Spellbook: automática por Costo 3 = 2 fases.
+
+DISTORSIÓN ESPACIAL
+- Poder activo.
+- Alcance 4.
+- Invocación aliada o rival.
+- Atraer 3 o Empujar 3 respecto a Seyran.
+- Enfriamiento 5.
+- RT: 5 ciclos de Tempo.
+- Si una ocupación física/borde impide las 3 casillas, se detiene en la última
+  casilla legal recorrida.
+
+GEOMETRÍA INVASORA
+Mientras Seyran está en el lado rival:
+- +2 PDA.
+- +2 Alcance.
+Perfil efectivo allí: Alcance 5 / PDA 6 / Daño 2.
+
+RT
+Modos: Ofensivo / Defensivo / Asedio.
+Distorsión admite AUTO/MANUAL.
+
+IA DE PORTALES
+Cualquier Hechicero aliado, incluida Farolera, evalúa Farol Enlazado como atajo.
+Si caminar al círculo + salir por la lámpara reduce al menos 2 pasos estimados
+frente a la ruta directa, la IA camina intencionalmente hacia el círculo.
+
+ARTE
+assets/kiara/seyran-geometra-umbral-art.png
+TOKEN
+assets/kiara/seyran-geometra-umbral-token.png
+
+AVENTURA
+Se añade 1 copia provisional de Seyran al encuentro de Kiara para prueba.
+
+BASE CSS
+v8.90 preservado byte por byte como prefijo.
+SHA-256 prefijo: 8c0baf8cdbdde3dcd06b25bf1c7f7dd3bf52a1026dea604d08443bc4312c2fc9
+
+FIREBASE
+Sin cambios frente a v8.90.
+
+
+======================================================================
+KIARA-02 · v8.92 — NAEL, VIGÍA DE LA MENTE / PROVOCACIÓN
+======================================================================
+
+NUEVA INVOCACIÓN
+ID: kiaraNaelVigiaMente
+Nombre: Nael, Vigía de la Mente
+Tipo: Invocación
+Elemento: Agua
+Raza: Humano
+Género: Hombre
+Cualidad: Telépata
+Biotipo: Terrestre
+Slots de Habilidad: 2
+
+ESTADÍSTICAS
+Costo: 2 Agua
+Kasteo: 2
+Vida: 2
+Defensa base: 0
+Daño: 2 Mágico
+Ataque: A distancia
+Alcance: 3
+PDA base: 5
+Velocidad: 2
+Movilidad base: Básica / estándar
+Restauración: 3
+Estasis base de Spellbook: automática por Costo 2 = 3 fases.
+
+IMPACTO CONFUSO
+Cada ataque básico que impacta:
+- mantiene Daño 2 y PDA base 5 para el ataque;
+- realiza una comprobación separada de 4 PDA;
+- si tiene éxito, registra/aplica Confusión 1.
+
+Confusión ya existía en el archivo fuente de Factores con la descripción:
+“Según el resultado del lanzamiento de dado del turno, la invocación afectada
+podrá avanzar hacia atrás, atacar a una invocación rival si la tiene a alcance
+o no atacar.”
+
+Se integra el icono aportado por el usuario.
+No se inventa en v8.92 una duración de Confusión porque la fuente no la define.
+
+NUEVO FACTOR · PROVOCACIÓN
+ID runtime: provocation
+Icono: assets/factors/factor-provocacion.svg
+
+La escala por nivel modifica únicamente la duración:
+- Provocación 1 = 3 fases
+- Provocación 2 = 4 fases
+- Provocación 3 = 5 fases
+- Provocación 4 = 6 fases
+- Provocación 5 = 7 fases
+
+El PDA de aplicación pertenece a la fuente que aplique el Factor; no se deriva
+automáticamente del nivel.
+
+REGLA DE PROVOCACIÓN
+Mientras la fuente siga activa:
+- la Invocación afectada deja su objetivo/prioridad normal;
+- persigue a la fuente de Provocación;
+- solo intenta atacar a esa fuente cuando sea un objetivo legal;
+- para poder seguirla en cualquier dirección, su perfil DIRECCIONAL pasa
+  temporalmente a Movilidad Completa;
+- su Velocidad/cadencia propia NO aumenta;
+- al restaurarse el objetivo, el Factor termina;
+- si la fuente se restaura/desaparece, sus Provocaciones terminan.
+
+AURA DE PROVOCACIÓN DE NAEL
+- Aura: radio 6.
+- Pulso: cada 3 fases.
+- RT: cada 3 ciclos de Tempo; Tempo 1/2/3 controla cuánto tarda en tiempo real.
+- Cada Invocación rival del aura se comprueba por separado.
+- PDA: 4.
+- Factor aplicado: Provocación 4.
+- Duración: 6 fases.
+
+SEÑUELO MÓVIL
+Mientras al menos un enemigo conserve Provocación generada por Nael:
+- Nael obtiene Movilidad Completa.
+- En RT su IA deja de quedarse junto a Kiara y se dirige hacia el campo rival.
+- Los provocados lo persiguen, alejándose de Kiara.
+
+MODOS RT
+- Defensivo (por defecto)
+- Ofensivo
+- Asedio
+Asedio se mantiene coherente con la regla global: toda Invocación a distancia
+puede usar Asedio.
+
+ARTE
+assets/kiara/nael-vigia-de-la-mente-art.png
+
+TOKEN
+assets/kiara/nael-vigia-de-la-mente-token.png
+
+ICONOS
+assets/factors/factor-confusion.svg
+assets/factors/factor-provocacion.svg
+
+AVENTURA
+Se agrega una copia provisional de Nael al encuentro de Kiara para prueba.
+
+BASE
+style.css v8.91 preservado byte por byte como prefijo.
+SHA-256 del prefijo: cd6c671b3f87a8e3323a0545a6daa543ad76e08729f742cbadf78c013e4b8f1c
+
+FIREBASE
+Sin cambios frente a v8.91.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- Firebase rules JSON
+- Firebase JS/rules byte-idénticos a v8.91
+- assets de Nael/Confusión/Provocación presentes
+- style.css v8.91 preservado como prefijo exacto
+- un solo INFORME_GENERAL_ROK_LITE.txt
+- ZIP íntegro
+
+
+======================================================================
+RT-08.20 · v8.93 — POSTURA / GUARDIA MANUAL DEL KASTER
+======================================================================
+
+DEFENSA BASE
+Defensa base global: 3.
+
+La Defensa deja de restarse automáticamente a cada ataque. Ahora define la
+capacidad máxima de POSTURA.
+
+GUARDIA
+- solo existe si el jugador selecciona Defender;
+- 3 PDA = 50%;
+- si falla, el Kaster recibe el daño completo;
+- si el jugador no responde, recibe el daño completo;
+- daño directo conserva su propiedad de ignorar la Guardia básica.
+
+POSTURA
+Capacidad = Defensa efectiva.
+
+Ejemplo Defensa 3:
+1 daño bloqueado -> Postura 1/3.
+otro 1 -> 2/3.
+golpe de 3 -> bloquea solo el 1 restante, rompe Postura y entran 2.
+
+RECUPERACIÓN
+Carga parcial: se vacía progresivamente en 10 s.
+Rotura: Defender queda bloqueado 10 s y la barra se vacía de lleno a cero.
+Al terminar los 10 s, Guardia vuelve a estar disponible.
+
+SIMULTANEIDAD / TIMEOUT
+RT conserva la ventana actual de 3 s.
+ANTES: timeout -> Defender.
+AHORA: timeout -> SIN REACCIÓN.
+Nueva fuente simultánea -> la solicitud anterior también termina SIN REACCIÓN.
+Watchdog de stall -> SIN REACCIÓN.
+
+COUNTERS
+Counter especial sigue anulando la fuente sin usar Postura.
+Contraatacar conserva sus reglas y no equivale a bloquear.
+
+HUD
+Barra POSTURA visible para Kaster local y rival.
+La barra muestra carga utilizada y, al romperse, cuenta atrás en segundos.
+
+MENÚ DE RESPUESTA
+Eliminadas las leyendas CLIC DER. / CLIC IZQ. / RUEDA.
+Los botones se conservan.
+El modal se coloca debajo del Kaster.
+
+FIREBASE LOCAL
+Se corrige el caso mostrado en captura:
+auth/requests-from-referer-null-are-blocked
+
+El bypass offline ahora detecta file://, origin null y protocolos no HTTP/HTTPS.
+Login/registro también comprueban el contexto antes de llamar Firebase.
+Online sigue requiriendo HTTP/HTTPS.
+
+ONLINE
+firebase-online.js cambia solo en fallbacks de defensa y bypass local.
+Las reglas Firebase permanecen byte-idénticas.
+
+CSS
+v8.92 preservado byte por byte como prefijo.
+SHA-256 prefijo: dbc15627b1b73bb2fab81bcd8ebb24656231b0cf89b1895e4b6869f98069dc7a
+
+
+======================================================================
+KIARA-03 · v8.94 — EDRAN / RESONANCIA / PROYECCIÓN MÁGICA
+======================================================================
+
+NUEVA INVOCACIÓN
+ID: kiaraEdranCustodioArcano
+Nombre: Edran, Custodio Arcano
+Elemento: Agua
+Raza: Humano
+Género: Hombre
+Cualidad 1: Hechicero
+Cualidad 2: Telépata
+Biotipo: Terrestre
+Slots: 1
+
+ESTADÍSTICAS
+Costo: 3 Agua
+Kasteo: 2
+Vida: 3
+Defensa base: 0
+Daño base: 2 Mágico
+Ataque: A distancia
+Alcance: 4
+PDA: 4
+Velocidad: 2
+Movilidad: Básica / estándar
+Restauración: 3
+
+RESONANCIA CONVERGENTE
+Mientras Edran permanezca en Arena:
+- las Invocaciones aliadas pueden seleccionarlo como objetivo de ataque;
+- los ataques aliados NO le hacen daño;
+- 1 daño potencial recibido = 1 punto de Resonancia;
+- cada 2 puntos = +1 Daño;
+- la bonificación NO se consume al atacar;
+- la bonificación es permanente durante esa permanencia en Arena;
+- no se fija un límite artificial;
+- al restaurarse/morir/salir de Arena la carga vuelve a 0.
+
+Ejemplos:
+0 puntos -> Daño 2.
+2 puntos -> Daño 3.
+4 puntos -> Daño 4 + ÁREA.
+8 puntos -> Daño 6 + ÁREA.
+
+ATAQUE EN ÁREA
+Cuando Resonancia aporta al menos +2 Daño:
+- radio: 2 alrededor del punto de impacto;
+- mismo daño efectivo de Edran para los objetivos secundarios;
+- solo afecta piezas rivales válidas;
+- la presentación del Panel de Invocaciones cambia a:
+  ATAQUE EN ÁREA · RADIO 2;
+- nuevo FX expansivo de Resonancia sobre el impacto.
+
+INTERFAZ UNIVERSAL DE FUEGO ALIADO
+Nueva bandera:
+acceptsAlliedAttacks: true
+
+La puerta de selección no está escrita exclusivamente para Edran.
+Futuras Invocaciones pueden usar la misma interfaz y definir su propia reacción
+al ataque aliado.
+
+PORTALES Y ATAQUES MÁGICOS
+Farol Enlazado admite ahora proyección de ataques mágicos.
+
+Un ataque mágico puede alcanzar un objetivo mediante Portal si:
+1. la fuente puede alcanzar el CÍRCULO con su Alcance;
+2. desde la LÁMPARA/salida el objetivo también queda dentro de ese mismo Alcance.
+
+El ataque:
+- conserva su daño/PDA normal;
+- muestra PROYECCIÓN UMBRAL;
+- genera FX de entrada/salida;
+- el proyectil visual emerge desde la salida;
+- puede dirigirse a enemigos;
+- puede dirigirse a un Edran aliado para cargar Resonancia.
+
+La proyección NO se usa si el objetivo ya está directamente a alcance.
+
+IA TIEMPO REAL
+Modo Ofensivo:
+1. si el enemigo prioritario es alcanzable directamente o por Portal, lo ataca;
+2. si no tiene enemigo alcanzable y existe Edran aliado válido alcanzable
+   directamente o por Portal, puede atacarlo para cargar Resonancia.
+
+La navegación de Hechiceros hacia Portales de v8.91 se conserva.
+
+PERMANENCIA DE EDRAN
+Edran es excepción a la restauración automática posterior al ataque a distancia.
+Permanece en Arena después de disparar para conservar su Resonancia.
+Su carga se pierde únicamente al abandonar Arena/restaurarse/morir.
+
+MODOS RT
+Ofensivo (default) · Defensivo · Asedio.
+
+ARTE
+assets/kiara/edran-custodio-arcano-art.png
+
+TOKEN
+assets/kiara/edran-custodio-arcano-token.png
+
+AVENTURA
+Se añade 1 copia provisional al encuentro de Kiara para pruebas.
+
+BASE
+style.css v8.93 preservado byte por byte como prefijo.
+SHA-256 prefijo: 27ab8a19f9d7ca8bcabfa66d20226c4ba903dd6f5e7b666431846860de6b06b2
+
+FIREBASE
+Sin cambios frente a v8.93.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- Firebase rules JSON
+- Firebase JS byte-idéntico a v8.93
+- reglas Firebase byte-idénticas a v8.93
+- assets de Edran presentes
+- style.css v8.93 preservado como prefijo exacto
+- un solo INFORME_GENERAL_ROK_LITE.txt
+- ZIP íntegro
+
+
+======================================================================
+KIARA-04 / HUD-08.20 · v8.95 — NERU + SILENCIO + HUD LATERAL
+======================================================================
+
+NERU, SUSURRO DEL UMBRAL
+Costo 0 Agua · Kasteo 0 · Estasis 5 · Vida 2 · Defensa 0 · Daño 1 Mágico
+Alcance 3 · PDA 4 · Velocidad 2 · Movilidad Básica · Restauración 3
+Humano · Hombre · Hechicero · Terrestre · 1 slot.
+
+Silencio Errante:
+- tras un impacto exitoso, segunda comprobación independiente de 4 PDA;
+- aplica Silencio 3 durante 3 fases.
+
+Silencio:
+- fuente Wix: slnc / Silencio / silencio / Debilitadora;
+- Nv1=1 fase, Nv2=2, Nv3=3, Nv4=4, Nv5=5;
+- bloquea habilidades y poderes;
+- desde Nv3, si se aplica a un Kaster, también bloquea kasteo.
+
+Salto Instintivo:
+- reacción ante selección de ataque de Invocación rival;
+- teletransporte hasta 3 casillas;
+- destino libre;
+- prioriza máxima distancia de salto y mayor separación del atacante;
+- cancela/consume ese ataque rival;
+- CD 5 fases/ciclos de Tempo;
+- Silencio bloquea esta reacción.
+
+Neru permanece en Arena tras ataques a distancia mediante la nueva compuerta
+universal persistentDistanceAttacker.
+
+Prueba Kiara:
+Farolera x1 · Neru x2 · Seyran x1 · Nael x1 · Edran x1.
+
+HUD:
+- rival a la izquierda;
+- aliado a la derecha;
+- una sola banda inferior en vez de dos filas;
+- stats compactos para ambos;
+- Postura compacta;
+- recursos rivales encima de la cola de kasteo rival.
+
+Guardia Kaster:
+- PDA sube de 3 a 4;
+- Postura máxima conserva Defensa 3;
+- no se cambia recuperación/rotura/overflow de v8.93.
+
+CSS base v8.94 preservado como prefijo exacto.
+SHA-256 prefijo: 1cbb6204619531e984efdea0a0451a904c417b4f843e0d85f79a8324dd55c30a
+
+Firebase JS y reglas: sin cambios.
+
+No se realizó prueba visual interactiva en navegador.
+
+
+======================================================================
+KIARA-05 · v8.96 — MAERYN / DOMINACIÓN / MENTE COLECTIVA
+======================================================================
+
+NUEVA INVOCACIÓN
+ID: kiaraMaerynArconteMente
+Nombre: Maeryn, Arconte de la Mente
+Elemento: Agua
+Raza: Humana
+Género: Mujer
+Cualidades: Telépata / Sabio
+Biotipo: Terrestre
+Slots de Habilidad: 3
+
+ESTADÍSTICAS
+Costo: 7 Agua
+Kasteo: 3
+Vida: 5
+Defensa base: 0
+Daño: 2 Mágico
+Ataque: A distancia
+Alcance base: 4
+PDA base: 5
+Velocidad: 1
+Movilidad: Básica / estándar
+Restauración: 4
+
+DOMINACIÓN MENTAL
+- Activa.
+- Alcance 5.
+- PDA 5.
+- Objetivo: 1 Invocación rival.
+- Duración: 6 fases/ciclos de Tempo.
+- Enfriamiento base: 8.
+
+Si acierta:
+- la Invocación rival se transfiere temporalmente al controlador de Maeryn;
+- cambia su owner runtime;
+- puede moverse/atacar/usar poderes como aliada;
+- conserva Vida, estados, enfriamientos, carta, spawnId y resto de runtime;
+- su automatización se pone en AUTO durante la Dominación;
+- no consume un slot del límite normal de Invocaciones del controlador.
+
+Al terminar:
+- vuelve a su propietario original en la misma posición;
+- recupera su modo/automatización anterior.
+
+La Dominación termina inmediatamente si:
+- se cumplen 6 fases;
+- la Invocación dominada se restaura o muere;
+- Maeryn se restaura/muere/sale de Arena.
+
+Si la unidad dominada necesita restaurarse:
+- primero se devuelve al propietario original;
+- luego usa el Nexo/restauración de su propietario real.
+
+La comprobación fallida también inicia el CD 8.
+
+MENTE COLECTIVA
+Mientras Maeryn esté activa y no silenciada:
+- cada Factor Psicológico/Psíquico aplicado por su jugador a una Invocación
+  rival genera 1 Influencia;
+- máximo 1 Influencia por objetivo por fase/ciclo;
+- cada 3 Influencias consumidas reducen -1 adicional el CD restante de
+  Dominación Mental;
+- si Dominación ya está disponible, la reserva se limita a 2 para no almacenar
+  una reducción masiva para el siguiente uso.
+
+La compuerta central addActiveFactorToUnit registra Factores psicológicos.
+Provocación tiene un hook explícito porque su implementación previa actualiza
+activeFactors directamente.
+
+SUPREMACÍA PSÍQUICA
+Condición:
+- Maeryn controla simultáneamente 2 o más Invocaciones rivales.
+
+Mientras esté activa:
+- Alcance base pasa de 4 a 6.
+- Daño permanece en 2.
+- El impacto básico genera área radio 1.
+- Los objetivos secundarios reciben el mismo daño efectivo.
+- El panel de Maeryn cambia a estado SUPREMACÍA.
+
+Si Maeryn está Silenciada:
+- no puede activar Dominación Mental;
+- Mente Colectiva no genera Influencia;
+- Supremacía no otorga Alcance/Área;
+- las Dominaciones que ya estaban aplicadas NO se cancelan automáticamente.
+
+IA TIEMPO REAL
+Dominación Mental entra en el sistema AUTO/MANUAL de poderes.
+La IA puntúa objetivos por:
+- poder de combate;
+- daño;
+- vida;
+- alcance;
+- PDA;
+- proximidad.
+
+Ofensivo tiene la prioridad más alta para Dominación.
+Defensivo conserva una prioridad fuerte.
+Asedio puede usarla, pero con menor peso.
+
+PERMANENCIA
+Maeryn usa persistentDistanceAttacker=true.
+Permanece en Arena después de sus ataques básicos a distancia.
+
+LÍMITE DE INVOCACIONES
+Una unidad temporalmente dominada:
+- aparece en el array del controlador para que IA/targeting/tratamiento de bando
+  sean naturales;
+- NO cuenta como slot de Invocación propio al calcular el límite de casteo.
+
+ARTE
+assets/kiara/maeryn-arconte-de-la-mente-art.png
+
+TOKEN
+assets/kiara/maeryn-arconte-de-la-mente-token.png
+
+AVENTURA / PRUEBA KIARA
+Se agrega Maeryn x1 al encounter provisional existente:
+Farolera x1 · Neru x2 · Seyran x1 · Nael x1 · Edran x1 · Maeryn x1.
+
+BASE
+style.css v8.95 preservado byte por byte como prefijo.
+SHA-256 prefijo: 08f3363e91e931880d894bc71baaf236af73ffdabff8357806ff9f4b812788b1
+
+FIREBASE
+Sin cambios frente a v8.95.
+
+VALIDACIÓN
+- node --check game.js
+- node --check firebase-online.js
+- Firebase rules JSON
+- Firebase JS byte-idéntico a v8.95
+- reglas Firebase byte-idénticas a v8.95
+- assets de Maeryn presentes
+- style.css v8.95 preservado como prefijo exacto
+- un solo INFORME_GENERAL_ROK_LITE.txt
+- ZIP íntegro
+
+NOTA
+No se realizó validación visual/interactiva en navegador.
+
+
+======================================================================
+HUD-08.20b · v8.97 — HUD KASTER ESPEJO / AJUSTES SEPARADOS
+======================================================================
+- Rival y aliado son paneles hermanos reales, no overlays ni paneles anidados.
+- Rival queda a la izquierda; aliado a la derecha.
+- Una sola banda inferior ocupa todo el ancho horizontal del game-shell.
+- Arena y Elementos terminan antes de esa banda para evitar superposición.
+- Ambos HUD comparten caja, retrato, cabecera y cajas ATAQUE/VIDA/CAST/COUNTER.
+- La cromática sigue el elemento de cada Kaster mediante --caster-turn-color.
+- El rival conserva Postura, recursos y cola de kasteo.
+- El aliado no muestra Postura dentro del HUD ni cola rival.
+- AJUSTES VISUALES separa Zona del Kaster rival y Zona del Kaster aliado.
+- Cada target tiene Posición X y Ancho X real independientes.
+- El antiguo target combinado caster se usa solo como baseline de migración si
+  style.css aún contiene --rok-ui-saved-caster-x/width.
+- Al volver a guardar style.css se escribirán caster-rival y caster-ally por separado.
+- Firebase JS y reglas no se modifican.
+- No se realizó validación visual interactiva en navegador.
+
+
+HUD-08.20c · v8.98 — GEOMETRÍA HUD KASTERS CORREGIDA
+- Se revierte la banda global de v8.97 que ocupaba toda la anchura inferior.
+- Zona del Kaster vuelve a la franja histórica a la derecha de Arena (grid 3 → final, 98% de ancho).
+- Arena y Recursos conservan toda la altura del viewport y no ceden espacio a la banda de Kasters.
+- Rival y aliado permanecen lado a lado: rival izquierda, aliado derecha.
+- La banda gana altura vertical para distribuir cabecera, stats y Postura sin compresión.
+- Rival conserva además recursos en una cuarta línea y casteos en una quinta línea.
+- Aliado no recibe módulos exclusivos del rival; su Postura vuelve a mostrarse.
+
+
+RT-08.20d · v8.99 — ETAPA 7 · IA DE MODOS DE COMBATE
+- Ofensivo avanza hacia el Kaster rival como eje de presión.
+- Si el Kaster rival entra en alcance, recibe prioridad inmediata aunque queden Invocaciones rivales.
+- Ofensivo solo desvía su ataque hacia Invocaciones que estén en el corredor real de avance o bloqueen físicamente la ruta; deja de perseguir globalmente la pieza de mayor PB.
+- Asesinato evita combates laterales, pero ahora sí ejecuta el ataque al Kaster cuando está en alcance; solo golpea bloqueadores inevitables si no existe un paso legal.
+- Cacería conserva la búsqueda de la Invocación más vulnerable.
+- Defensivo conserva respuesta/intercepción contra amenazas reales sin buscar matar al Kaster rival.
+- Asedio conserva prioridad de Estructuras/Guardianes y no cambia a cacería del Kaster.
+- El movimiento deja de congelarse solo porque exista cualquier rival irrelevante dentro del alcance durante el cooldown.
+- La colocación táctica ofensiva de humo toma al Kaster como dirección de presión, alineándose con la nueva semántica de Ofensivo.
+- No se tocaron en esta etapa costos de Kiara, miniatura del Panel, botón INFO RT, aura de Nael, Farolera ni la proyección de ataques por portal.

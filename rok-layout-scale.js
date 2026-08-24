@@ -1,29 +1,82 @@
-/* R.O.K Lite v496 · Escala lógica universal y modal principal de carta estable. */
+/* R.O.K Lite v8.60 / RT-08.8 · Escala lógica adaptable al viewport. */
 (() => {
   'use strict';
-  const DESIGN_WIDTH = 1600;
-  const DESIGN_HEIGHT = 900;
+
+  const BASE_WIDTH = 1600;
+  const BASE_HEIGHT = 900;
   const stage = document.getElementById('rokAppStage');
   if (!stage) return;
 
   let scale = 1;
+  let logicalWidth = BASE_WIDTH;
+  let logicalHeight = BASE_HEIGHT;
   let resizeRaf = 0;
   let fitRaf = 0;
 
-  function computeScale() {
-    const w = Math.max(1, window.innerWidth || document.documentElement.clientWidth || DESIGN_WIDTH);
-    const h = Math.max(1, window.innerHeight || document.documentElement.clientHeight || DESIGN_HEIGHT);
-    return Math.max(0.20, Math.min(w / DESIGN_WIDTH, h / DESIGN_HEIGHT));
+  function viewportSize() {
+    const vv = window.visualViewport;
+    return {
+      width: Math.max(1, Number(vv?.width || window.innerWidth || document.documentElement.clientWidth || BASE_WIDTH)),
+      height: Math.max(1, Number(vv?.height || window.innerHeight || document.documentElement.clientHeight || BASE_HEIGHT)),
+    };
+  }
+
+  function shouldExpandBattleStage() {
+    return document.body.classList.contains('rok-battle-mode');
+  }
+
+  function computeLayout() {
+    const viewport = viewportSize();
+
+    // La escala siempre es uniforme: no se estira el arte ni se deforman las
+    // casillas. En combate, la dimensión lógica sobrante se expande para llenar
+    // la relación de aspecto física completa en lugar de dejar bandas vacías.
+    const fitScale = Math.max(
+      0.05,
+      Math.min(viewport.width / BASE_WIDTH, viewport.height / BASE_HEIGHT),
+    );
+
+    if (!shouldExpandBattleStage()) {
+      return {
+        scale: fitScale,
+        logicalWidth: BASE_WIDTH,
+        logicalHeight: BASE_HEIGHT,
+      };
+    }
+
+    return {
+      scale: fitScale,
+      logicalWidth: Math.max(BASE_WIDTH, viewport.width / fitScale),
+      logicalHeight: Math.max(BASE_HEIGHT, viewport.height / fitScale),
+    };
   }
 
   function applyScale() {
     resizeRaf = 0;
-    scale = computeScale();
+    const next = computeLayout();
+    scale = next.scale;
+    logicalWidth = next.logicalWidth;
+    logicalHeight = next.logicalHeight;
+
+    stage.style.width = `${logicalWidth}px`;
+    stage.style.height = `${logicalHeight}px`;
     stage.style.setProperty('--rok-app-scale', String(scale));
+    stage.style.setProperty('--rok-stage-logical-width', `${logicalWidth}px`);
+    stage.style.setProperty('--rok-stage-logical-height', `${logicalHeight}px`);
+
     document.documentElement.style.setProperty('--rok-app-scale', String(scale));
     document.body.style.setProperty('--rok-app-scale', String(scale));
+    document.documentElement.style.setProperty('--rok-stage-logical-width', `${logicalWidth}px`);
+    document.documentElement.style.setProperty('--rok-stage-logical-height', `${logicalHeight}px`);
+
     stage.dataset.rokScale = scale.toFixed(6);
+    stage.dataset.rokLogicalWidth = logicalWidth.toFixed(2);
+    stage.dataset.rokLogicalHeight = logicalHeight.toFixed(2);
+
     requestModalFit();
+    try { window.dispatchEvent(new CustomEvent('rok-layout-resized', { detail: {
+      scale, logicalWidth, logicalHeight,
+    }})); } catch (_) {}
   }
 
   function requestScale() {
@@ -36,8 +89,8 @@
 
   function rectToLogical(rect) {
     const sr = getStageRect();
-    const sx = sr.width ? sr.width / DESIGN_WIDTH : scale;
-    const sy = sr.height ? sr.height / DESIGN_HEIGHT : scale;
+    const sx = sr.width ? sr.width / logicalWidth : scale;
+    const sy = sr.height ? sr.height / logicalHeight : scale;
     return {
       left: (rect.left - sr.left) / (sx || 1),
       top: (rect.top - sr.top) / (sy || 1),
@@ -50,9 +103,12 @@
 
   function clientToLogical(x, y) {
     const sr = getStageRect();
-    const sx = sr.width ? sr.width / DESIGN_WIDTH : scale;
-    const sy = sr.height ? sr.height / DESIGN_HEIGHT : scale;
-    return { x: (x - sr.left) / (sx || 1), y: (y - sr.top) / (sy || 1) };
+    const sx = sr.width ? sr.width / logicalWidth : scale;
+    const sy = sr.height ? sr.height / logicalHeight : scale;
+    return {
+      x: (x - sr.left) / (sx || 1),
+      y: (y - sr.top) / (sy || 1),
+    };
   }
 
   const modalPairs = [
@@ -96,13 +152,8 @@
   function fitPair(overlay, card) {
     if (!visible(overlay) || !card) return;
     card.style.setProperty('--rok-modal-fit-scale', '1');
-
-    // v495 · El modal principal de carta es un padre lógico estable.
-    // Nunca se escala por el contenido de una carta concreta (hechizo,
-    // invocación, Kaster, guardián, textos largos, etc.). Solo la escala
-    // universal del escenario puede cambiar su tamaño visual. Sus hijos
-    // administran el excedente dentro de sus propias áreas.
     if (overlay.id === 'cardInfoOverlay') return;
+
     const cs = getComputedStyle(overlay);
     const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
     const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
@@ -110,15 +161,9 @@
     const availH = Math.max(1, overlay.clientHeight - padY - 24);
     const baseW = Math.max(1, card.offsetWidth || 1);
     const baseH = Math.max(1, card.offsetHeight || 1);
-    // Un desborde horizontal pequeño suele significar que una fila/botón está
-    // intentando cruzar el margen del padre: lo contamos para reducir TODO el grupo.
     const w = Math.max(baseW, Number(card.scrollWidth || 0));
-    // Un texto/listado muy largo debe usar su scroll interno; un desborde vertical
-    // moderado sí participa del ajuste proporcional del conjunto.
     const scrollH = Math.max(baseH, Number(card.scrollHeight || 0));
     const h = scrollH <= baseH * 1.25 ? scrollH : baseH;
-    // El hijo nunca puede forzar al padre. Si no cabe en la zona segura,
-    // se reduce el conjunto completo conservando exactamente sus proporciones.
     const fit = Math.max(0.20, Math.min(1, availW / w, availH / h));
     card.style.setProperty('--rok-modal-fit-scale', fit.toFixed(4));
   }
@@ -145,21 +190,32 @@
     attributes: true,
     attributeFilter: ['class', 'style', 'hidden', 'aria-hidden'],
   });
+
+  // Entrar/salir de combate cambia si el lienzo debe expandirse.
+  new MutationObserver(mutations => {
+    if (mutations.some(m => m.attributeName === 'class')) requestScale();
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
   if (window.ResizeObserver) new ResizeObserver(requestModalFit).observe(stage);
 
   window.addEventListener('resize', requestScale, { passive: true });
   window.addEventListener('orientationchange', requestScale, { passive: true });
+  window.visualViewport?.addEventListener?.('resize', requestScale, { passive: true });
 
-  window.ROK_LAYOUT_SCALE = Object.freeze({
-    designWidth: DESIGN_WIDTH,
-    designHeight: DESIGN_HEIGHT,
+  const api = {
+    get designWidth() { return logicalWidth; },
+    get designHeight() { return logicalHeight; },
+    baseWidth: BASE_WIDTH,
+    baseHeight: BASE_HEIGHT,
     getScale: () => scale,
+    getLogicalSize: () => ({ width: logicalWidth, height: logicalHeight }),
     getStageRect,
     rectToLogical,
     clientToLogical,
     fitVisibleModals,
     refresh: requestScale,
-  });
+  };
 
+  window.ROK_LAYOUT_SCALE = Object.freeze(api);
   applyScale();
 })();

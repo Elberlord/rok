@@ -1,0 +1,13 @@
+{
+  "version": "v9.45",
+  "asset_references_scanned": 359,
+  "missing_asset_references": [],
+  "duplicate_html_ids": {},
+  "css_open_braces": 16634,
+  "css_close_braces": 16634,
+  "css_balanced": true,
+  "pwa_manifest": true,
+  "service_worker": true,
+  "mobile_direct_file_supported": false,
+  "mobile_http_https_supported": true
+}

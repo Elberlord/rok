@@ -1,0 +1,89 @@
+ROK v9.88 — AUDITORÍA DEL MODO ONLINE EN TIEMPO REAL
+=====================================================
+
+Base del paquete
+----------------
+- Versión recibida: ROK_v9_87_NAITO_SUTOKA_IA_HUMO_ACECHAR.
+- Build resultante: v9.88-ONLINE-TIEMPO-REAL-AUDIT.
+- El archivo style.css entregado fue integrado sin modificaciones.
+- SHA-256 del CSS integrado:
+  0388ed82a3b8733fffd4c281e688193fc98fa7d016e837777be323c5a46f2f77
+- No se modificaron las decisiones, prioridades ni parámetros de la IA de las cartas.
+
+Correcciones del modo Online
+----------------------------
+1. Unión segura a la sala
+   La plaza de Invitado/J2 se reclama ahora con una transacción atómica. Esto evita
+   que dos clientes entren simultáneamente como J2 o que quede un jugador huérfano
+   por una carrera entre lectura y escritura.
+
+2. Autoridad única en tiempo real
+   Host/J1 continúa siendo la autoridad que ejecuta y publica el estado. Invitado/J2
+   envía órdenes validadas. Se agregó una autoprueba para detectar una duplicación
+   accidental de la autoridad del motor en futuras versiones.
+
+3. Órdenes tardías o retenidas
+   Las órdenes del modo en tiempo real usan hora del servidor y se validan por sala,
+   partida, identidad, tipo permitido, antigüedad máxima y revisión base. Una orden
+   vieja después de una desconexión ya no debe ejecutarse dentro de una partida más
+   reciente.
+
+4. Pausa táctica de cartas
+   La pausa iniciada por J2 se mantiene en el Host sin crear una interfaz táctica
+   falsa en el navegador de J1. Tiene propietario, validación de carta/slot y una
+   concesión máxima de 60 segundos para recuperarse de una desconexión o cierre
+   inesperado.
+
+5. Reloj y pausas globales
+   Confirmaciones, overlays y desconexiones congelan el reloj real. Al reanudar no
+   se acumula el tiempo transcurrido durante la pausa. También se evita descontar dos
+   veces un intervalo cuando coinciden una pausa táctica y una pausa global.
+
+6. Sincronización del Invitado
+   J2 muestra el tiempo autoritativo recibido en el snapshot; ya no reconstruye ese
+   valor usando su reloj local. Esto elimina diferencias por relojes desfasados entre
+   dispositivos.
+
+7. Reconexión del Host
+   Al recuperar la conexión, el inicio interno del reloj se recalcula desde el tiempo
+   autoritativo ya jugado. La caída de red no provoca un salto hacia adelante.
+
+8. Caché
+   Se actualizaron los identificadores de caché de HTML, CSS, scripts y Service Worker
+   para impedir que una instalación previa mezcle recursos de v9.87 y v9.88.
+
+Validación realizada
+--------------------
+- Sintaxis de game.js, firebase-online.js y sw.js: correcta.
+- Carga conjunta de game.js y firebase-online.js en el arnés: correcta.
+- Contrato de snapshot (schema 6): correcto.
+- Contrato de las 8 órdenes permitidas: correcto.
+- Serialización, transporte y hash de estado: idénticos antes/después del transporte.
+- Arranque del motor en tiempo real: recursos, movimiento y combate inicializados.
+- Pausa global: el reloj queda congelado y reanuda sin recuperar tiempo perdido.
+- Reloj de la réplica: usa el valor del snapshot.
+- Pausa táctica remota: se conserva y se libera por orden o vencimiento de concesión.
+- Integridad del CSS integrado: idéntico byte por byte al archivo entregado.
+
+Prueba final recomendada con dos dispositivos/cuentas
+-----------------------------------------------------
+El entorno local no sustituye una sesión autenticada contra el proyecto Firebase
+desplegado. Antes de publicar, ejecutar esta secuencia en el entorno online real:
+
+1. Abrir la build v9.88 en dos navegadores o dispositivos y recargar sin caché.
+2. J1 crea una sala; J2 entra con el código. Intentar además dos uniones simultáneas
+   para confirmar que solo una ocupa la plaza.
+3. Probar una partida Versus/Manual completa como control de regresión.
+4. Probar Tiempo Real con ambos jugadores: movimiento, recurso, ataque, defensa,
+   modo de combate, selección de objetivo y lanzamiento de cartas.
+5. Desde J2, abrir y resolver/cancelar una acción táctica de carta; confirmar que el
+   reloj se congela para ambos y continúa sin salto.
+6. Desconectar J2 durante una acción, reconectar y verificar snapshot, reloj, turno
+   visual y ausencia de acciones duplicadas.
+7. Desconectar brevemente J1, reconectar y verificar que el reloj no suma el tiempo
+   de caída ni procesa órdenes antiguas.
+8. Completar la partida, usar revancha y luego abandonar la sala desde cada lado.
+
+Si algún fallo aparece solamente en la sesión Firebase real, conservar la telemetría
+de ambos clientes, el código de sala, quién era Host/J1 y la secuencia exacta de la
+acción para poder reproducirlo.

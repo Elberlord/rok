@@ -1,0 +1,23 @@
+{
+  "name": "R.O.K LITE — The Rise of the Kasters",
+  "short_name": "R.O.K LITE",
+  "description": "R.O.K LITE — The Rise of the Kasters",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#05070b",
+  "theme_color": "#05070b",
+  "icons": [
+    {
+      "src": "assets/pwa/rok-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/pwa/rok-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

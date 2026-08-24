@@ -1,0 +1,45 @@
+R.O.K Lite v9.86 — Auditoría Campeo / Kaguya / Akari / Modos
+
+ALCANCE DEL PARCHE
+- Base: v9.85.
+- No se modifica style.css ni rok-layout-scale.js.
+- Naito Sutoka (ninjaNaitoSutoka) no se modifica; queda reservada para revisión individual posterior.
+
+CAMPEO / RETROCESO
+- Gioshonin, el Mercader Errante; Regente Kishimoto; O-sensei Ueshiba:
+  * Sin Modos de combate.
+  * Conservan movilidad Retroceso.
+  * En Tiempo Real reciben intención propia de Campeo y avanzan por Retroceso hasta el límite trasero de su propio lado: P1 fila 17 / P2 fila 0.
+  * Al llegar se anclan allí y no atacan automáticamente.
+  * Provocación forzada conserva prioridad si un efecto externo la aplica.
+
+MODOS REVISADOS
+- Kagero (naitoSutoka): Asesinato / Ofensivo / Cacería / Asedio. Sin Defensivo.
+- Fukurō no Me: Asesinato / Ofensivo / Cacería / Defensivo / Asedio.
+- Nobunaga Oda: Ofensivo / Defensivo / Asedio; se conserva su kit.
+- Bushi honorable: Asesinato / Ofensivo / Cacería / Asedio. Sin Defensivo.
+- Toyotomi Hideyoshi: Asesinato / Ofensivo / Cacería / Asedio. Sin Defensivo.
+
+AKARI
+- Costo total: 3.
+- Daño/ataque principal: 1.
+- Alcance del Arco: 6.
+- No se altera el resto de su kit.
+
+KAGUYA
+- Alcance normal del Arco: 4 (sube 1).
+- Disparo energizado mantiene el doble del alcance actual y +1 PDA.
+- Canalización: 5 fases Manual / 10 ciclos de Tempo en Tiempo Real (mecánica existente preservada; texto sincronizado).
+- IA del Disparo energizado:
+  * No lo activa si su objetivo estratégico ya está dentro del alcance normal.
+  * Lo considera si ese objetivo está fuera del alcance normal y dentro del alcance energizado.
+  * Da prioridad especial al caso en que el objetivo está exactamente 1 casilla fuera del alcance normal.
+  * Asesinato -> Kaster rival.
+  * Ofensivo -> Invocación rival más poderosa.
+  * Cacería -> Invocación rival más vulnerable.
+  * Asedio -> Guardián/Estructura.
+
+VALIDACIONES
+- game.js pasa node --check.
+- style.css conserva el hash de v9.85.
+- rok-layout-scale.js conserva el hash de v9.85.

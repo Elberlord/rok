@@ -1,0 +1,150 @@
+{
+  "format": "ROK_TACTICAL_KNOWLEDGE_V1",
+  "version": "2026-08-20.s6",
+  "build": "v5.7.360-RT0818-S6",
+  "description": "Base explícita y versionable para consolidar decisiones tácticas de R.O.K Lite. No realiza aprendizaje autónomo opaco; las reglas se revisan entre builds usando telemetría exportada.",
+  "combatModes": {
+    "assassination": {
+      "goal": "reach_enemy_caster_without_engagement",
+      "weights": {
+        "casterProgress": 1.0,
+        "avoidCombat": 1.0,
+        "concealment": 0.9
+      }
+    },
+    "offensive": {
+      "goal": "neutralize_highest_impact_enemy",
+      "weights": {
+        "enemyImpact": 1.0,
+        "feasibility": 0.8,
+        "controlValue": 0.7
+      }
+    },
+    "hunt": {
+      "goal": "finish_most_vulnerable_enemy",
+      "weights": {
+        "vulnerability": 1.0,
+        "distance": 0.55,
+        "negativeStates": 0.65
+      }
+    },
+    "defensive": {
+      "goal": "protect_allies_and_counter_threats",
+      "weights": {
+        "activeThreat": 1.0,
+        "allySafety": 0.95,
+        "setupProtection": 0.85
+      }
+    },
+    "siege": {
+      "goal": "break_structures_and_reach_risk_zone",
+      "weights": {
+        "structurePressure": 1.0,
+        "riskZoneProgress": 0.75,
+        "avoidUnneededCombat": 0.7
+      }
+    }
+  },
+  "affordances": {
+    "concealment_zone": {
+      "tags": [
+        "concealment",
+        "protection",
+        "positioning"
+      ]
+    },
+    "concealment_route": {
+      "tags": [
+        "concealment",
+        "route",
+        "positioning"
+      ]
+    },
+    "reveal_zone": {
+      "tags": [
+        "reveal",
+        "antiConcealment",
+        "control"
+      ]
+    },
+    "movement_zone": {
+      "tags": [
+        "mobility",
+        "positioning"
+      ]
+    },
+    "portal_link": {
+      "tags": [
+        "reposition",
+        "mobility",
+        "positioning"
+      ]
+    },
+    "hazard_zone": {
+      "tags": [
+        "hazard",
+        "avoidance"
+      ]
+    },
+    "support_zone": {
+      "tags": [
+        "support",
+        "protection"
+      ]
+    }
+  },
+  "knownSynergies": [
+    {
+      "id": "vigilia_sutoka_smoke_setup",
+      "source": "yasuganaVigilia",
+      "target": "ninjaNaitoSutoka",
+      "modeBias": [
+        "defensive"
+      ],
+      "reason": "Movilidad completa puede mejorar la posición desde la que Sutoka cubre aliados con Bomba de humo."
+    },
+    {
+      "id": "gioshonin_restore_smoke",
+      "source": "gioshoninSupply",
+      "target": "ninjaNaitoSutoka",
+      "modeBias": [
+        "defensive"
+      ],
+      "reason": "Recuperar Bomba de humo restaura una herramienta de protección/setup."
+    }
+  ],
+  "spellbookSuggestedPlay": {
+    "supported": [
+      "spellCargaReal",
+      "spellKouuten",
+      "spellGurenGan",
+      "spellTacticaGuerra",
+      "spellEmboscada",
+      "spellInterceptar",
+      "spellGloriaLatente",
+      "spellDespliegueAnticipado",
+      "abilityShirahadori"
+    ],
+    "principles": [
+      "No ejecutar automáticamente sin aceptación del jugador.",
+      "Congelar Tiempo real durante una decisión espacial.",
+      "Usar evaluadores reglamentarios existentes antes de inventar heurísticas nuevas.",
+      "Registrar sugerencia y elección final para comparar ambas."
+    ]
+  },
+  "stage6": {
+    "auditFormat": "ROK_REALTIME_STAGE6_AUDIT_V1",
+    "rosterExpected": 28,
+    "configurableActivePowersExpected": 11,
+    "recoveryPrinciples": [
+      "ESC/Cancelar usa canceladores específicos.",
+      "Una Pausa de acción intencional no expira por tiempo.",
+      "Los locks conocidos solo se liberan cuando su flujo dueño desapareció.",
+      "Toda recuperación queda registrada en debug y telemetría."
+    ],
+    "newSuggestedPlayCoverage": [
+      "spellDespliegueAnticipado",
+      "abilityShirahadori"
+    ]
+  }
+}

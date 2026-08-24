@@ -19,6 +19,31 @@
   };
 
   const FIREBASE_VERSION = '12.16.0';
+
+  // v9.56 · Modo de prueba local sin Firebase Auth.
+  // Además de file://, también cubre servidores locales usados para abrir R.O.K
+  // en PC o móvil (por ejemplo http://localhost:8080). Firebase puede bloquear
+  // esos referers aunque el juego y sus assets carguen correctamente. En estos
+  // orígenes omitimos completamente Authentication y dejamos entrar al menú
+  // para probar PvB, Aventura, Manual y Tiempo Real. Versus Online permanece
+  // bloqueado mientras este modo local esté activo.
+  const LOCAL_HOSTNAME = String(window.location.hostname || '').trim().toLowerCase();
+  const LOCAL_HTTP_TEST_HOST = (
+    LOCAL_HOSTNAME === 'localhost'
+    || LOCAL_HOSTNAME === '0.0.0.0'
+    || LOCAL_HOSTNAME === '::1'
+    || LOCAL_HOSTNAME === '[::1]'
+    || /^127(?:\.\d{1,3}){3}$/.test(LOCAL_HOSTNAME)
+    || /^10(?:\.\d{1,3}){3}$/.test(LOCAL_HOSTNAME)
+    || /^192\.168(?:\.\d{1,3}){2}$/.test(LOCAL_HOSTNAME)
+    || /^172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}$/.test(LOCAL_HOSTNAME)
+  );
+  const LOCAL_FILE_TEST_MODE = (
+    window.location.protocol === 'file:'
+    || window.location.origin === 'null'
+    || !/^https?:$/i.test(String(window.location.protocol || ''))
+    || LOCAL_HTTP_TEST_HOST
+  );
   const ROOM_ROOT = 'rooms';
   const ROOM_CODE_LENGTH = 6;
   const SYNC_DEBOUNCE_MS = 90;
@@ -26,6 +51,19 @@
   const REMOTE_DEFENSE_TIMEOUT_MS = 45000;
   const REMOTE_ACTION_WINDOW_TIMEOUT_MS = 60000;
   const RECONNECT_GRACE_MS = 60000;
+  const REALTIME_COMMAND_MAX_AGE_MS = 10000;
+  const REALTIME_COMMAND_MAX_FUTURE_SKEW_MS = 5000;
+  const REALTIME_COMMAND_MAX_REVISION_LAG = 40;
+  const REALTIME_COMMAND_TYPES = Object.freeze([
+    'caster-move',
+    'combat-mode',
+    'cast-card',
+    'thought-pause',
+    'spell-action-pause',
+    'progressive-recast',
+    'power-automation',
+    'power-arm',
+  ]);
   const SESSION_STORAGE_KEY = 'rok_online_room_session_v2';
   const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const FRIEND_CODE_LENGTH = 8;
@@ -56,7 +94,7 @@
   const CONCRETE_ARENA_IDS = Object.freeze(Object.keys(ARENA_OPTIONS).filter(id => id !== 'random'));
 
 
-  const ONLINE_SNAPSHOT_SCHEMA_VERSION = 5;
+  const ONLINE_SNAPSHOT_SCHEMA_VERSION = 6;
   const ONLINE_SNAPSHOT_HASH_VERSION = 2;
   const ONLINE_FX_SCHEMA_VERSION = 2;
   const ONLINE_FX_RETENTION_MS = 18000;
@@ -97,6 +135,8 @@
     'extractedThisPhase',
     'openingElementsDealt',
     'openingExtractionSkippedByPlayer',
+    'playStyle',
+    'realtime',
     'players',
   ];
 
@@ -126,6 +166,8 @@
     if (key === 'kouutenProgressiveByPlayer') return {};
     if (key === 'openingElementsDealt') return false;
     if (key === 'openingExtractionSkippedByPlayer') return { 1: false, 2: false };
+    if (key === 'playStyle') return 'manual';
+    if (key === 'realtime') return { active: false, startedAt: 0, elapsedSeconds: 0, tickSerial: 0, phaseEquivalentSeconds: 1 };
     if (key === 'phaseTransitionSerial') return 0;
     if (key === 'phaseTransitionFrom') return 'initial';
     if (key === 'phaseTransitionTo') return 'extraction';
@@ -146,6 +188,7 @@
   let roomSessionGeneration = 0;
   let authoritativeUnsubscribe = null;
   let interactionUnsubscribe = null;
+  let realtimeCommandUnsubscribe = null;
   let priorityActionUnsubscribe = null;
   let matchPlayersUnsubscribe = null;
   let matchStatusUnsubscribe = null;
@@ -190,6 +233,15 @@
     parallelPlayed: 0,
     serialPlayed: 0,
   };
+  const realtimeCommandStats = {
+    received: 0,
+    applied: 0,
+    rejectedIdentity: 0,
+    rejectedMatch: 0,
+    rejectedStale: 0,
+    rejectedRevision: 0,
+    rejectedPayload: 0,
+  };
   let roomCache = null;
   let lastKnownRevision = 0;
   let lastSnapshotText = '';
@@ -227,6 +279,8 @@
   let handledInteractionId = '';
   let passiveConsistencySuspendUntil = 0;
   const handledInteractionIds = new Set();
+  const handledRealtimeCommandIds = new Set();
+  let realtimeCommandTail = Promise.resolve(true);
   let leavingRoom = false;
   let localStateReady = false;
   let onlineLobbyView = 'home';
@@ -914,6 +968,11 @@
     const loadout = localRecord?.loadout || getLocalSelectedLoadout();
     const issue = getLoadoutIssue(loadout);
     if (issue || !loadout) { setStatus(issue || 'Selecciona tu Spellbook antes de marcar Listo.', 'error'); return; }
+    const otherRecord = getRoomPlayerRecord(roomCache, playerSlot === 1 ? 2 : 1);
+    if (otherRecord?.loadout && normalizeOnlinePlayStyle(otherRecord.loadout.playStyle) !== normalizeOnlinePlayStyle(loadout.playStyle)) {
+      setStatus('Los dos jugadores deben seleccionar el mismo modo: Manual o Tiempo real.', 'error');
+      return;
+    }
     if (!localRecord?.connected) { setStatus('Tu conexión al lobby todavía no está lista.', 'error'); return; }
     try {
       const api = await loadFirebase();
@@ -944,7 +1003,7 @@
     if (playerSlot !== 1 || !roomPath || !roomCache || roomCache.status === 'countdown') return;
     const p1 = getRoomPlayerRecord(roomCache, 1);
     const p2 = getRoomPlayerRecord(roomCache, 2);
-    const bothReady = Boolean(roomCache.guestUid && p1?.connected && p2?.connected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout));
+    const bothReady = Boolean(roomCache.guestUid && p1?.connected && p2?.connected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout) && normalizeOnlinePlayStyle(p1?.loadout?.playStyle) === normalizeOnlinePlayStyle(p2?.loadout?.playStyle));
     if (!bothReady) return;
     try {
       const api = await loadFirebase();
@@ -1000,7 +1059,7 @@
       const p1 = getRoomPlayerRecord(room, 1);
       const p2 = getRoomPlayerRecord(room, 2);
       const guestPresent = Boolean(room.guestUid && p2?.uid);
-      const bothReady = Boolean(guestPresent && p1?.connected && p2?.connected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout));
+      const bothReady = Boolean(guestPresent && p1?.connected && p2?.connected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout) && normalizeOnlinePlayStyle(p1?.loadout?.playStyle) === normalizeOnlinePlayStyle(p2?.loadout?.playStyle));
 
       if (!guestPresent && room.status !== 'open') {
         await api.update(api.ref(db, roomPath), { status: 'open', startAt: null });
@@ -1067,6 +1126,22 @@
 
   function interactionsPath() {
     return `${roomPath}/game/interactions`;
+  }
+
+  function realtimeCommandsPath() {
+    return `${roomPath}/game/realtimeCommands`;
+  }
+
+  function normalizeOnlinePlayStyle(value) {
+    return String(value || '').toLowerCase() === 'realtime' ? 'realtime' : 'manual';
+  }
+
+  function isRealtimeOnlineMatch() {
+    return Boolean(ROK_ONLINE_MATCH_ACTIVE && normalizeOnlinePlayStyle(state?.playStyle) === 'realtime');
+  }
+
+  function isRealtimeAuthority() {
+    return Boolean(isRealtimeOnlineMatch() && Number(playerSlot) === 1);
   }
 
   function matchControlPath() {
@@ -1263,6 +1338,43 @@
     }
   }
 
+  function runOnlineProtocolSelfTest() {
+    const transport = runTransportHashSelfTest();
+    const requiredSnapshotKeys = ['playStyle', 'realtime', 'players', 'gameOver', 'matchSerial'];
+    const checks = [
+      {
+        id: 'snapshot-contract',
+        ok: requiredSnapshotKeys.every(key => SNAPSHOT_KEYS.includes(key)),
+        detail: requiredSnapshotKeys.join(', '),
+      },
+      {
+        id: 'realtime-command-contract',
+        ok: ['caster-move', 'combat-mode', 'cast-card', 'thought-pause', 'spell-action-pause', 'progressive-recast', 'power-automation', 'power-arm']
+          .every(type => REALTIME_COMMAND_TYPES.includes(type)),
+        detail: `${REALTIME_COMMAND_TYPES.length} tipos permitidos`,
+      },
+      {
+        id: 'single-realtime-authority',
+        ok: typeof isRealtimeAuthority === 'function' && typeof window.ROK_REALTIME?.applyOnlineCommand === 'function',
+        detail: 'Host/J1 publica; Invitado/J2 envía órdenes',
+      },
+      {
+        id: 'transport-hash',
+        ok: transport.ok === true,
+        detail: transport.reason || `${transport.localHash || ''}/${transport.transportedHash || ''}`,
+      },
+    ];
+    return {
+      ok: checks.every(check => check.ok),
+      schemaVersion: ONLINE_SNAPSHOT_SCHEMA_VERSION,
+      hashVersion: ONLINE_SNAPSHOT_HASH_VERSION,
+      commandMaxAgeMs: REALTIME_COMMAND_MAX_AGE_MS,
+      commandMaxRevisionLag: REALTIME_COMMAND_MAX_REVISION_LAG,
+      checks,
+      transport,
+    };
+  }
+
   function auditSnapshotSource(source, options = {}) {
     try {
       const auditor = window.ROK_STATE_INTEGRITY?.audit;
@@ -1289,6 +1401,8 @@
     });
     copy._schemaVersion = Math.max(1, Number(copy._schemaVersion || ONLINE_SNAPSHOT_SCHEMA_VERSION));
     copy.aiEnabled = false;
+    copy.playStyle = normalizeOnlinePlayStyle(copy.playStyle);
+    if (!copy.realtime || typeof copy.realtime !== 'object') copy.realtime = snapshotDefaultValue('realtime');
     if (typeof ensureRuntimeStateCollections === 'function') ensureRuntimeStateCollections(copy);
     if (!copy.openingExtractionSkippedByPlayer || typeof copy.openingExtractionSkippedByPlayer !== 'object') {
       copy.openingExtractionSkippedByPlayer = { 1: false, 2: false };
@@ -1468,6 +1582,11 @@
     const localHudMode = state.hudMode;
     const localSemiAutoMovement = state.semiAutoMovement;
     const localActiveTab = state.activeTab;
+    const localRealtimeSelection = state.realtime?.combatModeSystem ? {
+      selectedPlayerId: state.realtime.combatModeSystem.selectedPlayerId,
+      selectedUnitId: state.realtime.combatModeSystem.selectedUnitId,
+      selectedSpawnId: state.realtime.combatModeSystem.selectedSpawnId,
+    } : null;
 
     applyingRemoteSnapshot = true;
     try {
@@ -1492,6 +1611,11 @@
       state.hudMode = localHudMode;
       state.semiAutoMovement = localSemiAutoMovement;
       state.activeTab = localActiveTab;
+      if (localRealtimeSelection && state.realtime?.combatModeSystem && Number(localRealtimeSelection.selectedPlayerId) === Number(LOCAL_PLAYER_ID)) {
+        state.realtime.combatModeSystem.selectedPlayerId = localRealtimeSelection.selectedPlayerId;
+        state.realtime.combatModeSystem.selectedUnitId = localRealtimeSelection.selectedUnitId || '';
+        state.realtime.combatModeSystem.selectedSpawnId = localRealtimeSelection.selectedSpawnId || '';
+      }
       // Esta respuesta llega dentro de una secuencia local que está esperando
       // al rival. No se limpian selectedMover/quickReactionWindow/candados: son
       // UI y resolvers locales que deben sobrevivir hasta que el flujo padre
@@ -1532,6 +1656,14 @@
 
     const newPhaseKey = currentLocalPhaseKey();
     lastObservedPhaseKey = newPhaseKey;
+    if (normalizeOnlinePlayStyle(state.playStyle) === 'realtime') {
+      try { window.ROK_REALTIME?.resumeOnlineRuntime?.(); } catch (_) {}
+      if (writerUid && writerUid !== uid) {
+        turnHandoffPublishPending = false;
+        try { window.ROK_DEBUG_RIBBON?.ok?.(`PvP Tiempo real sincronizado · revisión ${lastKnownRevision}`); } catch (_) {}
+      }
+      return true;
+    }
     if (newPhaseKey !== oldPhaseKey) {
       phaseDeliveryScheduledKey = '';
       pendingPhaseDeliveryContext = previousPhaseContext;
@@ -1580,6 +1712,7 @@
   }
 
   function deliverRemotePhaseIfLocal(options = {}) {
+    if (normalizeOnlinePlayStyle(state.playStyle) === 'realtime') return true;
     if (!ROK_ONLINE_MATCH_ACTIVE || Number(state.activePlayer) !== Number(LOCAL_PLAYER_ID) || state.gameOver) return false;
     if (!state.openingElementsDealt) return false;
     if (state.actionExecutionLock === true && ['awaiting-initiative', 'opening-intro'].includes(String(state.actionExecutionLockReason || ''))) return false;
@@ -1687,6 +1820,15 @@
 
   function openLobby() {
     cacheUi();
+    if (LOCAL_FILE_TEST_MODE) {
+      const notice = document.getElementById('mainMenuNotice');
+      if (notice) {
+        notice.textContent = 'Versus Online está desactivado en el modo de prueba local. Para Online abre R.O.K desde un dominio autorizado y entonces inicia sesión.';
+        notice.classList.add('visible');
+      }
+      try { console.warn('[ROK] Versus Online bloqueado en modo de prueba local. Usa un dominio autorizado por Firebase para Online.'); } catch (_) {}
+      return;
+    }
     if (!hasAuthenticatedAccount()) {
       showAccountAuthOverlay(true);
       setAccountAuthStatus('Inicia sesión para entrar a Versus Online.', 'error');
@@ -2036,7 +2178,26 @@
       }
       if (!(await isFriend(hostUid))) throw new Error('Solo puedes unirte a partidas creadas por tus amigos.');
       if (room.guestUid && String(room.guestUid) !== uid) throw new Error('La partida ya tiene un segundo jugador.');
-      if (!room.guestUid) await api.set(api.ref(db, `${targetPath}/guestUid`), uid);
+
+      // v9.88 · reservar el único cupo de invitado de forma atómica. Dos amigos
+      // que pulsen Unirse al mismo tiempo ya no pueden sobrescribir guestUid ni
+      // dejar un tercer registro huérfano dentro de players.
+      const guestClaimRef = api.ref(db, `${targetPath}/guestUid`);
+      const guestClaim = await api.runTransaction(guestClaimRef, current => {
+        const currentUid = String(current || '');
+        if (currentUid && currentUid !== uid) return;
+        return uid;
+      }, { applyLocally: false });
+      if (!guestClaim.committed || String(guestClaim.snapshot?.val?.() || '') !== uid) {
+        throw new Error('La partida ya tiene un segundo jugador.');
+      }
+
+      const claimedRoomSnapshot = await api.get(api.ref(db, targetPath));
+      const claimedRoom = claimedRoomSnapshot.val();
+      if (!claimedRoom?.hostUid || String(claimedRoom.hostUid) !== hostUid || !['open', 'full'].includes(String(claimedRoom.status || ''))) {
+        await api.runTransaction(guestClaimRef, current => String(current || '') === uid ? null : undefined, { applyLocally: false });
+        throw new Error('La partida ya no está disponible.');
+      }
       const profile = await ensureSocialProfile();
       const now = Date.now();
       const selectedLoadout = getLocalSelectedLoadout();
@@ -2053,7 +2214,12 @@
         level: normalizeAccountLevel(profile.level),
       };
       if (selectedLoadout && !getLoadoutIssue(selectedLoadout)) playerRecord.loadout = selectedLoadout;
-      await api.set(api.ref(db, `${targetPath}/players/${uid}`), playerRecord);
+      try {
+        await api.set(api.ref(db, `${targetPath}/players/${uid}`), playerRecord);
+      } catch (error) {
+        await api.runTransaction(guestClaimRef, current => String(current || '') === uid ? null : undefined, { applyLocally: false }).catch(() => {});
+        throw error;
+      }
       await removeOpenRoomListing(api, code, hostUid);
       stopAvailableRoomListeners();
       await attachToRoom(code, 2);
@@ -2311,13 +2477,24 @@
       const hostIssue = getLoadoutIssue(hostLoadout);
       const guestIssue = getLoadoutIssue(guestLoadout);
       if (hostIssue || guestIssue) throw new Error(hostIssue || guestIssue || 'Falta un Spellbook válido para la revancha.');
+      const hostPlayStyle = normalizeOnlinePlayStyle(hostLoadout?.playStyle);
+      const guestPlayStyle = normalizeOnlinePlayStyle(guestLoadout?.playStyle);
+      if (hostPlayStyle !== guestPlayStyle) throw new Error('Ambos jugadores deben usar el mismo modo en la revancha.');
+      state.playStyle = hostPlayStyle;
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
       initializeElementDecks();
-      state.openingElementsDealt = false;
-      state.actionExecutionLock = true;
-      state.actionExecutionLockReason = 'awaiting-initiative';
       state.gameOver = false;
+      if (hostPlayStyle === 'realtime') {
+        state.openingElementsDealt = true;
+        state.actionExecutionLock = false;
+        state.actionExecutionLockReason = '';
+        window.ROK_REALTIME?.start?.();
+      } else {
+        state.openingElementsDealt = false;
+        state.actionExecutionLock = true;
+        state.actionExecutionLockReason = 'awaiting-initiative';
+      }
       state.matchSerial = Math.max(2, Number(nextSerial || 2));
       state.matchWins = wins;
       state.aiEnabled = false;
@@ -2401,6 +2578,104 @@
     }
   }
 
+  function trimHandledRealtimeCommands() {
+    if (handledRealtimeCommandIds.size <= 160) return;
+    const keep = Array.from(handledRealtimeCommandIds).slice(-80);
+    handledRealtimeCommandIds.clear();
+    keep.forEach(id => handledRealtimeCommandIds.add(id));
+  }
+
+  async function sendRealtimeCommand(type, payload = {}) {
+    if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot || !isRealtimeOnlineMatch()) return false;
+    const safeType = String(type || '');
+    if (!REALTIME_COMMAND_TYPES.includes(safeType) || state.gameOver) return false;
+    if (Number(playerSlot) === 1) return false;
+    const opponent = getRoomPlayerRecord(roomCache, 1);
+    if (opponent?.connected === false || opponent?.leftMatch === true) return false;
+    try {
+      const api = await loadFirebase();
+      const commandRef = api.push(api.ref(db, realtimeCommandsPath()));
+      const id = String(commandRef.key || `rtcmd_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+      await api.set(commandRef, {
+        id, type: safeType, player: Number(playerSlot), uid,
+        matchSerial: currentMatchSerial(), baseRevision: Math.max(0, Number(lastKnownRevision || 0)),
+        payload: deepClone(payload || {}), createdAt: api.serverTimestamp(),
+      });
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo enviar la orden de Tiempo real');
+      return false;
+    }
+  }
+
+  async function handleRealtimeCommand(rawCommand, key = '') {
+    if (!isRealtimeAuthority() || leavingRoom || !roomPath) return false;
+    const command = rawCommand && typeof rawCommand === 'object' ? { ...rawCommand } : null;
+    if (!command) return false;
+    const id = String(command.id || key || '');
+    if (!id || handledRealtimeCommandIds.has(id)) return false;
+    realtimeCommandStats.received += 1;
+
+    // Toda orden ya observada se retira del buzón, incluso si quedó obsoleta o
+    // no supera la validación. Así una desconexión no vuelve a reproducir una
+    // pulsación WASD/kasteo inválido de un match anterior.
+    const discardCommand = async () => {
+      try {
+        const api = await loadFirebase();
+        await api.remove(api.ref(db, `${realtimeCommandsPath()}/${id}`));
+      } catch (_) {}
+    };
+
+    const validMatch = Math.max(1, Number(command.matchSerial || 1)) === currentMatchSerial();
+    const validPlayer = Number(command.player || 0) === 2;
+    const guestUid = String(roomCache?.guestUid || '');
+    const validUid = Boolean(guestUid) && String(command.uid || '') === guestUid;
+    const commandType = String(command.type || '');
+    const validType = REALTIME_COMMAND_TYPES.includes(commandType);
+    const createdAt = Number(command.createdAt || 0);
+    const commandAge = createdAt ? getServerNow() - createdAt : Infinity;
+    const validFreshness = Number.isFinite(commandAge)
+      && commandAge >= -REALTIME_COMMAND_MAX_FUTURE_SKEW_MS
+      && commandAge <= REALTIME_COMMAND_MAX_AGE_MS;
+    const baseRevision = Math.max(0, Number(command.baseRevision || 0));
+    const revisionLag = Math.max(0, Number(lastKnownRevision || 0) - baseRevision);
+    const validRevision = baseRevision <= Math.max(0, Number(lastKnownRevision || 0))
+      && revisionLag <= REALTIME_COMMAND_MAX_REVISION_LAG;
+    if (!validMatch || !validPlayer || !validUid || !validType || !validFreshness || !validRevision) {
+      if (!validMatch) realtimeCommandStats.rejectedMatch += 1;
+      else if (!validPlayer || !validUid) realtimeCommandStats.rejectedIdentity += 1;
+      else if (!validType) realtimeCommandStats.rejectedPayload += 1;
+      else if (!validFreshness) realtimeCommandStats.rejectedStale += 1;
+      else if (!validRevision) realtimeCommandStats.rejectedRevision += 1;
+      handledRealtimeCommandIds.add(id);
+      trimHandledRealtimeCommands();
+      await discardCommand();
+      return false;
+    }
+
+    handledRealtimeCommandIds.add(id);
+    trimHandledRealtimeCommands();
+    try {
+      const applied = await Promise.resolve(window.ROK_REALTIME?.applyOnlineCommand?.(deepClone(command)));
+      // WASD puede llegar varias veces por segundo. applyOnlineCommand ya marca
+      // dirty y el sincronizador publica con debounce de 90 ms; forzar una
+      // transacción por tecla serializaría el movimiento detrás de la latencia.
+      // Kasteos y cambios de modo sí usan barrera inmediata por ser decisiones
+      // discretas de alto valor.
+      if (applied && String(command.type || '') !== 'caster-move') {
+        await commitStateBarrier(`realtime-command:${command.type || 'unknown'}`);
+      }
+      if (applied) realtimeCommandStats.applied += 1;
+      else realtimeCommandStats.rejectedPayload += 1;
+      await discardCommand();
+      return Boolean(applied);
+    } catch (error) {
+      void discardCommand();
+      reportOnlineError(error, `No se pudo aplicar la orden RT ${command.type || ''}`);
+      return false;
+    }
+  }
+
   function attachMatchListeners(api, generation = roomSessionGeneration) {
     if (!roomPath || generation !== roomSessionGeneration) return;
     if (roomUnsubscribe) {
@@ -2420,6 +2695,15 @@
         if (!interaction || String(interaction.id || snapshot.key || '') === '') return;
         void handleIncomingInteraction({ ...interaction, id: String(interaction.id || snapshot.key || '') });
       }, error => reportOnlineError(error, 'Se perdió el canal de ventanas de acción'));
+    }
+    if (!realtimeCommandUnsubscribe) {
+      realtimeCommandUnsubscribe = api.onChildAdded(api.ref(db, realtimeCommandsPath()), snapshot => {
+        if (generation !== roomSessionGeneration || Number(playerSlot) !== 1) return;
+        const command = snapshot.val();
+        if (!command) return;
+        const run = () => handleRealtimeCommand(command, snapshot.key || '');
+        realtimeCommandTail = realtimeCommandTail.then(run, run);
+      }, error => reportOnlineError(error, 'Se perdió el canal de órdenes de Tiempo real'));
     }
     if (!priorityActionUnsubscribe) {
       priorityActionUnsubscribe = api.onValue(api.ref(db, `${roomPath}/game/priorityAction`), snapshot => {
@@ -2472,7 +2756,7 @@
       if (playerSlot === 1) void reconcileLobbyAsHost(room);
 
       const bothConnected = Boolean(room.guestUid && p1?.connected && p2?.connected);
-      const bothReady = Boolean(bothConnected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout));
+      const bothReady = Boolean(bothConnected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout) && normalizeOnlinePlayStyle(p1?.loadout?.playStyle) === normalizeOnlinePlayStyle(p2?.loadout?.playStyle));
 
       if (room.status === 'countdown' && room.startAt && bothReady) {
         renderLobbyCountdown(room.startAt);
@@ -2543,12 +2827,23 @@
       const hostIssue = getLoadoutIssue(hostLoadout);
       const guestIssue = getLoadoutIssue(guestLoadout);
       if (hostIssue || guestIssue) throw new Error(hostIssue || guestIssue || 'Falta un Spellbook válido.');
+      const hostPlayStyle = normalizeOnlinePlayStyle(hostLoadout?.playStyle);
+      const guestPlayStyle = normalizeOnlinePlayStyle(guestLoadout?.playStyle);
+      if (hostPlayStyle !== guestPlayStyle) throw new Error('Ambos jugadores deben elegir el mismo modo: Manual o Tiempo real.');
+      state.playStyle = hostPlayStyle;
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
       initializeElementDecks();
-      state.openingElementsDealt = false;
-      state.actionExecutionLock = true;
-      state.actionExecutionLockReason = 'awaiting-initiative';
+      if (hostPlayStyle === 'realtime') {
+        state.openingElementsDealt = true;
+        state.actionExecutionLock = false;
+        state.actionExecutionLockReason = '';
+        window.ROK_REALTIME?.start?.();
+      } else {
+        state.openingElementsDealt = false;
+        state.actionExecutionLock = true;
+        state.actionExecutionLockReason = 'awaiting-initiative';
+      }
       localStateReady = false;
       lastObservedPhaseKey = currentLocalPhaseKey();
       lastStartedPhaseKey = '';
@@ -2590,6 +2885,7 @@
   function verifyPassiveClientConsistency(options = {}) {
     if (!ROK_ONLINE_MATCH_ACTIVE || !localStateReady || leavingRoom || applyingRemoteSnapshot) return true;
     if (!lastAuthoritativeSnapshot || !lastAuthoritativeSnapshotText) return true;
+    if (isRealtimeOnlineMatch()) return true;
     if (Number(state.activePlayer) === Number(LOCAL_PLAYER_ID)) return true;
     if (handledInteractionId || Date.now() < passiveConsistencySuspendUntil) return true;
     consistencyStats.passiveChecks += 1;
@@ -2706,8 +3002,10 @@
 
   function markLocalStateDirty(reason = 'state-change') {
     if (!ROK_ONLINE_MATCH_ACTIVE || !roomCode || !localStateReady || applyingRemoteSnapshot || leavingRoom) return false;
+    const realtimeAuthority = isRealtimeAuthority();
     const ownsTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
-    if (!ownsTurn && !turnHandoffPublishPending) return false;
+    if (isRealtimeOnlineMatch() && !realtimeAuthority) return false;
+    if (!realtimeAuthority && !ownsTurn && !turnHandoffPublishPending) return false;
     localStateDirty = true;
     localMutationSerial += 1;
     scheduleDirtyPublish();
@@ -2716,8 +3014,13 @@
 
   async function considerPublishingLocalState(options = {}) {
     if (!ROK_ONLINE_MATCH_ACTIVE || !roomCode || !localStateReady || applyingRemoteSnapshot || leavingRoom) return false;
+    const realtimeAuthority = isRealtimeAuthority();
     const ownsTurn = Number(state.activePlayer) === Number(LOCAL_PLAYER_ID);
-    if (!ownsTurn && !turnHandoffPublishPending) {
+    if (isRealtimeOnlineMatch() && !realtimeAuthority) {
+      if (options.watchdog) verifyPassiveClientConsistency({ repair: true });
+      return false;
+    }
+    if (!realtimeAuthority && !ownsTurn && !turnHandoffPublishPending) {
       if (options.watchdog) verifyPassiveClientConsistency({ repair: true });
       return false;
     }
@@ -2743,6 +3046,7 @@
   }
 
   async function performPublishSnapshot(options = {}) {
+    if (isRealtimeOnlineMatch() && !isRealtimeAuthority()) return false;
     if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !playerSlot || applyingRemoteSnapshot || leavingRoom) return false;
     publishingSnapshot = true;
     try {
@@ -2836,6 +3140,7 @@
   }
 
   function commitStateBarrier(reason = 'critical-state') {
+    if (isRealtimeOnlineMatch() && !isRealtimeAuthority()) return Promise.resolve(false);
     if (!ROK_ONLINE_MATCH_ACTIVE || !roomPath || !localStateReady) return Promise.resolve(false);
     if (publishTimer) {
       window.clearTimeout(publishTimer);
@@ -2936,6 +3241,7 @@
     const results = await Promise.allSettled([
       firebase.remove(firebase.ref(db, `${roomPath}/game/fxEvents`)),
       firebase.remove(firebase.ref(db, interactionsPath())),
+      firebase.remove(firebase.ref(db, realtimeCommandsPath())),
       firebase.remove(firebase.ref(db, `${roomPath}/game/priorityAction`)),
     ]);
     const failed = results.filter(result => result.status === 'rejected');
@@ -3239,7 +3545,7 @@
     }
     const api = await loadFirebase();
     const barrierCommitted = await commitStateBarrier('before-caster-defense');
-    if (!barrierCommitted) return 'defend';
+    if (!barrierCommitted) return 'none';
     const interactionId = `def_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const interaction = {
       id: interactionId,
@@ -3275,17 +3581,17 @@
         if (unsubscribe) unsubscribe();
         if (timeoutId) window.clearTimeout(timeoutId);
         try { await api.remove(interactionRef); } catch (_) {}
-        resolve(['defend', 'counter', 'special-counter'].includes(choice) ? choice : 'defend');
+        resolve(['defend', 'counter', 'special-counter', 'none'].includes(choice) ? choice : 'none');
       };
-      const aborter = () => { void finish('defend'); };
+      const aborter = () => { void finish('none'); };
       pendingInteractionAborters.add(aborter);
       unsubscribe = api.onValue(interactionRef, snapshot => {
         const value = snapshot.val();
         if (!value) return;
         if (value.id !== interactionId || value.status !== 'resolved') return;
-        void finish(value.response?.choice || 'defend');
-      }, () => { void finish('defend'); });
-      timeoutId = window.setTimeout(() => { void finish('defend'); }, REMOTE_DEFENSE_TIMEOUT_MS);
+        void finish(value.response?.choice || 'none');
+      }, () => { void finish('none'); });
+      timeoutId = window.setTimeout(() => { void finish('none'); }, REMOTE_DEFENSE_TIMEOUT_MS);
     });
   }
 
@@ -3531,7 +3837,7 @@
           return {
             ...current,
             status: 'resolved',
-            response: { choice: choice || 'defend', uid, player: playerSlot, resolvedAt: Date.now() },
+            response: { choice: choice || 'none', uid, player: playerSlot, resolvedAt: Date.now() },
           };
         }, { applyLocally: false });
       } catch (error) {
@@ -3539,7 +3845,7 @@
         try {
           await api.update(interactionRef, {
             status: 'resolved',
-            response: { choice: 'defend', uid, player: playerSlot, resolvedAt: Date.now(), fallback: true },
+            response: { choice: 'none', uid, player: playerSlot, resolvedAt: Date.now(), fallback: true },
           });
         } catch (_) {}
       }
@@ -3569,6 +3875,7 @@
       roomUnsubscribe,
       authoritativeUnsubscribe,
       interactionUnsubscribe,
+      realtimeCommandUnsubscribe,
       priorityActionUnsubscribe,
       matchPlayersUnsubscribe,
       matchStatusUnsubscribe,
@@ -3580,6 +3887,7 @@
     roomUnsubscribe = null;
     authoritativeUnsubscribe = null;
     interactionUnsubscribe = null;
+    realtimeCommandUnsubscribe = null;
     priorityActionUnsubscribe = null;
     matchPlayersUnsubscribe = null;
     matchStatusUnsubscribe = null;
@@ -3595,6 +3903,8 @@
     handledInteractionId = '';
     passiveConsistencySuspendUntil = 0;
     handledInteractionIds.clear();
+    handledRealtimeCommandIds.clear();
+    realtimeCommandTail = Promise.resolve(true);
     remoteFxPlaybackTail = Promise.resolve();
     outboundFxPublishTail = Promise.resolve(true);
     activeParallelFxPlaybacks.clear();
@@ -3717,6 +4027,7 @@
     accountUi.registerPassword = document.getElementById('accountRegisterPassword');
     accountUi.registerPasswordConfirm = document.getElementById('accountRegisterPasswordConfirm');
     accountUi.registerSubmit = document.getElementById('accountRegisterSubmitBtn');
+    accountUi.skipLogin = document.getElementById('accountSkipLoginBtn');
     accountUi.status = document.getElementById('accountAuthStatus');
     accountUi.logout = document.getElementById('mainMenuLogoutBtn');
     accountUi.menuName = document.getElementById('mainMenuAccountName');
@@ -3828,6 +4139,7 @@
     if (code.includes('auth/weak-password')) return 'La contraseña es demasiado débil. Usa al menos 6 caracteres.';
     if (code.includes('auth/invalid-credential') || code.includes('auth/wrong-password') || code.includes('auth/user-not-found')) return 'Correo o contraseña incorrectos.';
     if (code.includes('auth/too-many-requests')) return 'Demasiados intentos. Espera un momento y vuelve a intentarlo.';
+    if (code.includes('auth/requests-from-referer-null-are-blocked')) return 'Este origen local no puede autenticar con Firebase. R.O.K entra en modo de prueba local; para Online usa un dominio autorizado.';
     if (code.includes('auth/network-request-failed')) return 'No se pudo conectar con Firebase. Revisa Internet.';
     if (code.includes('auth/operation-not-allowed')) return 'Activa Email/Password en Firebase Authentication para usar cuentas.';
     if (code === 'rok/auth-required') return error.message;
@@ -3837,6 +4149,10 @@
   async function registerAccount(event) {
     event?.preventDefault?.();
     cacheAccountUi();
+    if (LOCAL_FILE_TEST_MODE) {
+      enterLocalFileTestMode();
+      return true;
+    }
     const displayName = normalizeSocialDisplayName(accountUi.registerName?.value);
     const email = String(accountUi.registerEmail?.value || '').trim().toLowerCase();
     const password = String(accountUi.registerPassword?.value || '');
@@ -3869,6 +4185,10 @@
   async function loginAccount(event) {
     event?.preventDefault?.();
     cacheAccountUi();
+    if (LOCAL_FILE_TEST_MODE) {
+      enterLocalFileTestMode();
+      return true;
+    }
     const email = String(accountUi.loginEmail?.value || '').trim().toLowerCase();
     const password = String(accountUi.loginPassword?.value || '');
     if (!email || !password) { setAccountAuthStatus('Escribe tu correo y contraseña.', 'error'); return false; }
@@ -3894,6 +4214,10 @@
 
   async function resetAccountPassword() {
     cacheAccountUi();
+    if (LOCAL_FILE_TEST_MODE) {
+      enterLocalFileTestMode();
+      return false;
+    }
     const email = String(accountUi.loginEmail?.value || '').trim().toLowerCase();
     if (!email) { setAccountAuthStatus('Escribe primero el correo de la cuenta que quieres recuperar.', 'error'); return false; }
     setAccountAuthBusy(true);
@@ -3913,6 +4237,10 @@
 
   async function logoutAccount() {
     cacheAccountUi();
+    if (LOCAL_FILE_TEST_MODE) {
+      enterLocalFileTestMode();
+      return true;
+    }
     try {
       const api = await loadFirebase();
       if (roomCode) await leaveRoom({ silent: true, keepMenu: true });
@@ -3934,8 +4262,34 @@
     }
   }
 
+  function enterLocalFileTestMode() {
+    accountAuthReady = true;
+    uid = '';
+    socialProfileCache = null;
+    updateAccountIdentityUi(null);
+    showAccountAuthOverlay(false);
+    document.body.classList.remove('rok-account-locked');
+    if (accountUi.menuName) accountUi.menuName.textContent = 'Prueba local';
+    if (accountUi.menuEmail) accountUi.menuEmail.textContent = 'Offline · sin Firebase';
+    if (accountUi.hudName) accountUi.hudName.textContent = 'Kaster de prueba';
+    window.ROK_LOCAL_TEST_MODE = true;
+    try {
+      console.info(`[ROK] Prueba local activa: Firebase Auth omitido para ${window.location.origin || window.location.protocol}.`);
+    } catch (_) {}
+    return true;
+  }
+
   async function initializeAccountAuthentication() {
     cacheAccountUi();
+
+    // IMPORTANTE: no llames a Firebase Auth desde file://, localhost ni una IP privada local.
+    // Esto evita auth/requests-from-referer-...-are-blocked y permite probar PvB,
+    // Aventura, Manual y Tiempo Real sin que el login bloquee el juego.
+    if (LOCAL_FILE_TEST_MODE) {
+      enterLocalFileTestMode();
+      return;
+    }
+
     showAccountAuthOverlay(true);
     setAccountAuthStatus('Comprobando sesión…', 'working');
     try {
@@ -3980,6 +4334,11 @@
     accountUi.loginForm?.addEventListener('submit', event => { void loginAccount(event); });
     accountUi.registerForm?.addEventListener('submit', event => { void registerAccount(event); });
     accountUi.resetPassword?.addEventListener('click', () => { void resetAccountPassword(); });
+    accountUi.skipLogin?.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      enterLocalFileTestMode();
+    });
     accountUi.logout?.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); void logoutAccount(); });
   }
 
@@ -5213,6 +5572,8 @@
     void initializeAccountAuthentication();
   }
 
+  window.ROK_LOCAL_TEST_MODE = LOCAL_FILE_TEST_MODE;
+
   window.ROK_ACCOUNT = {
     login: loginAccount,
     register: registerAccount,
@@ -5274,12 +5635,16 @@
     publishNow: () => publishSnapshot({ force: true }),
     commitStateBarrier,
     markStateDirty: markLocalStateDirty,
+    sendRealtimeCommand,
+    isRealtimeAuthority,
     getSession: () => ({
       roomCode,
       playerSlot,
       uid,
       revision: lastKnownRevision,
       active: ROK_ONLINE_MATCH_ACTIVE,
+      playStyle: normalizeOnlinePlayStyle(state?.playStyle),
+      realtimeAuthority: isRealtimeAuthority(),
       observedPhaseKey: lastObservedPhaseKey,
       startedPhaseKey: lastStartedPhaseKey,
       handoffPending: turnHandoffPublishPending,
@@ -5289,6 +5654,7 @@
       pendingFxCleanupTimers: pendingFxCleanupEntries.size,
       fxListenerFloorKey,
       fxStats: { ...fxStats },
+      realtimeCommandStats: { ...realtimeCommandStats },
       consistency: {
         ...consistencyStats,
         authoritativeHash: lastAuthoritativeSnapshotHash,
@@ -5300,6 +5666,7 @@
     }),
     verifyConsistency: () => verifyPassiveClientConsistency({ repair: false }),
     transportHashSelfTest: runTransportHashSelfTest,
+    protocolSelfTest: runOnlineProtocolSelfTest,
     getStressSnapshot: () => {
       const memory = performance?.memory ? {
         usedJSHeapSize: Number(performance.memory.usedJSHeapSize || 0),
@@ -5333,6 +5700,7 @@
       try { window.ROK_RENDER_ENGINE?.resetStats?.(); } catch (_) {}
       try { window.ROK_ONLINE_FX?.resetStats?.(); } catch (_) {}
       Object.assign(fxStats, { emitted: 0, received: 0, played: 0, skippedOwn: 0, skippedOld: 0, skippedDuplicate: 0, skippedMatch: 0, skippedStale: 0, skippedUnsupported: 0, revisionWaits: 0, revisionWaitFailures: 0, parallelPlayed: 0, serialPlayed: 0 });
+      Object.assign(realtimeCommandStats, { received: 0, applied: 0, rejectedIdentity: 0, rejectedMatch: 0, rejectedStale: 0, rejectedRevision: 0, rejectedPayload: 0 });
       Object.assign(consistencyStats, { validatedOutgoing: 0, rejectedOutgoing: 0, validatedIncoming: 0, rejectedIncoming: 0, hashMismatch: 0, passiveChecks: 0, passiveRepairs: 0, actionWindowRejected: 0, legacySnapshots: 0, lastIssue: '' });
       return true;
     },

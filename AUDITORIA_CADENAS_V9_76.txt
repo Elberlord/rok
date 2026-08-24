@@ -1,0 +1,11 @@
+ROK v9.76 · AUDITORÍA DE ARMAS CON CADENA / KUSARIGAMA
+
+Base: v9.75
+
+Revisados:
+- Naito Sutoka: Oscilación parcial + Ataque extra + Sutoka hatsuen-dan. Sin regresión encontrada en la lógica especial.
+- Junkai butai #2: encontrada regresión real. El barrido visual fijo aplicaba Atadura, pero devolvía lockedTarget sin stopReason="binding". executeOscillationPartialAttack interpretaba ese resultado como un ataque normal y restauraba a Junkai inmediatamente, rompiendo la cadena persistente y el vínculo de Atadura. Corregido.
+- Kurokage: Desarmar 3 + Buki Utsushi siguen conectados al barrido. Se añadió limpieza del estado kurokagiBukiResolutionPending cuando todos los Desarmar planificados son neutralizados y no queda arma para recoger.
+- Oda no Kage: el barrido de lanza permanece separado de los efectos de cadena; no se cambió su sinergia con Nobunaga.
+
+No se modificó layout, tamaños, IA ni balance en esta versión.

@@ -1,0 +1,65 @@
+ROK LITE · AUDITORÍA SAMURÁIS v9.85
+Base: v9.84 Yasugana poderes/IA
+
+OBJETIVO
+Revisar Takeda Shingen, Miyamoto Musashi, Bushi inquebrantable, Bushi iniciado,
+Samurai Shinra Hitokiri, Samurai Shiro no Bushi y Karunobu Taichō sin alterar
+layout, animaciones ni balance ajeno a lo solicitado.
+
+HALLAZGOS Y AJUSTES
+
+1) Takeda Shingen
+- Hallazgo: en Tiempo Real, Ira creciente heredaba el pseudo-turno legado de 3 s.
+  Además, el primer bucket podía conceder el bono demasiado pronto.
+- Corrección: reloj exclusivo de Takeda = 6 segundos ACTIVOS.
+- El contador empieza al entrar Takeda en Arena; no comparte el reloj de 3 s.
+- Manual conserva la regla de +1 Ataque al inicio de cada turno propio.
+- No tiene Asesinato.
+- Se añadió Cacería, que faltaba en la curaduría de modos.
+- Modos finales: Ofensivo / Cacería / Defensivo / Asedio.
+- El viejo amigo (llamada de Miyamoto) no fue reescrito ni rebalanceado.
+
+2) Lógica Ofensiva auditada
+Para las cartas de esta auditoría, Ofensivo ahora usa la prioridad táctica normal:
+- Si el Kaster rival ya está legalmente a tiro, conserva prioridad de victoria.
+- Si no, la Invocación rival de mayor poder se convierte en el eje de movimiento
+  y ataque.
+Esto evita que el modo Ofensivo se comporte como una ruta permanente de Asesinato.
+
+3) Miyamoto Musashi
+- Modos conservados: Ofensivo / Defensivo / Asedio.
+- Defensivo conserva la interacción con Vigilia/intercepción.
+- Legado del Imbatible permanece conectado a su lógica de combate, precisión,
+  respuesta por Desvío y bonificaciones existentes.
+
+4) Samurai Bushi inquebrantable
+- Modos conservados: Ofensivo / Asedio.
+- No tiene Poder; no se añadió ninguno.
+- En Ofensivo usa la prioridad de Invocación de mayor poder descrita arriba.
+
+5) Bushi iniciado
+- Modos conservados: Ofensivo / Asedio.
+- No tiene Poder; no se añadió ninguno.
+- En Ofensivo usa la prioridad de Invocación de mayor poder descrita arriba.
+
+6) Samurai Shinra Hitokiri
+- Modos conservados: Asesinato / Ofensivo / Cacería / Asedio.
+- Sukiru Charenji conserva sus hooks de combate existentes.
+- Asesinato busca Kaster; Cacería usa el selector de vulnerabilidad; Asedio usa
+  Guardianes/Estructuras; Ofensivo usa prioridad de poder salvo Kaster ya a tiro.
+
+7) Samurai Shiro no Bushi
+- Modos conservados: Ofensivo / Asedio.
+- No tiene Poder; no se añadió ninguno.
+- Ofensivo usa prioridad de Invocación de mayor poder.
+
+8) Karunobu Taichō
+- Modos conservados: Ofensivo / Defensivo / Asedio.
+- Senjin no Kōsei conserva sus hooks de Evasión y bono de Ataque a Samurái.
+- Ofensivo usa prioridad de Invocación de mayor poder.
+
+VERIFICACIONES
+- game.js pasa node --check.
+- style.css idéntico byte a byte a v9.84.
+- rok-layout-scale.js idéntico byte a byte a v9.84.
+- No se tocaron cadenas, Oscilación, Oda, Minokage, Kurayami ni Yasugana.

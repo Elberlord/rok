@@ -1,0 +1,35 @@
+R.O.K LITE v9.45 — USO EN MÓVIL
+
+IMPORTANTE
+==========
+NO abras index.html tocándolo directamente desde el administrador de archivos del teléfono.
+En Android/iOS el navegador puede abrirlo como file:// o content:// y aislar el HTML del resto
+de la carpeta. En ese modo pueden verse textos pero no CSS, sprites, imágenes, Firebase u otros
+recursos relativos.
+
+MÉTODO RECOMENDADO — PWA / GITHUB PAGES
+=======================================
+1. Sube el contenido de la carpeta rock_html_base a la misma ubicación que usas en GitHub Pages.
+2. Abre la dirección HTTPS del juego en el navegador del móvil.
+3. Android/Chrome: menú ⋮ > Añadir a pantalla de inicio / Instalar aplicación.
+   iPhone/Safari: Compartir > Añadir a pantalla de inicio.
+4. Desde ese icono R.O.K se abre en modo standalone.
+5. El service worker de v9.45 guarda en caché el shell y, conforme se cargan, los assets del juego.
+
+PRUEBA LOCAL SIN SUBIR A GITHUB
+===============================
+También sirve cualquier servidor HTTP local del teléfono:
+- extrae rock_html_base;
+- sirve ESA carpeta mediante HTTP;
+- abre en el navegador la dirección http://127.0.0.1:<puerto>/index.html.
+No uses file:// ni content://.
+
+POR QUÉ GITHUB SÍ FUNCIONA
+==========================
+GitHub Pages sirve index.html, style.css, game.js y assets/ desde un mismo origen HTTP/HTTPS.
+El navegador puede resolver correctamente todas las rutas relativas y Firebase recibe un origen web
+real. Al abrir un HTML desde el gestor de archivos del móvil eso no está garantizado.
+
+SI QUIERES UN ARCHIVO QUE SE INSTALE DIRECTAMENTE
+=================================================
+Eso ya no es un ZIP web: debe empaquetarse como APK (Android) o como app firmada para iOS.
