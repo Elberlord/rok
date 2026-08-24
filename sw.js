@@ -1,11 +1,11 @@
-const ROK_CACHE = 'rok-lite-v9-88-online-tiempo-real-audit';
+const ROK_CACHE = 'rok-lite-v9-89-modo-online-en-lobby';
 const ROK_SHELL = [
   './',
   './index.html',
-  './style.css?v=rok-v9-88-online-tiempo-real-audit',
-  './rok-layout-scale.js?v=rok-v9-88-online-tiempo-real-audit',
-  './game.js?v=rok-v9-88-online-tiempo-real-audit',
-  './firebase-online.js?v=rok-v9-88-online-tiempo-real-audit',
+  './style.css?v=rok-v9-89-modo-online-en-lobby',
+  './rok-layout-scale.js?v=rok-v9-89-modo-online-en-lobby',
+  './game.js?v=rok-v9-89-modo-online-en-lobby',
+  './firebase-online.js?v=rok-v9-89-modo-online-en-lobby',
   './assets/kast-cell-icon.jpg',
   './assets/pwa/rok-icon-192.png',
   './assets/pwa/rok-icon-512.png'

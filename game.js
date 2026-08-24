@@ -90,7 +90,7 @@ const OSCILLATION_PARALYSIS_LABEL_HOLD_MS = 260;
 const OSCILLATION_SUTOKA_REFERENCE_RANGE = 2;
 const OSCILLATION_SUTOKA_EMPTY_STEP_MS = 58;
 const OSCILLATION_SUTOKA_LINE_DELAY_MS = 34;
-const GAME_VERSION = 'v9.88-ONLINE-TIEMPO-REAL-AUDIT';
+const GAME_VERSION = 'v9.89-MODO-ONLINE-EN-LOBBY';
 // v9.57 · Kaguya: Disparo energizado pasa de 7 a 10 ciclos de canalización solo en Tiempo Real (Manual conserva 5). Fiabilidad de input RT: el clic principal del Spellbook durante Tiempo de Pensamiento reanuda la simulación y ejecuta el intento de kasteo; INFO conserva la inspección. Además, las resoluciones autónomas normales dejan de rechazar silenciosamente un clic de kasteo por actionExecutionLock/opponentActionResolving cuando el Tempo RT sigue corriendo.
 // v9.56 · Bypass de autenticación para pruebas locales: file://, localhost, loopback e IPs privadas de LAN entran al menú sin invocar Firebase Auth; Versus Online sigue bloqueado en ese modo. Conserva los ajustes de v9.55 de colisiones, Neru y FX de Edran.
 // v9.54 · Selección de ataque del Kaster restaurada: tocar su ficha en Resolución lo selecciona y muestra inmediatamente los objetivos laterales; durante Tiempo de Pensamiento los objetivos de Arena vuelven a ser clicables y abren Info/Atacar sin abrir el modal del Kaster. El panel lateral también incluye receptores aliados válidos como Edran para cargar Resonancia.
@@ -833,6 +833,7 @@ window.ROK_OPPONENT_ACTION_VIEW = {
 };
 
 const PATCH_NOTES = [
+  'v9.89 · El modo Manual/Tiempo real deja de elegirse antes de entrar a Versus Online. Ahora aparece como la primera configuración del lobby, el Host fija una sola opción compartida y LISTO la copia al loadout de ambos jugadores antes de iniciar. Se elimina así la divergencia que impedía marcar Listo al Invitado. La IA de las cartas no cambia.',
   'v9.88 · Auditoría PvP Online + Tiempo real: el Host conserva la autoridad única, las pausas tácticas remotas mantienen correctamente su propietario hasta cierre o vencimiento, el reloj activo descuenta pausas globales/desconexiones sin recuperar tiempo al volver y una réplica nunca deriva sus contadores desde el reloj local. Se endurece además la validación de órdenes remotas obsoletas. La IA de las cartas no cambia.',
   'v9.66 · Unificación de ramas + ajustes pedidos: integra PWA/zoom táctil/visor de casteos rivales/visor público PvP y responsive jerárquico de la rama v9.47 sobre la base v9.65; conserva recasteo automático, extracción RT Fuente→Kaster→HUD, Oda, Kiara y recarga de test. El Panel Dev Visual y AJUSTES VISUALES de combate pasan a flotantes, casi transparentes y arrastrables. Tiempo Real adopta Velocidad de ataque universal base 3 para desempatar ataques simultáneos, sumando los Factores de Velocidad de ataque existentes.',
   'v9.67 · Velocidad de ataque se separa formalmente en Estadística ofensiva y Factor. Todas las Invocaciones conservan base 3; Velocidad de ataque Nv.1–5 aporta +1/+2/+3/+4/+5. El modal muestra base + bono con desglose clicable, el Factor conserva su propio modal y se diferencia visualmente usando la paleta secundaria del Dominion. En Manual el orden de golpe vuelve a depender del turno; la comparación de Velocidad queda reservada a Tiempo Real.',
@@ -26520,12 +26521,19 @@ function confirmMatchSpellbookSelection() {
   const mode = matchSpellbookSelectMode;
   const loadout = serializeSpellbookMatchLoadout(spellbook);
   closeMatchSpellbookSelector();
+  if (mode === 'online') {
+    // v9.89 · Online ya no abre el selector local de Manual/Tiempo real.
+    // Esa configuración pertenece al lobby y la decide el Host para ambos.
+    pendingOnlineSpellbookLoadout = cloneMatchData(loadout);
+    window.ROK_ONLINE_PVP?.openLobby?.();
+    return;
+  }
   openMatchPlayStyleSelector({ mode, loadout });
 }
 
 window.ROK_SPELLBOOK_MATCH = {
   getPendingOnlineLoadout: () => cloneMatchData(pendingOnlineSpellbookLoadout),
-  openOnlineSelector: () => openMatchSpellbookSelector('online'),
+  openOnlineSelector: () => window.ROK_ONLINE_PVP?.openLobby?.(),
   clearPendingOnlineLoadout: () => { pendingOnlineSpellbookLoadout = null; },
   applyLoadoutToPlayer: (playerId, loadout) => applySpellbookLoadoutToPlayer(Number(playerId), loadout),
   getEffectiveCasterLevel: cardId => getCasterMatchProgress(cardId)?.level || 1,
@@ -26542,10 +26550,9 @@ window.ROK_SPELLBOOK_MATCH = {
     const spellbook = getSavedSpellbookById(id);
     if (!spellbook || getSpellbookMatchIssue(spellbook)) return null;
     safeLocalStorageSet(MATCH_SELECTED_SPELLBOOK_KEY, spellbook.id);
-    pendingOnlineSpellbookLoadout = {
-      ...serializeSpellbookMatchLoadout(spellbook),
-      playStyle: normalizeMatchPlayStyle(pendingOnlineSpellbookLoadout?.playStyle || safeLocalStorageGet(MATCH_PLAY_STYLE_KEY)),
-    };
+    // v9.89 · el modo Online no se hereda del almacenamiento local. El Host
+    // lo fija una sola vez dentro del lobby y Firebase lo replica a J2.
+    pendingOnlineSpellbookLoadout = serializeSpellbookMatchLoadout(spellbook);
     return cloneMatchData(pendingOnlineSpellbookLoadout);
   },
   getPreferredOnlineId() {
@@ -29198,7 +29205,7 @@ function bindEvents() {
       if (encounter.available) prepareSelectedAdventureEncounter();
     });
   }
-  if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', () => openMatchSpellbookSelector('online'));
+  if (els.mainMenuOnlineBtn) els.mainMenuOnlineBtn.addEventListener('click', () => window.ROK_ONLINE_PVP?.openLobby?.());
   if (els.mainMenuLibraryBtn) els.mainMenuLibraryBtn.addEventListener('click', () => openLibraryBuilderScreen({ mode: 'idle' }));
   if (els.mainMenuSpellbooksBtn) els.mainMenuSpellbooksBtn.addEventListener('click', () => openSpellbooksCollectionScreen());
   if (els.mainMenuShopBtn) els.mainMenuShopBtn.addEventListener('click', () => openBoosterStoreScreen('main'));

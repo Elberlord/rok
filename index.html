@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/pwa/rok-icon-192.png" />
-  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=rok-v9-88-online-tiempo-real-audit" />
+  <link id="mainStylesheet" rel="stylesheet" href="style.css?v=rok-v9-89-modo-online-en-lobby" />
   <link rel="icon" href="assets/kast-cell-icon.jpg" />
 </head>
 <body>
@@ -786,6 +786,22 @@
             <b id="onlineGuestReady" class="online-player-ready">NO LISTO</b>
           </article>
         </div>
+
+        <section id="onlinePlayStylePanel" class="online-play-style-panel" aria-labelledby="onlinePlayStyleName">
+          <div class="online-play-style-copy">
+            <span class="online-room-label">1 · MODO DE PARTIDA · ELIGE EL HOST</span>
+            <strong id="onlinePlayStyleName">Manual por turnos</strong>
+            <small id="onlinePlayStyleHelp">El Host selecciona el modo que usarán ambos jugadores.</small>
+          </div>
+          <div class="online-play-style-options" role="radiogroup" aria-label="Modo de partida online">
+            <button id="onlinePlayStyleManualBtn" class="online-play-style-option selected" type="button" role="radio" aria-checked="true">
+              <span aria-hidden="true">▦</span><b>MANUAL</b><small>Turnos y fases</small>
+            </button>
+            <button id="onlinePlayStyleRealtimeBtn" class="online-play-style-option online-play-style-option-realtime" type="button" role="radio" aria-checked="false">
+              <span aria-hidden="true">⏱</span><b>TIEMPO REAL</b><small>Acción simultánea</small>
+            </button>
+          </div>
+        </section>
 
         <div class="online-room-setup-grid online-room-carousel-grid">
           <section class="online-room-setup-panel online-spellbook-panel">
@@ -1805,13 +1821,13 @@
       });
     }());
   </script>
-  <script src="rok-layout-scale.js?v=rok-v9-88-online-tiempo-real-audit"></script>
-  <script src="game.js?v=rok-v9-88-online-tiempo-real-audit"></script>
-  <script src="firebase-online.js?v=rok-v9-88-online-tiempo-real-audit"></script>
+  <script src="rok-layout-scale.js?v=rok-v9-89-modo-online-en-lobby"></script>
+  <script src="game.js?v=rok-v9-89-modo-online-en-lobby"></script>
+  <script src="firebase-online.js?v=rok-v9-89-modo-online-en-lobby"></script>
   <script>
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=rok-v9-88-online-tiempo-real-audit').catch(function (err) {
+        navigator.serviceWorker.register('./sw.js?v=rok-v9-89-modo-online-en-lobby').catch(function (err) {
           try { console.warn('[ROK PWA] No se pudo registrar el service worker.', err); } catch (_) {}
         });
       });

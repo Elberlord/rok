@@ -465,6 +465,11 @@
     ui.status = document.getElementById('onlineLobbyStatus');
     ui.startBtn = document.getElementById('onlineStartMatchBtn');
     ui.readyBtn = ui.startBtn;
+    ui.playStylePanel = document.getElementById('onlinePlayStylePanel');
+    ui.playStyleName = document.getElementById('onlinePlayStyleName');
+    ui.playStyleHelp = document.getElementById('onlinePlayStyleHelp');
+    ui.playStyleManualBtn = document.getElementById('onlinePlayStyleManualBtn');
+    ui.playStyleRealtimeBtn = document.getElementById('onlinePlayStyleRealtimeBtn');
     ui.localSpellbookName = document.getElementById('onlineLocalSpellbookName');
     ui.spellbookCarouselViewport = document.getElementById('onlineSpellbookCarouselViewport');
     ui.spellbookPrevBtn = document.getElementById('onlineSpellbookPrevBtn');
@@ -509,6 +514,8 @@
     if (ui.joinBackBtn) ui.joinBackBtn.disabled = disabled;
     if (ui.joinRefreshBtn) ui.joinRefreshBtn.disabled = disabled;
     if (disabled) {
+      if (ui.playStyleManualBtn) ui.playStyleManualBtn.disabled = true;
+      if (ui.playStyleRealtimeBtn) ui.playStyleRealtimeBtn.disabled = true;
       if (ui.spellbookPrevBtn) ui.spellbookPrevBtn.disabled = true;
       if (ui.spellbookNextBtn) ui.spellbookNextBtn.disabled = true;
       if (ui.arenaPrevBtn) ui.arenaPrevBtn.disabled = true;
@@ -549,6 +556,36 @@
     return playerUid ? (room?.players?.[playerUid] || null) : null;
   }
 
+  // v9.89 · El modo Online pertenece al lobby, no a una preferencia local de
+  // cada navegador. J1 conserva la única selección y J2 la observa en vivo.
+  // El fallback mantiene compatibles las salas v9.88 ya abiertas.
+  function getLobbyPlayStyle(room = roomCache) {
+    const hostRecord = getRoomPlayerRecord(room, 1);
+    return normalizeOnlinePlayStyle(hostRecord?.lobbyPlayStyle || hostRecord?.loadout?.playStyle || 'manual');
+  }
+
+  function withLobbyPlayStyle(loadout, playStyle = getLobbyPlayStyle()) {
+    if (!loadout || typeof loadout !== 'object') return loadout;
+    return { ...deepClone(loadout), playStyle: normalizeOnlinePlayStyle(playStyle) };
+  }
+
+  function areLobbyPlayersReady(room = roomCache) {
+    const p1 = getRoomPlayerRecord(room, 1);
+    const p2 = getRoomPlayerRecord(room, 2);
+    const playStyle = getLobbyPlayStyle(room);
+    return Boolean(
+      room?.guestUid
+      && p1?.connected
+      && p2?.connected
+      && p1?.ready
+      && p2?.ready
+      && !getLoadoutIssue(p1?.loadout)
+      && !getLoadoutIssue(p2?.loadout)
+      && normalizeOnlinePlayStyle(p1?.loadout?.playStyle) === playStyle
+      && normalizeOnlinePlayStyle(p2?.loadout?.playStyle) === playStyle
+    );
+  }
+
 
   function normalizeArenaId(value) {
     const id = String(value || 'classic');
@@ -573,7 +610,7 @@
     if (ui.roomView) ui.roomView.hidden = onlineLobbyView !== 'room';
     if (ui.title) ui.title.textContent = onlineLobbyView === 'room' ? 'Lobby de partida' : (onlineLobbyView === 'join' ? 'Partidas de amigos' : 'Duelo entre amigos');
     if (ui.copy) ui.copy.textContent = onlineLobbyView === 'room'
-      ? 'Selecciona tu Spellbook. El Host elige la arena. Cuando ambos jugadores estén listos, el duelo comienza automáticamente.'
+      ? 'El Host elige el modo y la arena. Cada jugador selecciona su Spellbook. Cuando ambos estén listos, el duelo comienza automáticamente.'
       : (onlineLobbyView === 'join'
         ? 'Solo aparecen partidas abiertas por jugadores que ya están en tu lista de amigos.'
         : 'Crea una partida o entra a una partida abierta por uno de tus amigos.');
@@ -818,6 +855,66 @@
     }
   }
 
+  function renderOnlinePlayStyle(room, locked = false) {
+    const playStyle = getLobbyPlayStyle(room);
+    const realtime = playStyle === 'realtime';
+    const p1 = getRoomPlayerRecord(room, 1);
+    const p2 = getRoomPlayerRecord(room, 2);
+    const readyLocked = Boolean(p1?.ready || p2?.ready);
+    const canEdit = playerSlot === 1 && !locked && !readyLocked;
+    if (ui.playStylePanel) {
+      ui.playStylePanel.dataset.playStyle = playStyle;
+      ui.playStylePanel.classList.toggle('is-guest-view', playerSlot !== 1);
+      ui.playStylePanel.classList.toggle('is-locked', !canEdit);
+    }
+    if (ui.playStyleName) ui.playStyleName.textContent = realtime ? 'Tiempo real' : 'Manual por turnos';
+    if (ui.playStyleHelp) {
+      ui.playStyleHelp.textContent = readyLocked
+        ? 'El modo queda bloqueado mientras algún jugador esté en LISTO.'
+        : (playerSlot === 1
+          ? 'Tu elección se aplicará automáticamente a ambos jugadores.'
+          : 'El Host selecciona el modo que usarán ambos jugadores.');
+    }
+    const syncButton = (button, selected) => {
+      if (!button) return;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-checked', selected ? 'true' : 'false');
+      button.disabled = !canEdit;
+    };
+    syncButton(ui.playStyleManualBtn, !realtime);
+    syncButton(ui.playStyleRealtimeBtn, realtime);
+  }
+
+  async function changeLobbyPlayStyle(playStyle) {
+    if (!roomPath || playerSlot !== 1 || !roomCache || roomCache.status === 'countdown') return false;
+    const p1 = getRoomPlayerRecord(roomCache, 1);
+    const p2 = getRoomPlayerRecord(roomCache, 2);
+    if (p1?.ready || p2?.ready) {
+      setStatus('Cancela LISTO en ambos jugadores antes de cambiar el modo.', 'error');
+      return false;
+    }
+    const normalized = normalizeOnlinePlayStyle(playStyle);
+    if (normalized === getLobbyPlayStyle(roomCache)) return true;
+    try {
+      const api = await loadFirebase();
+      const updates = {
+        lobbyPlayStyle: normalized,
+        ready: false,
+        lastSeenAt: api.serverTimestamp(),
+      };
+      if (p1?.loadout) updates.loadout = withLobbyPlayStyle(p1.loadout, normalized);
+      await api.update(api.ref(db, `${roomPath}/players/${uid}`), updates);
+      setStatus(normalized === 'realtime'
+        ? 'Modo Tiempo real seleccionado para ambos jugadores.'
+        : 'Modo Manual seleccionado para ambos jugadores.', 'ok');
+      return true;
+    } catch (error) {
+      reportOnlineError(error, 'No se pudo cambiar el modo del lobby');
+      setStatus(readableFirebaseError(error), 'error');
+      return false;
+    }
+  }
+
   async function shiftOnlineArena(direction) {
     if (playerSlot !== 1 || !roomCache || roomCache.status === 'countdown' || !CONCRETE_ARENA_IDS.length) return;
     const currentId = normalizeArenaId(roomCache.arenaId);
@@ -841,6 +938,7 @@
     renderLobbyPlayer(p2, 2, room);
     const localRecord = getRoomPlayerRecord(room, playerSlot);
     const localLoadout = localRecord?.loadout || getLocalSelectedLoadout();
+    renderOnlinePlayStyle(room, room.status === 'countdown');
     renderOnlineSpellbookCarousel(localLoadout, room.status === 'countdown');
     if (ui.roomRole) ui.roomRole.textContent = playerSlot === 1 ? 'HOST · JUGADOR 1' : 'INVITADO · JUGADOR 2';
     if (ui.roomName) ui.roomName.textContent = room.status === 'countdown' ? 'El duelo está por comenzar' : 'Preparando duelo';
@@ -948,10 +1046,13 @@
     if (!roomPath || !playerSlot) return true;
     try {
       const api = await loadFirebase();
+      const playStyle = getLobbyPlayStyle(roomCache);
+      const synchronizedLoadout = withLobbyPlayStyle(loadout, playStyle);
       await api.update(api.ref(db, `${roomPath}/players/${uid}`), {
-        loadout,
+        loadout: synchronizedLoadout,
+        ...(playerSlot === 1 ? { lobbyPlayStyle: playStyle } : {}),
         ready: false,
-        lastSeenAt: Date.now(),
+        lastSeenAt: api.serverTimestamp(),
       });
       setStatus(`Spellbook “${loadout.name}” seleccionado.`, 'ok');
       return true;
@@ -968,15 +1069,16 @@
     const loadout = localRecord?.loadout || getLocalSelectedLoadout();
     const issue = getLoadoutIssue(loadout);
     if (issue || !loadout) { setStatus(issue || 'Selecciona tu Spellbook antes de marcar Listo.', 'error'); return; }
-    const otherRecord = getRoomPlayerRecord(roomCache, playerSlot === 1 ? 2 : 1);
-    if (otherRecord?.loadout && normalizeOnlinePlayStyle(otherRecord.loadout.playStyle) !== normalizeOnlinePlayStyle(loadout.playStyle)) {
-      setStatus('Los dos jugadores deben seleccionar el mismo modo: Manual o Tiempo real.', 'error');
-      return;
-    }
     if (!localRecord?.connected) { setStatus('Tu conexión al lobby todavía no está lista.', 'error'); return; }
     try {
       const api = await loadFirebase();
-      await api.update(api.ref(db, `${roomPath}/players/${uid}`), { ready: !Boolean(localRecord?.ready), lastSeenAt: Date.now() });
+      const playStyle = getLobbyPlayStyle(roomCache);
+      await api.update(api.ref(db, `${roomPath}/players/${uid}`), {
+        loadout: withLobbyPlayStyle(loadout, playStyle),
+        ...(playerSlot === 1 ? { lobbyPlayStyle: playStyle } : {}),
+        ready: !Boolean(localRecord?.ready),
+        lastSeenAt: api.serverTimestamp(),
+      });
     } catch (error) {
       reportOnlineError(error, 'No se pudo cambiar el estado Listo');
       setStatus(readableFirebaseError(error), 'error');
@@ -1001,9 +1103,7 @@
 
   async function beginLobbyCountdown() {
     if (playerSlot !== 1 || !roomPath || !roomCache || roomCache.status === 'countdown') return;
-    const p1 = getRoomPlayerRecord(roomCache, 1);
-    const p2 = getRoomPlayerRecord(roomCache, 2);
-    const bothReady = Boolean(roomCache.guestUid && p1?.connected && p2?.connected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout) && normalizeOnlinePlayStyle(p1?.loadout?.playStyle) === normalizeOnlinePlayStyle(p2?.loadout?.playStyle));
+    const bothReady = areLobbyPlayersReady(roomCache);
     if (!bothReady) return;
     try {
       const api = await loadFirebase();
@@ -1059,7 +1159,7 @@
       const p1 = getRoomPlayerRecord(room, 1);
       const p2 = getRoomPlayerRecord(room, 2);
       const guestPresent = Boolean(room.guestUid && p2?.uid);
-      const bothReady = Boolean(guestPresent && p1?.connected && p2?.connected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout) && normalizeOnlinePlayStyle(p1?.loadout?.playStyle) === normalizeOnlinePlayStyle(p2?.loadout?.playStyle));
+      const bothReady = Boolean(guestPresent && areLobbyPlayersReady(room));
 
       if (!guestPresent && room.status !== 'open') {
         await api.update(api.ref(db, roomPath), { status: 'open', startAt: null });
@@ -1341,6 +1441,16 @@
   function runOnlineProtocolSelfTest() {
     const transport = runTransportHashSelfTest();
     const requiredSnapshotKeys = ['playStyle', 'realtime', 'players', 'gameOver', 'matchSerial'];
+    const lobbyModeProbe = {
+      hostUid: '__host__',
+      guestUid: '__guest__',
+      players: {
+        __host__: { lobbyPlayStyle: 'realtime', loadout: { playStyle: 'manual' } },
+        __guest__: { loadout: { playStyle: 'manual' } },
+      },
+    };
+    const lobbyModeProbeResult = getLobbyPlayStyle(lobbyModeProbe);
+    const synchronizedGuestProbe = withLobbyPlayStyle(lobbyModeProbe.players.__guest__.loadout, lobbyModeProbeResult);
     const checks = [
       {
         id: 'snapshot-contract',
@@ -1357,6 +1467,14 @@
         id: 'single-realtime-authority',
         ok: typeof isRealtimeAuthority === 'function' && typeof window.ROK_REALTIME?.applyOnlineCommand === 'function',
         detail: 'Host/J1 publica; Invitado/J2 envía órdenes',
+      },
+      {
+        id: 'single-lobby-play-style',
+        ok: lobbyModeProbeResult === 'realtime'
+          && synchronizedGuestProbe?.playStyle === 'realtime'
+          && typeof changeLobbyPlayStyle === 'function'
+          && typeof areLobbyPlayersReady === 'function',
+        detail: `${lobbyModeProbeResult} → J2 ${synchronizedGuestProbe?.playStyle || 'sin modo'}`,
       },
       {
         id: 'transport-hash',
@@ -2130,7 +2248,8 @@
           avatarUrl: profile.casterAvatarUrl || '',
           level: normalizeAccountLevel(profile.level),
         };
-        if (selectedLoadout && !getLoadoutIssue(selectedLoadout)) playerRecord.loadout = selectedLoadout;
+        playerRecord.lobbyPlayStyle = 'manual';
+        if (selectedLoadout && !getLoadoutIssue(selectedLoadout)) playerRecord.loadout = withLobbyPlayStyle(selectedLoadout, 'manual');
         await api.set(api.ref(db, `${candidatePath}/players/${uid}`), playerRecord);
         await api.set(api.ref(db, `${OPEN_ROOMS_ROOT}/${uid}/${candidate}`), {
           hostUid: uid,
@@ -2213,7 +2332,8 @@
         avatarUrl: profile.casterAvatarUrl || '',
         level: normalizeAccountLevel(profile.level),
       };
-      if (selectedLoadout && !getLoadoutIssue(selectedLoadout)) playerRecord.loadout = selectedLoadout;
+      const lobbyPlayStyle = getLobbyPlayStyle(claimedRoom);
+      if (selectedLoadout && !getLoadoutIssue(selectedLoadout)) playerRecord.loadout = withLobbyPlayStyle(selectedLoadout, lobbyPlayStyle);
       try {
         await api.set(api.ref(db, `${targetPath}/players/${uid}`), playerRecord);
       } catch (error) {
@@ -2472,20 +2592,18 @@
       if (resetOk === false) throw new Error('No se pudo reiniciar el estado local del host.');
 
       applyArenaToBattle(roomCache?.arenaId);
-      const hostLoadout = getRoomPlayerRecord(roomCache, 1)?.loadout;
-      const guestLoadout = getRoomPlayerRecord(roomCache, 2)?.loadout;
+      const lobbyPlayStyle = getLobbyPlayStyle(roomCache);
+      const hostLoadout = withLobbyPlayStyle(getRoomPlayerRecord(roomCache, 1)?.loadout, lobbyPlayStyle);
+      const guestLoadout = withLobbyPlayStyle(getRoomPlayerRecord(roomCache, 2)?.loadout, lobbyPlayStyle);
       const hostIssue = getLoadoutIssue(hostLoadout);
       const guestIssue = getLoadoutIssue(guestLoadout);
       if (hostIssue || guestIssue) throw new Error(hostIssue || guestIssue || 'Falta un Spellbook válido para la revancha.');
-      const hostPlayStyle = normalizeOnlinePlayStyle(hostLoadout?.playStyle);
-      const guestPlayStyle = normalizeOnlinePlayStyle(guestLoadout?.playStyle);
-      if (hostPlayStyle !== guestPlayStyle) throw new Error('Ambos jugadores deben usar el mismo modo en la revancha.');
-      state.playStyle = hostPlayStyle;
+      state.playStyle = lobbyPlayStyle;
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
       initializeElementDecks();
       state.gameOver = false;
-      if (hostPlayStyle === 'realtime') {
+      if (lobbyPlayStyle === 'realtime') {
         state.openingElementsDealt = true;
         state.actionExecutionLock = false;
         state.actionExecutionLockReason = '';
@@ -2756,7 +2874,7 @@
       if (playerSlot === 1) void reconcileLobbyAsHost(room);
 
       const bothConnected = Boolean(room.guestUid && p1?.connected && p2?.connected);
-      const bothReady = Boolean(bothConnected && p1?.ready && p2?.ready && !getLoadoutIssue(p1?.loadout) && !getLoadoutIssue(p2?.loadout) && normalizeOnlinePlayStyle(p1?.loadout?.playStyle) === normalizeOnlinePlayStyle(p2?.loadout?.playStyle));
+      const bothReady = areLobbyPlayersReady(room);
 
       if (room.status === 'countdown' && room.startAt && bothReady) {
         renderLobbyCountdown(room.startAt);
@@ -2822,19 +2940,17 @@
       mainMenuBattleStarted = true;
       const hostRecord = getRoomPlayerRecord(roomCache, 1);
       const guestRecord = getRoomPlayerRecord(roomCache, 2);
-      const hostLoadout = hostRecord?.loadout;
-      const guestLoadout = guestRecord?.loadout;
+      const lobbyPlayStyle = getLobbyPlayStyle(roomCache);
+      const hostLoadout = withLobbyPlayStyle(hostRecord?.loadout, lobbyPlayStyle);
+      const guestLoadout = withLobbyPlayStyle(guestRecord?.loadout, lobbyPlayStyle);
       const hostIssue = getLoadoutIssue(hostLoadout);
       const guestIssue = getLoadoutIssue(guestLoadout);
       if (hostIssue || guestIssue) throw new Error(hostIssue || guestIssue || 'Falta un Spellbook válido.');
-      const hostPlayStyle = normalizeOnlinePlayStyle(hostLoadout?.playStyle);
-      const guestPlayStyle = normalizeOnlinePlayStyle(guestLoadout?.playStyle);
-      if (hostPlayStyle !== guestPlayStyle) throw new Error('Ambos jugadores deben elegir el mismo modo: Manual o Tiempo real.');
-      state.playStyle = hostPlayStyle;
+      state.playStyle = lobbyPlayStyle;
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(1, hostLoadout);
       window.ROK_SPELLBOOK_MATCH?.applyLoadoutToPlayer?.(2, guestLoadout);
       initializeElementDecks();
-      if (hostPlayStyle === 'realtime') {
+      if (lobbyPlayStyle === 'realtime') {
         state.openingElementsDealt = true;
         state.actionExecutionLock = false;
         state.actionExecutionLockReason = '';
@@ -5551,6 +5667,8 @@
     ui.joinRefreshBtn?.addEventListener('click', () => { void startAvailableRoomListeners(); });
     ui.copyBtn?.addEventListener('click', () => { void copyRoomCode(); });
     ui.readyBtn?.addEventListener('click', () => { void toggleLobbyReady(); });
+    ui.playStyleManualBtn?.addEventListener('click', () => { void changeLobbyPlayStyle('manual'); });
+    ui.playStyleRealtimeBtn?.addEventListener('click', () => { void changeLobbyPlayStyle('realtime'); });
     ui.spellbookPrevBtn?.addEventListener('click', () => { void shiftOnlineSpellbook(-1); });
     ui.spellbookNextBtn?.addEventListener('click', () => { void shiftOnlineSpellbook(1); });
     ui.arenaPrevBtn?.addEventListener('click', () => { void shiftOnlineArena(-1); });
@@ -5616,6 +5734,7 @@
     createRoom,
     joinRoom,
     setLobbyLoadout,
+    setLobbyPlayStyle: changeLobbyPlayStyle,
     showJoinBrowser,
     leaveRoom,
     reconnectSavedMatch,
@@ -5644,6 +5763,7 @@
       revision: lastKnownRevision,
       active: ROK_ONLINE_MATCH_ACTIVE,
       playStyle: normalizeOnlinePlayStyle(state?.playStyle),
+      lobbyPlayStyle: getLobbyPlayStyle(roomCache),
       realtimeAuthority: isRealtimeAuthority(),
       observedPhaseKey: lastObservedPhaseKey,
       startedPhaseKey: lastStartedPhaseKey,

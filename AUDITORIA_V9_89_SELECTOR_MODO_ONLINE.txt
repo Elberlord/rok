@@ -1,0 +1,53 @@
+ROK v9.89 — SELECTOR DE MODO DENTRO DEL LOBBY ONLINE
+======================================================
+
+Problema corregido
+------------------
+Manual/Tiempo real se elegía antes de abrir Versus Online y quedaba guardado
+como una preferencia local dentro del loadout de cada navegador. El Invitado
+podía entrar con otro valor o sin haber visto el selector, por lo que LISTO
+mostraba: “Los dos jugadores deben seleccionar el mismo modo”.
+
+Flujo nuevo
+-----------
+1. Versus Online abre directamente Crear partida / Unirse.
+2. Dentro de la sala, antes del Spellbook y la arena, aparece MODO DE PARTIDA.
+3. El Host/J1 elige Manual o Tiempo real.
+4. El Invitado/J2 ve la misma elección sincronizada, pero no puede cambiarla.
+5. Al pulsar LISTO, el modo del Host se copia automáticamente al loadout local
+   de cada jugador mediante la misma escritura de Firebase.
+6. La cuenta regresiva solo comienza cuando los dos loadouts confirman el modo
+   único del lobby.
+7. Cuando cualquiera marca LISTO, el selector se bloquea. Para cambiar el modo,
+   ambos deben cancelar LISTO primero.
+
+Compatibilidad
+--------------
+- No requiere publicar reglas nuevas de Firebase: la configuración vive en el
+  registro del Host, que ya está autorizado por las reglas actuales.
+- Las salas antiguas sin el nuevo campo usan como respaldo el modo del loadout
+  del Host.
+- La revancha conserva el mismo modo compartido.
+- Manual y Tiempo real siguen usando sus inicializaciones independientes.
+- No se modificó la IA, las prioridades ni los parámetros de ninguna carta.
+
+Validaciones
+------------
+- Sintaxis de game.js, firebase-online.js y sw.js.
+- Selector presente antes de Spellbook/Arena en el DOM.
+- Identificadores del selector únicos y conectados a sus controles.
+- La entrada a Versus Online ya no abre el selector previo de jugabilidad.
+- El Host prevalece sobre preferencias locales antiguas.
+- LISTO sincroniza el modo en Host e Invitado.
+- Contrato de snapshot, hash y autoridad única de Tiempo real conservados.
+- Arranque del motor Tiempo real y reloj de pausas conservados.
+
+Prueba rápida recomendada
+-------------------------
+1. J1 crea la sala; confirmar que Manual aparece seleccionado.
+2. J2 entra; confirmar que ve Manual y los botones están bloqueados.
+3. J1 cambia a Tiempo real; confirmar que J2 lo ve sin recargar.
+4. J2 pulsa LISTO y luego J1; confirmar inicio en Tiempo real sin aviso rojo.
+5. Repetir en Manual.
+6. Confirmar que, si alguien ya está LISTO, el Host no puede cambiar el modo
+   hasta que se cancele ese estado.
